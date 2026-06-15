@@ -216,10 +216,10 @@ jobs:
           SWIFTCI_ALLOW_UNSIGNED_TOOLS=1 pnpm run plugin:cua:build:mac:${{ matrix.arch }}
           pnpm run plugin:bundle -- --name cua --platform darwin --arch ${{ matrix.arch }}
           pnpm run plugin:bundle -- --name feishu --platform darwin --arch ${{ matrix.arch }}
-          pnpm exec electron-builder --mac --${{ matrix.arch }} --publish=never
+          pnpm exec electron-builder --mac --${{ matrix.arch }} --publish=never --no-sign
         env:
-          CSC_LINK: ${{ secrets.DEEPCHAT_CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.DEEPCHAT_CSC_KEY_PASS }}
+          # CSC_LINK: ${{ secrets.DEEPCHAT_CSC_LINK }}
+          # CSC_KEY_PASSWORD: ${{ secrets.DEEPCHAT_CSC_KEY_PASS }}
           DEEPCHAT_APPLE_NOTARY_USERNAME: ${{ secrets.DEEPCHAT_APPLE_NOTARY_USERNAME }}
           DEEPCHAT_APPLE_NOTARY_TEAM_ID: ${{ secrets.DEEPCHAT_APPLE_NOTARY_TEAM_ID }}
           DEEPCHAT_APPLE_NOTARY_PASSWORD: ${{ secrets.DEEPCHAT_APPLE_NOTARY_PASSWORD }}
