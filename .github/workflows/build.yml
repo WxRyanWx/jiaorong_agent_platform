@@ -213,7 +213,7 @@ jobs:
       - name: Build Mac
         run: |
           pnpm run build
-          SWIFTCI_ALLOW_UNSIGNED_TOOLS=1 pnpm run plugin:cua:build:mac:${{ matrix.arch }}
+          SWIFTCI_ALLOW_UNSIGNED_TOOLS=1 SKIP_RELEASE_SIGN=1 pnpm run plugin:cua:build:mac:${{ matrix.arch }}
           pnpm run plugin:bundle -- --name cua --platform darwin --arch ${{ matrix.arch }}
           pnpm run plugin:bundle -- --name feishu --platform darwin --arch ${{ matrix.arch }}
           pnpm exec electron-builder --mac --${{ matrix.arch }} --publish=never

@@ -262,13 +262,18 @@ function validateArchitecture(binaryPath, targetArch) {
 
 async function signHelper(helperAppPath) {
   const entitlementsPath = path.join(pluginDir, "build", "entitlements.plist");
-  const signedForRelease = await signMacHelperForRelease({
-    appPath: helperAppPath,
-    entitlementsPath,
-    cwd: rootDir,
-  });
-  if (signedForRelease) {
-    return;
+  // 通过环境变量控制是否跳过正式发布签名
+  const skipReleaseSign = process.env.SKIP_RELEASE_SIGN === "1";
+
+  if (!skipReleaseSign) {
+    const signedForRelease = await signMacHelperForRelease({
+      appPath: helperAppPath,
+      entitlementsPath,
+      cwd: rootDir,
+    });
+    if (signedForRelease) {
+      return;
+    }
   }
 
   run("codesign", [
@@ -323,30 +328,30 @@ async function main() {
   await fs.mkdir(workRoot, { recursive: true });
 
   run(
-  'swift',
-  [
-    'build',
-    '-c',
-    'release',
-    '--arch',
-    archMap[requestedArch].swift,
-    '--product',
-    helperBinaryName,
-    '--package-path',
-    vendorSourceDir,
-    '--scratch-path',
-    scratchPath
-  ],
-  {
-    env: {
-      ...process.env,
-      // 新增这一行，允许无开发者ID证书编译
-      SWIFTCI_ALLOW_UNSIGNED_TOOLS: '1',
-      CUA_DRIVER_TELEMETRY_ENABLED: '0',
-      CUA_DRIVER_AUTO_UPDATE_ENABLED: '0'
-    }
-  }
-)
+    "swift",
+    [
+      "build",
+      "-c",
+      "release",
+      "--arch",
+      archMap[requestedArch].swift,
+      "--product",
+      helperBinaryName,
+      "--package-path",
+      vendorSourceDir,
+      "--scratch-path",
+      scratchPath,
+    ],
+    {
+      env: {
+        ...process.env,
+        // 新增这一行，允许无开发者ID证书编译
+        SWIFTCI_ALLOW_UNSIGNED_TOOLS: "1",
+        CUA_DRIVER_TELEMETRY_ENABLED: "0",
+        CUA_DRIVER_AUTO_UPDATE_ENABLED: "0",
+      },
+    },
+  );
 
   const builtBinary = await findBuiltBinary(scratchPath);
   const helperAppPath = await stageApp(
