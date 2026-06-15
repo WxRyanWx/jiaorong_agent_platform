@@ -1,175 +1,190 @@
-import { execFileSync, spawnSync } from 'node:child_process'
-import fs from 'node:fs/promises'
-import fsSync from 'node:fs'
-import os from 'node:os'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
-import { signMacHelperForRelease } from './sign-cua-helper.mjs'
+import { execFileSync, spawnSync } from "node:child_process";
+import fs from "node:fs/promises";
+import fsSync from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { signMacHelperForRelease } from "./sign-cua-helper.mjs";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = process.env.DEEPCHAT_ROOT_DIR
   ? path.resolve(process.env.DEEPCHAT_ROOT_DIR)
-  : path.resolve(__dirname, '..')
+  : path.resolve(__dirname, "..");
 const pluginDir = process.env.DEEPCHAT_CUA_PLUGIN_DIR
   ? path.resolve(process.env.DEEPCHAT_CUA_PLUGIN_DIR)
-  : path.join(rootDir, 'plugins', 'cua')
+  : path.join(rootDir, "plugins", "cua");
 const vendorRoot = process.env.DEEPCHAT_CUA_VENDOR_ROOT
   ? path.resolve(process.env.DEEPCHAT_CUA_VENDOR_ROOT)
-  : path.join(pluginDir, 'vendor', 'cua-driver')
-const vendorSourceDir = path.join(vendorRoot, 'source')
-const upstreamMetadataPath = path.join(vendorRoot, 'upstream.json')
-const helperAppName = 'DeepChat Computer Use'
-const helperAppDirName = `${helperAppName}.app`
-const helperBinaryName = 'cua-driver'
+  : path.join(pluginDir, "vendor", "cua-driver");
+const vendorSourceDir = path.join(vendorRoot, "source");
+const upstreamMetadataPath = path.join(vendorRoot, "upstream.json");
+const helperAppName = "DeepChat Computer Use";
+const helperAppDirName = `${helperAppName}.app`;
+const helperBinaryName = "cua-driver";
 
 const archMap = {
   arm64: {
-    swift: 'arm64',
-    lipo: 'arm64'
+    swift: "arm64",
+    lipo: "arm64",
   },
   x64: {
-    swift: 'x86_64',
-    lipo: 'x86_64'
-  }
-}
+    swift: "x86_64",
+    lipo: "x86_64",
+  },
+};
 
 function parseArgs(argv) {
-  const args = new Map()
+  const args = new Map();
   for (let index = 0; index < argv.length; index += 1) {
-    const arg = argv[index]
-    if (!arg.startsWith('--')) {
-      continue
+    const arg = argv[index];
+    if (!arg.startsWith("--")) {
+      continue;
     }
-    const key = arg.slice(2)
-    const next = argv[index + 1]
-    if (next && !next.startsWith('--')) {
-      args.set(key, next)
-      index += 1
+    const key = arg.slice(2);
+    const next = argv[index + 1];
+    if (next && !next.startsWith("--")) {
+      args.set(key, next);
+      index += 1;
     } else {
-      args.set(key, 'true')
+      args.set(key, "true");
     }
   }
-  return args
+  return args;
 }
 
 function run(command, args, options = {}) {
-  console.log(`$ ${command} ${args.join(' ')}`)
+  console.log(`$ ${command} ${args.join(" ")}`);
   execFileSync(command, args, {
     cwd: rootDir,
-    stdio: 'inherit',
-    ...options
-  })
+    stdio: "inherit",
+    ...options,
+  });
 }
 
 function read(command, args, options = {}) {
   return execFileSync(command, args, {
     cwd: rootDir,
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'pipe'],
-    ...options
-  }).trim()
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+    ...options,
+  }).trim();
 }
 
-function ensureTool(command, args = ['--version']) {
-  const result = spawnSync(command, args, { stdio: 'ignore' })
+function ensureTool(command, args = ["--version"]) {
+  const result = spawnSync(command, args, { stdio: "ignore" });
   if (result.error) {
-    throw new Error(`Required tool is missing: ${command}`)
+    throw new Error(`Required tool is missing: ${command}`);
   }
 }
 
 async function pathExists(targetPath) {
   try {
-    await fs.access(targetPath)
-    return true
+    await fs.access(targetPath);
+    return true;
   } catch {
-    return false
+    return false;
   }
 }
 
 async function readUpstreamMetadata() {
-  let metadata
+  let metadata;
   try {
-    metadata = JSON.parse(await fs.readFile(upstreamMetadataPath, 'utf8'))
+    metadata = JSON.parse(await fs.readFile(upstreamMetadataPath, "utf8"));
   } catch (error) {
     throw new Error(
-      `Unable to read CUA upstream metadata at ${path.relative(rootDir, upstreamMetadataPath)}: ${error instanceof Error ? error.message : error}`
-    )
+      `Unable to read CUA upstream metadata at ${path.relative(rootDir, upstreamMetadataPath)}: ${error instanceof Error ? error.message : error}`,
+    );
   }
 
   const requiredFields = [
-    'sourceKind',
-    'upstreamRepo',
-    'upstreamSubdir',
-    'tag',
-    'commit',
-    'version',
-    'updatedAt',
-    'forkPolicy'
-  ]
+    "sourceKind",
+    "upstreamRepo",
+    "upstreamSubdir",
+    "tag",
+    "commit",
+    "version",
+    "updatedAt",
+    "forkPolicy",
+  ];
   for (const field of requiredFields) {
-    if (typeof metadata[field] !== 'string' || metadata[field].length === 0) {
-      throw new Error(`CUA upstream metadata is missing required string field: ${field}`)
+    if (typeof metadata[field] !== "string" || metadata[field].length === 0) {
+      throw new Error(
+        `CUA upstream metadata is missing required string field: ${field}`,
+      );
     }
   }
-  if (metadata.sourceKind !== 'deepchat-owned-fork') {
-    throw new Error(`CUA vendor sourceKind must be deepchat-owned-fork, got ${metadata.sourceKind}`)
+  if (metadata.sourceKind !== "deepchat-owned-fork") {
+    throw new Error(
+      `CUA vendor sourceKind must be deepchat-owned-fork, got ${metadata.sourceKind}`,
+    );
   }
-  return metadata
+  return metadata;
 }
 
 async function validateVendorSource(metadata) {
-  const packagePath = path.join(vendorSourceDir, 'Package.swift')
-  const sourcesPath = path.join(vendorSourceDir, 'Sources')
+  const packagePath = path.join(vendorSourceDir, "Package.swift");
+  const sourcesPath = path.join(vendorSourceDir, "Sources");
   if (!(await pathExists(packagePath))) {
-    throw new Error(`Vendored CUA Driver source is missing Package.swift at ${packagePath}`)
+    throw new Error(
+      `Vendored CUA Driver source is missing Package.swift at ${packagePath}`,
+    );
   }
   if (!(await pathExists(sourcesPath))) {
-    throw new Error(`Vendored CUA Driver source is missing Sources at ${sourcesPath}`)
+    throw new Error(
+      `Vendored CUA Driver source is missing Sources at ${sourcesPath}`,
+    );
   }
 
-  const packageContent = await fs.readFile(packagePath, 'utf8')
+  const packageContent = await fs.readFile(packagePath, "utf8");
   if (!packageContent.includes('name: "cua-driver"')) {
-    throw new Error('Vendored CUA Driver Package.swift does not look like the cua-driver package')
+    throw new Error(
+      "Vendored CUA Driver Package.swift does not look like the cua-driver package",
+    );
   }
 
   const commandPath = path.join(
     vendorSourceDir,
-    'Sources',
-    'CuaDriverCLI',
-    'CuaDriverCommand.swift'
-  )
-  const commandContent = await fs.readFile(commandPath, 'utf8')
-  if (!commandContent.includes('DeepChatPermissionProbeCommand')) {
+    "Sources",
+    "CuaDriverCLI",
+    "CuaDriverCommand.swift",
+  );
+  const commandContent = await fs.readFile(commandPath, "utf8");
+  if (!commandContent.includes("DeepChatPermissionProbeCommand")) {
     throw new Error(
-      `Vendored CUA Driver source is missing DeepChat permission probe patch for ${metadata.commit}`
-    )
+      `Vendored CUA Driver source is missing DeepChat permission probe patch for ${metadata.commit}`,
+    );
   }
 }
 
 async function collectFiles(dir, extension) {
-  const entries = await fs.readdir(dir, { withFileTypes: true })
-  const files = []
+  const entries = await fs.readdir(dir, { withFileTypes: true });
+  const files = [];
   for (const entry of entries) {
-    const entryPath = path.join(dir, entry.name)
+    const entryPath = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      files.push(...(await collectFiles(entryPath, extension)))
+      files.push(...(await collectFiles(entryPath, extension)));
     } else if (entry.isFile() && entry.name.endsWith(extension)) {
-      files.push(entryPath)
+      files.push(entryPath);
     }
   }
-  return files
+  return files;
 }
 
 async function findBuiltBinary(scratchPath) {
-  const candidates = await collectFiles(scratchPath, '')
-  const binaries = candidates.filter((candidate) => path.basename(candidate) === helperBinaryName)
+  const candidates = await collectFiles(scratchPath, "");
+  const binaries = candidates.filter(
+    (candidate) => path.basename(candidate) === helperBinaryName,
+  );
   for (const candidate of binaries) {
-    const stat = await fs.stat(candidate)
-    if ((stat.mode & 0o111) !== 0 && candidate.includes(`${path.sep}release${path.sep}`)) {
-      return candidate
+    const stat = await fs.stat(candidate);
+    if (
+      (stat.mode & 0o111) !== 0 &&
+      candidate.includes(`${path.sep}release${path.sep}`)
+    ) {
+      return candidate;
     }
   }
-  throw new Error('Built cua-driver binary was not found')
+  throw new Error("Built cua-driver binary was not found");
 }
 
 function plistXml(version) {
@@ -205,134 +220,159 @@ function plistXml(version) {
   <true/>
 </dict>
 </plist>
-`
+`;
 }
 
 async function stageApp(sourceDir, builtBinary, targetArch, version) {
-  const runtimeDir = path.join(pluginDir, 'runtime', 'darwin', targetArch)
-  const helperAppPath = path.join(runtimeDir, helperAppDirName)
-  const contentsPath = path.join(helperAppPath, 'Contents')
-  const macosPath = path.join(contentsPath, 'MacOS')
-  const resourcesPath = path.join(contentsPath, 'Resources')
-  const stagedBinary = path.join(macosPath, helperBinaryName)
+  const runtimeDir = path.join(pluginDir, "runtime", "darwin", targetArch);
+  const helperAppPath = path.join(runtimeDir, helperAppDirName);
+  const contentsPath = path.join(helperAppPath, "Contents");
+  const macosPath = path.join(contentsPath, "MacOS");
+  const resourcesPath = path.join(contentsPath, "Resources");
+  const stagedBinary = path.join(macosPath, helperBinaryName);
 
-  await fs.rm(runtimeDir, { recursive: true, force: true })
-  await fs.mkdir(macosPath, { recursive: true })
-  await fs.mkdir(resourcesPath, { recursive: true })
-  await fs.copyFile(builtBinary, stagedBinary)
-  await fs.chmod(stagedBinary, 0o755)
-  await fs.writeFile(path.join(contentsPath, 'Info.plist'), plistXml(version))
+  await fs.rm(runtimeDir, { recursive: true, force: true });
+  await fs.mkdir(macosPath, { recursive: true });
+  await fs.mkdir(resourcesPath, { recursive: true });
+  await fs.copyFile(builtBinary, stagedBinary);
+  await fs.chmod(stagedBinary, 0o755);
+  await fs.writeFile(path.join(contentsPath, "Info.plist"), plistXml(version));
 
-  const iconPath = path.join(sourceDir, 'App', 'CuaDriver', 'AppIcon.icns')
+  const iconPath = path.join(sourceDir, "App", "CuaDriver", "AppIcon.icns");
   if (await pathExists(iconPath)) {
-    await fs.copyFile(iconPath, path.join(resourcesPath, 'AppIcon.icns'))
+    await fs.copyFile(iconPath, path.join(resourcesPath, "AppIcon.icns"));
   }
 
-  validateArchitecture(stagedBinary, targetArch)
-  await signHelper(helperAppPath)
-  return helperAppPath
+  validateArchitecture(stagedBinary, targetArch);
+  await signHelper(helperAppPath);
+  return helperAppPath;
 }
 
 function validateArchitecture(binaryPath, targetArch) {
-  const expected = archMap[targetArch].lipo
-  const archs = read('/usr/bin/lipo', ['-archs', binaryPath]).split(/\s+/).filter(Boolean)
+  const expected = archMap[targetArch].lipo;
+  const archs = read("/usr/bin/lipo", ["-archs", binaryPath])
+    .split(/\s+/)
+    .filter(Boolean);
   if (!archs.includes(expected)) {
-    throw new Error(`Helper arch mismatch. Expected ${expected}, got ${archs.join(', ')}`)
+    throw new Error(
+      `Helper arch mismatch. Expected ${expected}, got ${archs.join(", ")}`,
+    );
   }
 }
 
 async function signHelper(helperAppPath) {
-  const entitlementsPath = path.join(pluginDir, 'build', 'entitlements.plist')
+  const entitlementsPath = path.join(pluginDir, "build", "entitlements.plist");
   const signedForRelease = await signMacHelperForRelease({
     appPath: helperAppPath,
     entitlementsPath,
-    cwd: rootDir
-  })
+    cwd: rootDir,
+  });
   if (signedForRelease) {
-    return
+    return;
   }
 
-  run('codesign', [
-    '--force',
-    '--deep',
-    '--sign',
-    '-',
-    '--entitlements',
+  run("codesign", [
+    "--force",
+    "--deep",
+    "--sign",
+    "-",
+    "--entitlements",
     entitlementsPath,
-    '--options',
-    'runtime',
-    '--timestamp=none',
-    helperAppPath
-  ])
-  run('codesign', ['--verify', '--deep', '--strict', '--verbose=2', helperAppPath])
+    "--options",
+    "runtime",
+    "--timestamp=none",
+    helperAppPath,
+  ]);
+  run("codesign", [
+    "--verify",
+    "--deep",
+    "--strict",
+    "--verbose=2",
+    helperAppPath,
+  ]);
 }
 
 async function main() {
-  const args = parseArgs(process.argv.slice(2))
-  const requestedArch = args.get('arch') ?? process.env.TARGET_ARCH ?? process.arch
+  const args = parseArgs(process.argv.slice(2));
+  const requestedArch =
+    args.get("arch") ?? process.env.TARGET_ARCH ?? process.arch;
 
-  if (process.platform !== 'darwin') {
-    throw new Error('CUA plugin runtime build requires macOS.')
+  if (process.platform !== "darwin") {
+    throw new Error("CUA plugin runtime build requires macOS.");
   }
 
   if (!archMap[requestedArch]) {
-    throw new Error(`Unsupported CUA Driver arch: ${requestedArch}`)
+    throw new Error(`Unsupported CUA Driver arch: ${requestedArch}`);
   }
 
-  ensureTool('swift')
-  ensureTool('/usr/bin/lipo', ['-info', process.execPath])
-  ensureTool('codesign', ['--version'])
+  ensureTool("swift");
+  ensureTool("/usr/bin/lipo", ["-info", process.execPath]);
+  ensureTool("codesign", ["--version"]);
 
-  const metadata = await readUpstreamMetadata()
-  await validateVendorSource(metadata)
+  const metadata = await readUpstreamMetadata();
+  await validateVendorSource(metadata);
 
   const workRoot = path.join(
     os.tmpdir(),
-    'deepchat-cua-plugin-build',
-    `${metadata.tag}-${requestedArch}-${process.pid}`
-  )
-  const scratchPath = path.join(workRoot, '.build', requestedArch)
+    "deepchat-cua-plugin-build",
+    `${metadata.tag}-${requestedArch}-${process.pid}`,
+  );
+  const scratchPath = path.join(workRoot, ".build", requestedArch);
 
-  await fs.rm(workRoot, { recursive: true, force: true })
-  await fs.mkdir(workRoot, { recursive: true })
+  await fs.rm(workRoot, { recursive: true, force: true });
+  await fs.mkdir(workRoot, { recursive: true });
 
-  run(
-    'swift',
-    [
-      'build',
-      '-c',
-      'release',
-      '--arch',
-      archMap[requestedArch].swift,
-      '--product',
-      helperBinaryName,
-      '--package-path',
-      vendorSourceDir,
-      '--scratch-path',
-      scratchPath
-    ],
-    {
-      env: {
-        ...process.env,
-        CUA_DRIVER_TELEMETRY_ENABLED: '0',
-        CUA_DRIVER_AUTO_UPDATE_ENABLED: '0'
-      }
-    }
-  )
+  // 组装swift构建参数
+  const swiftArgs = [
+    "build",
+    "-c",
+    "release",
+    "--arch",
+    archMap[requestedArch].swift,
+    "--product",
+    helperBinaryName,
+    "--package-path",
+    vendorSourceDir,
+    "--scratch-path",
+    scratchPath,
+  ];
 
-  const builtBinary = await findBuiltBinary(scratchPath)
-  const helperAppPath = await stageApp(vendorSourceDir, builtBinary, requestedArch, metadata.version)
-  const relativeHelperPath = path.relative(rootDir, helperAppPath)
-  const stat = await fs.stat(path.join(helperAppPath, 'Contents', 'MacOS', helperBinaryName))
-
-  if (!fsSync.existsSync(helperAppPath) || stat.size === 0) {
-    throw new Error('Staged helper app is invalid')
+  // 读取环境变量中的额外Swift参数，例如--disable-code-signing
+  if (process.env.SWIFT_BUILD_FLAGS) {
+    const extraFlags = process.env.SWIFT_BUILD_FLAGS.split(/\s+/).filter(
+      (flag) => flag.trim() !== "",
+    );
+    swiftArgs.push(...extraFlags);
   }
 
-  console.log(`CUA Driver ${metadata.tag} staged at ${relativeHelperPath}`)
+  run("swift", swiftArgs, {
+    env: {
+      ...process.env,
+      CUA_DRIVER_TELEMETRY_ENABLED: "0",
+      CUA_DRIVER_AUTO_UPDATE_ENABLED: "0",
+    },
+  });
+
+  const builtBinary = await findBuiltBinary(scratchPath);
+  const helperAppPath = await stageApp(
+    vendorSourceDir,
+    builtBinary,
+    requestedArch,
+    metadata.version,
+  );
+  const relativeHelperPath = path.relative(rootDir, helperAppPath);
+  const stat = await fs.stat(
+    path.join(helperAppPath, "Contents", "MacOS", helperBinaryName),
+  );
+
+  if (!fsSync.existsSync(helperAppPath) || stat.size === 0) {
+    throw new Error("Staged helper app is invalid");
+  }
+
+  console.log(`CUA Driver ${metadata.tag} staged at ${relativeHelperPath}`);
 }
 
 main().catch((error) => {
-  console.error(error instanceof Error ? error.message : error)
-  process.exit(1)
-})
+  console.error(error instanceof Error ? error.message : error);
+  process.exit(1);
+});

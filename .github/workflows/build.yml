@@ -213,7 +213,7 @@ jobs:
       - name: Build Mac
         run: |
           pnpm run build
-          pnpm run plugin:cua:build:mac:${{ matrix.arch }}
+          SWIFT_BUILD_FLAGS="--disable-code-signing" pnpm run plugin:cua:build:mac:${{ matrix.arch }}
           pnpm run plugin:bundle -- --name cua --platform darwin --arch ${{ matrix.arch }}
           pnpm run plugin:bundle -- --name feishu --platform darwin --arch ${{ matrix.arch }}
           pnpm exec electron-builder --mac --${{ matrix.arch }} --publish=never
