@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       platform:
-        description: '选择构建平台'
+        description: "选择构建平台"
         required: true
-        default: 'all'
+        default: "all"
         type: choice
         options:
           - all
@@ -15,7 +15,7 @@ on:
           - mac
 
 env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   RTK_INSTALL_GITHUB_TOKEN: ${{ secrets.RTK_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
   RTK_INSTALL_GITHUB_TOKEN_SOURCE: ${{ secrets.RTK_GITHUB_TOKEN != '' && 'RTK_GITHUB_TOKEN' || 'GITHUB_TOKEN' }}
 
@@ -43,7 +43,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
-          node-version: '24.14.1'
+          node-version: "24.14.1"
           package-manager-cache: false
 
       - name: Setup pnpm
@@ -118,7 +118,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
-          node-version: '24.14.1'
+          node-version: "24.14.1"
           package-manager-cache: false
 
       - name: Setup pnpm
@@ -137,7 +137,7 @@ jobs:
         run: pnpm install
 
       # - name: Install Node Runtime
-        # run: pnpm run installRuntime:linux:${{ matrix.arch }}
+      # run: pnpm run installRuntime:linux:${{ matrix.arch }}
 
       - name: Build Linux
         run: |
@@ -182,7 +182,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
-          node-version: '24.14.1'
+          node-version: "24.14.1"
           package-manager-cache: false
 
       - name: Setup pnpm
@@ -223,11 +223,11 @@ jobs:
           DEEPCHAT_APPLE_NOTARY_USERNAME: ${{ secrets.DEEPCHAT_APPLE_NOTARY_USERNAME }}
           DEEPCHAT_APPLE_NOTARY_TEAM_ID: ${{ secrets.DEEPCHAT_APPLE_NOTARY_TEAM_ID }}
           DEEPCHAT_APPLE_NOTARY_PASSWORD: ${{ secrets.DEEPCHAT_APPLE_NOTARY_PASSWORD }}
-          build_for_release: '2'
+          build_for_release: "2"
           VITE_GITHUB_CLIENT_ID: ${{ secrets.DC_GITHUB_CLIENT_ID }}
           VITE_GITHUB_CLIENT_SECRET: ${{ secrets.DC_GITHUB_CLIENT_SECRET }}
           VITE_GITHUB_REDIRECT_URI: ${{ secrets.DC_GITHUB_REDIRECT_URI }}
-          NODE_OPTIONS: '--max-old-space-size=4096'
+          NODE_OPTIONS: "--max-old-space-size=4096"
           VITE_PROVIDER_DB_URL: ${{ secrets.CDN_PROVIDER_DB_URL }}
 
       - name: Verify bundled plugins
