@@ -1,0 +1,8 @@
+supportedArchitectures:
+  os:
+    - current
+  cpu:
+    - current
+
+publicHoistPattern:
+  - '@img/sharp-*'

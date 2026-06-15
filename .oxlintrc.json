@@ -1,0 +1,27 @@
+{
+  "ignorePatterns": [
+    "**/node_modules",
+    "**/dist",
+    "**/out",
+    ".gitignore",
+    ".github",
+    ".cursor",
+    ".vscode",
+    "build/**",
+    "resources/**",
+    "scripts/**",
+    "runtime/**",
+    "docs/**",
+    "test/**",
+    "src/shared/**",
+    "src/shadcn/**"
+  ],
+  "overrides": [
+    {
+      "files": ["src/main/**/*.ts"],
+      "rules": {
+        "no-console": ["error", { "allow": ["warn", "error", "info", "debug", "trace"] }]
+      }
+    }
+  ]
+}
