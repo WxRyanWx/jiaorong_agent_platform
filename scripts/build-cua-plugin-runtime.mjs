@@ -322,36 +322,31 @@ async function main() {
   await fs.rm(workRoot, { recursive: true, force: true });
   await fs.mkdir(workRoot, { recursive: true });
 
-  // 组装swift构建参数
-  const swiftArgs = [
-    "build",
-    "-c",
-    "release",
-    "--arch",
+  run(
+  'swift',
+  [
+    'build',
+    '-c',
+    'release',
+    '--arch',
     archMap[requestedArch].swift,
-    "--product",
+    '--product',
     helperBinaryName,
-    "--package-path",
+    '--package-path',
     vendorSourceDir,
-    "--scratch-path",
-    scratchPath,
-  ];
-
-  // 读取环境变量中的额外Swift参数，例如--disable-code-signing
-  if (process.env.SWIFT_BUILD_FLAGS) {
-    const extraFlags = process.env.SWIFT_BUILD_FLAGS.split(/\s+/).filter(
-      (flag) => flag.trim() !== "",
-    );
-    swiftArgs.push(...extraFlags);
-  }
-
-  run("swift", swiftArgs, {
+    '--scratch-path',
+    scratchPath
+  ],
+  {
     env: {
       ...process.env,
-      CUA_DRIVER_TELEMETRY_ENABLED: "0",
-      CUA_DRIVER_AUTO_UPDATE_ENABLED: "0",
-    },
-  });
+      // 新增这一行，允许无开发者ID证书编译
+      SWIFTCI_ALLOW_UNSIGNED_TOOLS: '1',
+      CUA_DRIVER_TELEMETRY_ENABLED: '0',
+      CUA_DRIVER_AUTO_UPDATE_ENABLED: '0'
+    }
+  }
+)
 
   const builtBinary = await findBuiltBinary(scratchPath);
   const helperAppPath = await stageApp(
