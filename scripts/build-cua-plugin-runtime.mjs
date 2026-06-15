@@ -262,18 +262,13 @@ function validateArchitecture(binaryPath, targetArch) {
 
 async function signHelper(helperAppPath) {
   const entitlementsPath = path.join(pluginDir, "build", "entitlements.plist");
-  // 通过环境变量控制是否跳过正式发布签名
-  const skipReleaseSign = process.env.SKIP_RELEASE_SIGN === "1";
-
-  if (!skipReleaseSign) {
-    const signedForRelease = await signMacHelperForRelease({
-      appPath: helperAppPath,
-      entitlementsPath,
-      cwd: rootDir,
-    });
-    if (signedForRelease) {
-      return;
-    }
+  const signedForRelease = await signMacHelperForRelease({
+    appPath: helperAppPath,
+    entitlementsPath,
+    cwd: rootDir,
+  });
+  if (signedForRelease) {
+    return;
   }
 
   run("codesign", [
