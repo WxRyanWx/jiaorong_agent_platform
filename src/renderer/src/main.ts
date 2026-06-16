@@ -1,9 +1,12 @@
 import './assets/main.css'
+import '@arco-design/web-vue/dist/arco.css'
 import { createPinia } from 'pinia'
 import { PiniaColada } from '@pinia/colada'
 import { createApp } from 'vue'
 import App from './App.vue'
 import router from './router'
+import { setupAuthInterceptors } from '@/lib/auth/setup'
+import { saveTokenFromUrl } from '@/lib/auth/auth-from-url'
 import { createI18n } from 'vue-i18n'
 import locales, { pluralRules } from './i18n'
 import 'vue-virtual-scroller/dist/vue-virtual-scroller.css'
@@ -28,6 +31,9 @@ const i18n = createI18n({
 })
 // Icons will be loaded asynchronously on app mount to improve startup performance
 const pinia = createPinia()
+
+saveTokenFromUrl()
+setupAuthInterceptors(router)
 
 const app = createApp(App)
 

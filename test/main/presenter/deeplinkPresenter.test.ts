@@ -154,6 +154,35 @@ describe('DeeplinkPresenter', () => {
     )
   })
 
+  it('routes chat login deeplink token to renderer auth handler', async () => {
+    const { DeeplinkPresenter } = await import('@/presenter/deeplinkPresenter')
+    const deeplinkPresenter = new DeeplinkPresenter()
+    const chatWindow = {
+      id: 1,
+      isDestroyed: () => false,
+      isMinimized: () => false,
+      show: vi.fn(),
+      focus: vi.fn(),
+      webContents: {
+        isLoadingMainFrame: () => false,
+        once: vi.fn()
+      }
+    }
+
+    presenterMock.windowPresenter.getAllWindows.mockReturnValue([chatWindow as any])
+    browserWindowFromIdMock.mockReturnValue(chatWindow)
+
+    await deeplinkPresenter.handleDeepLink('deepchat://chat?token=test-auth-token')
+
+    expect(presenterMock.windowPresenter.sendToWindow).toHaveBeenCalledWith(
+      1,
+      DEEPLINK_EVENTS.AUTH_LOGIN,
+      {
+        token: 'test-auth-token'
+      }
+    )
+  })
+
   it('routes MCP imports through settings IPC instead of localStorage injection', async () => {
     const { DeeplinkPresenter } = await import('@/presenter/deeplinkPresenter')
     const deeplinkPresenter = new DeeplinkPresenter()

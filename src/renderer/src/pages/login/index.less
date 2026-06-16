@@ -1,0 +1,190 @@
+.d {
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+
+  :deep(.arco-spin) {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+}
+
+.login-page {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100vw;
+  height: 100vh;
+  overflow: auto;
+  background: url('@/assets/login/bg.png');
+  background-color: #f5f7fb;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+
+  &--compact {
+    justify-content: center;
+  }
+
+  &__scale {
+    flex-shrink: 0;
+  }
+
+  .bott-box {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    span {
+      cursor: pointer;
+      color: #2251c9;
+    }
+  }
+
+  .nocheck-msg {
+    font-size: 12px;
+    color: #f44336;
+    line-height: 16px;
+  }
+
+  .cont {
+    display: flex;
+    justify-content: center;
+    width: 611px;
+    height: 708px;
+    padding: 110px 45px 0 52px;
+    background: #fff;
+    border: 1px solid #fff;
+    border-radius: 30px;
+  }
+
+  .code-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 137px;
+  }
+
+  .main-cont {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+
+    .f-tit {
+      display: flex;
+      justify-content: center;
+      width: 365.25px;
+      height: 98.46px;
+      margin-bottom: 49px;
+      color: #2251c9;
+      font-weight: 400;
+      font-size: 52px;
+      font-family: 'DingTalk JinBuTi', sans-serif;
+      line-height: 1;
+      text-transform: none;
+      // background: url('@/assets/login/login-text.png') no-repeat center;
+      background: url('@/assets/login/electron/electron-login1.png') no-repeat center;
+      background-size: contain;
+      cursor: pointer;
+    }
+
+    :deep(input:-webkit-autofill) {
+      background: transparent !important;
+      transition: background-color 50000s ease-in-out 0s !important;
+      -webkit-text-fill-color: unset !important;
+    }
+
+    :deep(.arco-tabs) {
+      width: 360px;
+    }
+
+    :deep(.arco-tabs-tab) {
+      margin: 0;
+      margin-right: 32px;
+      color: #2251c9;
+      font-size: 16px;
+    }
+
+    :deep(.arco-tabs-tab-active) {
+      color: #2251c9;
+      font-weight: 600;
+    }
+
+    :deep(.arco-input-prefix) {
+      color: #2251c9;
+      font-size: 16px;
+    }
+
+    :deep(.arco-form-item-content) {
+      min-height: 36px;
+    }
+
+    :deep(.arco-tabs-content) {
+      padding-top: 0;
+    }
+
+    .warn-msg {
+      margin-bottom: 8px;
+      opacity: 0.5;
+    }
+
+    .login-form {
+      min-height: 359px;
+      padding-top: 28px;
+
+      :deep(.arco-input-wrapper) {
+        height: 46px;
+        background-color: #f7f8fa;
+        border: 1px solid var(--color-neutral-3, #e5e6eb);
+        border-radius: 12px;
+      }
+    }
+
+    .login-pp {
+      min-height: 359px;
+    }
+
+    .rePsd {
+      padding-top: 8px;
+    }
+
+    .login-form-password-actions {
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .forget-pwd {
+      color: #2251c9;
+      line-height: 22px;
+      cursor: pointer;
+    }
+
+    :deep(.arco-btn-size-medium) {
+      height: 40px;
+      border-radius: 12px;
+    }
+
+    :deep(.arco-icon) {
+      color: #2251c9;
+      font-size: 20px;
+    }
+
+    :deep(.arco-checkbox) {
+      padding-left: 0;
+
+      .arco-checkbox-label {
+        color: rgb(var(--gray-6, 134 144 156));
+      }
+    }
+  }
+}
+
+:deep(.arco-tabs-nav-type-line) {
+  .arco-tabs-tab:hover {
+    .arco-tabs-tab-title::before {
+      background-color: transparent;
+    }
+  }
+}

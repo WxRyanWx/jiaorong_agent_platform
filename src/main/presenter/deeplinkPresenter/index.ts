@@ -44,6 +44,7 @@ interface MCPInstallConfig {
  * deepchat://start?msg=你好 唤起应用，进入新会话界面，并且带上默认消息
  * deepchat://start?msg=你好&model=deepseek-chat 唤起应用，进入新会话界面，并且带上默认消息，model先进行完全匹配，选中第一个命中的。没有命中的就进行模糊匹配，只要包含这个字段的第一个返回，如果都没有就忽略用默认
  * deepchat://mcp/install?json=base64JSONData 通过json数据直接安装mcp
+ * deepchat://chat?token=xxx 交建通扫码登录回调，将 token 交给渲染进程写入本地存储
  */
 export class DeeplinkPresenter implements IDeeplinkPresenter {
   private startupUrl: string | null = null
@@ -130,12 +131,35 @@ export class DeeplinkPresenter implements IDeeplinkPresenter {
         } else {
           console.warn('Unknown provider subcommand:', subCommand)
         }
+      } else if (command === 'chat') {
+        await this.handleChatLogin(urlObj.searchParams)
       } else {
         console.warn('Unknown DeepLink command:', command)
       }
     } catch (error) {
       console.error('Error processing DeepLink:', error)
     }
+  }
+
+  async handleChatLogin(params: URLSearchParams): Promise<void> {
+    logger.info('Processing chat login command, parameters:', this.redactSearchParamsForLog(params))
+
+    const token = params.get('token') || params.get('accessToken')
+    if (!token || token.trim() === '') {
+      console.warn("Missing 'token' parameter in chat login deeplink")
+      return
+    }
+
+    const targetWindow = await this.resolveChatWindow()
+    if (!targetWindow) {
+      console.error('Failed to resolve chat window for auth login deeplink')
+      return
+    }
+
+    await this.ensureChatWindowReady(targetWindow.id)
+    presenter.windowPresenter.sendToWindow(targetWindow.id, DEEPLINK_EVENTS.AUTH_LOGIN, {
+      token
+    })
   }
 
   async handleStart(params: URLSearchParams): Promise<void> {

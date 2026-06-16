@@ -74,7 +74,15 @@ export default defineConfig({
       }
     },
     server: {
-      host: '0.0.0.0' // 防止代理干扰，导致vite-electron之间ws://localhost:5713和http://localhost:5713通信失败、页面组件无法加载
+      host: '0.0.0.0'
+    },
+    css: {
+      preprocessorOptions: {
+        less: {
+          math: 'always',
+          javascriptEnabled: true
+        }
+      }
     },
     plugins: [
       tailwindcss(),
