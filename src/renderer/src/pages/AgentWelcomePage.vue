@@ -6,7 +6,7 @@
       </div>
 
       <h1 class="mb-10 text-3xl font-semibold text-foreground">
-        {{ t('welcome.agentPage.title') }}
+        {{ t("welcome.agentPage.title") }}
       </h1>
 
       <div class="grid w-full max-w-3xl grid-cols-3 gap-3">
@@ -19,19 +19,28 @@
           <div
             class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted/50 text-foreground"
           >
-            <AgentAvatar :agent="agent" class-name="h-6 w-6" fallback-class-name="rounded-lg" />
+            <AgentAvatar
+              :agent="agent"
+              class-name="h-6 w-6"
+              fallback-class-name="rounded-lg"
+            />
           </div>
           <div class="min-w-0 flex-1">
-            <div class="truncate text-sm font-semibold text-foreground">{{ agent.name }}</div>
+            <div class="truncate text-sm font-semibold text-foreground">
+              {{ agent.name }}
+            </div>
             <div class="truncate text-xs text-muted-foreground">
               {{
-                agent.type === 'deepchat'
-                  ? t('welcome.agentPage.deepchatType')
-                  : t('welcome.agentPage.acpType')
+                agent.type === "deepchat"
+                  ? t("welcome.agentPage.deepchatType")
+                  : t("welcome.agentPage.acpType")
               }}
             </div>
           </div>
-          <Icon icon="lucide:chevron-right" class="h-4 w-4 text-muted-foreground/50" />
+          <Icon
+            icon="lucide:chevron-right"
+            class="h-4 w-4 text-muted-foreground/50"
+          />
         </button>
       </div>
 
@@ -39,34 +48,34 @@
         class="mt-8 text-xs text-muted-foreground transition-colors hover:text-foreground"
         @click="openAgentSettings"
       >
-        {{ t('welcome.agentPage.manageAgents') }}
+        {{ t("welcome.agentPage.manageAgents") }}
       </button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { Icon } from '@iconify/vue'
-import { useI18n } from 'vue-i18n'
-import { createSettingsClient } from '@api/SettingsClient'
-import { useAgentStore } from '@/stores/ui/agent'
-import AgentAvatar from '@/components/icons/AgentAvatar.vue'
+import { computed } from "vue";
+import { Icon } from "@iconify/vue";
+import { useI18n } from "vue-i18n";
+import { createSettingsClient } from "@api/SettingsClient";
+import { useAgentStore } from "@/stores/ui/agent";
+import AgentAvatar from "@/components/icons/AgentAvatar.vue";
 
-const { t } = useI18n()
-const settingsClient = createSettingsClient()
-const agentStore = useAgentStore()
-const displayedAgents = computed(() => agentStore.enabledAgents.slice(0, 9))
+const { t } = useI18n();
+const settingsClient = createSettingsClient();
+const agentStore = useAgentStore();
+const displayedAgents = computed(() => agentStore.enabledAgents.slice(0, 9));
 
 const selectAgent = (agentId: string) => {
-  agentStore.setSelectedAgent(agentId)
-}
+  agentStore.setSelectedAgent(agentId);
+};
 
 const openAgentSettings = async () => {
   await settingsClient.openSettings({
-    routeName: 'settings-deepchat-agents'
-  })
-}
+    routeName: "settings-deepchat-agents",
+  });
+};
 </script>
 
 <style scoped>
@@ -75,7 +84,7 @@ const openAgentSettings = async () => {
 }
 
 button,
-[role='button'] {
+[role="button"] {
   -webkit-app-region: no-drag;
 }
 </style>

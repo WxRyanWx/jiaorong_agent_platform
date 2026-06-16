@@ -122,7 +122,7 @@
       </div>
 
       <div class="mt-2 flex flex-wrap justify-center gap-2">
-        <Button
+        <!-- <Button
           variant="outline"
           size="sm"
           class="mb-2 text-xs"
@@ -134,7 +134,7 @@
         >
           <Icon icon="lucide:message-square" class="mr-1 h-3 w-3" />
           {{ t("about.feedbackButton") }}
-        </Button>
+        </Button> -->
 
         <Button
           variant="outline"
@@ -146,7 +146,7 @@
           {{ t("about.disclaimerButton") }}
         </Button>
 
-        <Button
+        <!-- <Button
           v-if="showMockUpdateControls && !upgrade.isMockUpdate"
           variant="outline"
           size="sm"
@@ -194,7 +194,7 @@
           @click="handleManualDownload('official')"
         >
           {{ t("update.officialDownload") }}
-        </Button>
+        </Button> -->
 
         <Button
           v-if="!upgrade.showManualDownloadOptions"
