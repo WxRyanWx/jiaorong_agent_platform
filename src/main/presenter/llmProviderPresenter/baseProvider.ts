@@ -20,7 +20,7 @@ import type { ProviderMcpRuntimePort } from './runtimePorts'
 import { normalizeToolInputSchema } from './aiSdk/toolMapper'
 
 // 没有缓存数据时，自动启用的模型
-const defaultEnabledModels = ['jiaorong-kimi-k2.6']
+const defaultEnabledModels = ['jiaorong-deepseek-v4-pro']
 
 export const AUDIO_TRANSCRIPTION_NOT_SUPPORTED_ERROR = 'audio-transcription-not-supported'
 
