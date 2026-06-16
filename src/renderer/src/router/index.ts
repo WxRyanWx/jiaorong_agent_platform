@@ -5,8 +5,21 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      redirect: '/chat'
+      redirect: '/login' // 默认跳转到登录页
     },
+    {
+      path: '/login',
+      name: 'login',
+      component: () => import('@/pages/LoginPage.vue'),
+      meta: {
+        titleKey: 'routes.login',
+        icon: 'lucide:log-in'
+      }
+    },
+    // {
+    //   path: '/',
+    //   redirect: '/chat'
+    // },
     {
       path: '/chat',
       name: 'chat',

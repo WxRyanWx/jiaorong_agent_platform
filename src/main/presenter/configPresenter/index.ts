@@ -275,7 +275,10 @@ const getLiveLegacyModelSelection = (
 const toTrackedSettingsChangePayload = (
   key: string,
   value: unknown
-): { changedKey: SettingsKey; value: SettingsSnapshotValues[SettingsKey] } | null => {
+): {
+  changedKey: SettingsKey
+  value: SettingsSnapshotValues[SettingsKey]
+} | null => {
   switch (key) {
     case 'fontSizeLevel':
       return {
@@ -503,7 +506,9 @@ export class ConfigPresenter implements IConfigPresenter {
     // Initialize MCP configuration helper
     this.mcpConfHelper = new McpConfHelper()
 
-    this.acpConfHelper = new AcpConfHelper({ mcpConfHelper: this.mcpConfHelper })
+    this.acpConfHelper = new AcpConfHelper({
+      mcpConfHelper: this.mcpConfHelper
+    })
     this.acpRegistryService = new AcpRegistryService({
       isPrivacyModeEnabled: () => this.getPrivacyModeEnabled()
     })
@@ -1762,44 +1767,45 @@ export class ConfigPresenter implements IConfigPresenter {
 
   // Get system language and match supported language list
   private getSystemLanguage(): string {
-    const systemLang = app.getLocale()
-    const supportedLanguages = [
-      'zh-CN',
-      'zh-TW',
-      'en-US',
-      'zh-HK',
-      'ko-KR',
-      'ru-RU',
-      'ja-JP',
-      'fr-FR',
-      'fa-IR',
-      'pt-BR',
-      'da-DK',
-      'he-IL',
-      'es-ES',
-      'de-DE',
-      'tr-TR',
-      'id-ID',
-      'ms-MY',
-      'it-IT',
-      'pl-PL',
-      'vi-VN'
-    ]
+    return 'zh-CN'
+    // const systemLang = app.getLocale()
+    // const supportedLanguages = [
+    //   'zh-CN',
+    //   'zh-TW',
+    //   'en-US',
+    //   'zh-HK',
+    //   'ko-KR',
+    //   'ru-RU',
+    //   'ja-JP',
+    //   'fr-FR',
+    //   'fa-IR',
+    //   'pt-BR',
+    //   'da-DK',
+    //   'he-IL',
+    //   'es-ES',
+    //   'de-DE',
+    //   'tr-TR',
+    //   'id-ID',
+    //   'ms-MY',
+    //   'it-IT',
+    //   'pl-PL',
+    //   'vi-VN'
+    // ]
 
-    // Exact match
-    if (supportedLanguages.includes(systemLang)) {
-      return systemLang
-    }
+    // // Exact match
+    // if (supportedLanguages.includes(systemLang)) {
+    //   return systemLang
+    // }
 
-    // Partial match (only match language code)
-    const langCode = systemLang.split('-')[0]
-    const matchedLang = supportedLanguages.find((lang) => lang.startsWith(langCode))
-    if (matchedLang) {
-      return matchedLang
-    }
+    // // Partial match (only match language code)
+    // const langCode = systemLang.split('-')[0]
+    // const matchedLang = supportedLanguages.find((lang) => lang.startsWith(langCode))
+    // if (matchedLang) {
+    //   return matchedLang
+    // }
 
-    // Default return English
-    return 'en-US'
+    // // Default return English
+    // return 'en-US'
   }
 
   public getDefaultProviders(): LLM_PROVIDER[] {
@@ -1855,7 +1861,9 @@ export class ConfigPresenter implements IConfigPresenter {
   setSyncEnabled(enabled: boolean): void {
     logger.info('setSyncEnabled', enabled)
     this.setSetting('syncEnabled', enabled)
-    eventBus.send(CONFIG_EVENTS.SYNC_SETTINGS_CHANGED, SendTarget.ALL_WINDOWS, { enabled })
+    eventBus.send(CONFIG_EVENTS.SYNC_SETTINGS_CHANGED, SendTarget.ALL_WINDOWS, {
+      enabled
+    })
   }
 
   // Get sync folder path
@@ -1868,7 +1876,9 @@ export class ConfigPresenter implements IConfigPresenter {
   // Set sync folder path
   setSyncFolderPath(folderPath: string): void {
     this.setSetting('syncFolderPath', folderPath)
-    eventBus.send(CONFIG_EVENTS.SYNC_SETTINGS_CHANGED, SendTarget.ALL_WINDOWS, { folderPath })
+    eventBus.send(CONFIG_EVENTS.SYNC_SETTINGS_CHANGED, SendTarget.ALL_WINDOWS, {
+      folderPath
+    })
   }
 
   // Get last sync time
@@ -2776,7 +2786,9 @@ export class ConfigPresenter implements IConfigPresenter {
   private notifyAcpAgentsChanged(agentIds?: string[]) {
     logger.info('[ACP] notifyAcpAgentsChanged: sending MODEL_LIST_CHANGED event for provider "acp"')
     eventBus.send(CONFIG_EVENTS.MODEL_LIST_CHANGED, SendTarget.ALL_WINDOWS, 'acp')
-    eventBus.send(CONFIG_EVENTS.AGENTS_CHANGED, SendTarget.ALL_WINDOWS, { agentIds })
+    eventBus.send(CONFIG_EVENTS.AGENTS_CHANGED, SendTarget.ALL_WINDOWS, {
+      agentIds
+    })
     eventBus.sendToRendererIfAvailable(SESSION_EVENTS.LIST_UPDATED, SendTarget.ALL_WINDOWS)
   }
 
@@ -3106,7 +3118,10 @@ export class ConfigPresenter implements IConfigPresenter {
   async setDefaultSystemPromptId(promptId: string): Promise<void> {
     if (this.dbBackedSettingsStore) {
       const prompts = await this.getSystemPrompts()
-      const updatedPrompts = prompts.map((prompt) => ({ ...prompt, isDefault: false }))
+      const updatedPrompts = prompts.map((prompt) => ({
+        ...prompt,
+        isDefault: false
+      }))
 
       if (promptId === 'empty') {
         await this.setSystemPrompts(updatedPrompts)
