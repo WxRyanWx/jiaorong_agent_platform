@@ -817,7 +817,7 @@ export class ConfigPresenter implements IConfigPresenter {
     const repository = this.getAgentRepositoryOrThrow()
 
     repository.ensureBuiltinDeepChatAgent({
-      name: 'DeepChat',
+      name: '通用智能体',
       config: this.buildLegacyBuiltinDeepChatConfig()
     })
 

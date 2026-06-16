@@ -77,7 +77,7 @@ const router = createRouter({
     ),
     {
       path: '/',
-      redirect: '/overview'
+      redirect: '/deepchat-agents'
     }
   ]
 })

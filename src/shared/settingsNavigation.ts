@@ -84,15 +84,23 @@ export const SETTINGS_NAVIGATION_GROUPS: Array<Omit<SettingsNavigationGroup, 'it
 ]
 
 export const SETTINGS_NAVIGATION_ITEMS: SettingsNavigationItem[] = [
-  {
-    routeName: 'settings-overview',
-    path: '/overview',
-    titleKey: 'routes.settings-overview',
-    icon: 'lucide:gauge',
-    position: 0,
-    groupKey: 'overview',
-    keywords: ['overview', 'dashboard', 'usage', 'settings', '控制台', '设置中心', '用量']
-  },
+  // {
+  //   routeName: "settings-overview",
+  //   path: "/overview",
+  //   titleKey: "routes.settings-overview",
+  //   icon: "lucide:gauge",
+  //   position: 0,
+  //   groupKey: "overview",
+  //   keywords: [
+  //     "overview",
+  //     "dashboard",
+  //     "usage",
+  //     "settings",
+  //     "控制台",
+  //     "设置中心",
+  //     "用量",
+  //   ],
+  // },
   {
     routeName: 'settings-common',
     path: '/common',
@@ -120,15 +128,23 @@ export const SETTINGS_NAVIGATION_ITEMS: SettingsNavigationItem[] = [
     groupKey: 'models',
     keywords: ['environment', 'workspace', 'folder', 'project', '环境', '工作区', '目录']
   },
-  {
-    routeName: 'settings-provider',
-    path: '/provider/:providerId?',
-    titleKey: 'routes.settings-provider',
-    icon: 'lucide:cloud-cog',
-    position: 3,
-    groupKey: 'models',
-    keywords: ['provider', 'model', 'llm', 'openai', 'anthropic', '服务商', '模型']
-  },
+  // {
+  //   routeName: "settings-provider",
+  //   path: "/provider/:providerId?",
+  //   titleKey: "routes.settings-provider",
+  //   icon: "lucide:cloud-cog",
+  //   position: 3,
+  //   groupKey: "models",
+  //   keywords: [
+  //     "provider",
+  //     "model",
+  //     "llm",
+  //     "openai",
+  //     "anthropic",
+  //     "服务商",
+  //     "模型",
+  //   ],
+  // },
   {
     routeName: 'settings-deepchat-agents',
     path: '/deepchat-agents',
@@ -138,81 +154,96 @@ export const SETTINGS_NAVIGATION_ITEMS: SettingsNavigationItem[] = [
     groupKey: 'models',
     keywords: ['agent', 'agents', 'deepchat', '智能体', 'agent']
   },
-  {
-    routeName: 'settings-acp',
-    path: '/acp',
-    titleKey: 'routes.settings-acp',
-    icon: 'lucide:shield-check',
-    position: 4,
-    groupKey: 'models',
-    keywords: ['acp', 'agent client protocol']
-  },
-  {
-    routeName: 'settings-dashboard',
-    path: '/dashboard',
-    titleKey: 'routes.settings-dashboard',
-    icon: 'lucide:layout-dashboard',
-    position: 4.5,
-    groupKey: 'overview',
-    keywords: ['dashboard', 'usage', 'stats', '统计', '用量'],
-    hiddenInSidebar: true
-  },
-  {
-    routeName: 'settings-mcp',
-    path: '/mcp',
-    titleKey: 'routes.settings-mcp',
-    icon: 'lucide:server',
-    position: 5,
-    groupKey: 'tools',
-    keywords: ['mcp', 'tools', 'server', 'model context protocol', '工具', '服务']
-  },
-  {
-    routeName: 'settings-remote',
-    path: '/remote',
-    titleKey: 'routes.settings-remote',
-    icon: 'lucide:smartphone',
-    position: 5.25,
-    groupKey: 'system',
-    keywords: ['remote', 'telegram', 'feishu', 'control', '远程', '控制']
-  },
-  {
-    routeName: 'settings-notifications-hooks',
-    path: '/notifications-hooks',
-    titleKey: 'routes.settings-notifications-hooks',
-    icon: 'lucide:bell',
-    position: 5.5,
-    groupKey: 'tools',
-    keywords: ['notification', 'hook', 'webhook', '通知']
-  },
-  {
-    routeName: 'settings-scheduled-tasks',
-    path: '/scheduled-tasks',
-    titleKey: 'routes.settings-scheduled-tasks',
-    icon: 'lucide:clock-9',
-    position: 5.6,
-    groupKey: 'tools',
-    keywords: [
-      'schedule',
-      'scheduled',
-      'reminder',
-      'timer',
-      'cron',
-      '定时',
-      '提醒',
-      '计划',
-      '定时任务'
-    ]
-  },
-  {
-    routeName: 'settings-plugins',
-    path: '/plugins',
-    titleKey: 'routes.settings-plugins',
-    icon: 'lucide:puzzle',
-    position: 5.75,
-    groupKey: 'tools',
-    keywords: ['plugin', 'plugins', 'extension', 'runtime', '插件', '扩展', '运行时'],
-    supportedPlatforms: ['darwin']
-  },
+  // {
+  //   routeName: "settings-acp",
+  //   path: "/acp",
+  //   titleKey: "routes.settings-acp",
+  //   icon: "lucide:shield-check",
+  //   position: 4,
+  //   groupKey: "models",
+  //   keywords: ["acp", "agent client protocol"],
+  // },
+  // {
+  //   routeName: "settings-dashboard",
+  //   path: "/dashboard",
+  //   titleKey: "routes.settings-dashboard",
+  //   icon: "lucide:layout-dashboard",
+  //   position: 4.5,
+  //   groupKey: "overview",
+  //   keywords: ["dashboard", "usage", "stats", "统计", "用量"],
+  //   hiddenInSidebar: true,
+  // },
+  // {
+  //   routeName: "settings-mcp",
+  //   path: "/mcp",
+  //   titleKey: "routes.settings-mcp",
+  //   icon: "lucide:server",
+  //   position: 5,
+  //   groupKey: "tools",
+  //   keywords: [
+  //     "mcp",
+  //     "tools",
+  //     "server",
+  //     "model context protocol",
+  //     "工具",
+  //     "服务",
+  //   ],
+  // },
+  // {
+  //   routeName: "settings-remote",
+  //   path: "/remote",
+  //   titleKey: "routes.settings-remote",
+  //   icon: "lucide:smartphone",
+  //   position: 5.25,
+  //   groupKey: "system",
+  //   keywords: ["remote", "telegram", "feishu", "control", "远程", "控制"],
+  // },
+  // {
+  //   routeName: "settings-notifications-hooks",
+  //   path: "/notifications-hooks",
+  //   titleKey: "routes.settings-notifications-hooks",
+  //   icon: "lucide:bell",
+  //   position: 5.5,
+  //   groupKey: "tools",
+  //   keywords: ["notification", "hook", "webhook", "通知"],
+  // },
+  // {
+  //   routeName: "settings-scheduled-tasks",
+  //   path: "/scheduled-tasks",
+  //   titleKey: "routes.settings-scheduled-tasks",
+  //   icon: "lucide:clock-9",
+  //   position: 5.6,
+  //   groupKey: "tools",
+  //   keywords: [
+  //     "schedule",
+  //     "scheduled",
+  //     "reminder",
+  //     "timer",
+  //     "cron",
+  //     "定时",
+  //     "提醒",
+  //     "计划",
+  //     "定时任务",
+  //   ],
+  // },
+  // {
+  //   routeName: "settings-plugins",
+  //   path: "/plugins",
+  //   titleKey: "routes.settings-plugins",
+  //   icon: "lucide:puzzle",
+  //   position: 5.75,
+  //   groupKey: "tools",
+  //   keywords: [
+  //     "plugin",
+  //     "plugins",
+  //     "extension",
+  //     "runtime",
+  //     "插件",
+  //     "扩展",
+  //     "运行时",
+  //   ],
+  //   supportedPlatforms: ["darwin"],
+  // },
   {
     routeName: 'settings-skills',
     path: '/skills',
@@ -222,33 +253,33 @@ export const SETTINGS_NAVIGATION_ITEMS: SettingsNavigationItem[] = [
     groupKey: 'knowledge',
     keywords: ['skill', 'skills', '技能']
   },
-  {
-    routeName: 'settings-prompt',
-    path: '/prompt',
-    titleKey: 'routes.settings-prompt',
-    icon: 'lucide:book-open-text',
-    position: 7,
-    groupKey: 'knowledge',
-    keywords: ['prompt', 'system prompt', '提示词']
-  },
-  {
-    routeName: 'settings-knowledge-base',
-    path: '/knowledge-base',
-    titleKey: 'routes.settings-knowledge-base',
-    icon: 'lucide:book-marked',
-    position: 8,
-    groupKey: 'knowledge',
-    keywords: ['knowledge', 'rag', 'knowledge base', '知识库']
-  },
-  {
-    routeName: 'settings-database',
-    path: '/database',
-    titleKey: 'routes.settings-database',
-    icon: 'lucide:database',
-    position: 9,
-    groupKey: 'system',
-    keywords: ['database', 'data', 'backup', '数据', '备份']
-  },
+  // {
+  //   routeName: "settings-prompt",
+  //   path: "/prompt",
+  //   titleKey: "routes.settings-prompt",
+  //   icon: "lucide:book-open-text",
+  //   position: 7,
+  //   groupKey: "knowledge",
+  //   keywords: ["prompt", "system prompt", "提示词"],
+  // },
+  // {
+  //   routeName: "settings-knowledge-base",
+  //   path: "/knowledge-base",
+  //   titleKey: "routes.settings-knowledge-base",
+  //   icon: "lucide:book-marked",
+  //   position: 8,
+  //   groupKey: "knowledge",
+  //   keywords: ["knowledge", "rag", "knowledge base", "知识库"],
+  // },
+  // {
+  //   routeName: "settings-database",
+  //   path: "/database",
+  //   titleKey: "routes.settings-database",
+  //   icon: "lucide:database",
+  //   position: 9,
+  //   groupKey: "system",
+  //   keywords: ["database", "data", "backup", "数据", "备份"],
+  // },
   {
     routeName: 'settings-shortcut',
     path: '/shortcut',
@@ -328,7 +359,7 @@ export const resolveSettingsNavigationPath = (
     (navigationItem) => navigationItem.routeName === routeName
   )
   if (!item) {
-    return '/overview'
+    return '/deepchat-agents'
   }
 
   const resolvedSegments = item.path
