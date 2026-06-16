@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 
-const LINUX_APP_NAME = 'deepchat'
+// const LINUX_APP_NAME = 'deepchat'
 const ARCH_NAMES = new Map([
   [0, 'ia32'],
   [1, 'x64'],
@@ -120,21 +120,32 @@ function isLinux(targets) {
   return !!targets.find((target) => re.test(target.name))
 }
 
-async function afterPackLinux({ appOutDir }) {
-  const scriptPath = path.join(appOutDir, LINUX_APP_NAME)
-  const script = `#!/bin/bash\n"\${BASH_SOURCE%/*}"/${LINUX_APP_NAME}.bin --no-sandbox "$@"`
-  await fs.rename(scriptPath, `${scriptPath}.bin`)
-  await fs.writeFile(scriptPath, script)
-  await fs.chmod(scriptPath, 0o755)
+async function afterPackLinux(context) {
+  const { appOutDir, packager } = context;
+  const executableName = packager.appInfo.executableName || 
+                         packager.appInfo.productFilename;
+  
+  if (!executableName) {
+    console.warn('无法获取可执行文件名，跳过 afterPack Linux 处理');
+    return;
+  }
+
+  const scriptPath = path.join(appOutDir, executableName);
+  if (!(await pathExists(scriptPath))) {
+    console.warn(`可执行文件不存在，跳过重命名: ${scriptPath}`);
+    return;
+  }
+  const script = `#!/bin/bash\n"\${BASH_SOURCE%/*}"/${executableName}.bin --no-sandbox "$@"`;
+  await fs.rename(scriptPath, `${scriptPath}.bin`);
+  await fs.writeFile(scriptPath, script);
+  await fs.chmod(scriptPath, 0o755);
 }
 
 async function afterPack(context) {
-  const { targets, appOutDir } = context
-
-  await copyFffNativePackages(context)
-
+  const { targets } = context;
+  await copyFffNativePackages(context);
   if (isLinux(targets)) {
-    await afterPackLinux({ appOutDir })
+    await afterPackLinux(context);
   }
 }
 
