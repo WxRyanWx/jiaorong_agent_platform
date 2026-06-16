@@ -32,7 +32,7 @@ describe('AgentRepository', () => {
     }
     const repository = new AgentRepository(sqlitePresenter as never)
 
-    repository.ensureBuiltinDeepChatAgent({ name: 'DeepChat', config: {} })
+    repository.ensureBuiltinDeepChatAgent({ name: '通用智能体', config: {} })
     const config = repository.resolveDeepChatAgentConfig('deepchat')
 
     expect(config.subagentEnabled).toBe(true)
@@ -44,7 +44,7 @@ describe('AgentRepository', () => {
     expect(config.subagents?.every((slot) => slot.targetType === 'self')).toBe(true)
   })
 
-  it('inherits DeepChat image generation model from the builtin agent', () => {
+  it('inherits universal-agent image generation model from the builtin agent', () => {
     const now = Date.now()
     const rows = new Map<string, any>([
       [
@@ -53,14 +53,17 @@ describe('AgentRepository', () => {
           id: 'deepchat',
           agent_type: 'deepchat',
           source: 'builtin',
-          name: 'DeepChat',
+          name: '通用智能体',
           enabled: 1,
           protected: 1,
           description: null,
           icon: null,
           avatar_json: null,
           config_json: JSON.stringify({
-            imageGenerationModel: { providerId: 'openai', modelId: 'gpt-image-1' }
+            imageGenerationModel: {
+              providerId: 'openai',
+              modelId: 'gpt-image-1'
+            }
           }),
           state_json: null,
           created_at: now,

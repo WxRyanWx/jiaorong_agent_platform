@@ -1,16 +1,19 @@
 # Changelog
 
-## v1.0.6-beta.5 (2026-06-11)
+## v1.0.4-beta.5 (2026-06-11)
+
 - Fixed packaged app startup by bundling the OpenDAL native binding needed by cloud sync
 - 修复打包应用启动问题，补齐云同步所需的 OpenDAL native binding
 
 ## v1.0.6-beta.4 (2026-06-11)
+
 - Migrated cloud sync to OpenDAL and improved R2 setup for more reliable S3-compatible backups
 - Fixed agent runtime FFF loading from unpacked app builds and cleaned up logging, skill IO, and status bar behavior
 - 将云同步迁移到 OpenDAL，并优化 R2 设置，让 S3 兼容备份更可靠
 - 修复 Agent 运行时在 unpacked app 构建中的 FFF 加载，并清理日志、skill IO 与状态栏行为
 
 ## v1.0.6-beta.3 (2026-06-10)
+
 - Added AWS Bedrock profile authentication support for easier account and credential switching
 - Improved agent runtime node discovery with FFF search and refreshed AI SDK packages plus bundled resources
 - Fixed Anthropic reasoning controls so supported thinking settings stay available after provider data refreshes
@@ -21,10 +24,12 @@
 - 修复 AWS Provider 配置界面的样式一致性
 
 ## v1.0.6-beta.2 (2026-06-08)
+
 - Fixed release CI tooltip module resolution so macOS release builds can complete reliably
 - 修复发布 CI 中 tooltip 模块解析问题，让 macOS 发布构建可稳定完成
 
 ## v1.0.6-beta.1 (2026-06-08)
+
 - Added S3-compatible cloud backup sync for more flexible cross-device data backup
 - Improved Dify knowledge import compatibility with the latest `retrieval_model` schema
 - Refreshed bundled provider and ACP registry data for current model and agent availability
@@ -33,6 +38,7 @@
 - 刷新内置 Provider 与 ACP registry 数据，更新模型和 Agent 可用性
 
 ## v1.0.5 (2026-06-05)
+
 - Added scheduled tasks, agent progress todos, session transfer, session tape memory, and remote `/agent` commands for more persistent agent workflows
 - Added OpenAI-compatible video generation, tool result image previews, remote image delivery, and richer TTS model routing controls
 - Added provider configuration import for CC Switch and external tools, plus refreshed bundled provider data to 142 providers and 6,964 models
@@ -51,6 +57,7 @@
 - 修复 macOS 前台身份、Provider 能力处理、浏览器恢复错误、启动告警噪声、浮动按钮位置持久化和会话列表行为
 
 ## v1.0.5-beta.8 (2026-06-02)
+
 - Added a collapsible workspace file tree sidebar and an animated theme toggle in the app sidebar
 - Added automatic chat activity collapsing so completed reasoning and tool-call work stays easier to scan
 - Improved ACP v1 reliability with stronger capability handling, session persistence, terminal behavior, diagnostics, and protocol coverage
@@ -61,6 +68,7 @@
 - 修复温度控制和 Provider 数据库预算特殊值的模型能力处理
 
 ## v1.0.5-beta.7 (2026-06-01)
+
 - Added agent session transfer so chats can be preserved or moved when changing agent ownership
 - Added a richer workspace Git diff panel rendering experience
 - Improved NewAPI routing, AI SDK system prompt handling, image-capable model switching, and plan model styling
@@ -71,6 +79,7 @@
 - 修复工作区文件引用插入、浮动按钮位置持久化和折叠侧边栏 Agent 展开问题
 
 ## v1.0.5-beta.6 (2026-05-29)
+
 - Added `/agent` commands across remote-control channels so remote conversations can switch agents more easily
 - Added tool result image previews and remote image delivery for richer agent output
 - Added skill draft confirmation cards with view, install, and discard actions, plus Top P generation controls
@@ -83,6 +92,7 @@
 - 修复 Agent exec utility host 启动失败、预发布渠道升级、防降级、启动告警噪声和流式输出底部抖动问题
 
 ## v1.0.5-beta.5 (2026-05-27)
+
 - Added scheduled tasks for recurring agent work
 - Added high-priority language support and completed missing locale keys for broader localization coverage
 - Simplified the data settings Danger Zone entry so reset choices stay inside the confirmation dialog
@@ -95,6 +105,7 @@
 - 修复飞书远程控制状态更新时配对用户被丢失的问题
 
 ## v1.0.5-beta.4 (2026-05-25)
+
 - Added session tape memory to persist and compress agent conversation history more reliably
 - Synced CUA driver to v0.2.0 with diagnostic tools and improved app launching
 - Telegram replies now render Markdown as HTML for proper formatting
@@ -107,6 +118,7 @@
 - 更新 AI SDK 依赖并刷新内置 Provider registry 数据
 
 ## v1.0.5-beta.3 (2026-05-22)
+
 - Added encrypted SQLite database storage to strengthen local data protection
 - Improved onboarding guide handoff by refreshing state after setup transitions
 - Refined onboarding spotlight rendering with SVG paths and fixed panel stacking and hover performance issues
@@ -115,6 +127,7 @@
 - 优化引导高亮的 SVG path 渲染，并修复面板层级与 hover 性能问题
 
 ## v1.0.5-beta.2 (2026-05-21)
+
 - Added provider configuration import with preview, validation, conflict handling, and localized settings UI
 - Added CC Switch configuration import and broader provider import path discovery for smoother migration from external tools
 - Added a hero transition for the chat input on new threads and refined chat overlay/sidebar styling for a cleaner first-run flow
@@ -127,6 +140,7 @@
 - 新增飞书 thing 表情互动，并加强飞书远程控制运行时处理
 
 ## v1.0.5-beta.1 (2026-05-19)
+
 - Added an agent progress todo tool with floating progress UI and plan message rendering so long-running agent work is easier to track
 - Added OpenAI-compatible video generation with model settings, generated video message rendering, and provider runtime support
 - Improved TTS routing and Gemini TTS behavior with unified model settings, provider metadata, and stronger runtime coverage
@@ -141,6 +155,7 @@
 - 修复图片路线的聊天预算处理，让生成图片请求避免不必要的上下文预算失败
 
 ## v1.0.4 (2026-05-15)
+
 - Added guided onboarding, voice input transcription, and a redesigned settings control center to make first setup and daily configuration easier
 - Added agent image generation, OpenAI image settings, Mac computer use, manual compaction, and side panel fullscreen controls for more capable agent workflows
 - Added Mistral, Xiaomi Token Plan regions, refreshed provider data, and improved model capability controls for broader model access
@@ -159,6 +174,7 @@
 - 更新内置运行时、AI SDK patch 版本、Markstream 渲染、Provider registry 数据与发布打包支持，面向稳定构建
 
 ## v1.0.4-beta.8 (2026-05-12)
+
 - Added a redesigned settings control center with overview cards, grouped navigation, settings activity, and refined MCP, provider, and data panels
 - Added a fullscreen toggle for the side panel and improved layout responsiveness across side panel and workspace views
 - Added an isolated Feishu plugin settings surface with credential management, MCP presets, and plugin-owned MCP servers hidden from global MCP settings
@@ -177,6 +193,7 @@
 - 更新 AI SDK patch 版本，并刷新内置 Provider 与 ACP registry 数据，提升运行时兼容性新鲜度
 
 ## v1.0.4-beta.7 (2026-05-11)
+
 - Added Mistral as a built-in provider, including model icons, provider catalog support, and deeplink handling
 - Agent runs now budget tool schemas and tool output more defensively, reducing oversized context failures and follow-up stalls
 - Context-window overflow errors now include budget diagnostics and try pressure recovery before failing oversized requests
@@ -197,6 +214,7 @@
 - Plugin MCP server 的生命周期隔离更清晰，启动、停止和内置插件展示更可靠
 
 ## v1.0.4-beta.6 (2026-05-09)
+
 - Agents can now generate images right inside chat, with OpenAI image settings available when you want more control
 - Image previews and image actions feel smoother, especially around generated results and tool output
 - Long conversations should feel lighter when you scroll back through older messages
@@ -211,6 +229,7 @@
 - 修了一批日常小毛病，包括 Ollama、模型服务商搜索、Windows 命令输出、搜索文档和电脑使用设置里的空提示
 
 ## v1.0.4-beta.5 (2026-05-04)
+
 - Added Mac computer use capability for enhanced desktop automation
 - Added launch at login and access controls for better app startup management
 - Enhanced agent capabilities with improved model source derivation
@@ -227,6 +246,7 @@
 - 修复聊天流程中的文件连接失败问题
 
 ## v1.0.4-beta.4 (2026-04-29)
+
 - Added model fetching fallbacks for Anthropic and Gemini so provider model lists recover more reliably
 - Added Xiaomi Token Plan providers for CN, SGP, and AMS regions
 - Enhanced DeepSeek V4 compatibility across provider and model workflows
@@ -239,10 +259,12 @@
 - 修复 Agent 与 ACP 工作区传递、交错工具流以及工具 schema 上下文预算处理
 
 ## v1.0.4-beta.3 (2026-04-27)
+
 - Fixed attachment date metadata transfer across IPC payloads so attachment records stay valid in chat flows
 - 修复附件日期元数据在 IPC 载荷中的传递，确保聊天流程中的附件记录保持有效
 
 ## v1.0.4-beta.2 (2026-04-27)
+
 - Preserved interleaved reasoning output so mixed reasoning and answer streams stay in the correct order
 - Updated the Markstream renderer to the stable 0.0.13 release for more reliable Markdown streaming
 - Improved chat message transitions, sidebar updates, and side panel rendering performance
@@ -253,6 +275,7 @@
 - 修复 RTK 与内置知识库配置状态处理，完善 MCP 工具配置流程
 
 ## v1.0.4-beta.1 (2026-04-25)
+
 - Improved remote control media delivery across Discord, Feishu, QQ Bot, Telegram, and WeChat iLink, including block streaming and file handling
 - Fixed ACP working directory propagation for remote executions so agent commands run in the intended workspace
 - Added batch model status updates to reduce provider model list churn and keep model management more responsive
@@ -265,6 +288,7 @@
 - 修复缺少预期 hook 时 RTK runtime 启动失败的问题，提升受影响安装环境下的 agent runtime 韧性
 
 ## v1.0.3 (2026-04-24)
+
 - Added DeepSeek V4 series model support and refreshed provider model data for more complete default model availability
 - Migrated model requests to the AI SDK runtime for more consistent provider behavior, streaming, prompt cache, and tool calling
 - Expanded remote control into a unified multi-channel setup with Discord, QQ Bot, and WeChat iLink support
@@ -281,6 +305,7 @@
 - 增加 Sharp 原生包 hoist 配置，确保图片处理依赖在 release 构建中可用
 
 ## v1.0.3-beta.6 (2026-04-22)
+
 - Added model initialization in settings so ModelSelect respects the current chat mode and restores default model controls more reliably
 - Added ACP registry icon request handling in the floating widget to improve agent icon rendering and related session visuals
 - Simplified YoBrowser host readiness handling to keep the embedded browser lifecycle more predictable
@@ -289,6 +314,7 @@
 - 精简 YoBrowser host readiness 处理逻辑，提升内嵌浏览器生命周期的可预测性
 
 ## v1.0.3-beta.5 (2026-04-22)
+
 - Added privacy mode and inline chat session renaming to improve workspace discretion and session organization
 - Added request timeout controls with a higher default range, and refined Kimi fixed-temperature plus Gemini v1beta compatibility handling
 - Improved startup and runtime responsiveness through asynchronous icon loading, store initialization cleanup, and more stable navigation payload normalization
@@ -301,10 +327,12 @@
 - 修复触控板滚动、新建会话入口显隐、项目清空选择、超时参数传递，以及升级后 SQLite/provider 恢复等多项流程问题
 
 ## v1.0.3-beta.4 (2026-04-19)
+
 - Recovered missing SQLite `deepchat_sessions` columns on upgraded installs to restore stable session persistence
 - 修复升级安装后 SQLite `deepchat_sessions` 缺失列的问题，恢复会话持久化稳定性
 
 ## v1.0.3-beta.3 (2026-04-18)
+
 - Added Anthropic temperature support in model capability controls
 - Added `none` and `xhigh` reasoning effort options for supported models
 - Improved sidebar session pin feedback and stabilized session group identity handling
@@ -323,6 +351,7 @@
 - 优化 Anthropic reasoning 路由，并限制推导出的默认 max tokens，降低模型配置风险
 
 ## v1.0.3-beta.2 (2026-04-15)
+
 - Expanded remote control into a unified multi-channel setup with Discord, QQ Bot, and WeChat iLink support
 - Added default collapsing for long user messages so dense chats stay readable while attachments remain fully visible
 - Polished the new conversation entry flow with a persistent collapsed-sidebar `+` action and a shorter default input box
@@ -335,6 +364,7 @@
 - 修复 ACP 终端权限审批桥接流程，保证执行期间的流式权限请求信息完整传递
 
 ## v1.0.3-beta.1 (2026-04-11)
+
 - Migrated model requests to the AI SDK runtime, improving prompt cache behavior, provider consistency, and streaming stability
 - Added NewAPI provider support and refined compatible endpoint configuration
 - Improved model management with more stable provider toggles and synchronized Ollama selectable model status
@@ -347,6 +377,7 @@
 - 优化 Markdown 与工作区链接跳转体验，新增侧栏面板切换快捷键，并修复侧边栏制品预览高度问题
 
 ## v1.0.2 (2026-04-08)
+
 - Added provider model list filtering and sorting, and now remembers the sidebar session grouping mode
 - Added ACP Agent uninstall support and refined provider prompt cache configuration
 - Improved remote delivery ordering for Telegram and Feishu, and fixed db-backed model list sync stability
@@ -357,6 +388,7 @@
 - 改进仪表盘与设置页响应式布局，并修复自动压缩设置保存问题
 
 ## v1.0.1 (2026-04-02)
+
 - Added in-chat search and Spotlight global search for faster access to messages and app entry points
 - Improved the provider database refresh flow and added manual model config refresh
 - Updated the Markdown renderer preprocessing flow to improve rendering stability
@@ -367,13 +399,15 @@
 - 修复速率限制处理问题，减少请求受限时的异常体验
 
 ## v1.0.0 (2026-03-31)
-- DeepChat 1.0 正式发布：完成全新 Agent 架构切换，统一 DeepChat Agent 与 ACP Agent 主流程，并内置 DimCode Agent
+
+- DeepChat 1.0 正式发布：完成全新 Agent 架构切换，统一 通用智能体 与 ACP Agent 主流程，并内置 DimCode Agent
 - 新增远程控制能力矩阵：支持 Telegram、Feishu 与 ACP Agent Remote，补齐权限消息、流式块渲染与工作目录选择
 - 强化工作流与工具链：支持 RTK 工具调用、Environments、Provider Deeplink 导入、Workspace 拖拽引用与 DeepChat Sub Agent 协作
 - 持续打磨桌面端体验：新增浮动窗口、用户仪表盘、自动压缩控制，并优化侧边栏、悬浮按钮、状态栏与工具调用交互
 - 完成正式版稳定性收敛：修复 HTML 预览、主题同步、消息标题选择、会话工作目录、MCP 生命周期与历史序列化等问题
 
 ## v1.0.0-beta.7 (2026-03-27)
+
 - 新增 Novita AI LLM 提供商接入
 - 新增 Provider 配置导入能力（Deeplink 导入）
 - 新增 Feishu Bot 远端接入能力
@@ -381,13 +415,15 @@
 - 修复消息标题选择与 MCP 生命周期相关稳定性问题，并清理已过期 MCP Server
 
 ## v1.0.0-beta.6 (2026-03-24)
+
 - 新增 Telegram Remote Control，可通过 Telegram 远程查看与驱动会话，远程控制配置也已接入设置页
-- 统一 DeepChat Agent 与 ACP Agent 的 Agent 能力和入口，补齐欢迎页、本地化文案与默认配置，整体使用路径更一致
+- 统一 通用智能体 与 ACP Agent 的 Agent 能力和入口，补齐欢迎页、本地化文案与默认配置，整体使用路径更一致
 - 优化会话默认工作目录传递，修复 Agent / ACP / Skills 在 session workdir 继承上的问题
 - 强化启动与工具输出稳定性，修复 Splash 窗口显示时机，并为大体量工具输出增加保护与批处理适配
 - 移除过时 MCP UI 支持，修复 OpenAI Responses 历史序列化问题，同时继续打磨状态同步与路由细节
 
 ## v1.0.0-beta.5 (2026-03-22)
+
 - 优化启动 Splash 窗口与 ACP 配置加载提示，启动过程更直观
 - 支持 ACP Registry 搜索安装与 ACP 模型选择，ACP Agent 配置体验继续完善
 - 新增会话 steer / queue 能力，支持待发送消息排队、转向与恢复处理
@@ -395,6 +431,7 @@
 - 修复 OpenAI Compatible MCP 工具、interleaved thinking，以及队列与 stop 状态同步等问题
 
 ## v1.0.0-beta.4 (2026-03-18)
+
 - 新增浮动窗口，全新效果一目了然
 - 增加用户仪表盘，token使用一目了然
 - 重构内建工具链，支持 RTK 工具调用，控制和性能都有提升
@@ -402,36 +439,42 @@
 - 修复全新安装时 SQLite 迁移冲突问题，提升首次启动稳定性
 
 ## v1.0.0-beta.3 (2026-03-18, withdrawn)
+
 - 新增浮动窗口，全新效果一目了然
 - 增加用户仪表盘，token使用一目了然
 - 重构内建工具链，支持 RTK 工具调用，控制和性能都有提升
 - 统一 Workspace 生命周期刷新，清理旧代码，提升整体稳定性
 
 ## v1.0.0-beta.2 (2026-03-13)
+
 - 新增自动压缩控制，可在设置中配置会话摘要压缩行为
 - 优化 Yo Browser 生命周期与迁移流程，提升稳定性
 - 强化 Skills 运行时执行安全，并补齐欢迎页自定义能力
 - 修复多项界面问题，包括 Agent 文案对齐、语音输入按钮显示与悬浮按钮细节
 
 ## v1.0.0-beta.1 (2026-03-09)
+
 - 全新 Agent 架构：重构 Agent UI 与 Agent Loop，模块化流处理，统一代码路径
 - 移除 Chat 模式：简化模式选择，仅保留 Agent 和 ACP Agent 两种模式
 - 默认模型配置系统：新增默认模型与默认视觉模型全局设置
 - 内置 DimCode Agent：预置 ACP Agent，开箱即用的代码助手
 
 ## v0.5.8 (2026-02-09)
+
 - OpenAI 默认改为 Responses API
 - 支持了 Telegram/Discord/Confirmo 通知
 - 支持任务生命周期 hooks
 - 修复少量 Bug
 
 ## v0.5.7 (2026-02-05)
+
 - 完善 Skills 支持
 - Agent 现在可以生成可交互的提问信息
 - 增加 Voice.ai 为新供应商
 - 修复大量 Bug
 
 ## v0.5.6-beta.5 (2025-01-16)
+
 - 全新 Skills 管理系统，支持技能安装、同步与多平台适配
 - 新增 o3.fan 提供商、优化工具调用（大型调用卸载、差异块展示、权限管理）、性能提升（消息列表虚拟滚动、流式事件批处理调度）
 - 修复多项问题：Ollama 错误处理、滚动定位、聊天输入高度、macOS 全屏等
@@ -440,6 +483,7 @@
 - Fixed multiple issues: Ollama error handling, scroll positioning, chat input height, macOS fullscreen, etc.
 
 ## v0.5.6-beta.4 (2025-12-30)
+
 - 全面重构 Agent 与会话架构：拆分 agent/session/loop/tool/persistence，替换 Thread Presenter 为 Session Presenter，强化消息压缩、工具调用、持久化与导出
 - 增强搜索体验：新增 Search Presenter 与搜索提示模板，完善搜索助手与搜索引擎配置流程
 - 加固权限与数据：新增命令权限缓存/服务，更新模型与提供商数据库，并补充多语言 i18n 文案
@@ -448,6 +492,7 @@
 - Hardened permissions and data updates with command permission cache/service, refreshed provider/model DB, and broader i18n coverage
 
 ## v0.5.6-beta.3 (2025-12-27)
+
 - 全新 Agent Mode，支持 RipGrep 等数十项新特性
 - 全新子会话概念，随时针对会话中任意消息单独讨论
 - 修复一些已知问题
@@ -458,16 +503,19 @@
 - ACP Agent can directly use the MCP configured in the app
 
 ## v0.5.6-beta.1 (2025-12-23)
+
 - Markdown 优化，修复列表元素异常
 - 修复 Ollama 视觉模型图片格式
 - Improved Markdown rendering, fixed list element issues
 - Fixed Ollama vision model image format
 
 ## v0.5.5 (2025-12-19)
+
 - 全新 Yo Browser 功能，让你的模型畅游网络
 - All-new Yo Browser lets your model roam the web
 
 ## v0.5.3 (2025-12-13)
+
 - 优化 ACP 体验,增加 ACP 调试能力
 - 增加了自定义软件字体能力
 - add acp process warmup and debug panel

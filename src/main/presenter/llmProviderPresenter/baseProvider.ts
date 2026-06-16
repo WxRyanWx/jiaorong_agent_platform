@@ -19,6 +19,9 @@ import { resolveRequestTraceContext, type ProviderRequestTracePayload } from './
 import type { ProviderMcpRuntimePort } from './runtimePorts'
 import { normalizeToolInputSchema } from './aiSdk/toolMapper'
 
+// 没有缓存数据时，自动启用的模型
+const defaultEnabledModels = ['jiaorong-kimi-k2.6']
+
 export const AUDIO_TRANSCRIPTION_NOT_SUPPORTED_ERROR = 'audio-transcription-not-supported'
 
 export function isAudioTranscriptionNotSupportedError(error: unknown): boolean {
@@ -233,11 +236,13 @@ export abstract class BaseLLMProvider {
       this.configPresenter.getModelStatus(providerId, model.id)
     )
 
-    // 不再自动启用模型，让用户手动选择启用需要的模型
+    // 自动启用一些模型
     if (!hasEnabledModels) {
-      logger.info(
-        `Provider ${this.provider.name} models loaded, please manually enable the models you need`
-      )
+      this.models.forEach((model) => {
+        if (defaultEnabledModels.includes(model.id)) {
+          this.configPresenter.setModelStatus(providerId, model.id, true)
+        }
+      })
     }
   }
 
@@ -528,9 +533,11 @@ ${this.convertToolsToXml(tools)}
    * @param response 包含工具调用标签的响应文本
    * @returns 解析后的工具调用列表
    */
-  protected parseFunctionCalls(
-    response: string
-  ): { id: string; type: string; function: { name: string; arguments: string } }[] {
+  protected parseFunctionCalls(response: string): {
+    id: string
+    type: string
+    function: { name: string; arguments: string }
+  }[] {
     try {
       // 使用正则表达式匹配所有的function_call标签对
       const functionCallMatches = response.match(/<function_call>(.*?)<\/function_call>/gs)

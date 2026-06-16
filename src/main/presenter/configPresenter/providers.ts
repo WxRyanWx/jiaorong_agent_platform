@@ -2,6 +2,38 @@ import { LLM_PROVIDER_BASE } from '@shared/presenter'
 
 export const DEFAULT_PROVIDERS: LLM_PROVIDER_BASE[] = [
   {
+    id: 'jiaorong',
+    name: 'Jiaorong',
+    apiType: 'openai-completions',
+    apiKey: 'sk-ChWjO4ISHz6FmVIBrcI7mpki2CVJsQhz',
+    baseUrl: 'https://c4ai.ccccltd.cn/api/compatible/v1',
+    enable: true,
+    websites: {
+      official: 'https://c4ai.ccccltd.cn/',
+      apiKey: '',
+      docs: '',
+      models: '',
+      defaultBaseUrl: 'https://c4ai.ccccltd.cn/api/compatible/v1'
+    }
+  },
+  // {
+  //   id: "ali",
+  //   name: "Aliyun",
+  //   apiType: "openai",
+  //   apiKey:
+  //     "sk-ws-H.REPMDHY.yBrq.MEYCIQCtRpoakYAHAghP6XQJIFhWWVQ8sl809hfBqNb20IVjBQIhAJZE40J8tavSuJQJOcwjfq4-9bdgjPS7j1nuZvBHABXz",
+  //   baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+  //   enable: true,
+  //   websites: {
+  //     official: "https://c4ai.ccccltd.cn/",
+  //     apiKey: "",
+  //     docs: "",
+  //     models: "",
+  //     defaultBaseUrl:
+  //       "sk-ws-H.REPMDHY.yBrq.MEYCIQCtRpoakYAHAghP6XQJIFhWWVQ8sl809hfBqNb20IVjBQIhAJZE40J8tavSuJQJOcwjfq4-9bdgjPS7j1nuZvBHABXz",
+  //   },
+  // },
+  {
     id: 'ollama',
     name: 'Ollama',
     apiType: 'ollama',

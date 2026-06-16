@@ -126,7 +126,7 @@ export class AgentRepository {
         id: BUILTIN_DEEPCHAT_AGENT_ID,
         agentType: 'deepchat',
         source: 'builtin',
-        name: defaults?.name?.trim() || 'DeepChat',
+        name: defaults?.name?.trim() || '通用智能体',
         enabled: true,
         protected: true,
         icon: sanitizeString(defaults?.icon),
@@ -270,7 +270,9 @@ export class AgentRepository {
       return null
     }
 
-    const currentConfig = parseJson<StoredAcpManualConfig>(row.config_json) ?? { command: '' }
+    const currentConfig = parseJson<StoredAcpManualConfig>(row.config_json) ?? {
+      command: ''
+    }
     const nextConfig: StoredAcpManualConfig = {
       command: updates.command?.trim() || currentConfig.command,
       args: updates.args ?? currentConfig.args,

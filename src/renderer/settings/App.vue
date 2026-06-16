@@ -8,7 +8,7 @@
       class="w-full h-9 window-drag-region shrink-0 justify-end flex flex-row relative border border-b-0 border-window-inner-border box-border rounded-t-[10px]"
       :class="[
         isMacOS ? '' : ' ounded-t-none',
-        isMacOS ? 'bg-window-background' : 'bg-window-background/10'
+        isMacOS ? 'bg-window-background' : 'bg-window-background/10',
       ]"
     >
       <div class="absolute bottom-0 left-0 w-full h-[1px] bg-border z-10"></div>
@@ -29,7 +29,11 @@
         class="w-60 h-full border-r border-border shrink-0 overflow-y-auto bg-muted/10"
       >
         <div class="flex flex-col gap-4 p-3">
-          <div v-for="group in settingGroups" :key="group.key" class="flex flex-col gap-1">
+          <div
+            v-for="group in settingGroups"
+            :key="group.key"
+            class="flex flex-col gap-1"
+          >
             <div class="px-2 text-xs font-medium text-muted-foreground">
               {{ t(group.titleKey) }}
             </div>
@@ -41,12 +45,19 @@
                 :data-testid="getSettingsTabTestId(setting.name)"
                 :class="[
                   'flex w-full min-w-0 flex-row items-center gap-2 rounded-md px-2 py-2 text-start transition-colors hover:bg-accent',
-                  route.name === setting.name ? 'bg-accent text-accent-foreground' : ''
+                  route.name === setting.name
+                    ? 'bg-accent text-accent-foreground'
+                    : '',
                 ]"
                 @click="handleClick(setting.path)"
               >
-                <Icon :icon="setting.icon" class="size-4 shrink-0 text-muted-foreground" />
-                <span class="min-w-0 truncate text-sm font-medium">{{ t(setting.title) }}</span>
+                <Icon
+                  :icon="setting.icon"
+                  class="size-4 shrink-0 text-muted-foreground"
+                />
+                <span class="min-w-0 truncate text-sm font-medium">{{
+                  t(setting.title)
+                }}</span>
               </button>
             </div>
           </div>
@@ -59,7 +70,7 @@
       :provider-id="modelCheckStore.currentProviderId"
       @update:open="
         (open) => {
-          if (!open) modelCheckStore.closeDialog()
+          if (!open) modelCheckStore.closeDialog();
         }
       "
     />
@@ -77,344 +88,389 @@
 </template>
 
 <script setup lang="ts">
-import { Icon } from '@iconify/vue'
-import { useRouter, useRoute, RouterView } from 'vue-router'
-import { onMounted, onBeforeUnmount, Ref, ref, watch, computed, nextTick, unref } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { useTitle } from '@vueuse/core'
-import { useLegacyPresenter } from '@api/legacy/presenters'
-import CloseIcon from './icons/CloseIcon.vue'
-import { useUiSettingsStore } from '../src/stores/uiSettingsStore'
-import { useLanguageStore } from '../src/stores/language'
-import { useModelCheckStore } from '../src/stores/modelCheck'
-import { Button } from '@shadcn/components/ui/button'
-import ModelCheckDialog from '@/components/settings/ModelCheckDialog.vue'
-import { useDeviceVersion } from '../src/composables/useDeviceVersion'
-import { Toaster } from '@shadcn/components/ui/sonner'
-import 'vue-sonner/style.css'
-import { NOTIFICATION_EVENTS, SETTINGS_EVENTS } from '@/events'
-import { useToast } from '@/components/use-toast'
-import { useThemeStore } from '@/stores/theme'
-import { useProviderStore } from '@/stores/providerStore'
-import { useModelStore } from '@/stores/modelStore'
-import { useOllamaStore } from '@/stores/ollamaStore'
-import { useProviderDeeplinkImportStore } from '@/stores/providerDeeplinkImport'
-import { useMcpInstallDeeplinkHandler } from '../src/lib/storeInitializer'
-import { ensureIconsLoaded } from '../src/lib/iconLoader'
-import { useFontManager } from '../src/composables/useFontManager'
-import { markStartupInteractive } from '../src/lib/startupDeferred'
+import { Icon } from "@iconify/vue";
+import { useRouter, useRoute, RouterView } from "vue-router";
+import {
+  onMounted,
+  onBeforeUnmount,
+  Ref,
+  ref,
+  watch,
+  computed,
+  nextTick,
+  unref,
+} from "vue";
+import { useI18n } from "vue-i18n";
+import { useTitle } from "@vueuse/core";
+import { useLegacyPresenter } from "@api/legacy/presenters";
+import CloseIcon from "./icons/CloseIcon.vue";
+import { useUiSettingsStore } from "../src/stores/uiSettingsStore";
+import { useLanguageStore } from "../src/stores/language";
+import { useModelCheckStore } from "../src/stores/modelCheck";
+import { Button } from "@shadcn/components/ui/button";
+import ModelCheckDialog from "@/components/settings/ModelCheckDialog.vue";
+import { useDeviceVersion } from "../src/composables/useDeviceVersion";
+import { Toaster } from "@shadcn/components/ui/sonner";
+import "vue-sonner/style.css";
+import { NOTIFICATION_EVENTS, SETTINGS_EVENTS } from "@/events";
+import { useToast } from "@/components/use-toast";
+import { useThemeStore } from "@/stores/theme";
+import { useProviderStore } from "@/stores/providerStore";
+import { useModelStore } from "@/stores/modelStore";
+import { useOllamaStore } from "@/stores/ollamaStore";
+import { useProviderDeeplinkImportStore } from "@/stores/providerDeeplinkImport";
+import { useMcpInstallDeeplinkHandler } from "../src/lib/storeInitializer";
+import { ensureIconsLoaded } from "../src/lib/iconLoader";
+import { useFontManager } from "../src/composables/useFontManager";
+import { markStartupInteractive } from "../src/lib/startupDeferred";
 import type {
   DatabaseRepairSuggestedPayload,
   LLM_PROVIDER,
-  ProviderInstallPreview
-} from '@shared/presenter'
-import ProviderDeeplinkImportDialog from './components/ProviderDeeplinkImportDialog.vue'
-import { nanoid } from 'nanoid'
+  ProviderInstallPreview,
+} from "@shared/presenter";
+import ProviderDeeplinkImportDialog from "./components/ProviderDeeplinkImportDialog.vue";
+import { nanoid } from "nanoid";
 import {
   getSettingsNavigationGroups,
   getSettingsRouteItems,
-  resolveSettingsNavigationPath
-} from '@shared/settingsNavigation'
-import type { SettingsNavigationPayload } from '@shared/settingsNavigation'
-import { useStartupWorkloadStore } from '@/stores/startupWorkloadStore'
+  resolveSettingsNavigationPath,
+} from "@shared/settingsNavigation";
+import type { SettingsNavigationPayload } from "@shared/settingsNavigation";
+import { useStartupWorkloadStore } from "@/stores/startupWorkloadStore";
 
-const DATABASE_REPAIR_SECTION = 'database-repair'
-const SETTINGS_SECTION_EVENT = 'deepchat:settings-section'
-const SETTINGS_STARTUP_LOG_PREFIX = '[Startup][Settings][Renderer]'
+const DATABASE_REPAIR_SECTION = "database-repair";
+const SETTINGS_SECTION_EVENT = "deepchat:settings-section";
+const SETTINGS_STARTUP_LOG_PREFIX = "[Startup][Settings][Renderer]";
 
 type SettingsWindowState = Window & {
-  __deepchatSettingsPendingSection?: string | null
-}
+  __deepchatSettingsPendingSection?: string | null;
+};
 
-const devicePresenter = useLegacyPresenter('devicePresenter')
-const windowPresenter = useLegacyPresenter('windowPresenter')
-const configPresenter = useLegacyPresenter('configPresenter')
+const devicePresenter = useLegacyPresenter("devicePresenter");
+const windowPresenter = useLegacyPresenter("windowPresenter");
+const configPresenter = useLegacyPresenter("configPresenter");
 
 // Initialize stores
-const uiSettingsStore = useUiSettingsStore()
-const { setupFontListener } = useFontManager()
-setupFontListener()
+const uiSettingsStore = useUiSettingsStore();
+const { setupFontListener } = useFontManager();
+setupFontListener();
 
-const languageStore = useLanguageStore()
-const modelCheckStore = useModelCheckStore()
-const { toast } = useToast()
-const themeStore = useThemeStore()
-const providerStore = useProviderStore()
-const modelStore = useModelStore()
-const ollamaStore = useOllamaStore()
-let startupWorkloadStore: ReturnType<typeof useStartupWorkloadStore> | null = null
+const languageStore = useLanguageStore();
+const modelCheckStore = useModelCheckStore();
+const { toast } = useToast();
+const themeStore = useThemeStore();
+const providerStore = useProviderStore();
+const modelStore = useModelStore();
+const ollamaStore = useOllamaStore();
+let startupWorkloadStore: ReturnType<typeof useStartupWorkloadStore> | null =
+  null;
 
 try {
-  startupWorkloadStore = useStartupWorkloadStore()
+  startupWorkloadStore = useStartupWorkloadStore();
 } catch (error) {
-  console.warn('[Startup][Settings][Renderer] startupWorkloadStore unavailable', error)
+  console.warn(
+    "[Startup][Settings][Renderer] startupWorkloadStore unavailable",
+    error,
+  );
 }
-const providerDeeplinkImportStore = useProviderDeeplinkImportStore()
-const { setup: setupMcpDeeplink, cleanup: cleanupMcpDeeplink } = useMcpInstallDeeplinkHandler()
+const providerDeeplinkImportStore = useProviderDeeplinkImportStore();
+const { setup: setupMcpDeeplink, cleanup: cleanupMcpDeeplink } =
+  useMcpInstallDeeplinkHandler();
 // Register MCP deeplink listener immediately to avoid race with incoming IPC
-setupMcpDeeplink()
+setupMcpDeeplink();
 
-const errorQueue = ref<Array<{ id: string; title: string; message: string; type: string }>>([])
-const currentErrorId = ref<string | null>(null)
-const errorDisplayTimer = ref<number | null>(null)
-const isImportingProvider = ref(false)
+const errorQueue = ref<
+  Array<{ id: string; title: string; message: string; type: string }>
+>([]);
+const currentErrorId = ref<string | null>(null);
+const errorDisplayTimer = ref<number | null>(null);
+const isImportingProvider = ref(false);
 const toasterTheme = computed(() =>
-  themeStore.themeMode === 'system' ? (themeStore.isDark ? 'dark' : 'light') : themeStore.themeMode
-)
+  themeStore.themeMode === "system"
+    ? themeStore.isDark
+      ? "dark"
+      : "light"
+    : themeStore.themeMode,
+);
 
 // Detect platform to apply proper styling
-const { isMacOS, isWinMacOS } = useDeviceVersion()
-const { t, locale } = useI18n()
-const router = useRouter()
-const route = useRoute()
-const title = useTitle()
-const pendingProviderImportPreview = computed(() => providerDeeplinkImportStore.preview)
-const pendingProviderImportToken = computed(() => providerDeeplinkImportStore.previewToken)
-const isProcessingProviderPreview = ref(false)
-const startupTimeOrigin = typeof performance !== 'undefined' ? performance.now() : Date.now()
-const hasLoggedFirstRouteResolved = ref(false)
+const { isMacOS, isWinMacOS } = useDeviceVersion();
+const { t, locale } = useI18n();
+const router = useRouter();
+const route = useRoute();
+const title = useTitle();
+const pendingProviderImportPreview = computed(
+  () => providerDeeplinkImportStore.preview,
+);
+const pendingProviderImportToken = computed(
+  () => providerDeeplinkImportStore.previewToken,
+);
+const isProcessingProviderPreview = ref(false);
+const startupTimeOrigin =
+  typeof performance !== "undefined" ? performance.now() : Date.now();
+const hasLoggedFirstRouteResolved = ref(false);
 
 const logSettingsStartup = (phase: string) => {
-  const now = typeof performance !== 'undefined' ? performance.now() : Date.now()
-  const elapsed = Math.round(now - startupTimeOrigin)
-  console.info(`${SETTINGS_STARTUP_LOG_PREFIX} ${phase} elapsed=${elapsed}ms`)
-}
+  const now =
+    typeof performance !== "undefined" ? performance.now() : Date.now();
+  const elapsed = Math.round(now - startupTimeOrigin);
+  console.info(`${SETTINGS_STARTUP_LOG_PREFIX} ${phase} elapsed=${elapsed}ms`);
+};
 
-const isProviderStoreInitialized = () => Boolean(unref(providerStore.initialized))
+const isProviderStoreInitialized = () =>
+  Boolean(unref(providerStore.initialized));
 
 const providerImportConfirmDisabled = computed(() => {
-  const preview = pendingProviderImportPreview.value
+  const preview = pendingProviderImportPreview.value;
   if (!preview) {
-    return true
+    return true;
   }
 
-  if (preview.kind === 'builtin') {
-    return !providerStore.providers.some((provider) => provider.id === preview.id)
+  if (preview.kind === "builtin") {
+    return !providerStore.providers.some(
+      (provider) => provider.id === preview.id,
+    );
   }
 
-  return false
-})
+  return false;
+});
 
 const navigateToProviderSettings = async (providerId?: string) => {
   await router.push({
-    name: 'settings-provider',
-    params: providerId ? { providerId } : undefined
-  })
-}
+    name: "settings-provider",
+    params: providerId ? { providerId } : undefined,
+  });
+};
 
 const normalizeRouteParams = (params?: Record<string, string>) =>
   Object.entries(params ?? {})
-    .filter(([, value]) => typeof value === 'string' && value.trim().length > 0)
+    .filter(([, value]) => typeof value === "string" && value.trim().length > 0)
     .reduce<Record<string, string>>((acc, [key, value]) => {
-      acc[key] = value
-      return acc
-    }, {})
+      acc[key] = value;
+      return acc;
+    }, {});
 
 const hasSameRouteParams = (
   currentParams: Record<string, unknown>,
-  nextParams: Record<string, string>
+  nextParams: Record<string, string>,
 ): boolean => {
   const currentEntries = Object.entries(currentParams).filter(
-    ([, value]) => typeof value === 'string'
-  )
-  const nextEntries = Object.entries(nextParams)
+    ([, value]) => typeof value === "string",
+  );
+  const nextEntries = Object.entries(nextParams);
 
   if (currentEntries.length !== nextEntries.length) {
-    return false
+    return false;
   }
 
-  return nextEntries.every(([key, value]) => currentParams[key] === value)
-}
+  return nextEntries.every(([key, value]) => currentParams[key] === value);
+};
 
 const publishSettingsSection = async (section?: string) => {
   if (!section) {
-    return
+    return;
   }
 
-  ;(window as SettingsWindowState).__deepchatSettingsPendingSection = section
-  await nextTick()
+  (window as SettingsWindowState).__deepchatSettingsPendingSection = section;
+  await nextTick();
   window.dispatchEvent(
     new CustomEvent(SETTINGS_SECTION_EVENT, {
-      detail: { section }
-    })
-  )
-}
+      detail: { section },
+    }),
+  );
+};
 
 const openDatabaseRepairSection = async () => {
   await router.push({
-    name: 'settings-database'
-  })
-  await publishSettingsSection(DATABASE_REPAIR_SECTION)
-}
+    name: "settings-database",
+  });
+  await publishSettingsSection(DATABASE_REPAIR_SECTION);
+};
 
-const showDatabaseRepairSuggestedToast = (payload: DatabaseRepairSuggestedPayload) => {
+const showDatabaseRepairSuggestedToast = (
+  payload: DatabaseRepairSuggestedPayload,
+) => {
   toast({
     title: t(payload.title),
     description: t(payload.message, {
-      reason: t(`settings.data.databaseRepair.reasons.${payload.reason}`)
+      reason: t(`settings.data.databaseRepair.reasons.${payload.reason}`),
     }),
     action: {
-      label: t('settings.data.databaseRepair.toastAction'),
+      label: t("settings.data.databaseRepair.toastAction"),
       onClick: () => {
-        void openDatabaseRepairSection()
-      }
-    }
-  })
-}
+        void openDatabaseRepairSection();
+      },
+    },
+  });
+};
 
-const handleSettingsNavigate = async (_event: unknown, payload?: SettingsNavigationPayload) => {
-  const routeName = payload?.routeName
-  const params = normalizeRouteParams(payload?.params)
-  if (!routeName || !router.hasRoute(routeName)) return
-  await router.isReady()
+const handleSettingsNavigate = async (
+  _event: unknown,
+  payload?: SettingsNavigationPayload,
+) => {
+  const routeName = payload?.routeName;
+  const params = normalizeRouteParams(payload?.params);
+  if (!routeName || !router.hasRoute(routeName)) return;
+  await router.isReady();
   if (
     router.currentRoute.value.name !== routeName ||
     !hasSameRouteParams(router.currentRoute.value.params, params)
   ) {
     await router.push({
       name: routeName,
-      params: Object.keys(params).length > 0 ? params : undefined
-    })
+      params: Object.keys(params).length > 0 ? params : undefined,
+    });
   }
-  if (routeName === 'settings-provider') {
-    await syncPendingProviderInstall()
+  if (routeName === "settings-provider") {
+    await syncPendingProviderInstall();
   }
 
-  await publishSettingsSection(payload?.section)
-}
+  await publishSettingsSection(payload?.section);
+};
 
-let providerStoreInitializePromise: Promise<void> | null = null
+let providerStoreInitializePromise: Promise<void> | null = null;
 
 const ensureProviderStoreReady = async () => {
   if (isProviderStoreInitialized()) {
-    return
+    return;
   }
 
   if (!providerStoreInitializePromise) {
     providerStoreInitializePromise = Promise.resolve(
-      providerStore.ensureInitialized?.() ?? providerStore.initialize?.()
+      providerStore.ensureInitialized?.() ?? providerStore.initialize?.(),
     )
       .then(() => {
-        logSettingsStartup('providerStore ready')
+        logSettingsStartup("providerStore ready");
       })
       .catch((error) => {
-        providerStoreInitializePromise = null
-        throw error
-      })
+        providerStoreInitializePromise = null;
+        throw error;
+      });
   }
 
-  await providerStoreInitializePromise
-}
+  await providerStoreInitializePromise;
+};
 
 const ensureProviderRouteReady = async (providerId?: string) => {
-  await ensureProviderStoreReady()
+  await ensureProviderStoreReady();
   if (!providerId) {
-    return
+    return;
   }
 
-  const provider = providerStore.providers.find((item) => item.id === providerId)
+  const provider = providerStore.providers.find(
+    (item) => item.id === providerId,
+  );
   if (!provider) {
-    return
+    return;
   }
 
-  await modelStore.ensureProviderModelsReady(providerId)
+  await modelStore.ensureProviderModelsReady(providerId);
 
-  if (provider.apiType === 'ollama') {
-    await ollamaStore.ensureProviderReady?.(providerId)
+  if (provider.apiType === "ollama") {
+    await ollamaStore.ensureProviderReady?.(providerId);
   }
-}
+};
 
 const applyProviderInstallPreview = async (preview: ProviderInstallPreview) => {
   console.log(
-    'Applying provider install preview in settings renderer:',
-    preview.kind === 'builtin' ? preview.id : preview.name
-  )
+    "Applying provider install preview in settings renderer:",
+    preview.kind === "builtin" ? preview.id : preview.name,
+  );
 
-  await ensureProviderStoreReady()
-  await router.isReady()
+  await ensureProviderStoreReady();
+  await router.isReady();
 
-  if (preview.kind === 'builtin') {
-    await navigateToProviderSettings(preview.id)
-  } else if (router.currentRoute.value.name !== 'settings-provider') {
-    await navigateToProviderSettings()
+  if (preview.kind === "builtin") {
+    await navigateToProviderSettings(preview.id);
+  } else if (router.currentRoute.value.name !== "settings-provider") {
+    await navigateToProviderSettings();
   }
 
-  await nextTick()
-  providerDeeplinkImportStore.openPreview(preview)
-}
+  await nextTick();
+  providerDeeplinkImportStore.openPreview(preview);
+};
 
 const releaseProviderPreviewProcessing = () => {
-  isProcessingProviderPreview.value = false
+  isProcessingProviderPreview.value = false;
   if (!pendingProviderImportPreview.value) {
-    void syncPendingProviderInstall()
+    void syncPendingProviderInstall();
   }
-}
+};
 
 const syncPendingProviderInstall = async () => {
   if (isProcessingProviderPreview.value || pendingProviderImportPreview.value) {
-    return
+    return;
   }
 
-  isProcessingProviderPreview.value = true
-  let preview: ProviderInstallPreview | null = null
+  isProcessingProviderPreview.value = true;
+  let preview: ProviderInstallPreview | null = null;
 
   try {
-    preview = await windowPresenter.consumePendingSettingsProviderInstall()
+    preview = await windowPresenter.consumePendingSettingsProviderInstall();
     if (!preview) {
-      return
+      return;
     }
 
-    await applyProviderInstallPreview(preview)
+    await applyProviderInstallPreview(preview);
   } catch (error) {
     if (preview) {
       try {
-        windowPresenter.setPendingSettingsProviderInstall(preview)
+        windowPresenter.setPendingSettingsProviderInstall(preview);
       } catch (requeueError) {
-        console.error('Failed to requeue pending provider install preview:', requeueError)
+        console.error(
+          "Failed to requeue pending provider install preview:",
+          requeueError,
+        );
       }
     }
 
-    console.error('Failed to sync pending provider install preview:', error)
+    console.error("Failed to sync pending provider install preview:", error);
   } finally {
-    isProcessingProviderPreview.value = false
+    isProcessingProviderPreview.value = false;
   }
-}
+};
 
 const handleProviderInstall = async () => {
-  await syncPendingProviderInstall()
-}
+  await syncPendingProviderInstall();
+};
 
 const handleProviderImportDialogOpenChange = (open: boolean) => {
   if (!open) {
-    providerDeeplinkImportStore.clearPreview()
-    releaseProviderPreviewProcessing()
+    providerDeeplinkImportStore.clearPreview();
+    releaseProviderPreviewProcessing();
   }
-}
+};
 
 const confirmProviderImport = async () => {
-  const preview = pendingProviderImportPreview.value
+  const preview = pendingProviderImportPreview.value;
   if (!preview || isImportingProvider.value) {
-    return
+    return;
   }
 
-  isImportingProvider.value = true
+  isImportingProvider.value = true;
 
   try {
-    if (preview.kind === 'builtin') {
-      const targetProvider = providerStore.providers.find((provider) => provider.id === preview.id)
+    if (preview.kind === "builtin") {
+      const targetProvider = providerStore.providers.find(
+        (provider) => provider.id === preview.id,
+      );
       if (!targetProvider) {
-        return
+        return;
       }
 
-      await providerStore.updateProviderApi(preview.id, preview.apiKey, preview.baseUrl)
+      await providerStore.updateProviderApi(
+        preview.id,
+        preview.apiKey,
+        preview.baseUrl,
+      );
       if (!targetProvider.enable) {
-        await providerStore.updateProviderStatus(preview.id, true)
+        await providerStore.updateProviderStatus(preview.id, true);
       }
 
-      await modelStore.refreshProviderModels(preview.id)
-      await navigateToProviderSettings(preview.id)
+      await modelStore.refreshProviderModels(preview.id);
+      await navigateToProviderSettings(preview.id);
     } else {
-      const providerId = nanoid()
+      const providerId = nanoid();
       const newProvider: LLM_PROVIDER = {
         id: providerId,
         name: preview.name,
@@ -422,269 +478,308 @@ const confirmProviderImport = async () => {
         apiKey: preview.apiKey,
         baseUrl: preview.baseUrl,
         enable: true,
-        custom: true
-      }
+        custom: true,
+      };
 
-      await providerStore.addCustomProvider(newProvider)
-      await modelStore.refreshProviderModels(providerId)
-      await navigateToProviderSettings(providerId)
+      await providerStore.addCustomProvider(newProvider);
+      await modelStore.refreshProviderModels(providerId);
+      await navigateToProviderSettings(providerId);
     }
 
-    providerDeeplinkImportStore.clearPreview()
-    releaseProviderPreviewProcessing()
+    providerDeeplinkImportStore.clearPreview();
+    releaseProviderPreviewProcessing();
   } catch (error) {
-    console.error('Failed to import provider from deeplink:', error)
+    console.error("Failed to import provider from deeplink:", error);
     toast({
-      title: t('common.error.operationFailed'),
+      title: t("common.error.operationFailed"),
       description: error instanceof Error ? error.message : String(error),
-      variant: 'destructive'
-    })
+      variant: "destructive",
+    });
   } finally {
-    isImportingProvider.value = false
+    isImportingProvider.value = false;
   }
-}
+};
 
 if (window?.electron?.ipcRenderer) {
-  window.electron.ipcRenderer.on(SETTINGS_EVENTS.NAVIGATE, handleSettingsNavigate)
-  window.electron.ipcRenderer.on(SETTINGS_EVENTS.PROVIDER_INSTALL, handleProviderInstall)
+  window.electron.ipcRenderer.on(
+    SETTINGS_EVENTS.NAVIGATE,
+    handleSettingsNavigate,
+  );
+  window.electron.ipcRenderer.on(
+    SETTINGS_EVENTS.PROVIDER_INSTALL,
+    handleProviderInstall,
+  );
 }
 
 const notifySettingsReady = () => {
-  window.electron?.ipcRenderer?.send(SETTINGS_EVENTS.READY)
-}
+  window.electron?.ipcRenderer?.send(SETTINGS_EVENTS.READY);
+};
 const settings: Ref<
   {
-    title: string
-    name: string
-    icon: string
-    path: string
+    title: string;
+    name: string;
+    icon: string;
+    path: string;
   }[]
 > = ref(
   getSettingsRouteItems(window.electron?.process?.platform).map((item) => ({
     title: item.titleKey,
     name: item.routeName,
     icon: item.icon,
-    path: resolveSettingsNavigationPath(item.routeName)
-  }))
-)
+    path: resolveSettingsNavigationPath(item.routeName),
+  })),
+);
 
 const settingGroups = ref(
-  getSettingsNavigationGroups(window.electron?.process?.platform).map((group) => ({
-    key: group.key,
-    titleKey: group.titleKey,
-    items: group.items.map((item) => ({
-      title: item.titleKey,
-      name: item.routeName,
-      icon: item.icon,
-      path: resolveSettingsNavigationPath(item.routeName)
-    }))
-  }))
-)
+  getSettingsNavigationGroups(window.electron?.process?.platform).map(
+    (group) => ({
+      key: group.key,
+      titleKey: group.titleKey,
+      items: group.items.map((item) => ({
+        title: item.titleKey,
+        name: item.routeName,
+        icon: item.icon,
+        path: resolveSettingsNavigationPath(item.routeName),
+      })),
+    }),
+  ),
+);
 
 onMounted(() => {
   // Ensure icons are loaded
-  void ensureIconsLoaded()
-  logSettingsStartup('app mounted')
-})
+  void ensureIconsLoaded();
+  logSettingsStartup("app mounted");
+});
 
 // Update title function
 const updateTitle = () => {
-  const currentRoute = route.name as string
-  const currentSetting = settings.value.find((s) => s.name === currentRoute)
+  const currentRoute = route.name as string;
+  const currentSetting = settings.value.find((s) => s.name === currentRoute);
   if (currentSetting) {
-    title.value = t('routes.settings') + ' - ' + t(currentSetting.title)
+    title.value = t("routes.settings") + " - " + t(currentSetting.title);
   } else {
-    title.value = t('routes.settings')
+    title.value = t("routes.settings");
   }
-}
+};
 
 // Watch route changes
 watch(
   () => [route.name, route.params.providerId],
   async ([routeName, providerId]) => {
-    updateTitle()
+    updateTitle();
     if (!hasLoggedFirstRouteResolved.value && routeName) {
-      hasLoggedFirstRouteResolved.value = true
-      logSettingsStartup(`first route resolved route=${String(routeName)}`)
+      hasLoggedFirstRouteResolved.value = true;
+      logSettingsStartup(`first route resolved route=${String(routeName)}`);
     }
 
-    if (routeName === 'settings-provider') {
-      await ensureProviderRouteReady(typeof providerId === 'string' ? providerId : undefined)
+    if (routeName === "settings-provider") {
+      await ensureProviderRouteReady(
+        typeof providerId === "string" ? providerId : undefined,
+      );
     }
   },
-  { immediate: true }
-)
+  { immediate: true },
+);
 
 const handleClick = (path: string) => {
-  router.push(path)
-}
+  router.push(path);
+};
 
 const SETTINGS_TAB_TEST_IDS: Record<string, string> = {
-  'settings-overview': 'settings-tab-overview',
-  'settings-common': 'settings-tab-general',
-  'settings-display': 'settings-tab-appearance',
-  'settings-provider': 'settings-tab-model-providers',
-  'settings-mcp': 'settings-tab-mcp',
-  'settings-acp': 'settings-tab-acp-agents'
-}
+  "settings-overview": "settings-tab-overview",
+  "settings-common": "settings-tab-general",
+  "settings-display": "settings-tab-appearance",
+  "settings-provider": "settings-tab-model-providers",
+  "settings-mcp": "settings-tab-mcp",
+  "settings-acp": "settings-tab-acp-agents",
+};
 
 const getSettingsTabTestId = (name: string) =>
-  SETTINGS_TAB_TEST_IDS[name] ?? `settings-tab-${name.replace(/^settings-/, '')}`
+  SETTINGS_TAB_TEST_IDS[name] ??
+  `settings-tab-${name.replace(/^settings-/, "")}`;
 
 // Watch language changes and update i18n + HTML dir
 watch(
   () => languageStore.language,
   async () => {
-    locale.value = await configPresenter.getLanguage()
-    document.documentElement.dir = languageStore.dir
-  }
-)
+    locale.value = await configPresenter.getLanguage();
+    document.documentElement.dir = languageStore.dir;
+  },
+);
 
 // Watch font size changes and update classes
 watch(
   () => uiSettingsStore.fontSizeClass,
   (newClass, oldClass) => {
-    if (oldClass) document.documentElement.classList.remove(oldClass)
-    document.documentElement.classList.add(newClass)
-  }
-)
+    if (oldClass) document.documentElement.classList.remove(oldClass);
+    document.documentElement.classList.add(newClass);
+  },
+);
 
 const handleErrorClosed = () => {
-  currentErrorId.value = null
+  currentErrorId.value = null;
 
   if (errorQueue.value.length > 0) {
-    const nextError = errorQueue.value.shift()
+    const nextError = errorQueue.value.shift();
     if (nextError) {
-      displayError(nextError)
+      displayError(nextError);
     }
   } else if (errorDisplayTimer.value) {
-    clearTimeout(errorDisplayTimer.value)
-    errorDisplayTimer.value = null
+    clearTimeout(errorDisplayTimer.value);
+    errorDisplayTimer.value = null;
   }
-}
+};
 
-const displayError = (error: { id: string; title: string; message: string; type: string }) => {
-  currentErrorId.value = error.id
+const displayError = (error: {
+  id: string;
+  title: string;
+  message: string;
+  type: string;
+}) => {
+  currentErrorId.value = error.id;
 
   const { dismiss } = toast({
     title: error.title,
     description: error.message,
-    variant: 'destructive',
+    variant: "destructive",
     onOpenChange: (open) => {
       if (!open) {
-        handleErrorClosed()
+        handleErrorClosed();
       }
-    }
-  })
+    },
+  });
 
   if (errorDisplayTimer.value) {
-    clearTimeout(errorDisplayTimer.value)
+    clearTimeout(errorDisplayTimer.value);
   }
 
   errorDisplayTimer.value = window.setTimeout(() => {
-    dismiss()
-  }, 3000)
-}
+    dismiss();
+  }, 3000);
+};
 
-const showErrorToast = (error: { id: string; title: string; message: string; type: string }) => {
-  const exists = errorQueue.value.findIndex((item) => item.id === error.id)
+const showErrorToast = (error: {
+  id: string;
+  title: string;
+  message: string;
+  type: string;
+}) => {
+  const exists = errorQueue.value.findIndex((item) => item.id === error.id);
   if (exists !== -1) {
-    return
+    return;
   }
 
   if (currentErrorId.value) {
     if (errorQueue.value.length > 5) {
-      errorQueue.value.shift()
+      errorQueue.value.shift();
     }
-    errorQueue.value.push(error)
-    return
+    errorQueue.value.push(error);
+    return;
   }
 
-  displayError(error)
-}
+  displayError(error);
+};
 
 const handleWindowFocus = () => {
-  void syncPendingProviderInstall()
-}
+  void syncPendingProviderInstall();
+};
 
 onMounted(async () => {
-  startupWorkloadStore?.connect()
+  startupWorkloadStore?.connect();
 
   // Listen for window maximize/unmaximize events
   devicePresenter.getDeviceInfo().then((deviceInfo: any) => {
-    isMacOS.value = deviceInfo.platform === 'darwin'
-  })
+    isMacOS.value = deviceInfo.platform === "darwin";
+  });
 
-  window.electron.ipcRenderer.on(NOTIFICATION_EVENTS.SHOW_ERROR, (_event, error) => {
-    showErrorToast(error)
-  })
+  window.electron.ipcRenderer.on(
+    NOTIFICATION_EVENTS.SHOW_ERROR,
+    (_event, error) => {
+      showErrorToast(error);
+    },
+  );
   window.electron.ipcRenderer.on(
     NOTIFICATION_EVENTS.DATABASE_REPAIR_SUGGESTED,
     (_event, payload) => {
-      showDatabaseRepairSuggestedToast(payload as DatabaseRepairSuggestedPayload)
-    }
-  )
+      showDatabaseRepairSuggestedToast(
+        payload as DatabaseRepairSuggestedPayload,
+      );
+    },
+  );
 
   const [settingsLoadResult, routerReadyResult] = await Promise.allSettled([
     uiSettingsStore.loadSettings(),
-    router.isReady()
-  ])
+    router.isReady(),
+  ]);
 
-  if (settingsLoadResult.status === 'rejected') {
+  if (settingsLoadResult.status === "rejected") {
     console.error(
       `${SETTINGS_STARTUP_LOG_PREFIX} failed to load UI settings during startup:`,
-      settingsLoadResult.reason
-    )
+      settingsLoadResult.reason,
+    );
   }
 
-  if (routerReadyResult.status === 'rejected') {
+  if (routerReadyResult.status === "rejected") {
     console.error(
       `${SETTINGS_STARTUP_LOG_PREFIX} router ready failed during startup:`,
-      routerReadyResult.reason
-    )
+      routerReadyResult.reason,
+    );
   }
 
   try {
-    await providerStore.initialize()
-    logSettingsStartup('provider summaries ready')
+    await providerStore.initialize();
+    logSettingsStartup("provider summaries ready");
   } catch (error) {
-    console.error(`${SETTINGS_STARTUP_LOG_PREFIX} provider summaries failed:`, error)
+    console.error(
+      `${SETTINGS_STARTUP_LOG_PREFIX} provider summaries failed:`,
+      error,
+    );
   }
 
   try {
-    await modelStore.initialize()
-    logSettingsStartup('enabled models ready')
+    await modelStore.initialize();
+    logSettingsStartup("enabled models ready");
   } catch (error) {
-    console.error(`${SETTINGS_STARTUP_LOG_PREFIX} enabled models failed:`, error)
+    console.error(
+      `${SETTINGS_STARTUP_LOG_PREFIX} enabled models failed:`,
+      error,
+    );
   }
 
-  markStartupInteractive()
-  window.addEventListener('focus', handleWindowFocus)
-  await syncPendingProviderInstall()
-  notifySettingsReady()
-  logSettingsStartup('settings window ready IPC sent')
-})
+  markStartupInteractive();
+  window.addEventListener("focus", handleWindowFocus);
+  await syncPendingProviderInstall();
+  notifySettingsReady();
+  logSettingsStartup("settings window ready IPC sent");
+});
 
 const closeWindow = () => {
-  windowPresenter.closeSettingsWindow()
-}
+  windowPresenter.closeSettingsWindow();
+};
 
 onBeforeUnmount(() => {
   if (errorDisplayTimer.value) {
-    clearTimeout(errorDisplayTimer.value)
-    errorDisplayTimer.value = null
+    clearTimeout(errorDisplayTimer.value);
+    errorDisplayTimer.value = null;
   }
 
-  window.electron.ipcRenderer.removeAllListeners(NOTIFICATION_EVENTS.SHOW_ERROR)
-  window.electron.ipcRenderer.removeAllListeners(NOTIFICATION_EVENTS.DATABASE_REPAIR_SUGGESTED)
-  window.electron.ipcRenderer.removeListener(SETTINGS_EVENTS.NAVIGATE, handleSettingsNavigate)
+  window.electron.ipcRenderer.removeAllListeners(
+    NOTIFICATION_EVENTS.SHOW_ERROR,
+  );
+  window.electron.ipcRenderer.removeAllListeners(
+    NOTIFICATION_EVENTS.DATABASE_REPAIR_SUGGESTED,
+  );
+  window.electron.ipcRenderer.removeListener(
+    SETTINGS_EVENTS.NAVIGATE,
+    handleSettingsNavigate,
+  );
   window.electron.ipcRenderer.removeListener(
     SETTINGS_EVENTS.PROVIDER_INSTALL,
-    handleProviderInstall
-  )
-  window.removeEventListener('focus', handleWindowFocus)
-  cleanupMcpDeeplink()
-})
+    handleProviderInstall,
+  );
+  window.removeEventListener("focus", handleWindowFocus);
+  cleanupMcpDeeplink();
+});
 </script>
 
 <style>
