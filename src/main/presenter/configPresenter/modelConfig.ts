@@ -367,7 +367,10 @@ export class ModelConfigHelper {
    * @param cacheKey - The cache key to parse
    * @returns Object with providerId and modelId
    */
-  private parseCacheKey(cacheKey: string): { providerId: string; modelId: string } {
+  private parseCacheKey(cacheKey: string): {
+    providerId: string
+    modelId: string
+  } {
     const [sanitizedProviderId, sanitizedModelId] = cacheKey.split(SPECIAL_CONCAT_CHAR)
     return {
       providerId: this.desanitizeString(sanitizedProviderId),
@@ -494,7 +497,7 @@ export class ModelConfigHelper {
         apiEndpoint: ApiEndpointType.Chat,
         endpointType: undefined,
         thinkingBudget: undefined,
-        forceInterleavedThinkingCompat: undefined,
+        forceInterleavedThinkingCompat: true,
         reasoningEffort: undefined,
         verbosity: undefined,
         enableSearch: false,
