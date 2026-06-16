@@ -1,81 +1,81 @@
 appId: com.wefonk.deepchat
-productName: DeepChat
+productName: JiaoRongSuperIntelligentAgent
 directories:
   buildResources: build
 files:
-  - '!**/.claude/*'
-  - '!**/.github/*'
-  - '!**/.cursor/*'
-  - '!**/.vscode/*'
-  - '!src/*'
-  - '!test/*'
-  - '!vendor/**'
-  - '!docs/*'
-  - '!plugins/**'
-  - '!keys/*'
-  - '!scripts/*'
-  - '!.github/*'
-  - '!electron.vite.config.{js,ts,mjs,cjs}'
-  - '!{.eslintignore,.eslintrc.cjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
-  - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
-  - '!{tsconfig.json,tsconfig.node.json,tsconfig.app.json}'
-  - '!electron-builder.yml'
-  - '!test/*'
-  - '!*.config.ts'
-  - '!*.config.js'
-  - '!**/{LICENSE,LICENSE.txt,*.LICENSE.txt,NOTICE.txt,README.md,CHANGELOG.md,CONTRIBUTING.md,CONTRIBUTING.zh.md,README.zh.md,README.jp.md}'
-  - '!**/{.DS_Store,Thumbs.db}'
-  - '!*.md'
+  - "!**/.claude/*"
+  - "!**/.github/*"
+  - "!**/.cursor/*"
+  - "!**/.vscode/*"
+  - "!src/*"
+  - "!test/*"
+  - "!vendor/**"
+  - "!docs/*"
+  - "!plugins/**"
+  - "!keys/*"
+  - "!scripts/*"
+  - "!.github/*"
+  - "!electron.vite.config.{js,ts,mjs,cjs}"
+  - "!{.eslintignore,.eslintrc.cjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}"
+  - "!{.env,.env.*,.npmrc,pnpm-lock.yaml}"
+  - "!{tsconfig.json,tsconfig.node.json,tsconfig.app.json}"
+  - "!electron-builder.yml"
+  - "!test/*"
+  - "!*.config.ts"
+  - "!*.config.js"
+  - "!**/{LICENSE,LICENSE.txt,*.LICENSE.txt,NOTICE.txt,README.md,CHANGELOG.md,CONTRIBUTING.md,CONTRIBUTING.zh.md,README.zh.md,README.jp.md}"
+  - "!**/{.DS_Store,Thumbs.db}"
+  - "!*.md"
 
 asarUnpack:
-  - '**/node_modules/sharp/**/*'
-  - '**/node_modules/@img/**/*'
-  - '**/node_modules/@ff-labs/fff-node/**/*'
-  - '**/node_modules/@ff-labs/fff-bin-*/**/*'
-  - '**/node_modules/opendal/**/*'
-  - '**/node_modules/@opendal/**/*'
-  - '**/node_modules/ffi-rs/**/*'
-  - '**/node_modules/@yuuang/ffi-rs-*/**/*'
+  - "**/node_modules/sharp/**/*"
+  - "**/node_modules/@img/**/*"
+  - "**/node_modules/@ff-labs/fff-node/**/*"
+  - "**/node_modules/@ff-labs/fff-bin-*/**/*"
+  - "**/node_modules/opendal/**/*"
+  - "**/node_modules/@opendal/**/*"
+  - "**/node_modules/ffi-rs/**/*"
+  - "**/node_modules/@yuuang/ffi-rs-*/**/*"
 extraResources:
   - from: ./runtime/
     to: app.asar.unpacked/runtime
-    filter: ['**/*']
+    filter: ["**/*"]
   - from: ./resources/cdn/
     to: app.asar.unpacked/resources/cdn
-    filter: ['**/*']
+    filter: ["**/*"]
   - from: ./resources/skills/
     to: app.asar.unpacked/resources/skills
-    filter: ['**/*']
+    filter: ["**/*"]
   - from: ./build/bundled-plugins/
     to: app.asar.unpacked/plugins
-    filter: ['**/*.dcplugin']
+    filter: ["**/*.dcplugin"]
 electronLanguages:
   - zh-CN
-  - zh-TW
-  - zh-HK
-  - en-US
-  - ja-JP
-  - ko-KR
-  - fr-FR
-  - ru-RU
-  - ja
-  - ru
-  - zh_CN
-  - zh_TW
-  - zh_HK
-  - en
-  - ko
-  - fr
-  - fa-IR
-  - fa
-  - pt-BR
-  - pt
-  - da-DK
-  - da
-  - he-IL
-  - he
+  # - zh-TW
+  # - zh-HK
+  # - en-US
+  # - ja-JP
+  # - ko-KR
+  # - fr-FR
+  # - ru-RU
+  # - ja
+  # - ru
+  # - zh_CN
+  # - zh_TW
+  # - zh_HK
+  # - en
+  # - ko
+  # - fr
+  # - fa-IR
+  # - fa
+  # - pt-BR
+  # - pt
+  # - da-DK
+  # - da
+  # - he-IL
+  # - he
 win:
-  executableName: DeepChat
+  executableName: JiaoRongSuperIntelligentAgent
 nsis:
   artifactName: ${name}-${version}-windows-${arch}.${ext}
   shortcutName: ${productName}
@@ -103,13 +103,13 @@ linux:
   target:
     - AppImage
     - tar.gz
-  maintainer: ThinkInAIXYZ
+  maintainer: JiaoRong
   category: Utility
   artifactName: ${name}-${version}-linux-${arch}.${ext}
   mimeTypes:
-    - x-scheme-handler/deepchat
+    - x-scheme-handler/jiaorongsuperintelligentagent
 npmRebuild: true
 publish:
-  provider: github
-  owner: ThinkInAIXYZ
-  repo: deepchat
+  provider: generic
+  url: https://c4ai.ccccltd.cn/xkprosdk/
+  channel: latest
