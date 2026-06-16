@@ -108,6 +108,7 @@ linux:
   artifactName: ${name}-${version}-linux-${arch}.${ext}
   mimeTypes:
     - x-scheme-handler/jiaorongsuperintelligentagent
+  executableName: jiaorongsuperintelligentagent
 npmRebuild: true
 publish:
   provider: generic
