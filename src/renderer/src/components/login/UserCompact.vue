@@ -50,7 +50,7 @@ const checked = ref(true)
 
 async function loadDocxFile() {
   try {
-    const response = await fetch('/fuwuxueyi.docx')
+    const response = await fetch('https://c4ai.ccccltd.cn/xkprosdk/chaojizhinengtifuwuxueyi.docx')
     const arrayBuffer = await response.arrayBuffer()
     const result = await mammoth.convertToHtml({ arrayBuffer })
     isload.value = true
