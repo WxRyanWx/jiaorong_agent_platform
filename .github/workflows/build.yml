@@ -141,6 +141,7 @@ jobs:
 
       - name: Build Linux
         run: |
+          export NODE_OPTIONS="--max-old-space-size=8192"
           pnpm run build
           pnpm run plugin:bundle -- --name feishu --platform linux --arch ${{ matrix.arch }}
           pnpm exec electron-builder --linux --${{ matrix.arch }} --publish=never
