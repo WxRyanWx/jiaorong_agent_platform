@@ -136,7 +136,7 @@
           {{ t("about.feedbackButton") }}
         </Button> -->
 
-        <Button
+        <!-- <Button
           variant="outline"
           size="sm"
           class="mb-2 text-xs"
@@ -144,7 +144,7 @@
         >
           <Icon icon="lucide:info" class="mr-1 h-3 w-3" />
           {{ t("about.disclaimerButton") }}
-        </Button>
+        </Button> -->
 
         <!-- <Button
           v-if="showMockUpdateControls && !upgrade.isMockUpdate"
