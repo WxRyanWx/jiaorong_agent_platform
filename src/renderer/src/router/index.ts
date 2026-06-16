@@ -1,11 +1,13 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
+import { setupAuthGuard } from '@/lib/auth/guard'
+import { getToken } from '@/lib/auth/local-user'
 
 const router = createRouter({
   history: createWebHashHistory(import.meta.env.BASE_URL),
   routes: [
     {
       path: '/',
-      redirect: '/login' // 默认跳转到登录页
+      redirect: () => (getToken() ? '/chat' : '/login')
     },
     {
       path: '/login',
@@ -13,7 +15,8 @@ const router = createRouter({
       component: () => import('@/pages/LoginPage.vue'),
       meta: {
         titleKey: 'routes.login',
-        icon: 'lucide:log-in'
+        icon: 'lucide:log-in',
+        requiresAuth: false
       }
     },
     // {
@@ -40,5 +43,7 @@ const router = createRouter({
     }
   ]
 })
+
+setupAuthGuard(router)
 
 export default router

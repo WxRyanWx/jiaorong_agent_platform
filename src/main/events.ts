@@ -175,7 +175,8 @@ export const RATE_LIMIT_EVENTS = {
 export const DEEPLINK_EVENTS = {
   PROTOCOL_RECEIVED: 'deeplink:protocol-received',
   START: 'deeplink:start',
-  MCP_INSTALL: 'deeplink:mcp-install'
+  MCP_INSTALL: 'deeplink:mcp-install',
+  AUTH_LOGIN: 'deeplink:auth-login'
 }
 
 // 全局通知相关事件

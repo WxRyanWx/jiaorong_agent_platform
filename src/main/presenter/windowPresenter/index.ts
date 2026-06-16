@@ -666,6 +666,7 @@ export class WindowPresenter implements IWindowPresenter {
         contextIsolation: true,
         preload: join(__dirname, '../preload/index.mjs'), // Preload 脚本路径
         sandbox: false, // 禁用沙箱，允许 preload 访问 Node.js API
+        webSecurity: false, // 允许桥接登录 API 跨域访问生产环境
         devTools: is.dev // 开发模式下启用 DevTools
       },
       roundedCorners: true // Windows 11 圆角

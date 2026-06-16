@@ -9,8 +9,8 @@ cache:
 
 # 全局环境变量
 variables:
-  NODE_VERSION: "24.14.1"
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  NODE_VERSION: '24.14.1'
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 # 构建只有一个阶段：打包
 stages:

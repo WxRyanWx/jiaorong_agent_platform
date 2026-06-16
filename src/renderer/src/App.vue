@@ -21,6 +21,7 @@ import { useModelCheckStore } from '@/stores/modelCheck'
 import MessageDialog from './components/ui/MessageDialog.vue'
 import McpSamplingDialog from '@/components/mcp/McpSamplingDialog.vue'
 import { initAppStores, useMcpInstallDeeplinkHandler } from '@/lib/storeInitializer'
+import { useAuthLoginDeeplinkHandler } from '@/lib/auth/auth-deeplink'
 import { ensureIconsLoaded } from '@/lib/iconLoader'
 import 'vue-sonner/style.css' // vue-sonner v2 requires this import
 import { useFontManager } from './composables/useFontManager'
@@ -44,6 +45,7 @@ import {
 import type { GuidedOnboardingStepId } from '@shared/contracts/routes'
 import type { DatabaseRepairSuggestedPayload } from '@shared/presenter'
 import { createWindowClient } from '@api/WindowClient'
+import { getToken } from '@/lib/auth/local-user'
 
 const DEV_WELCOME_OVERRIDE_KEY = '__deepchat_dev_force_welcome'
 
@@ -81,6 +83,8 @@ const currentErrorId = ref<string | null>(null)
 let errorDisplayTimer: number | null = null
 
 const { setup: setupMcpDeeplink, cleanup: cleanupMcpDeeplink } = useMcpInstallDeeplinkHandler()
+const { setup: setupAuthLoginDeeplink, cleanup: cleanupAuthLoginDeeplink } =
+  useAuthLoginDeeplinkHandler()
 
 const resolveThemeName = (themeMode: ThemeMode, isDark: boolean) => {
   return themeMode === 'system' ? (isDark ? 'dark' : 'light') : themeMode
@@ -191,6 +195,7 @@ const handleErrorClosed = () => {
 const router = useRouter()
 const activeTab = ref('chat')
 const isStartupRouteReady = ref(false)
+const isLoginRoute = computed(() => route.name === 'login')
 const processingStartDeeplinkToken = ref<number | null>(null)
 const processedStartDeeplinkToken = ref<number | null>(null)
 
@@ -210,6 +215,10 @@ const ensureStartupWelcomeState = async () => {
 
     const currentRoute = router.currentRoute.value
     const isWelcomeRoute = currentRoute.name === 'welcome' || currentRoute.path === '/welcome'
+
+    if (currentRoute.name === 'login' || !getToken()) {
+      return
+    }
 
     if (isDevWelcomeOverrideEnabled()) {
       if (!isWelcomeRoute) {
@@ -528,6 +537,7 @@ onMounted(() => {
   void modelStore.initialize()
   void sessionStore.fetchSessions()
   setupMcpDeeplink()
+  setupAuthLoginDeeplink()
   setupAppIpcRuntime()
 
   watch(
@@ -577,11 +587,16 @@ onBeforeUnmount(() => {
   )
   cleanupAppIpcRuntime()
   cleanupMcpDeeplink()
+  cleanupAuthLoginDeeplink()
 })
 </script>
 
 <template>
+  <div v-if="isLoginRoute" data-testid="app-login-root" class="h-screen w-screen overflow-auto">
+    <RouterView v-if="isStartupRouteReady" />
+  </div>
   <div
+    v-else
     data-testid="app-root"
     class="flex flex-col h-screen"
     :class="isWinMacOS ? 'bg-window-background' : 'bg-background'"
