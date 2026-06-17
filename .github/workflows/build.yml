@@ -95,7 +95,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: deepchat-${{ matrix.platform }}
+          name: JiaoRongSuperIntelligentAgent-${{ matrix.platform }}
           path: |
             dist/*
             !dist/win-unpacked
@@ -159,7 +159,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: deepchat-${{ matrix.platform }}
+          name: JiaoRongSuperIntelligentAgent-${{ matrix.platform }}
           path: |
             dist/*
             !dist/linux-unpacked
@@ -247,7 +247,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: deepchat-${{ matrix.platform }}
+          name: JiaoRongSuperIntelligentAgent-${{ matrix.platform }}
           path: |
             dist/*
             !dist/mac/*

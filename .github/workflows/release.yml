@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Release tag (e.g. v0.5.5 v0.5.6-beta.1)'
+        description: "Release tag (e.g. v0.5.5 v0.5.6-beta.1)"
         required: true
         type: string
   push:
@@ -15,7 +15,7 @@ permissions:
   contents: write
 
 env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   RTK_INSTALL_GITHUB_TOKEN: ${{ secrets.RTK_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
   RTK_INSTALL_GITHUB_TOKEN_SOURCE: ${{ secrets.RTK_GITHUB_TOKEN != '' && 'RTK_GITHUB_TOKEN' || 'GITHUB_TOKEN' }}
 
@@ -138,7 +138,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
-          node-version: '24.14.1'
+          node-version: "24.14.1"
           package-manager-cache: false
 
       - name: Setup pnpm
@@ -190,7 +190,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: deepchat-${{ matrix.platform }}
+          name: JiaoRongSuperIntelligentAgent-${{ matrix.platform }}
           path: |
             dist/*
             !dist/win-unpacked
@@ -215,7 +215,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
-          node-version: '24.14.1'
+          node-version: "24.14.1"
           package-manager-cache: false
 
       - name: Setup pnpm
@@ -253,7 +253,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: deepchat-${{ matrix.platform }}
+          name: JiaoRongSuperIntelligentAgent-${{ matrix.platform }}
           path: |
             dist/*
             !dist/linux-unpacked
@@ -279,7 +279,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
-          node-version: '24.14.1'
+          node-version: "24.14.1"
           package-manager-cache: false
 
       - name: Setup pnpm
@@ -320,12 +320,12 @@ jobs:
           DEEPCHAT_APPLE_NOTARY_USERNAME: ${{ secrets.DEEPCHAT_APPLE_NOTARY_USERNAME }}
           DEEPCHAT_APPLE_NOTARY_TEAM_ID: ${{ secrets.DEEPCHAT_APPLE_NOTARY_TEAM_ID }}
           DEEPCHAT_APPLE_NOTARY_PASSWORD: ${{ secrets.DEEPCHAT_APPLE_NOTARY_PASSWORD }}
-          build_for_release: '2'
+          build_for_release: "2"
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VITE_GITHUB_CLIENT_ID: ${{ secrets.DC_GITHUB_CLIENT_ID }}
           VITE_GITHUB_CLIENT_SECRET: ${{ secrets.DC_GITHUB_CLIENT_SECRET }}
           VITE_GITHUB_REDIRECT_URI: ${{ secrets.DC_GITHUB_REDIRECT_URI }}
-          NODE_OPTIONS: '--max-old-space-size=4096'
+          NODE_OPTIONS: "--max-old-space-size=4096"
           VITE_PROVIDER_DB_URL: ${{ secrets.CDN_PROVIDER_DB_URL }}
 
       - name: Verify bundled plugins
@@ -344,7 +344,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: deepchat-${{ matrix.platform }}
+          name: JiaoRongSuperIntelligentAgent-${{ matrix.platform }}
           path: |
             dist/*
             !dist/mac/*
@@ -415,26 +415,26 @@ jobs:
           mkdir -p release_assets
 
           # Process Windows x64 artifacts
-          if [ -d "artifacts/deepchat-win-x64" ]; then
-            cp artifacts/deepchat-win-x64/*.exe release_assets/ 2>/dev/null || true
-            cp artifacts/deepchat-win-x64/*.msi release_assets/ 2>/dev/null || true
-            cp artifacts/deepchat-win-x64/*.zip release_assets/ 2>/dev/null || true
-            cp artifacts/deepchat-win-x64/*.yml release_assets/ 2>/dev/null || true
-            cp artifacts/deepchat-win-x64/*.blockmap release_assets/ 2>/dev/null || true
+          if [ -d "artifacts/JiaoRongSuperIntelligentAgent-win-x64" ]; then
+            cp artifacts/JiaoRongSuperIntelligentAgent-win-x64/*.exe release_assets/ 2>/dev/null || true
+            cp artifacts/JiaoRongSuperIntelligentAgent-win-x64/*.msi release_assets/ 2>/dev/null || true
+            cp artifacts/JiaoRongSuperIntelligentAgent-win-x64/*.zip release_assets/ 2>/dev/null || true
+            cp artifacts/JiaoRongSuperIntelligentAgent-win-x64/*.yml release_assets/ 2>/dev/null || true
+            cp artifacts/JiaoRongSuperIntelligentAgent-win-x64/*.blockmap release_assets/ 2>/dev/null || true
           fi
 
           # Process Windows arm64 artifacts
-          if [ -d "artifacts/deepchat-win-arm64" ]; then
-            cp artifacts/deepchat-win-arm64/*.exe release_assets/ 2>/dev/null || true
-            cp artifacts/deepchat-win-arm64/*.msi release_assets/ 2>/dev/null || true
-            cp artifacts/deepchat-win-arm64/*.zip release_assets/ 2>/dev/null || true
-            cp artifacts/deepchat-win-arm64/*.blockmap release_assets/ 2>/dev/null || true
+          if [ -d "artifacts/JiaoRongSuperIntelligentAgent-win-arm64" ]; then
+            cp artifacts/JiaoRongSuperIntelligentAgent-win-arm64/*.exe release_assets/ 2>/dev/null || true
+            cp artifacts/JiaoRongSuperIntelligentAgent-win-arm64/*.msi release_assets/ 2>/dev/null || true
+            cp artifacts/JiaoRongSuperIntelligentAgent-win-arm64/*.zip release_assets/ 2>/dev/null || true
+            cp artifacts/JiaoRongSuperIntelligentAgent-win-arm64/*.blockmap release_assets/ 2>/dev/null || true
           fi
 
           merge_windows_yml() {
             local name="$1"
-            local x64="artifacts/deepchat-win-x64/$name"
-            local arm64="artifacts/deepchat-win-arm64/$name"
+            local x64="artifacts/JiaoRongSuperIntelligentAgent-win-x64/$name"
+            local arm64="artifacts/JiaoRongSuperIntelligentAgent-win-arm64/$name"
             if [ -f "$x64" ] && [ -f "$arm64" ]; then
               ruby -ryaml -e '
                 x64 = YAML.load_file(ARGV[0]) || {}
@@ -462,33 +462,33 @@ jobs:
           merge_windows_yml beta.yml
 
           # Process Linux x64 artifacts
-          if [ -d "artifacts/deepchat-linux-x64" ]; then
-            cp artifacts/deepchat-linux-x64/*.AppImage release_assets/ 2>/dev/null || true
-            cp artifacts/deepchat-linux-x64/*.deb release_assets/ 2>/dev/null || true
-            cp artifacts/deepchat-linux-x64/*.rpm release_assets/ 2>/dev/null || true
-            cp artifacts/deepchat-linux-x64/*.tar.gz release_assets/ 2>/dev/null || true
-            cp artifacts/deepchat-linux-x64/*.yml release_assets/ 2>/dev/null || true
-            cp artifacts/deepchat-linux-x64/*.blockmap release_assets/ 2>/dev/null || true
+          if [ -d "artifacts/JiaoRongSuperIntelligentAgent-linux-x64" ]; then
+            cp artifacts/JiaoRongSuperIntelligentAgent-linux-x64/*.AppImage release_assets/ 2>/dev/null || true
+            cp artifacts/JiaoRongSuperIntelligentAgent-linux-x64/*.deb release_assets/ 2>/dev/null || true
+            cp artifacts/JiaoRongSuperIntelligentAgent-linux-x64/*.rpm release_assets/ 2>/dev/null || true
+            cp artifacts/JiaoRongSuperIntelligentAgent-linux-x64/*.tar.gz release_assets/ 2>/dev/null || true
+            cp artifacts/JiaoRongSuperIntelligentAgent-linux-x64/*.yml release_assets/ 2>/dev/null || true
+            cp artifacts/JiaoRongSuperIntelligentAgent-linux-x64/*.blockmap release_assets/ 2>/dev/null || true
           fi
 
           # Process Mac x64 artifacts
-          if [ -d "artifacts/deepchat-mac-x64" ]; then
-            cp artifacts/deepchat-mac-x64/*.dmg release_assets/ 2>/dev/null || true
-            cp artifacts/deepchat-mac-x64/*.zip release_assets/ 2>/dev/null || true
-            cp artifacts/deepchat-mac-x64/*.blockmap release_assets/ 2>/dev/null || true
+          if [ -d "artifacts/JiaoRongSuperIntelligentAgent-mac-x64" ]; then
+            cp artifacts/JiaoRongSuperIntelligentAgent-mac-x64/*.dmg release_assets/ 2>/dev/null || true
+            cp artifacts/JiaoRongSuperIntelligentAgent-mac-x64/*.zip release_assets/ 2>/dev/null || true
+            cp artifacts/JiaoRongSuperIntelligentAgent-mac-x64/*.blockmap release_assets/ 2>/dev/null || true
           fi
 
           # Process Mac arm64 artifacts
-          if [ -d "artifacts/deepchat-mac-arm64" ]; then
-            cp artifacts/deepchat-mac-arm64/*.dmg release_assets/ 2>/dev/null || true
-            cp artifacts/deepchat-mac-arm64/*.zip release_assets/ 2>/dev/null || true
-            cp artifacts/deepchat-mac-arm64/*.blockmap release_assets/ 2>/dev/null || true
+          if [ -d "artifacts/JiaoRongSuperIntelligentAgent-mac-arm64" ]; then
+            cp artifacts/JiaoRongSuperIntelligentAgent-mac-arm64/*.dmg release_assets/ 2>/dev/null || true
+            cp artifacts/JiaoRongSuperIntelligentAgent-mac-arm64/*.zip release_assets/ 2>/dev/null || true
+            cp artifacts/JiaoRongSuperIntelligentAgent-mac-arm64/*.blockmap release_assets/ 2>/dev/null || true
           fi
 
           merge_mac_yml() {
             local name="$1"
-            local x64="artifacts/deepchat-mac-x64/$name"
-            local arm64="artifacts/deepchat-mac-arm64/$name"
+            local x64="artifacts/JiaoRongSuperIntelligentAgent-mac-x64/$name"
+            local arm64="artifacts/JiaoRongSuperIntelligentAgent-mac-arm64/$name"
             if [ -f "$x64" ] && [ -f "$arm64" ]; then
               ruby -ryaml -e '
                 x64 = YAML.load_file(ARGV[0]) || {}
