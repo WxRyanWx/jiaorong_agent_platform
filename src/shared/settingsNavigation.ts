@@ -1,87 +1,89 @@
 export interface SettingsNavigationItem {
   routeName:
-    | 'settings-overview'
-    | 'settings-common'
-    | 'settings-display'
-    | 'settings-environments'
-    | 'settings-provider'
-    | 'settings-dashboard'
-    | 'settings-mcp'
-    | 'settings-deepchat-agents'
-    | 'settings-acp'
-    | 'settings-remote'
-    | 'settings-notifications-hooks'
-    | 'settings-scheduled-tasks'
-    | 'settings-plugins'
-    | 'settings-skills'
-    | 'settings-prompt'
-    | 'settings-knowledge-base'
-    | 'settings-database'
-    | 'settings-shortcut'
-    | 'settings-about'
-  path: string
-  titleKey: string
-  icon: string
-  position: number
-  groupKey: SettingsNavigationGroupKey
-  keywords: string[]
-  supportedPlatforms?: string[]
-  hiddenInSidebar?: boolean
+    | "settings-overview"
+    | "settings-common"
+    | "settings-display"
+    | "settings-environments"
+    | "settings-provider"
+    | "settings-dashboard"
+    | "settings-mcp"
+    | "settings-deepchat-agents"
+    | "settings-acp"
+    | "settings-remote"
+    | "settings-notifications-hooks"
+    | "settings-scheduled-tasks"
+    | "settings-plugins"
+    | "settings-skills"
+    | "settings-prompt"
+    | "settings-knowledge-base"
+    | "settings-database"
+    | "settings-shortcut"
+    | "settings-about";
+  path: string;
+  titleKey: string;
+  icon: string;
+  position: number;
+  groupKey: SettingsNavigationGroupKey;
+  keywords: string[];
+  supportedPlatforms?: string[];
+  hiddenInSidebar?: boolean;
 }
 
 export type SettingsNavigationGroupKey =
-  | 'overview'
-  | 'setup'
-  | 'models'
-  | 'tools'
-  | 'knowledge'
-  | 'system'
+  | "overview"
+  | "setup"
+  | "models"
+  | "tools"
+  | "knowledge"
+  | "system";
 
 export interface SettingsNavigationGroup {
-  key: SettingsNavigationGroupKey
-  titleKey: string
-  position: number
-  items: SettingsNavigationItem[]
+  key: SettingsNavigationGroupKey;
+  titleKey: string;
+  position: number;
+  items: SettingsNavigationItem[];
 }
 
 export interface SettingsNavigationPayload {
-  routeName: SettingsNavigationItem['routeName']
-  params?: Record<string, string>
-  section?: string
+  routeName: SettingsNavigationItem["routeName"];
+  params?: Record<string, string>;
+  section?: string;
 }
 
-export const SETTINGS_NAVIGATION_GROUPS: Array<Omit<SettingsNavigationGroup, 'items'>> = [
+export const SETTINGS_NAVIGATION_GROUPS: Array<
+  Omit<SettingsNavigationGroup, "items">
+> = [
   {
-    key: 'overview',
-    titleKey: 'settings.controlCenter.groups.overview',
-    position: 0
+    key: "overview",
+    titleKey: "settings.controlCenter.groups.overview",
+    position: 0,
   },
   {
-    key: 'setup',
-    titleKey: 'settings.controlCenter.groups.setup',
-    position: 1
+    key: "setup",
+    titleKey: "settings.controlCenter.groups.setup",
+    position: 1,
   },
   {
-    key: 'models',
-    titleKey: 'settings.controlCenter.groups.models',
-    position: 2
+    key: "models",
+    titleKey: "settings.controlCenter.groups.models",
+    position: 2,
   },
   {
-    key: 'tools',
-    titleKey: 'settings.controlCenter.groups.tools',
-    position: 3
+    key: "tools",
+    titleKey: "settings.controlCenter.groups.tools",
+    position: 3,
   },
   {
-    key: 'knowledge',
-    titleKey: 'settings.controlCenter.groups.knowledge',
-    position: 4
+    key: "knowledge",
+    titleKey: "settings.controlCenter.groups.knowledge",
+    position: 4,
   },
   {
-    key: 'system',
-    titleKey: 'settings.controlCenter.groups.system',
-    position: 5
-  }
-]
+    key: "system",
+    titleKey: "settings.controlCenter.groups.system",
+    position: 5,
+  },
+];
 
 export const SETTINGS_NAVIGATION_ITEMS: SettingsNavigationItem[] = [
   // {
@@ -102,31 +104,47 @@ export const SETTINGS_NAVIGATION_ITEMS: SettingsNavigationItem[] = [
   //   ],
   // },
   {
-    routeName: 'settings-common',
-    path: '/common',
-    titleKey: 'routes.settings-common',
-    icon: 'lucide:bolt',
+    routeName: "settings-common",
+    path: "/common",
+    titleKey: "routes.settings-common",
+    icon: "lucide:bolt",
     position: 1,
-    groupKey: 'setup',
-    keywords: ['common', 'general', 'preferences', '通用', '设置']
+    groupKey: "setup",
+    keywords: ["common", "general", "preferences", "通用", "设置"],
   },
   {
-    routeName: 'settings-display',
-    path: '/display',
-    titleKey: 'routes.settings-display',
-    icon: 'lucide:monitor',
+    routeName: "settings-display",
+    path: "/display",
+    titleKey: "routes.settings-display",
+    icon: "lucide:monitor",
     position: 2,
-    groupKey: 'setup',
-    keywords: ['display', 'theme', 'font', 'appearance', '显示', '主题', '字体']
+    groupKey: "setup",
+    keywords: [
+      "display",
+      "theme",
+      "font",
+      "appearance",
+      "显示",
+      "主题",
+      "字体",
+    ],
   },
   {
-    routeName: 'settings-environments',
-    path: '/environments',
-    titleKey: 'routes.settings-environments',
-    icon: 'lucide:folders',
+    routeName: "settings-environments",
+    path: "/environments",
+    titleKey: "routes.settings-environments",
+    icon: "lucide:folders",
     position: 3.25,
-    groupKey: 'models',
-    keywords: ['environment', 'workspace', 'folder', 'project', '环境', '工作区', '目录']
+    groupKey: "models",
+    keywords: [
+      "environment",
+      "workspace",
+      "folder",
+      "project",
+      "环境",
+      "工作区",
+      "目录",
+    ],
   },
   // {
   //   routeName: "settings-provider",
@@ -146,13 +164,13 @@ export const SETTINGS_NAVIGATION_ITEMS: SettingsNavigationItem[] = [
   //   ],
   // },
   {
-    routeName: 'settings-deepchat-agents',
-    path: '/deepchat-agents',
-    titleKey: 'routes.settings-deepchat-agents',
-    icon: 'lucide:bot',
+    routeName: "settings-deepchat-agents",
+    path: "/deepchat-agents",
+    titleKey: "routes.settings-deepchat-agents",
+    icon: "lucide:bot",
     position: 3.5,
-    groupKey: 'models',
-    keywords: ['agent', 'agents', 'deepchat', '智能体', 'agent']
+    groupKey: "models",
+    keywords: ["agent", "agents", "deepchat", "智能体", "agent"],
   },
   // {
   //   routeName: "settings-acp",
@@ -244,15 +262,15 @@ export const SETTINGS_NAVIGATION_ITEMS: SettingsNavigationItem[] = [
   //   ],
   //   supportedPlatforms: ["darwin"],
   // },
-  {
-    routeName: 'settings-skills',
-    path: '/skills',
-    titleKey: 'routes.settings-skills',
-    icon: 'lucide:wand-sparkles',
-    position: 6,
-    groupKey: 'knowledge',
-    keywords: ['skill', 'skills', '技能']
-  },
+  // {
+  //   routeName: 'settings-skills',
+  //   path: '/skills',
+  //   titleKey: 'routes.settings-skills',
+  //   icon: 'lucide:wand-sparkles',
+  //   position: 6,
+  //   groupKey: 'knowledge',
+  //   keywords: ['skill', 'skills', '技能']
+  // },
   // {
   //   routeName: "settings-prompt",
   //   path: "/prompt",
@@ -281,103 +299,111 @@ export const SETTINGS_NAVIGATION_ITEMS: SettingsNavigationItem[] = [
   //   keywords: ["database", "data", "backup", "数据", "备份"],
   // },
   {
-    routeName: 'settings-shortcut',
-    path: '/shortcut',
-    titleKey: 'routes.settings-shortcut',
-    icon: 'lucide:keyboard',
+    routeName: "settings-shortcut",
+    path: "/shortcut",
+    titleKey: "routes.settings-shortcut",
+    icon: "lucide:keyboard",
     position: 10,
-    groupKey: 'system',
-    keywords: ['shortcut', 'hotkey', 'keybinding', '快捷键']
+    groupKey: "system",
+    keywords: ["shortcut", "hotkey", "keybinding", "快捷键"],
   },
   {
-    routeName: 'settings-about',
-    path: '/about',
-    titleKey: 'routes.settings-about',
-    icon: 'lucide:info',
+    routeName: "settings-about",
+    path: "/about",
+    titleKey: "routes.settings-about",
+    icon: "lucide:info",
     position: 11,
-    groupKey: 'system',
-    keywords: ['about', 'version', 'info', '关于', '版本']
-  }
-]
+    groupKey: "system",
+    keywords: ["about", "version", "info", "关于", "版本"],
+  },
+];
 
 const getPlatformAliases = (platform?: string): Set<string> => {
-  const normalized = platform?.trim().toLowerCase()
+  const normalized = platform?.trim().toLowerCase();
   if (!normalized) {
-    return new Set()
+    return new Set();
   }
 
-  if (normalized === 'darwin') {
-    return new Set(['darwin', 'macos', 'mac'])
+  if (normalized === "darwin") {
+    return new Set(["darwin", "macos", "mac"]);
   }
-  if (normalized === 'win32') {
-    return new Set(['win32', 'windows', 'win'])
+  if (normalized === "win32") {
+    return new Set(["win32", "windows", "win"]);
   }
 
-  return new Set([normalized])
-}
+  return new Set([normalized]);
+};
 
 export const isSettingsNavigationItemSupported = (
   item: SettingsNavigationItem,
-  platform?: string
+  platform?: string,
 ): boolean => {
   if (!item.supportedPlatforms?.length) {
-    return true
+    return true;
   }
   if (!platform) {
-    return true
+    return true;
   }
 
-  const aliases = getPlatformAliases(platform)
+  const aliases = getPlatformAliases(platform);
   return item.supportedPlatforms.some((supportedPlatform) =>
-    aliases.has(supportedPlatform.trim().toLowerCase())
-  )
-}
+    aliases.has(supportedPlatform.trim().toLowerCase()),
+  );
+};
 
-export const getSettingsNavigationItems = (platform?: string): SettingsNavigationItem[] =>
-  getSettingsRouteItems(platform).filter((item) => !item.hiddenInSidebar)
+export const getSettingsNavigationItems = (
+  platform?: string,
+): SettingsNavigationItem[] =>
+  getSettingsRouteItems(platform).filter((item) => !item.hiddenInSidebar);
 
-export const getSettingsRouteItems = (platform?: string): SettingsNavigationItem[] =>
-  SETTINGS_NAVIGATION_ITEMS.filter((item) => isSettingsNavigationItemSupported(item, platform))
+export const getSettingsRouteItems = (
+  platform?: string,
+): SettingsNavigationItem[] =>
+  SETTINGS_NAVIGATION_ITEMS.filter((item) =>
+    isSettingsNavigationItemSupported(item, platform),
+  );
 
-export const getSettingsNavigationGroups = (platform?: string): SettingsNavigationGroup[] => {
-  const items = getSettingsNavigationItems(platform)
+export const getSettingsNavigationGroups = (
+  platform?: string,
+): SettingsNavigationGroup[] => {
+  const items = getSettingsNavigationItems(platform);
 
   return SETTINGS_NAVIGATION_GROUPS.map((group) => ({
     ...group,
     items: items
       .filter((item) => item.groupKey === group.key)
-      .sort((left, right) => left.position - right.position)
-  })).filter((group) => group.items.length > 0)
-}
+      .sort((left, right) => left.position - right.position),
+  })).filter((group) => group.items.length > 0);
+};
 
 export const resolveSettingsNavigationPath = (
-  routeName: SettingsNavigationItem['routeName'],
+  routeName: SettingsNavigationItem["routeName"],
   params?: Record<string, string>,
-  platform?: string
+  platform?: string,
 ): string => {
   const item = getSettingsRouteItems(platform).find(
-    (navigationItem) => navigationItem.routeName === routeName
-  )
+    (navigationItem) => navigationItem.routeName === routeName,
+  );
   if (!item) {
-    return '/deepchat-agents'
+    return "/deepchat-agents";
   }
 
   const resolvedSegments = item.path
-    .split('/')
+    .split("/")
     .filter((segment) => segment.length > 0)
     .flatMap((segment) => {
-      if (!segment.startsWith(':')) {
-        return [segment]
+      if (!segment.startsWith(":")) {
+        return [segment];
       }
 
-      const key = segment.slice(1).replace(/\?$/, '')
-      const value = params?.[key]?.trim()
+      const key = segment.slice(1).replace(/\?$/, "");
+      const value = params?.[key]?.trim();
       if (value) {
-        return [encodeURIComponent(value)]
+        return [encodeURIComponent(value)];
       }
 
-      return segment.endsWith('?') ? [] : [key]
-    })
+      return segment.endsWith("?") ? [] : [key];
+    });
 
-  return `/${resolvedSegments.join('/')}`
-}
+  return `/${resolvedSegments.join("/")}`;
+};
