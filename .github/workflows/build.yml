@@ -95,7 +95,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: JiaoRongSuperIntelligentAgent-${{ matrix.platform }}
+          name: JiaorongAI-${{ matrix.platform }}
           path: |
             dist/*
             !dist/win-unpacked
@@ -159,7 +159,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: JiaoRongSuperIntelligentAgent-${{ matrix.platform }}
+          name: JiaorongAI-${{ matrix.platform }}
           path: |
             dist/*
             !dist/linux-unpacked
@@ -236,9 +236,9 @@ jobs:
         env:
           TARGET_ARCH: ${{ matrix.arch }}
         run: |
-          APP_DIR="dist/mac/DeepChat.app"
+          APP_DIR="dist/mac/JiaorongAI.app"
           if [ "$TARGET_ARCH" = "arm64" ]; then
-            APP_DIR="dist/mac-arm64/DeepChat.app"
+            APP_DIR="dist/mac-arm64/JiaorongAI.app"
           fi
           PLUGIN_ROOT="${APP_DIR}/Contents/Resources/app.asar.unpacked/plugins"
           pnpm run plugin:verify -- --name cua --platform darwin --arch "$TARGET_ARCH" --plugin-root "$PLUGIN_ROOT"
@@ -247,7 +247,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: JiaoRongSuperIntelligentAgent-${{ matrix.platform }}
+          name: JiaorongAI-${{ matrix.platform }}
           path: |
             dist/*
             !dist/mac/*

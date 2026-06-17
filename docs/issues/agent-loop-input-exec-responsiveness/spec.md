@@ -4,7 +4,7 @@
 
 - As a user steering an active agent turn, I want my steering input to appear as a normal user
   message so the conversation transcript matches what the agent saw.
-- As a user running long shell commands, I want `exec` to yield quickly and keep DeepChat's main
+- As a user running long shell commands, I want `exec` to yield quickly and keep JiaorongAI's main
   process responsive while the command continues in a managed background session.
 
 ## Acceptance Criteria

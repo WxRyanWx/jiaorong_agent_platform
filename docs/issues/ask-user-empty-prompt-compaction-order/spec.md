@@ -2,7 +2,7 @@
 
 ## Problem
 
-After a DeepChat `deepchat_question` answer is selected or deferred to a follow-up message, the next
+After a JiaorongAI `deepchat_question` answer is selected or deferred to a follow-up message, the next
 model request can include a blank user message. AI SDK rejects that prompt with
 `Invalid prompt: messages must not be empty`.
 

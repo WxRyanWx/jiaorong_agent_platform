@@ -2,14 +2,14 @@
 
 ## Current Code Notes
 
-- `DeepChatAgentsSettings.vue` deletes custom DeepChat agents through
+- `DeepChatAgentsSettings.vue` deletes custom JiaorongAI agents through
   `configPresenter.deleteDeepChatAgent(form.id)` after `window.confirm`.
 - `AcpSettings.vue` deletes manual ACP agents through `configPresenter.removeManualAcpAgent(agent.id)`
   after `window.confirm`.
 - `AcpSettings.vue` uninstalls registry ACP agents through
   `configPresenter.uninstallAcpRegistryAgent(agent.id)` after a basic confirm dialog.
 - `AgentRepository.deleteDeepChatAgent` currently reassigns all `new_sessions.agent_id` values from
-  the deleted custom DeepChat agent to built-in `deepchat`.
+  the deleted custom JiaorongAI agent to built-in `deepchat`.
 - `AgentRepository.removeManualAcpAgent` deletes only the agent record.
 - `NewSessionsTable` already supports list/page filtering by `agentId` and has a batch
   `reassignAgentId(fromAgentId, toAgentId)`, but it does not expose a precise single-session
@@ -45,23 +45,23 @@ Proposed shared shape:
 
 ```ts
 type AgentTransferImpact = {
-  agentId: string
-  totalSessions: number
-  regularSessions: number
-  subagentSessions: number
-  emptyDrafts: number
-  movableSessions: number
-  blockedSessions: number
+  agentId: string;
+  totalSessions: number;
+  regularSessions: number;
+  subagentSessions: number;
+  emptyDrafts: number;
+  movableSessions: number;
+  blockedSessions: number;
   samples: Array<{
-    id: string
-    title: string
-    sessionKind: 'regular' | 'subagent'
-    isDraft: boolean
-    projectDir: string | null
-    status: 'idle' | 'generating' | 'error'
-    blockReason?: 'active' | 'pending-input'
-  }>
-}
+    id: string;
+    title: string;
+    sessionKind: "regular" | "subagent";
+    isDraft: boolean;
+    projectDir: string | null;
+    status: "idle" | "generating" | "error";
+    blockReason?: "active" | "pending-input";
+  }>;
+};
 ```
 
 Keep `config.listAgents` as the source for enabled target-agent options.
@@ -89,11 +89,11 @@ Keep `config.listAgents` as the source for enabled target-agent options.
   - Only allow regular sessions from the public chat-level route.
   - Refuse active/generating sessions.
   - Resolve target runtime defaults:
-    - DeepChat target: target agent config merged with built-in DeepChat defaults, then app default
+    - JiaorongAI target: target agent config merged with built-in JiaorongAI defaults, then app default
       model fallback.
     - ACP target: rejected. Conversation history must not move into ACP agents.
   - Update `new_sessions.agent_id` and any target-specific session fields in one logical operation.
-  - Update the DeepChat runtime's session-agent cache and provider/model/generation settings.
+  - Update the JiaorongAI runtime's session-agent cache and provider/model/generation settings.
   - Clear stale ACP binding for the previous ACP agent only after target context, `new_sessions`, and
     related session metadata updates have succeeded.
   - Emit `SESSION_EVENTS.LIST_UPDATED` / typed `sessions.updated`.
@@ -107,7 +107,7 @@ Keep `config.listAgents` as the source for enabled target-agent options.
 
 - Add an optional implementation method such as `setSessionAgentContext(sessionId, context)` to
   `IAgentImplementation`.
-- The DeepChat implementation updates `sessionAgentIds`, provider/model, generation settings,
+- The JiaorongAI implementation updates `sessionAgentIds`, provider/model, generation settings,
   disabled tool cache, project dir cache, and invalidates system prompt/tool profile caches without
   deleting messages.
 - It must reject generating sessions.
@@ -122,7 +122,7 @@ Keep `config.listAgents` as the source for enabled target-agent options.
 
 `AgentRepository` / `ConfigPresenter`:
 
-- Change custom DeepChat deletion so it no longer silently reassigns sessions to built-in DeepChat.
+- Change custom JiaorongAI deletion so it no longer silently reassigns sessions to built-in JiaorongAI.
   The UI should call the session move/delete route first, then delete the agent.
 - Manual ACP deletion can keep removing only the agent record, because the UI/session route will have
   already moved or deleted related sessions.
@@ -157,7 +157,7 @@ DropdownMenuContent
 The delete-agent dialog fetches:
 
 - impact via `SessionClient.getAgentTransferImpact(agentId)`
-- target options via `ConfigClient.listAgents()`, filtered to enabled DeepChat agents except source
+- target options via `ConfigClient.listAgents()`, filtered to enabled JiaorongAI agents except source
 
 It submits:
 
@@ -238,8 +238,8 @@ ChatTopBar right-side ... menu
 - Reset or recompute:
   - target agent id
   - provider/model for future turns
-  - DeepChat generation defaults for target DeepChat agents
-  - disabled tools from the target DeepChat agent
+  - JiaorongAI generation defaults for target JiaorongAI agents
+  - disabled tools from the target JiaorongAI agent
   - ACP external session id and bound process state
 - Delete:
   - empty drafts during delete-agent flow
@@ -248,11 +248,11 @@ ChatTopBar right-side ... menu
 ## ACP Transfer Handling
 
 - ACP agents are allowed as sources only. A manual ACP agent's idle chats can move to an enabled
-  DeepChat agent before the ACP agent is deleted.
-- ACP agents are never valid transfer targets. This blocks both DeepChat-to-ACP and ACP-to-ACP moves,
+  JiaorongAI agent before the ACP agent is deleted.
+- ACP agents are never valid transfer targets. This blocks both JiaorongAI-to-ACP and ACP-to-ACP moves,
   reducing the risk of future conflicts with ACP's external session bindings.
-- When moving an ACP-backed chat to DeepChat, clear the stale ACP provider binding after applying the
-  target DeepChat runtime context and updating session ownership/metadata.
+- When moving an ACP-backed chat to JiaorongAI, clear the stale ACP provider binding after applying the
+  target JiaorongAI runtime context and updating session ownership/metadata.
 - Because ACP is not a target, the first increment does not need a workdir picker in the transfer
   dialog.
 
@@ -261,7 +261,7 @@ ChatTopBar right-side ... menu
 - Existing sessions assigned to removed manual ACP agents are not fixed automatically by this feature
   unless the source agent still exists at deletion time. A later repair utility can scan orphaned
   `new_sessions.agent_id` values.
-- Existing custom DeepChat deletion behavior changes from implicit fallback to explicit user choice.
+- Existing custom JiaorongAI deletion behavior changes from implicit fallback to explicit user choice.
   This is intentional and should be called out in release notes.
 - No schema migration is required for the first increment if `new_sessions.agent_id` is updated via a
   new helper.
@@ -271,16 +271,16 @@ ChatTopBar right-side ... menu
 Main tests:
 
 - `agentRepository.test.ts`
-  - Custom DeepChat delete refuses when sessions remain, or no longer silently reassigns.
+  - Custom JiaorongAI delete refuses when sessions remain, or no longer silently reassigns.
   - Manual ACP delete remains safe after sessions are moved/deleted.
   - Registry ACP uninstall refuses to clear installation state while sessions remain.
 - `agentSessionPresenter.test.ts`
   - Impact summary counts regular/subagent/draft/blocked sessions.
-  - Batch move DeepChat -> DeepChat applies target ownership and model defaults.
-  - Batch move ACP -> DeepChat clears ACP binding and keeps messages.
+  - Batch move JiaorongAI -> JiaorongAI applies target ownership and model defaults.
+  - Batch move ACP -> JiaorongAI clears ACP binding and keeps messages.
   - ACP binding cleanup happens after target context and session ownership updates.
   - Batch move failures report partial move/delete counts.
-  - Moving to an ACP target is rejected for both DeepChat and ACP sources.
+  - Moving to an ACP target is rejected for both JiaorongAI and ACP sources.
   - Active/generating sessions block move and delete.
   - `deleteAgentSessions` deletes related sessions through existing recursive cleanup.
 - `agentRuntimePresenter.test.ts`
@@ -314,9 +314,9 @@ Quality gates after implementation:
 - Runtime cache drift is the main risk. Mitigation: transfer through AgentSessionPresenter and add a
   runtime-level context update method.
 - ACP sessions may have provider-specific expectations about session continuity. Mitigation: allow
-  ACP only as a source, clear stale ACP bindings when moving to DeepChat, and reject ACP targets.
+  ACP only as a source, clear stale ACP bindings when moving to JiaorongAI, and reject ACP targets.
 - Batch deletion is destructive. Mitigation: in-app dialog, explicit destructive option, and tests that
   verify move is the default/safe path.
-- Applying target DeepChat defaults can surprise users who expected current model settings to remain.
+- Applying target JiaorongAI defaults can surprise users who expected current model settings to remain.
   Mitigation: dialog copy states that future replies use the target agent; future enhancement can add
   "keep current model/settings".

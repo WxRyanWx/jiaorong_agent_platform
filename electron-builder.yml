@@ -1,5 +1,5 @@
 appId: com.wefonk.jiaorong
-productName: JiaoRongSuperIntelligentAgent
+productName: JiaorongAI
 directories:
   buildResources: build
 files:
@@ -75,7 +75,7 @@ electronLanguages:
   # - he-IL
   # - he
 win:
-  executableName: JiaoRongSuperIntelligentAgent
+  executableName: JiaorongAI
 nsis:
   artifactName: ${name}-${version}-windows-${arch}.${ext}
   shortcutName: ${productName}

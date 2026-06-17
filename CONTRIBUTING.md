@@ -1,6 +1,6 @@
-# Contributing to DeepChat
+# Contributing to JiaorongAI
 
-We love your input! We want to make contributing to DeepChat as easy and transparent as possible, whether it's:
+We love your input! We want to make contributing to JiaorongAI as easy and transparent as possible, whether it's:
 
 - Reporting a bug
 - Discussing the current state of the code
@@ -55,13 +55,11 @@ We use GitHub to host code, to track issues and feature requests, as well as acc
    ```
 
 2. Install required development tools:
-
    - Install [Node.js](https://nodejs.org/) (Latest LTS version recommended)
 
 3. Additional setup based on your operating system:
 
    **Windows:**
-
    - Install Windows Build Tools:
      GUI Installation:
      - Install [Visual Studio Community](https://visualstudio.microsoft.com/vs/community/)
@@ -70,7 +68,6 @@ We use GitHub to host code, to track issues and feature requests, as well as acc
    - Install Git for Windows
 
    **macOS:**
-
    - Install Xcode Command Line Tools:
      ```bash
      xcode-select --install
@@ -81,7 +78,6 @@ We use GitHub to host code, to track issues and feature requests, as well as acc
      ```
 
    **Linux:**
-
    - Install required build dependencies:
      ```bash
      # Ubuntu/Debian

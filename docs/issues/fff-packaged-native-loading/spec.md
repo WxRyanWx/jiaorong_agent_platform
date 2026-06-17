@@ -2,7 +2,7 @@
 
 ## Problem
 
-Packaged DeepChat can show `Error: FFF native library is not available` when agent `glob`
+Packaged JiaorongAI can show `Error: FFF native library is not available` when agent `glob`
 or `grep` runs. The packaged app contains `@ff-labs/fff-node`, `ffi-rs`, and the platform
 native packages under `app.asar.unpacked`, but the main process resolves
 `@ff-labs/fff-node` from `app.asar`.

@@ -1,10 +1,10 @@
 # Data Locations
 
-Use this reference when an importer must locate DeepChat data on disk or inside a backup.
+Use this reference when an importer must locate JiaorongAI data on disk or inside a backup.
 
 ## Primary Files
 
-DeepChat stores the current main database at:
+JiaorongAI stores the current main database at:
 
 ```text
 <electron userData>/app_db/agent.db
@@ -46,13 +46,13 @@ The file is an ElectronStore JSON file. The relevant shape is:
 
 ## Default UserData Paths
 
-Electron derives the profile path from the packaged product name `DeepChat` unless the runtime
+Electron derives the profile path from the packaged product name `JiaorongAI` unless the runtime
 overrides `app.getPath('userData')`.
 
 ```text
-macOS:   ~/Library/Application Support/DeepChat
-Windows: %APPDATA%\DeepChat
-Linux:   ~/.config/DeepChat
+macOS:   ~/Library/Application Support/JiaorongAI
+Windows: %APPDATA%\JiaorongAI
+Linux:   ~/.config/JiaorongAI
 ```
 
 Treat these as defaults. Portable builds, development builds, tests, or user overrides can point
@@ -60,18 +60,18 @@ elsewhere.
 
 ## Sync Backup Layout
 
-DeepChat sync backups use `database/agent.db` as the primary database payload in current backup
+JiaorongAI sync backups use `database/agent.db` as the primary database payload in current backup
 versions. Some compatibility backups may also contain `database/chat.db` or old JSON settings. When
 both `agent.db` and `chat.db` exist, prefer `agent.db`.
 
 ## Snapshot Rules
 
-- If DeepChat is running, copy `agent.db`, `agent.db-wal`, and `agent.db-shm` together.
-- If DeepChat is closed, `agent.db` alone is usually enough, but copying sidecars is still harmless.
+- If JiaorongAI is running, copy `agent.db`, `agent.db-wal`, and `agent.db-shm` together.
+- If JiaorongAI is closed, `agent.db` alone is usually enough, but copying sidecars is still harmless.
 - For high-integrity import, open a read-only source connection and run a SQLite backup into a temp
   file, then import from the temp file.
 - Do not delete `*.migration-tmp`, `*.migration-rollback`, `agent.db-wal`, or `agent.db-shm` from a
-  user profile. DeepChat owns those lifecycle decisions.
+  user profile. JiaorongAI owns those lifecycle decisions.
 
 ## Related Files Still Outside Agent.db
 

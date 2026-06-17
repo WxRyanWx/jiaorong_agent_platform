@@ -86,7 +86,7 @@ struct ConfigTelemetryStatusCommand: ParsableCommand {
             }
         }
         print("")
-        print("Telemetry collects anonymous usage data to help improve DeepChat Computer Use.")
+        print("Telemetry collects anonymous usage data to help improve JiaorongAI Computer Use.")
         print("No personal information, file paths, or command arguments are collected.")
     }
 }
@@ -100,7 +100,7 @@ struct ConfigTelemetryEnableCommand: ParsableCommand {
     func run() throws {
         try ConfigStore.setTelemetryEnabledSync(true)
         print("Telemetry enabled")
-        print("Thank you for helping improve DeepChat Computer Use!")
+        print("Thank you for helping improve JiaorongAI Computer Use!")
     }
 }
 

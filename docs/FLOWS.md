@@ -1,4 +1,4 @@
-# DeepChat 当前核心流程
+# JiaorongAI 当前核心流程
 
 本文档只描述当前代码仍在使用的流程。旧 `AgentPresenter` / `startStreamCompletion`
 等历史流程不再作为仓库内长期文档保留，需要追溯时用 `git log` / `git show` 查看历史提交。
@@ -31,7 +31,7 @@ sequenceDiagram
 - `src/main/presenter/agentSessionPresenter/index.ts`
 - `src/main/presenter/agentRuntimePresenter/index.ts`
 
-## 2. DeepChat 消息处理主循环
+## 2. JiaorongAI 消息处理主循环
 
 ```mermaid
 flowchart TD

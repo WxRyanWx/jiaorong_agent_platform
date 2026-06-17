@@ -39,7 +39,7 @@ export class TrayPresenter {
     }
 
     this.tray = new Tray(image);
-    this.tray.setToolTip("JiaoRongSuperIntelligentAgent");
+    this.tray.setToolTip("JiaorongAI");
 
     // 获取当前系统语言
     const locale = presenter.configPresenter.getLanguage?.() || "zh-CN";

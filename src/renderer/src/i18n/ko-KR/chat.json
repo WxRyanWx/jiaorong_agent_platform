@@ -59,7 +59,7 @@
         "agentCore": "Agent Core",
         "agentImageGeneration": "이미지 생성",
         "agentSkills": "Agent Skills",
-        "deepchatSettings": "DeepChat Settings",
+        "deepchatSettings": "JiaorongAI Settings",
         "yobrowser": "YoBrowser"
       }
     },
@@ -373,12 +373,12 @@
   },
   "onboarding": {
     "agentSwitch": {
-      "title": "DeepChat 에이전트로 전환",
-      "description": "채팅을 시작하기 전에 ACP에서 전환하여 내장된 DeepChat 흐름으로 돌아가세요.",
+      "title": "JiaorongAI 에이전트로 전환",
+      "description": "채팅을 시작하기 전에 ACP에서 전환하여 내장된 JiaorongAI 흐름으로 돌아가세요.",
       "caption": "계속하려면 사이드바에서 강조된 에이전트 버튼을 클릭하세요."
     },
     "switchModel": {
-      "description": "첫 번째 DeepChat 대화에 사용할 모델을 선택하세요.",
+      "description": "첫 번째 JiaorongAI 대화에 사용할 모델을 선택하세요.",
       "caption": "강조된 모델 전환기를 사용해 사용 가능한 모델을 선택하세요."
     },
     "firstChat": {

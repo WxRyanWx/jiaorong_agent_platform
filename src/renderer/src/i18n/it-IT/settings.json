@@ -8,10 +8,10 @@
     "searchEngine": "Motore di ricerca",
     "searchEngineSelect": "Seleziona motore di ricerca",
     "searchPreview": "Anteprima ricerca",
-    "launchAtLoginEnabled": "Avvia DeepChat all'accesso",
+    "launchAtLoginEnabled": "Avvia JiaorongAI all'accesso",
     "autoScrollEnabled": "Scorrimento automatico durante la generazione",
     "privacyMode": "Modalità privacy",
-    "privacyModeDescription": "Quando la modalità privacy è attiva, DeepChat non avvierà automaticamente queste richieste:",
+    "privacyModeDescription": "Quando la modalità privacy è attiva, JiaorongAI non avvierà automaticamente queste richieste:",
     "privacyModeAutoUpdate": "Controllo aggiornamenti app",
     "privacyModeProviderDb": "Aggiornamento metadati provider e modelli",
     "privacyModeAcpRegistry": "Aggiornamento ACP Registry e sincronizzazione icone",
@@ -21,7 +21,7 @@
     "autoCompaction": {
       "title": "Compressione automatica",
       "enabled": "Attiva compressione automatica",
-      "description": "Quando una conversazione si avvicina al limite della finestra di contesto del modello, DeepChat riassume automaticamente la cronologia più vecchia per permettere alla sessione di continuare. Se disattivata, la cronologia fuori budget viene scartata direttamente senza generare un riepilogo.",
+      "description": "Quando una conversazione si avvicina al limite della finestra di contesto del modello, JiaorongAI riassume automaticamente la cronologia più vecchia per permettere alla sessione di continuare. Se disattivata, la cronologia fuori budget viene scartata direttamente senza generare un riepilogo.",
       "thresholdLabel": "Soglia di attivazione",
       "thresholdMin": "Prima ({value}%)",
       "thresholdMax": "Dopo ({value}%)",
@@ -64,8 +64,8 @@
     },
     "contentProtection": "Protezione condivisione schermo",
     "contentProtectionDialogTitle": "Conferma cambio protezione condivisione schermo",
-    "contentProtectionEnableDesc": "Attivando la protezione, le app di condivisione schermo non potranno catturare la finestra principale di DeepChat, aiutando a proteggere la privacy dei contenuti. Questa funzione non nasconde completamente tutte le interfacce: usala in modo corretto e conforme. Non tutte le app di condivisione schermo rispettano le impostazioni privacy, quindi la funzione può non avere effetto in alcuni software e in certi ambienti potrebbe restare una finestra nera.",
-    "contentProtectionDisableDesc": "Disattivare la protezione consentirà alle app di condivisione schermo di catturare la finestra DeepChat.",
+    "contentProtectionEnableDesc": "Attivando la protezione, le app di condivisione schermo non potranno catturare la finestra principale di JiaorongAI, aiutando a proteggere la privacy dei contenuti. Questa funzione non nasconde completamente tutte le interfacce: usala in modo corretto e conforme. Non tutte le app di condivisione schermo rispettano le impostazioni privacy, quindi la funzione può non avere effetto in alcuni software e in certi ambienti potrebbe restare una finestra nera.",
+    "contentProtectionDisableDesc": "Disattivare la protezione consentirà alle app di condivisione schermo di catturare la finestra JiaorongAI.",
     "contentProtectionRestartNotice": "Cambiare questa impostazione riavvierà l'applicazione. Continuare?",
     "copyWithCotEnabled": "Copia informazioni COT",
     "traceDebugEnabled": "Traccia chiamate",
@@ -77,7 +77,7 @@
     "loggingRestartNotice": "Cambiare questa impostazione riavvierà l'applicazione. Continuare?",
     "openLogFolder": "Apri cartella log",
     "notifications": "Notifiche di sistema",
-    "notificationsDesc": "Quando DeepChat non è in primo piano, invia una notifica di sistema al termine della generazione di una sessione",
+    "notificationsDesc": "Quando JiaorongAI non è in primo piano, invia una notifica di sistema al termine della generazione di una sessione",
     "fileMaxSize": "Dimensione massima file",
     "fileMaxSizeHint": "Limita la dimensione massima di un singolo file caricato",
     "defaultModel": {
@@ -86,11 +86,11 @@
     }
   },
   "deepchatAgents": {
-    "title": "DeepChat Agents",
-    "description": "Gestisci DeepChat Agent e i valori predefiniti per le nuove sessioni.",
+    "title": "JiaorongAI Agents",
+    "description": "Gestisci JiaorongAI Agent e i valori predefiniti per le nuove sessioni.",
     "builtIn": "Integrato",
-    "editTitle": "Modifica DeepChat Agent",
-    "createTitle": "Crea DeepChat Agent",
+    "editTitle": "Modifica JiaorongAI Agent",
+    "createTitle": "Crea JiaorongAI Agent",
     "unnamed": "Agent senza nome",
     "name": "Nome",
     "namePlaceholder": "Es.: Writer / Research / Translate",
@@ -99,7 +99,7 @@
     "descriptionPlaceholder": "Opzionale, per spiegare lo scopo di questo Agent",
     "avatarTitle": "Avatar",
     "avatarDefault": "Predefinito",
-    "avatarDefaultDesc": "DeepChat usa l'icona predefinita, gli altri Agent usano un avatar testuale.",
+    "avatarDefaultDesc": "JiaorongAI usa l'icona predefinita, gli altri Agent usano un avatar testuale.",
     "avatarLucide": "Icona Lucide",
     "avatarLucideDesc": "Scegli un'icona Lucide e imposta colori chiari/scuri separati.",
     "avatarMonogram": "Avatar testuale",
@@ -143,10 +143,10 @@
     "toolsTitle": "Strumenti integrati",
     "compactionTitle": "Compressione automatica",
     "compactionEnabled": "Attiva compressione automatica",
-    "compactionDescription": "Queste impostazioni influenzano solo le nuove sessioni DeepChat create in futuro.",
+    "compactionDescription": "Queste impostazioni influenzano solo le nuove sessioni JiaorongAI create in futuro.",
     "compactionThreshold": "Soglia di attivazione",
     "compactionRetainPairs": "Mantieni coppie messaggi recenti",
-    "deleteConfirm": "Eliminare l'Agent \"{name}\"? Le sue sessioni storiche passeranno automaticamente al DeepChat integrato."
+    "deleteConfirm": "Eliminare l'Agent \"{name}\"? Le sue sessioni storiche passeranno automaticamente al JiaorongAI integrato."
   },
   "notificationsHooks": {
     "title": "Hooks",
@@ -174,7 +174,7 @@
       "empty": "Nessun Hook. Fai clic in alto a destra per crearne uno.",
       "defaultName": "Hook {index}",
       "guideTitle": "Istruzioni",
-      "guideDescription": "Quando un evento selezionato viene attivato, DeepChat esegue il comando. L'evento corrente è disponibile tramite stdin JSON, variabili d'ambiente e placeholder da riga di comando.",
+      "guideDescription": "Quando un evento selezionato viene attivato, JiaorongAI esegue il comando. L'evento corrente è disponibile tramite stdin JSON, variabili d'ambiente e placeholder da riga di comando.",
       "deliveryTitle": "Modalità parametri",
       "deliveryStdin": "Il payload completo viene scritto su stdin come JSON.",
       "deliveryPlaceholder": "Puoi usare i placeholder direttamente nella riga di comando.",
@@ -271,7 +271,7 @@
       "summaryManualOnly": "{manual} problemi richiedono intervento manuale",
       "manualHint": "{count} problemi non sono stati riparati automaticamente e richiedono intervento manuale.",
       "toastSuggestedTitle": "Riparazione database consigliata",
-      "toastSuggestedDescription": "DeepChat ha rilevato un problema di schema nel database ({reason}); puoi eseguire ora la riparazione.",
+      "toastSuggestedDescription": "JiaorongAI ha rilevato un problema di schema nel database ({reason}); puoi eseguire ora la riparazione.",
       "toastAction": "Vai alla riparazione",
       "toastHealthyTitle": "Struttura database corretta",
       "toastHealthyDescription": "Nessun problema di schema da riparare.",
@@ -307,7 +307,7 @@
       "newPassword": "Nuova password SQLite",
       "confirmPassword": "Conferma password",
       "passwordMismatch": "Le due password non coincidono",
-      "systemCredentialStore": "Quando l'archivio sicuro di sistema è disponibile, DeepChat salva la password SQLite cifrata nel vault delle credenziali del sistema (ad esempio macOS Keychain, Windows Credential Vault o Linux secret store). Dopo il primo sblocco riuscito, gli avvii successivi di solito si aprono automaticamente; la chiave di cifratura va reinserita solo dopo migrazione dati, se la credenziale di sistema manca o non può essere decifrata, oppure se l'archivio sicuro non è disponibile.",
+      "systemCredentialStore": "Quando l'archivio sicuro di sistema è disponibile, JiaorongAI salva la password SQLite cifrata nel vault delle credenziali del sistema (ad esempio macOS Keychain, Windows Credential Vault o Linux secret store). Dopo il primo sblocco riuscito, gli avvii successivi di solito si aprono automaticamente; la chiave di cifratura va reinserita solo dopo migrazione dati, se la credenziale di sistema manca o non può essere decifrata, oppure se l'archivio sicuro non è disponibile.",
       "safeStorageUnavailable": "Electron safeStorage non è disponibile su questo sistema. Dopo l'attivazione sarà necessario inserire manualmente la password a ogni avvio.",
       "enableButton": "Attiva cifratura",
       "changeButton": "Modifica password",
@@ -365,7 +365,7 @@
       "entryDescription": "Scansiona le configurazioni provider locali di CC Switch, Alma, Cherry Studio, Hermes e OpenClaw per migrare rapidamente chiavi e liste modelli.",
       "entryButton": "Importa da altri Agent",
       "dialogTitle": "Importa da altri Agent",
-      "dialogDescription": "Seleziona prima le app rilevate, poi conferma uno per uno i provider da importare in DeepChat.",
+      "dialogDescription": "Seleziona prima le app rilevate, poi conferma uno per uno i provider da importare in JiaorongAI.",
       "toastTitle": "Importazione Provider completata",
       "toastDescription": "{count} provider importati.",
       "steps": {
@@ -374,23 +374,23 @@
         "done": "Completato"
       },
       "scanningTitle": "Scansione Agent installati",
-      "scanningDescription": "DeepChat legge solo file di configurazione locali noti e non carica alcun dato.",
+      "scanningDescription": "JiaorongAI legge solo file di configurazione locali noti e non carica alcun dato.",
       "scanFailedTitle": "Scansione non riuscita",
       "sourcesTitle": "Origini rilevate",
-      "sourcesDescription": "Puoi scegliere uno o più Agent; DeepChat li elaborerà nell'ordine della lista.",
+      "sourcesDescription": "Puoi scegliere uno o più Agent; JiaorongAI li elaborerà nell'ordine della lista.",
       "selectedSources": "Selezionati {selected}/{total}",
       "noSourcesTitle": "Nessuna configurazione provider importabile trovata",
       "noSourcesDescription": "Installa prima un Agent supportato o configura le chiavi provider nel relativo Agent.",
       "providersFound": "{count} provider",
       "sourceProgress": "{current}/{total}",
-      "overwriteNote": "Se più provider selezionati vengono mappati allo stesso provider DeepChat, l'origine successiva sovrascriverà quella precedente.",
+      "overwriteNote": "Se più provider selezionati vengono mappati allo stesso provider JiaorongAI, l'origine successiva sovrascriverà quella precedente.",
       "noProvidersTitle": "Questa origine non contiene dati provider",
       "noProvidersDescription": "L'Agent è stato selezionato, ma non è stata trovata alcuna voce provider importabile.",
       "apiKey": "Chiave {value}",
       "noModels": "Nessuna lista modelli",
       "modelsImported": "{count} modelli",
       "importingTitle": "Importazione provider",
-      "importingDescription": "DeepChat sta scrivendo i provider selezionati e le voci dei modelli personalizzati.",
+      "importingDescription": "JiaorongAI sta scrivendo i provider selezionati e le voci dei modelli personalizzati.",
       "doneTitle": "Riepilogo importazione",
       "doneDescription": "{count} provider importati. Puoi vedere sotto il risultato di ciascun provider.",
       "badges": {
@@ -408,14 +408,14 @@
         "unsupported": "Non supportato"
       },
       "warnings": {
-        "already_configured": "Configurazione già presente in DeepChat, per impostazione predefinita non viene selezionata.",
+        "already_configured": "Configurazione già presente in JiaorongAI, per impostazione predefinita non viene selezionata.",
         "missing_api_key": "API Key o endpoint necessario mancante.",
-        "unsupported_provider": "DeepChat non può ancora importare automaticamente questo provider.",
+        "unsupported_provider": "JiaorongAI non può ancora importare automaticamente questo provider.",
         "overwrites_previous_selection": "Questa selezione è in conflitto con un'origine precedente.",
-        "credential_only_import": "Viene importata solo la API Key; DeepChat mantiene endpoint e runtime integrati del provider."
+        "credential_only_import": "Viene importata solo la API Key; JiaorongAI mantiene endpoint e runtime integrati del provider."
       },
       "conflicts": {
-        "overridesPrevious": "Questa selezione sovrascriverà un provider DeepChat omonimo selezionato prima.",
+        "overridesPrevious": "Questa selezione sovrascriverà un provider JiaorongAI omonimo selezionato prima.",
         "overwrittenByLater": "Un'origine selezionata successivamente sovrascriverà questo provider."
       },
       "summary": {
@@ -532,7 +532,7 @@
       "recordingStartedAtDescription": "Ora del primo record usage presente nella dashboard corrente.",
       "withDeepChatDaysLabel": "Giorni insieme",
       "withDeepChatDaysValue": "{days} giorni",
-      "withDeepChatDaysSentence": "Hai passato {days} giorni insieme a DeepChat",
+      "withDeepChatDaysSentence": "Hai passato {days} giorni insieme a JiaorongAI",
       "withDeepChatDaysDescription": "In base al tuo primo record di utilizzo: {date}.",
       "withDeepChatDaysDescriptionUnavailable": "Nessun record di utilizzo per ora.",
       "tokenUsage": "Consumo Token",
@@ -541,7 +541,7 @@
       "nostalgiaSessionsValue": "{count} sessioni",
       "nostalgiaMessagesValue": "{count} messaggi",
       "nostalgiaDaysDetailLabel": "Tempo insieme",
-      "nostalgiaDaysDetail": "Hai passato {days} giorni insieme a DeepChat.",
+      "nostalgiaDaysDetail": "Hai passato {days} giorni insieme a JiaorongAI.",
       "nostalgiaSessionsDetailLabel": "Sessioni totali",
       "nostalgiaSessionsDetail": "Avete svolto insieme {count} sessioni.",
       "nostalgiaMessagesDetailLabel": "Messaggi totali",
@@ -565,7 +565,7 @@
     },
     "rtk": {
       "title": "Risparmio RTK",
-      "description": "Mostra quanti token RTK ha stimato di intercettare prima che entrassero nel contesto modello nel flusso nativo di esecuzione comandi DeepChat.",
+      "description": "Mostra quanti token RTK ha stimato di intercettare prima che entrassero nel contesto modello nel flusso nativo di esecuzione comandi JiaorongAI.",
       "actions": {
         "retry": "Riprova controllo"
       },
@@ -576,8 +576,8 @@
         "unhealthy": "Non disponibile"
       },
       "descriptionDisabled": "RTK è disattivato nella sessione app corrente; i comandi continueranno sul percorso di esecuzione originale.",
-      "descriptionChecking": "DeepChat sta verificando se RTK può funzionare correttamente nell'ambiente corrente.",
-      "descriptionHealthy": "RTK è collegato all'esecuzione comandi nativa di DeepChat.",
+      "descriptionChecking": "JiaorongAI sta verificando se RTK può funzionare correttamente nell'ambiente corrente.",
+      "descriptionHealthy": "RTK è collegato all'esecuzione comandi nativa di JiaorongAI.",
       "descriptionUnhealthy": "Il controllo di salute all'avvio di RTK non è riuscito ed è stato disattivato per la sessione app corrente.",
       "sourceLabel": "Origine runtime: {source}",
       "source": {
@@ -678,7 +678,7 @@
       },
       "functionCall": {
         "label": "Chiamata funzione",
-        "description": "Indica se il modello supporta nativamente le chiamate funzione (se disattivato, DeepChat simulerà automaticamente le chiamate funzione)"
+        "description": "Indica se il modello supporta nativamente le chiamate funzione (se disattivato, JiaorongAI simulerà automaticamente le chiamate funzione)"
       },
       "reasoning": {
         "label": "Capacità reasoning",
@@ -1147,7 +1147,7 @@
     "loggingIn": "Accesso...",
     "githubCopilotClientId": "Client ID personalizzato",
     "githubCopilotClientIdHint": "Opzionale, lascia vuoto per usare il Client ID predefinito; influisce solo sull'autorizzazione GitHub Copilot.",
-    "githubCopilotLoginTip": "Fai clic per autorizzare DeepChat ad accedere al tuo abbonamento GitHub Copilot",
+    "githubCopilotLoginTip": "Fai clic per autorizzare JiaorongAI ad accedere al tuo abbonamento GitHub Copilot",
     "loginSuccess": "Accesso riuscito",
     "loginFailed": "Accesso non riuscito",
     "tokenValid": "Token valido",
@@ -1162,7 +1162,7 @@
     "apiKeyLabel": "API Key",
     "apiUrlLabel": "API URL",
     "bedrockLimitTip": "* Supporta solo Anthropic Claude (inclusi modelli Opus, Sonnet, Haiku)",
-    "bedrockVerifyTip": "DeepChat usa il modello Claude 3.5 Sonnet per la verifica; se non hai permesso di chiamare questo modello, la verifica fallirà. Questo non influisce sull'uso degli altri modelli.",
+    "bedrockVerifyTip": "JiaorongAI usa il modello Claude 3.5 Sonnet per la verifica; se non hai permesso di chiamare questo modello, la verifica fallirà. Questo non influisce sull'uso degli altri modelli.",
     "center": {
       "title": "Provider Center",
       "description": "Gestisci connessioni provider, modelli e configurazioni avanzate.",
@@ -1481,7 +1481,7 @@
       "redetectFailed": "Nuovo rilevamento non riuscito",
       "redetectFailedDesc": "Impossibile rilevare nuovamente la sorgente ottimale, verrà usata la configurazione predefinita"
     },
-    "managedServerReadOnly": "Servizio gestito da DeepChat",
+    "managedServerReadOnly": "Servizio gestito da JiaorongAI",
     "managedServerReadOnlyDesc": "Gestisci attivazione e permessi nelle impostazioni del plugin corrispondente",
     "center": {
       "title": "MCP Center",
@@ -1553,11 +1553,11 @@
   },
   "acp": {
     "title": "ACP Agent",
-    "description": "Gestisci ACP Agent locali avviati da DeepChat.",
+    "description": "Gestisci ACP Agent locali avviati da JiaorongAI.",
     "enabledTitle": "Attiva ACP",
     "enabledDescription": "Dopo l'attivazione, gli ACP Agent configurati appariranno nella lista modelli.",
-    "useBuiltinRuntimeTitle": "Usa ambiente integrato DeepChat",
-    "useBuiltinRuntimeDescription": "Se selezionato, bypassa i comandi node e uv di sistema e usa le versioni incluse in DeepChat.",
+    "useBuiltinRuntimeTitle": "Usa ambiente integrato JiaorongAI",
+    "useBuiltinRuntimeDescription": "Se selezionato, bypassa i comandi node e uv di sistema e usa le versioni incluse in JiaorongAI.",
     "enableToAccess": "Attiva ACP per configurare Agent.",
     "registryInstallEntry": "Installa Agent",
     "registryInstallEntryDescription": "Cerca e installa Agent da ACP Registry; al termine torna qui per attivarli e configurarli.",
@@ -1593,7 +1593,7 @@
     "registryInstallAction": "Installa",
     "registryUninstallAction": "Disinstalla",
     "registryUninstallConfirm": "Disinstallare \"{name}\"?",
-    "registryUninstallDescription": "DeepChat disattiverà questo Agent e, se applicabile, pulirà i dati di installazione gestiti localmente. Potrai reinstallarlo in seguito da ACP Registry.",
+    "registryUninstallDescription": "JiaorongAI disattiverà questo Agent e, se applicabile, pulirà i dati di installazione gestiti localmente. Potrai reinstallarlo in seguito da ACP Registry.",
     "registryUninstallFailed": "Disinstallazione Agent non riuscita",
     "registryInstallTitle": "ACP Registry",
     "registryInstallDescription": "Cerca, filtra e installa ACP Agent. Dopo l'installazione torna alla pagina impostazioni per configurarli.",
@@ -2029,7 +2029,7 @@
       "botToken": "Bot Token",
       "botTokenPlaceholder": "Discord Bot Token",
       "remoteControlDescription": "Il controllo remoto Discord usa un Bot Token, Gateway e flusso REST separati.",
-      "accessRule1": "Invia /pair [codice] in DM o nel canale target per autorizzare il DM o canale corrente a DeepChat.",
+      "accessRule1": "Invia /pair [codice] in DM o nel canale target per autorizzare il DM o canale corrente a JiaorongAI.",
       "accessRule2": "I messaggi del canale entrano nella conversazione solo quando il bot viene menzionato, evitando di processare chat normali."
     },
     "sections": {
@@ -2058,7 +2058,7 @@
       "pairDialogInstructionFeishu": "Invia questo comando nella chat privata del bot Feishu:",
       "pairDialogInstructionDiscord": "Invia questo comando al bot Discord in DM o nel canale target:",
       "bindingsDialogTitle": "Binding {channel}",
-      "bindingsDialogDescription": "Rimuovi uno per uno i binding tra ingressi remoti e sessioni DeepChat.",
+      "bindingsDialogDescription": "Rimuovi uno per uno i binding tra ingressi remoti e sessioni JiaorongAI.",
       "bindingsEmpty": "Nessuna sessione associata.",
       "pairingSuccessTitle": "Associazione riuscita",
       "pairingSuccessDescription": "L'elenco dei soggetti associati è stato aggiornato.",
@@ -2067,7 +2067,7 @@
       "authorizedPrincipalsDescription": "Questi account {channel} sono autorizzati ad associarsi e controllare le sessioni.",
       "authorizedPrincipalsEmpty": "Nessun soggetto autorizzato al momento.",
       "sessionBindingsTitle": "Binding sessioni",
-      "sessionBindingsDescription": "Ogni ingresso remoto qui sotto è attualmente associato a una sessione DeepChat.",
+      "sessionBindingsDescription": "Ogni ingresso remoto qui sotto è attualmente associato a una sessione JiaorongAI.",
       "acpDefaultWorkdirRequiredTitle": "Directory predefinita richiesta",
       "acpDefaultWorkdirRequiredDescription": "Gli agenti ACP necessitano di un’area di lavoro locale. Scegli una directory predefinita prima di salvare."
     },
@@ -2121,8 +2121,8 @@
     "weixinIlink": {
       "title": "WeChat iLink",
       "description": "Collega il Bot ufficiale WeChat iLink con scansione QR e usa l'adapter integrato per gestire le sessioni di controllo remoto.",
-      "loginDescription": "Dopo il clic sul pulsante sotto, DeepChat aprirà la finestra di login ufficiale WeChat. Completa lì l'autorizzazione iLink Bot con QR. Gli account connessi verranno aggiunti automaticamente alla lista sotto.",
-      "ownerOnlyNotice": "La prima versione consente il controllo di DeepChat solo al proprietario dell'account corrispondente al login QR.",
+      "loginDescription": "Dopo il clic sul pulsante sotto, JiaorongAI aprirà la finestra di login ufficiale WeChat. Completa lì l'autorizzazione iLink Bot con QR. Gli account connessi verranno aggiunti automaticamente alla lista sotto.",
+      "ownerOnlyNotice": "La prima versione consente il controllo di JiaorongAI solo al proprietario dell'account corrispondente al login QR.",
       "connectButton": "Apri finestra login",
       "refreshQrCode": "Riapri finestra login",
       "loginDialogTitle": "Connetti WeChat iLink",
@@ -2150,11 +2150,11 @@
   },
   "plugins": {
     "title": "Plugin",
-    "officialOnly": "Gestisci lo stato di attivazione dei plugin ufficiali integrati nella versione corrente di DeepChat",
+    "officialOnly": "Gestisci lo stato di attivazione dei plugin ufficiali integrati nella versione corrente di JiaorongAI",
     "refresh": "Aggiorna",
     "empty": "Nessun plugin ufficiale disponibile",
     "emptyTitle": "Nessun plugin integrato",
-    "emptyDescription": "La piattaforma corrente non include plugin ufficiali integrati in questa versione di DeepChat.",
+    "emptyDescription": "La piattaforma corrente non include plugin ufficiali integrati in questa versione di JiaorongAI.",
     "loadFailed": "Caricamento plugin non riuscito",
     "actionFailed": "Operazione plugin non riuscita",
     "install": "Installa",
@@ -2193,7 +2193,7 @@
       "searchPlaceholder": "Cerca impostazioni, provider, modelli, Agent, MCP...",
       "providers": "Providers",
       "mcp": "MCP",
-      "deepchatAgents": "DeepChat Agents",
+      "deepchatAgents": "JiaorongAI Agents",
       "data": "Ultimo backup",
       "enabledCount": "{count} attivi",
       "runningCount": "{count} in esecuzione",

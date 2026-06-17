@@ -2,7 +2,7 @@
 
 ## User Need
 
-DeepChat agent turns can include multiple reasoning sections and tool calls before the final answer.
+JiaorongAI agent turns can include multiple reasoning sections and tool calls before the final answer.
 When every intermediate block remains expanded, one assistant turn becomes too long to scan and the
 final conclusion is pushed far down the transcript.
 

@@ -54,7 +54,7 @@ struct MCPConfigCommand: ParsableCommand {
     func run() throws {
         // Resolve the binary path. Prefer the running executable's
         // path so the snippet references the bundled binary in
-        // `/Applications/DeepChat Computer Use.app/...` even when `cua-driver`
+        // `/Applications/JiaorongAI Computer Use.app/...` even when `cua-driver`
         // itself was invoked via a `/usr/local/bin/` symlink.
         let binary = resolvedBinaryPath()
         let shellBinary = shellEscape(binary)
@@ -189,7 +189,7 @@ struct MCPConfigCommand: ParsableCommand {
 struct DeepChatPermissionProbeCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "deepchat-permission-probe",
-        abstract: "Prompt for and write DeepChat helper TCC permission status JSON."
+        abstract: "Prompt for and write JiaorongAI helper TCC permission status JSON."
     )
 
     @Option(name: .long, help: "Path to write the permission status JSON.")
@@ -264,7 +264,7 @@ struct CuaDriverEntryPoint {
         TelemetryClient.shared.record(event: entryEvent)
 
         // Bare launch (no args) — typically a double-click from Finder
-        // / Spotlight / Dock on DeepChat Computer Use.app. LSUIElement=true keeps
+        // / Spotlight / Dock on JiaorongAI Computer Use.app. LSUIElement=true keeps
         // the binary headless by default, so without this branch a
         // DMG user sees "nothing happens" on open. Route through the
         // permissions gate instead: it's our one visible surface and
@@ -379,17 +379,17 @@ struct MCPCommand: ParsableCommand {
         discussion: """
             When invoked from a shell or IDE terminal (Claude Code, Cursor, \
             VS Code, Warp), macOS TCC attributes the process to the parent \
-            terminal — not to DeepChat Computer Use.app — so AX probes silently fail \
+            terminal — not to JiaorongAI Computer Use.app — so AX probes silently fail \
             against the wrong bundle id. To sidestep this without breaking \
             the stdio MCP transport, `mcp` detects the context, ensures a \
             `cua-driver serve` daemon is running under LaunchServices \
-            (relaunching via `open -n -g -a "DeepChat Computer Use" --args serve` if not), \
+            (relaunching via `open -n -g -a "JiaorongAI Computer Use" --args serve` if not), \
             and proxies every MCP tool call through the daemon's Unix \
             socket. Tool semantics are identical to the in-process path. \
             Pass `--no-daemon-relaunch` (or set CUA_DRIVER_MCP_NO_RELAUNCH=1) \
             to force in-process execution — useful when the calling context \
             already has the right TCC grants (e.g. spawned from \
-            DeepChat Computer Use.app directly), or for diagnosing \
+            JiaorongAI Computer Use.app directly), or for diagnosing \
             in-process failures.
             """
     )
@@ -410,7 +410,7 @@ struct MCPCommand: ParsableCommand {
         help: """
             Stay in the current process instead of auto-launching a daemon \
             and proxying through its Unix socket when invoked from a shell \
-            without DeepChat Computer Use.app's TCC grants. Also toggleable via \
+            without JiaorongAI Computer Use.app's TCC grants. Also toggleable via \
             CUA_DRIVER_MCP_NO_RELAUNCH=1.
             """
     )
@@ -424,9 +424,9 @@ struct MCPCommand: ParsableCommand {
 
     func run() throws {
         // TCC sidestep. Same heuristic the `serve` subcommand uses
-        // (shell-spawned bare binary that resolves into DeepChat Computer Use.app
+        // (shell-spawned bare binary that resolves into JiaorongAI Computer Use.app
         // bundle), gated by an explicit env / flag opt-out. When the
-        // shell already has the right TCC context (e.g. DeepChat Computer Use.app
+        // shell already has the right TCC context (e.g. JiaorongAI Computer Use.app
         // launched us directly), this returns false and we stay
         // in-process exactly like before. The proxy path is purely
         // additive: it gives stdio MCP clients spawned from IDE
@@ -443,7 +443,7 @@ struct MCPCommand: ParsableCommand {
         // live NSApplication event loop to draw. When the cursor's
         // never enabled, this costs us one idle run-loop.
         AppKitBootstrap.runBlockingAppKitWith {
-            // Keep MCP startup non-blocking. Permission setup is handled by DeepChat's
+            // Keep MCP startup non-blocking. Permission setup is handled by JiaorongAI's
             // settings UI and individual tools report missing grants when invoked.
             // Same startup-warm as `serve`: surface any config decode
             // warnings on the host's stderr before the first tool call
@@ -481,13 +481,13 @@ extension MCPCommand {
         if isEnvTruthy(ProcessInfo.processInfo.environment["CUA_DRIVER_MCP_NO_RELAUNCH"]) {
             return false
         }
-        // When AppKit already attributes us to DeepChat Computer Use.app — either
+        // When AppKit already attributes us to JiaorongAI Computer Use.app — either
         // because LaunchServices spawned us, or the user invoked the
         // bundle's main executable directly — `Bundle.main.bundlePath`
         // ends in `.app`. Either case has the right TCC context.
         if Bundle.main.bundlePath.hasSuffix(".app") { return false }
         // The bare-binary path must resolve into an installed
-        // DeepChat Computer Use.app bundle, otherwise there's nothing for the
+        // JiaorongAI Computer Use.app bundle, otherwise there's nothing for the
         // daemon side to land in. Raw `swift run` dev invocations fail
         // this check and stay in-process.
         guard isExecutableInsideCuaDriverApp() else { return false }
@@ -509,7 +509,7 @@ extension MCPCommand {
         if !DaemonClient.isDaemonListening(socketPath: socketPath) {
             FileHandle.standardError.write(
                 Data(
-                    "cua-driver: mcp launched without DeepChat Computer Use.app's TCC grants; auto-launching the daemon via `open -n -g -a \"DeepChat Computer Use\" --args serve` and proxying MCP requests through it. Pass --no-daemon-relaunch to stay in-process.\n"
+                    "cua-driver: mcp launched without JiaorongAI Computer Use.app's TCC grants; auto-launching the daemon via `open -n -g -a \"JiaorongAI Computer Use\" --args serve` and proxying MCP requests through it. Pass --no-daemon-relaunch to stay in-process.\n"
                         .utf8))
             try launchDaemonViaOpen()
             try waitForDaemon(socketPath: socketPath, timeout: 10.0)
@@ -538,20 +538,20 @@ extension MCPCommand {
         }
     }
 
-    /// Spawn `/usr/bin/open -n -g -a "DeepChat Computer Use" --args serve`. Mirror of
+    /// Spawn `/usr/bin/open -n -g -a "JiaorongAI Computer Use" --args serve`. Mirror of
     /// `ServeCommand.relaunchViaOpen` minus the post-launch probe (we
     /// poll separately via `waitForDaemon`, since the timeout there is
     /// MCP-specific).
     fileprivate func launchDaemonViaOpen() throws {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
-        // -n: force a new instance. DeepChat Computer Use.app may already be
+        // -n: force a new instance. JiaorongAI Computer Use.app may already be
         //     running from a previous `mcp` (different MCP client
         //     session); without -n, `open -a` would re-use it and
         //     drop our `--args serve`, leaving no daemon up.
-        // -g: keep the new instance backgrounded. DeepChat Computer Use.app is
+        // -g: keep the new instance backgrounded. JiaorongAI Computer Use.app is
         //     LSUIElement=true anyway, but this makes that explicit.
-        process.arguments = ["-n", "-g", "-a", "DeepChat Computer Use", "--args", "serve"]
+        process.arguments = ["-n", "-g", "-a", "JiaorongAI Computer Use", "--args", "serve"]
         process.standardOutput = FileHandle.nullDevice
         process.standardError = FileHandle.nullDevice
         do {
@@ -567,7 +567,7 @@ extension MCPCommand {
         if process.terminationStatus != 0 {
             FileHandle.standardError.write(
                 Data(
-                    "cua-driver: `open -n -g -a \"DeepChat Computer Use\" --args serve` exited \(process.terminationStatus). Check that `/Applications/DeepChat Computer Use.app` is installed, or pass --no-daemon-relaunch to bypass.\n"
+                    "cua-driver: `open -n -g -a \"JiaorongAI Computer Use\" --args serve` exited \(process.terminationStatus). Check that `/Applications/JiaorongAI Computer Use.app` is installed, or pass --no-daemon-relaunch to bypass.\n"
                         .utf8))
             throw ExitCode(1)
         }
@@ -576,7 +576,7 @@ extension MCPCommand {
     /// Block (up to `timeout` seconds) until `socketPath` accepts a
     /// protocol-speaking probe. Throws `ExitCode(1)` with a diagnostic
     /// if the daemon never appears — usually means the user hasn't
-    /// granted Accessibility / Screen Recording to DeepChat Computer Use.app yet
+    /// granted Accessibility / Screen Recording to JiaorongAI Computer Use.app yet
     /// and the daemon's PermissionsGate is waiting on a dialog.
     fileprivate func waitForDaemon(socketPath: String, timeout: TimeInterval) throws {
         let deadline = Date().addingTimeInterval(timeout)
@@ -588,7 +588,7 @@ extension MCPCommand {
         }
         FileHandle.standardError.write(
             Data(
-                "cua-driver: daemon did not appear on \(socketPath) within \(Int(timeout))s. If this is the first launch, grant Accessibility + Screen Recording to DeepChat Computer Use.app in System Settings and retry. Pass --no-daemon-relaunch to stay in-process.\n"
+                "cua-driver: daemon did not appear on \(socketPath) within \(Int(timeout))s. If this is the first launch, grant Accessibility + Screen Recording to JiaorongAI Computer Use.app in System Settings and retry. Pass --no-daemon-relaunch to stay in-process.\n"
                     .utf8))
         throw ExitCode(1)
     }
@@ -653,11 +653,11 @@ enum AppKitBootstrap {
     }
 }
 
-/// `cua-driver update` — report the DeepChat-managed update path.
+/// `cua-driver update` — report the JiaorongAI-managed update path.
 struct UpdateCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "update",
-        abstract: "Show how DeepChat updates the bundled cua-driver helper."
+        abstract: "Show how JiaorongAI updates the bundled cua-driver helper."
     )
 
     @Flag(name: .long, help: "Reserved for standalone cua-driver installs.")
@@ -667,15 +667,15 @@ struct UpdateCommand: AsyncParsableCommand {
         let current = CuaDriverCore.version
         print("Current version: \(current)")
         print("")
-        print("DeepChat packages this cua-driver fork with the app.")
-        print("Update DeepChat to receive newer Computer Use helper builds.")
+        print("JiaorongAI packages this cua-driver fork with the app.")
+        print("Update JiaorongAI to receive newer Computer Use helper builds.")
         print("Standalone upstream cua-driver releases are not applied to this helper.")
 
         if !apply {
             return
         }
 
-        print("--apply is managed by DeepChat's app updater.")
+        print("--apply is managed by JiaorongAI's app updater.")
         throw ExitCode(1)
     }
 }

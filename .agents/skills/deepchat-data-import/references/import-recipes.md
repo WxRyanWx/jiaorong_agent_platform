@@ -1,6 +1,6 @@
 # Import Recipes
 
-Use this reference when turning DeepChat data into an importer or migration tool.
+Use this reference when turning JiaorongAI data into an importer or migration tool.
 
 ## Minimal Read-Only Export
 
@@ -44,7 +44,7 @@ When importing providers into another tool, preserve:
 - enabled/disabled state from `model_status`.
 - model config from `model_configs.config_json`.
 
-Do not rely only on `provider_json`; DeepChat deliberately stores common scalar fields in columns
+Do not rely only on `provider_json`; JiaorongAI deliberately stores common scalar fields in columns
 for queryability and migration.
 
 ## Session And Message Import
@@ -97,14 +97,14 @@ be represented as assistant blocks.
 - If a column is missing, check `schema_versions` and use the nearest fallback rather than failing
   the whole import.
 
-## Writing Back Into DeepChat
+## Writing Back Into JiaorongAI
 
-Avoid third-party direct writes to a user's live DeepChat database.
+Avoid third-party direct writes to a user's live JiaorongAI database.
 
-If a tool must generate data for DeepChat:
+If a tool must generate data for JiaorongAI:
 
-- Prefer creating an export file or backup package that DeepChat can import through its own code.
-- If implementing inside DeepChat, use Presenter/table helpers instead of raw SQL.
+- Prefer creating an export file or backup package that JiaorongAI can import through its own code.
+- If implementing inside JiaorongAI, use Presenter/table helpers instead of raw SQL.
 - If writing a copied database for controlled migration tests, use one transaction per session and
   keep table groups consistent:
   - `new_sessions`
@@ -114,7 +114,7 @@ If a tool must generate data for DeepChat:
   - optional search, trace, usage, pending input, and tape rows
 - Keep `deepchat_messages.content` compatible even when structured tables are populated, because it
   remains the fallback path.
-- Do not update `database-security.json` manually after rekeying; use DeepChat's migration flow.
+- Do not update `database-security.json` manually after rekeying; use JiaorongAI's migration flow.
 
 ## Secret Handling Checklist
 

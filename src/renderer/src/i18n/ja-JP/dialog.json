@@ -69,7 +69,7 @@
     "moveAndDeleteAgent": "移動してエージェントを削除",
     "moveConversation": "会話を移動",
     "agentType": {
-      "deepchat": "DeepChat",
+      "deepchat": "JiaorongAI",
       "acp": "ACP"
     },
     "blockReason": {
@@ -84,6 +84,6 @@
       "draft": "下書き",
       "subagent": "サブエージェント"
     },
-    "deepChatTargetOnly": "移動先として選択できるのは DeepChat エージェントのみです。ACP の会話は DeepChat へ移動できますが、ACP へは移動できません。"
+    "deepChatTargetOnly": "移動先として選択できるのは JiaorongAI エージェントのみです。ACP の会話は JiaorongAI へ移動できますが、ACP へは移動できません。"
   }
 }

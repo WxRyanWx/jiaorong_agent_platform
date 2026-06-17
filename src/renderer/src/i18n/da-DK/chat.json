@@ -19,7 +19,7 @@
     "historyPlaceholder": "(Udfyld med Tab)",
     "inputArea": "Indtastningsområde",
     "pasteFiles": "Understøtter kopiering og indsættelse af filer",
-    "placeholder": "Spørg DeepChat om hvad som helst, {'@'} for at nævne filer, / for kommandoer",
+    "placeholder": "Spørg JiaorongAI om hvad som helst, {'@'} for at nævne filer, / for kommandoer",
     "promptFilesAdded": "Prompt-filen er blevet tilføjet",
     "promptFilesAddedDesc": "{count} filer er blevet tilføjet successfully",
     "promptFilesError": "Filbehandlingsfejl",
@@ -40,7 +40,7 @@
     "voiceRecognitionUnsupportedTitle": "Det aktuelle miljø understøtter ikke stemmegenkendelse",
     "voiceRecognitionUnsupportedDescription": "Brug denne funktion i en browser eller skrivebordsmiljø, der understøtter stemmegenkendelse.",
     "voiceRecognitionPermissionDeniedTitle": "Kan ikke få adgang til mikrofonen",
-    "voiceRecognitionPermissionDeniedDescription": "Giv DeepChat adgang til mikrofonen, og prøv igen.",
+    "voiceRecognitionPermissionDeniedDescription": "Giv JiaorongAI adgang til mikrofonen, og prøv igen.",
     "voiceRecognitionErrorTitle": "Stemmegenkendelse mislykkedes",
     "voiceRecognitionErrorDescription": "Stemmegenkendelsen kunne ikke fuldføres. Prøv igen senere.",
     "send": "Send",
@@ -66,7 +66,7 @@
         "agentCore": "Agent Core",
         "agentImageGeneration": "Billedgenerering",
         "agentSkills": "Agent Skills",
-        "deepchatSettings": "DeepChat Settings",
+        "deepchatSettings": "JiaorongAI Settings",
         "yobrowser": "YoBrowser"
       }
     },
@@ -373,12 +373,12 @@
   },
   "onboarding": {
     "agentSwitch": {
-      "title": "Switch to DeepChat Agent",
-      "description": "Before chatting, switch away from ACP and return to the built-in DeepChat flow.",
+      "title": "Switch to JiaorongAI Agent",
+      "description": "Before chatting, switch away from ACP and return to the built-in JiaorongAI flow.",
       "caption": "Click the highlighted agent button in the sidebar to continue."
     },
     "switchModel": {
-      "description": "Pick the model you want to use for your first DeepChat conversation.",
+      "description": "Pick the model you want to use for your first JiaorongAI conversation.",
       "caption": "Use the highlighted model switcher and choose any available model."
     },
     "firstChat": {

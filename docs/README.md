@@ -1,4 +1,4 @@
-# DeepChat 文档索引
+# JiaorongAI 文档索引
 
 本文档反映 `2026-05-28` 的当前代码结构。历史 SDD 已清理为“活跃目标才保留”的模型：
 已经落地的实现只在当前项目文档中保留维护信息，不再保留一次性 `spec/plan/tasks`
@@ -22,28 +22,28 @@ Renderer
 
 ## 当前必读
 
-| 文档 | 用途 |
-| --- | --- |
-| [ARCHITECTURE.md](./ARCHITECTURE.md) | 当前主架构、能力 owner、typed boundary 规则 |
-| [FLOWS.md](./FLOWS.md) | 当前消息、工具、ACP、导入、定时任务、远程控制流程 |
-| [architecture/agent-system.md](./architecture/agent-system.md) | `agentSessionPresenter` / `agentRuntimePresenter` 细节 |
-| [architecture/tool-system.md](./architecture/tool-system.md) | `ToolPresenter`、agent tools、ACP helper 分层 |
-| [architecture/session-management.md](./architecture/session-management.md) | 新会话管理、分页恢复、legacy 数据平面边界 |
-| [architecture/event-system.md](./architecture/event-system.md) | EventBus 与 typed events 的当前分工 |
-| [guides/code-navigation.md](./guides/code-navigation.md) | 当前代码导航入口 |
-| [guides/getting-started.md](./guides/getting-started.md) | 新开发者快速上手 |
-| [guides/plugin-packaging.md](./guides/plugin-packaging.md) | `.dcplugin` 打包、内置分发和 release 规则 |
-| [spec-driven-dev.md](./spec-driven-dev.md) | SDD 目录规则、保留期限与清理规则 |
+| 文档                                                                       | 用途                                                   |
+| -------------------------------------------------------------------------- | ------------------------------------------------------ |
+| [ARCHITECTURE.md](./ARCHITECTURE.md)                                       | 当前主架构、能力 owner、typed boundary 规则            |
+| [FLOWS.md](./FLOWS.md)                                                     | 当前消息、工具、ACP、导入、定时任务、远程控制流程      |
+| [architecture/agent-system.md](./architecture/agent-system.md)             | `agentSessionPresenter` / `agentRuntimePresenter` 细节 |
+| [architecture/tool-system.md](./architecture/tool-system.md)               | `ToolPresenter`、agent tools、ACP helper 分层          |
+| [architecture/session-management.md](./architecture/session-management.md) | 新会话管理、分页恢复、legacy 数据平面边界              |
+| [architecture/event-system.md](./architecture/event-system.md)             | EventBus 与 typed events 的当前分工                    |
+| [guides/code-navigation.md](./guides/code-navigation.md)                   | 当前代码导航入口                                       |
+| [guides/getting-started.md](./guides/getting-started.md)                   | 新开发者快速上手                                       |
+| [guides/plugin-packaging.md](./guides/plugin-packaging.md)                 | `.dcplugin` 打包、内置分发和 release 规则              |
+| [spec-driven-dev.md](./spec-driven-dev.md)                                 | SDD 目录规则、保留期限与清理规则                       |
 
 ## 仍有运行时用途的基线
 
-| 文档 | 用途 |
-| --- | --- |
-| [architecture/baselines/dependency-report.md](./architecture/baselines/dependency-report.md) | 当前依赖与耦合基线 |
-| [architecture/baselines/main-kernel-boundary-baseline.md](./architecture/baselines/main-kernel-boundary-baseline.md) | renderer-main 边界指标与 hot path 快照 |
-| [architecture/baselines/main-kernel-bridge-register.md](./architecture/baselines/main-kernel-bridge-register.md) | legacy bridge 登记表 |
-| [architecture/baselines/main-kernel-migration-scoreboard.md](./architecture/baselines/main-kernel-migration-scoreboard.md) | typed-boundary migration scoreboard |
-| [architecture/baselines/test-failure-groups.md](./architecture/baselines/test-failure-groups.md) | 测试失败分组基线 |
+| 文档                                                                                                                       | 用途                                   |
+| -------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| [architecture/baselines/dependency-report.md](./architecture/baselines/dependency-report.md)                               | 当前依赖与耦合基线                     |
+| [architecture/baselines/main-kernel-boundary-baseline.md](./architecture/baselines/main-kernel-boundary-baseline.md)       | renderer-main 边界指标与 hot path 快照 |
+| [architecture/baselines/main-kernel-bridge-register.md](./architecture/baselines/main-kernel-bridge-register.md)           | legacy bridge 登记表                   |
+| [architecture/baselines/main-kernel-migration-scoreboard.md](./architecture/baselines/main-kernel-migration-scoreboard.md) | typed-boundary migration scoreboard    |
+| [architecture/baselines/test-failure-groups.md](./architecture/baselines/test-failure-groups.md)                           | 测试失败分组基线                       |
 
 这些基线由 `scripts/generate-architecture-baseline.mjs` 生成，`scripts/architecture-guard.mjs`
 会读取其中的 JSON 文件。它们不是历史 SDD，不应随 completed feature 文档一起删除。

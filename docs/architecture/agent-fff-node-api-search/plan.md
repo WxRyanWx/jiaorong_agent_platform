@@ -4,7 +4,7 @@
 
 ```mermaid
 flowchart TD
-  M["Agent model"] --> T["DeepChat tool layer"]
+  M["Agent model"] --> T["JiaorongAI tool layer"]
   T --> FF["glob"]
   T --> FG["grep"]
   FF --> S["FffSearchService"]
@@ -14,7 +14,7 @@ flowchart TD
 ```
 
 The model never receives FFF binding details and never receives shell-search guidance.
-DeepChat-owned code no longer spawns or injects bundled ripgrep.
+JiaorongAI-owned code no longer spawns or injects bundled ripgrep.
 
 ## Implementation Steps
 
@@ -153,4 +153,4 @@ failures from the repository.
 - FFF warm repeated searches should outperform repeated process-based search. Cold startup can
   include indexing cost.
 - Removing bundled ripgrep install means any user shell command named `rg` will use the user's own
-  PATH, not a DeepChat-provided binary.
+  PATH, not a JiaorongAI-provided binary.

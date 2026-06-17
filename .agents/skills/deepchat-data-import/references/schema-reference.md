@@ -1,7 +1,7 @@
 # Schema Reference
 
 Use this reference when extracting provider config, settings, sessions, and messages from
-`agent.db`. Verify against `sqlite_master` for user databases created by newer DeepChat versions.
+`agent.db`. Verify against `sqlite_master` for user databases created by newer JiaorongAI versions.
 
 ## Core Version Tables
 
@@ -63,7 +63,7 @@ Per-model enabled state. `status_key` is the primary key; rows also include `pro
 
 Per-model generation config.
 
-- `cache_key`: primary key used by DeepChat config helpers.
+- `cache_key`: primary key used by JiaorongAI config helpers.
 - `provider_id`, `model_id`, `source`: denormalized lookup fields.
 - `config_json`: JSON for model config values such as temperature, context length, reasoning,
   search, image generation, video generation, or TTS options.
@@ -80,7 +80,7 @@ Per-model generation config.
 
 ## Current Session And Message Tables
 
-DeepChat's current mainline session model is split across a thin registry and agent-specific data.
+JiaorongAI's current mainline session model is split across a thin registry and agent-specific data.
 
 ### new_sessions
 
@@ -89,7 +89,7 @@ One row per visible session or subagent session.
 Key columns:
 
 - `id`: session id.
-- `agent_id`: agent implementation id. DeepChat chat sessions normally use the DeepChat agent id;
+- `agent_id`: agent implementation id. JiaorongAI chat sessions normally use the JiaorongAI agent id;
   ACP sessions use ACP-oriented ids.
 - `title`: sidebar title.
 - `project_dir`: nullable project/workspace path.
@@ -108,7 +108,7 @@ Related tables:
 
 ### deepchat_sessions
 
-DeepChat-specific session config. `id` matches `new_sessions.id`.
+JiaorongAI-specific session config. `id` matches `new_sessions.id`.
 
 Important columns:
 
@@ -196,7 +196,7 @@ These are useful for richer import but optional for basic chat history.
 
 ## Legacy Compatibility Tables
 
-Current DeepChat keeps legacy tables for compatibility and import.
+Current JiaorongAI keeps legacy tables for compatibility and import.
 
 ### conversations
 

@@ -1,6 +1,6 @@
 # 快速入门指南
 
-本文档基于 retirement 后的当前结构，适合第一次进入 DeepChat 主聊天链路的开发者。
+本文档基于 retirement 后的当前结构，适合第一次进入 JiaorongAI 主聊天链路的开发者。
 
 ## 前置要求
 

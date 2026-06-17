@@ -18,7 +18,7 @@ import Security
 ///   - running-process identity (path, bundle id, pid, cdhash)
 ///   - TCC probe results (Accessibility + Screen Recording, as the live
 ///     process sees them)
-///   - install layout (/Applications/DeepChat Computer Use.app bundle + signature,
+///   - install layout (/Applications/JiaorongAI Computer Use.app bundle + signature,
 ///     /usr/local/bin/cua-driver symlink resolution)
 ///   - TCC DB rows for `com.wefonk.deepchat.computeruse` (best-effort; system TCC DB
 ///     requires Full Disk Access)
@@ -80,7 +80,7 @@ struct DiagnoseCommand: AsyncParsableCommand {
         var lines: [String] = ["## install layout"]
 
         // App bundle at the canonical /Applications path.
-        let appPath = "/Applications/DeepChat Computer Use.app"
+        let appPath = "/Applications/JiaorongAI Computer Use.app"
         let appURL = URL(fileURLWithPath: appPath)
         let appExists = FileManager.default.fileExists(atPath: appPath)
         lines.append("bundle:  \(appPath)   exists=\(appExists)")
@@ -111,7 +111,7 @@ struct DiagnoseCommand: AsyncParsableCommand {
         // they have leftovers to clean up.
         let stalePaths = [
             "\(NSHomeDirectory())/Applications/CuaDriver.app",
-            "\(NSHomeDirectory())/Applications/DeepChat Computer Use.app",
+            "\(NSHomeDirectory())/Applications/JiaorongAI Computer Use.app",
             "\(NSHomeDirectory())/.local/bin/cua-driver",
         ]
         for stale in stalePaths where FileManager.default.fileExists(atPath: stale) {
@@ -167,7 +167,7 @@ struct DiagnoseCommand: AsyncParsableCommand {
         let home = NSHomeDirectory()
         let paths: [(String, String)] = [
             ("user data dir",     "\(home)/.cua-driver"),
-            ("config dir",        "\(home)/Library/Application Support/DeepChat Computer Use"),
+            ("config dir",        "\(home)/Library/Application Support/JiaorongAI Computer Use"),
             ("telemetry id",      "\(home)/.cua-driver/.telemetry_id"),
             ("install marker",    "\(home)/.cua-driver/.installation_recorded"),
             ("updater plist",     "\(home)/Library/LaunchAgents/com.trycua.cua_driver_updater.plist"),

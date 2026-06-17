@@ -173,7 +173,7 @@
   },
   "inmemory": {
     "Artifacts": {
-      "desc": "讓你的 DeepChat 輸出的多樣化的 Artifacts 內容",
+      "desc": "讓你的 JiaorongAI 輸出的多樣化的 Artifacts 內容",
       "name": "Artifacts"
     },
     "bochaSearch": {
@@ -181,7 +181,7 @@
       "name": "博查搜索"
     },
     "buildInFileSystem": {
-      "desc": "讓 DeepChat 能夠操作本地文件",
+      "desc": "讓 JiaorongAI 能夠操作本地文件",
       "name": "文件系統"
     },
     "braveSearch": {

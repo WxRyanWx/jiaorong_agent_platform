@@ -11,7 +11,7 @@
     "launchAtLoginEnabled": "开机时启动 交融超级智能体",
     "autoScrollEnabled": "生成时自动滚动",
     "privacyMode": "隐私模式",
-    "privacyModeDescription": "启动隐私模式后，DeepChat 将不会自动发起如下请求：",
+    "privacyModeDescription": "启动隐私模式后，JiaorongAI 将不会自动发起如下请求：",
     "privacyModeAutoUpdate": "应用更新检查",
     "privacyModeProviderDb": "服务商与模型元数据刷新",
     "privacyModeAcpRegistry": "ACP 注册表刷新与图标同步",
@@ -21,7 +21,7 @@
     "autoCompaction": {
       "title": "自动压缩",
       "enabled": "启用自动压缩",
-      "description": "当对话接近模型上下文窗口限制时，DeepChat 会自动总结较早历史，帮助会话继续进行。关闭后，超出预算的历史将直接丢弃，不再生成摘要。",
+      "description": "当对话接近模型上下文窗口限制时，JiaorongAI 会自动总结较早历史，帮助会话继续进行。关闭后，超出预算的历史将直接丢弃，不再生成摘要。",
       "thresholdLabel": "触发阈值",
       "thresholdMin": "提前（{value}%）",
       "thresholdMax": "延后（{value}%）",
@@ -99,7 +99,7 @@
     "descriptionPlaceholder": "可选，用来说明这个 Agent 的用途",
     "avatarTitle": "头像",
     "avatarDefault": "默认",
-    "avatarDefaultDesc": "通用智能体 使用默认图标，其他 Agent 使用文字头像。",
+    "avatarDefaultDesc": "交融对话 使用默认图标，其他 Agent 使用文字头像。",
     "avatarLucide": "Lucide 图标",
     "avatarLucideDesc": "从 Lucide 图标里选择，并分别设置浅色/深色颜色。",
     "avatarMonogram": "文字头像",
@@ -146,7 +146,7 @@
     "compactionDescription": "这些设置只影响后续新建的 智能体 会话。",
     "compactionThreshold": "触发阈值",
     "compactionRetainPairs": "保留最近消息对",
-    "deleteConfirm": "确定删除 Agent “{name}” 吗？它的历史会话会自动回落到内置 通用智能体。"
+    "deleteConfirm": "确定删除 Agent “{name}” 吗？它的历史会话会自动回落到内置 交融对话。"
   },
   "notificationsHooks": {
     "title": "Hooks",
@@ -174,7 +174,7 @@
       "empty": "暂无 Hook，点击右上角新建。",
       "defaultName": "Hook {index}",
       "guideTitle": "使用说明",
-      "guideDescription": "勾选的事件触发后，DeepChat 会执行该命令。当前事件可通过 stdin JSON、环境变量和命令行占位符读取。",
+      "guideDescription": "勾选的事件触发后，JiaorongAI 会执行该命令。当前事件可通过 stdin JSON、环境变量和命令行占位符读取。",
       "deliveryTitle": "传参方式",
       "deliveryStdin": "完整 payload 会以 JSON 写入 stdin。",
       "deliveryPlaceholder": "可以在命令行中直接使用命令行占位符。",
@@ -348,7 +348,7 @@
       "newPassword": "新的 SQLite 密码",
       "confirmPassword": "确认密码",
       "passwordMismatch": "两次输入的密码不一致",
-      "systemCredentialStore": "系统安全存储可用时，DeepChat 会把 SQLite 密码加密保存到系统凭据库（例如 macOS Keychain、Windows 凭据保险箱或 Linux secret store）。首次解锁成功后，后续启动通常会自动打开；只有迁移数据、系统凭据丢失或无法解密、以及安全存储不可用时，才需要再次输入加密密钥。",
+      "systemCredentialStore": "系统安全存储可用时，JiaorongAI 会把 SQLite 密码加密保存到系统凭据库（例如 macOS Keychain、Windows 凭据保险箱或 Linux secret store）。首次解锁成功后，后续启动通常会自动打开；只有迁移数据、系统凭据丢失或无法解密、以及安全存储不可用时，才需要再次输入加密密钥。",
       "safeStorageUnavailable": "当前系统无法使用 Electron safeStorage。启用后每次启动都需要手动输入密码。",
       "enableButton": "启用加密",
       "changeButton": "修改密码",
@@ -418,7 +418,7 @@
       "scanningDescription": "交融超级智能体 只读取已知的本地配置文件，不会上传任何数据。",
       "scanFailedTitle": "扫描失败",
       "sourcesTitle": "检测到的来源",
-      "sourcesDescription": "可以选择一个或多个 Agent，DeepChat 会按列表顺序依次处理。",
+      "sourcesDescription": "可以选择一个或多个 Agent，JiaorongAI 会按列表顺序依次处理。",
       "selectedSources": "已选择 {selected}/{total}",
       "noSourcesTitle": "没有找到可导入的 provider 配置",
       "noSourcesDescription": "请先安装支持的 Agent，或在对应 Agent 中配置 provider 密钥。",
@@ -2089,7 +2089,7 @@
       "botToken": "Bot Token",
       "botTokenPlaceholder": "Discord Bot Token",
       "remoteControlDescription": "Discord 远控使用独立的 Bot Token、Gateway 和 REST 流程。",
-      "accessRule1": "私聊或频道里发送 /pair [配对码]，把当前 DM 或频道授权给 DeepChat。",
+      "accessRule1": "私聊或频道里发送 /pair [配对码]，把当前 DM 或频道授权给 JiaorongAI。",
       "accessRule2": "频道消息只有在提及机器人时才会进入会话，避免误处理普通聊天。"
     },
     "sections": {
@@ -2181,8 +2181,8 @@
     "weixinIlink": {
       "title": "微信 iLink",
       "description": "通过扫码接入官方微信 iLink Bot，并用内建适配器承接远程控制会话。",
-      "loginDescription": "点击下方按钮后，DeepChat 会打开官方微信登录窗口，请在该窗口内完成 iLink Bot 扫码授权。连接成功的账号会自动加入下方列表。",
-      "ownerOnlyNotice": "当前首版仅允许扫码登录对应的账号所有者控制 DeepChat。",
+      "loginDescription": "点击下方按钮后，JiaorongAI 会打开官方微信登录窗口，请在该窗口内完成 iLink Bot 扫码授权。连接成功的账号会自动加入下方列表。",
+      "ownerOnlyNotice": "当前首版仅允许扫码登录对应的账号所有者控制 JiaorongAI。",
       "connectButton": "打开登录窗口",
       "refreshQrCode": "重新打开登录窗口",
       "loginDialogTitle": "连接微信 iLink",

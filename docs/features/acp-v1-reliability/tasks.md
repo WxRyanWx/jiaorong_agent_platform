@@ -32,10 +32,10 @@
 - [ ] Extend shared ACP debug action type with `sessionList`, `sessionImport`, `sessionResume`, `sessionDetach`, `sessionCloseRemote`, and `sessionFork`.
 - [ ] Add `session/list` presenter/debug path with workspace `cwd` filter and cursor pagination.
 - [ ] Add `AcpSessionLink` persistence keyed by `agentId + canonicalWorkdir + remoteSessionId`.
-- [ ] Add external session catalog sync that updates link metadata without creating duplicate DeepChat conversations.
-- [ ] Add import path that creates or reuses a DeepChat conversation for a remote session.
+- [ ] Add external session catalog sync that updates link metadata without creating duplicate JiaorongAI conversations.
+- [ ] Add import path that creates or reuses a JiaorongAI conversation for a remote session.
 - [ ] Add `session/load` import path gated by top-level `loadSession`.
-- [ ] Stage replayed remote updates before converting them to DeepChat messages.
+- [ ] Stage replayed remote updates before converting them to JiaorongAI messages.
 - [ ] Add message/block fingerprinting so repeated imports do not duplicate persisted messages.
 - [ ] Add `session/resume` path gated by `sessionCapabilities.resume` for already linked conversations.
 - [ ] Fix local runtime restore priority: linked `resume` > linked `loadSession` import/replay > `newSession`.
@@ -59,7 +59,7 @@
 
 - [ ] Replace history-based ACP formatter with current-turn-only formatter.
 - [ ] Remove temperature/maxTokens prompt text injection.
-- [ ] Send DeepChat system prompt only once when a local conversation first binds to ACP runtime.
+- [ ] Send JiaorongAI system prompt only once when a local conversation first binds to ACP runtime.
 - [ ] Add input content mapping for text, image, audio, resource, and resource_link.
 - [ ] Gate image/audio/resource by `promptCapabilities`.
 - [ ] Add fallback behavior for unsupported multimodal content.
@@ -72,14 +72,14 @@
 - [ ] Update image/audio/resource/resource_link output handling to preserve structure in metadata/debug.
 - [ ] Map `usage_update` into turn metadata and ACP debug log.
 - [ ] Map `session_info_update` into `AcpSessionLink` metadata.
-- [ ] Ensure session title update does not override user-edited DeepChat titles.
+- [ ] Ensure session title update does not override user-edited JiaorongAI titles.
 - [ ] Keep `plan` update replacement semantics.
 - [ ] Add tests for usage, session info, plan replacement, and unsupported output fallback.
 
 ## 7. Tool Calls and Permission
 
 - [ ] Stop treating ordinary `tool_call` progress as permission UI.
-- [ ] Route only `session/request_permission` into DeepChat permission overlay.
+- [ ] Route only `session/request_permission` into JiaorongAI permission overlay.
 - [ ] Preserve tool terminal output, diff path/content, locations, raw input, and raw output in block metadata/debug.
 - [ ] Add permission resolver timeout with cancelled default outcome.
 - [ ] Clear stale ACP permission overlays after interrupted sessions instead of throwing on unknown request ids.

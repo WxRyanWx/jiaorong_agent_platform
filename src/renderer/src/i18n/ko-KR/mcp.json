@@ -176,11 +176,11 @@
       "desc": "FastGPT 지식 베이스 검색 서비스, FastGPT 지식 베이스 콘텐츠를 검색할 수 있습니다"
     },
     "deepchat-inmemory/custom-prompts-server": {
-      "desc": "DeepChat 내장 사용자 정의 프롬프트 단어 서비스",
+      "desc": "JiaorongAI 내장 사용자 정의 프롬프트 단어 서비스",
       "name": "사용자 정의 프롬프트 단어"
     },
     "deepchat-inmemory/deep-research-server": {
-      "desc": "Bocha 검색을 기반으로 한 DeepChat 내장 내장 연구 서비스 (긴 컨텍스트 모델을 사용해야하고 컨텍스트가 불충분 한 모델이 실패 할 수 있습니다)",
+      "desc": "Bocha 검색을 기반으로 한 JiaorongAI 내장 내장 연구 서비스 (긴 컨텍스트 모델을 사용해야하고 컨텍스트가 불충분 한 모델이 실패 할 수 있습니다)",
       "name": "DeepResearch"
     },
     "deepchat-inmemory/auto-prompting-server": {
@@ -189,7 +189,7 @@
     },
     "deepchat-inmemory/conversation-search-server": {
       "name": "대화 기록 검색",
-      "desc": "DeepChat 내장 대화 기록 검색 서비스, 과거 대화 기록과 메시지 내용을 검색할 수 있습니다"
+      "desc": "JiaorongAI 내장 대화 기록 검색 서비스, 과거 대화 기록과 메시지 내용을 검색할 수 있습니다"
     },
     "builtinKnowledge": {
       "desc": "Deepchat 내장 지식 기반 검색 서비스, Deepchat 내장 지식 기반의 내용을 검색 할 수있는 Deepchat 내장 지식 기반 검색 서비스",

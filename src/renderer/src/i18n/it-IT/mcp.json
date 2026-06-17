@@ -178,11 +178,11 @@
     },
     "buildInFileSystem": {
       "name": "File system",
-      "desc": "Permette a DeepChat di operare sui file locali"
+      "desc": "Permette a JiaorongAI di operare sui file locali"
     },
     "Artifacts": {
       "name": "Artifacts",
-      "desc": "Permette a DeepChat di produrre contenuti Artifacts più vari"
+      "desc": "Permette a JiaorongAI di produrre contenuti Artifacts più vari"
     },
     "braveSearch": {
       "name": "Brave Search",
@@ -202,15 +202,15 @@
     },
     "builtinKnowledge": {
       "name": "Ricerca base di conoscenza integrata",
-      "desc": "Servizio di ricerca base di conoscenza integrato in DeepChat, può cercare nei contenuti della base di conoscenza integrata di DeepChat"
+      "desc": "Servizio di ricerca base di conoscenza integrato in JiaorongAI, può cercare nei contenuti della base di conoscenza integrata di JiaorongAI"
     },
     "deepchat-inmemory/custom-prompts-server": {
       "name": "Prompt personalizzati",
-      "desc": "Servizio prompt personalizzati integrato in DeepChat"
+      "desc": "Servizio prompt personalizzati integrato in JiaorongAI"
     },
     "deepchat-inmemory/deep-research-server": {
       "name": "DeepResearch",
-      "desc": "Servizio di ricerca approfondita integrato in DeepChat basato su Bocha Search (richiede un modello con contesto lungo; i modelli con contesto insufficiente potrebbero fallire)"
+      "desc": "Servizio di ricerca approfondita integrato in JiaorongAI basato su Bocha Search (richiede un modello con contesto lungo; i modelli con contesto insufficiente potrebbero fallire)"
     },
     "deepchat-inmemory/auto-prompting-server": {
       "name": "Prompt template automatico",
@@ -218,7 +218,7 @@
     },
     "deepchat-inmemory/conversation-search-server": {
       "name": "Ricerca cronologia conversazioni",
-      "desc": "Servizio di ricerca cronologia conversazioni integrato in DeepChat, può cercare conversazioni e messaggi precedenti"
+      "desc": "Servizio di ricerca cronologia conversazioni integrato in JiaorongAI, può cercare conversazioni e messaggi precedenti"
     },
     "deepchat/apple-server": {
       "name": "Assistente di sistema macOS",

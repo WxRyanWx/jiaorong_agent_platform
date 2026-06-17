@@ -190,7 +190,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: JiaoRongSuperIntelligentAgent-${{ matrix.platform }}
+          name: JiaorongAI-${{ matrix.platform }}
           path: |
             dist/*
             !dist/win-unpacked
@@ -253,7 +253,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: JiaoRongSuperIntelligentAgent-${{ matrix.platform }}
+          name: JiaorongAI-${{ matrix.platform }}
           path: |
             dist/*
             !dist/linux-unpacked
@@ -333,9 +333,9 @@ jobs:
         env:
           TARGET_ARCH: ${{ matrix.arch }}
         run: |
-          APP_DIR="dist/mac/DeepChat.app"
+          APP_DIR="dist/mac/JiaorongAI.app"
           if [ "$TARGET_ARCH" = "arm64" ]; then
-            APP_DIR="dist/mac-arm64/DeepChat.app"
+            APP_DIR="dist/mac-arm64/JiaorongAI.app"
           fi
           PLUGIN_ROOT="${APP_DIR}/Contents/Resources/app.asar.unpacked/plugins"
           pnpm run plugin:verify -- --name cua --platform darwin --arch "$TARGET_ARCH" --plugin-root "$PLUGIN_ROOT"
@@ -344,7 +344,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: JiaoRongSuperIntelligentAgent-${{ matrix.platform }}
+          name: JiaorongAI-${{ matrix.platform }}
           path: |
             dist/*
             !dist/mac/*
@@ -415,26 +415,26 @@ jobs:
           mkdir -p release_assets
 
           # Process Windows x64 artifacts
-          if [ -d "artifacts/JiaoRongSuperIntelligentAgent-win-x64" ]; then
-            cp artifacts/JiaoRongSuperIntelligentAgent-win-x64/*.exe release_assets/ 2>/dev/null || true
-            cp artifacts/JiaoRongSuperIntelligentAgent-win-x64/*.msi release_assets/ 2>/dev/null || true
-            cp artifacts/JiaoRongSuperIntelligentAgent-win-x64/*.zip release_assets/ 2>/dev/null || true
-            cp artifacts/JiaoRongSuperIntelligentAgent-win-x64/*.yml release_assets/ 2>/dev/null || true
-            cp artifacts/JiaoRongSuperIntelligentAgent-win-x64/*.blockmap release_assets/ 2>/dev/null || true
+          if [ -d "artifacts/JiaorongAI-win-x64" ]; then
+            cp artifacts/JiaorongAI-win-x64/*.exe release_assets/ 2>/dev/null || true
+            cp artifacts/JiaorongAI-win-x64/*.msi release_assets/ 2>/dev/null || true
+            cp artifacts/JiaorongAI-win-x64/*.zip release_assets/ 2>/dev/null || true
+            cp artifacts/JiaorongAI-win-x64/*.yml release_assets/ 2>/dev/null || true
+            cp artifacts/JiaorongAI-win-x64/*.blockmap release_assets/ 2>/dev/null || true
           fi
 
           # Process Windows arm64 artifacts
-          if [ -d "artifacts/JiaoRongSuperIntelligentAgent-win-arm64" ]; then
-            cp artifacts/JiaoRongSuperIntelligentAgent-win-arm64/*.exe release_assets/ 2>/dev/null || true
-            cp artifacts/JiaoRongSuperIntelligentAgent-win-arm64/*.msi release_assets/ 2>/dev/null || true
-            cp artifacts/JiaoRongSuperIntelligentAgent-win-arm64/*.zip release_assets/ 2>/dev/null || true
-            cp artifacts/JiaoRongSuperIntelligentAgent-win-arm64/*.blockmap release_assets/ 2>/dev/null || true
+          if [ -d "artifacts/JiaorongAI-win-arm64" ]; then
+            cp artifacts/JiaorongAI-win-arm64/*.exe release_assets/ 2>/dev/null || true
+            cp artifacts/JiaorongAI-win-arm64/*.msi release_assets/ 2>/dev/null || true
+            cp artifacts/JiaorongAI-win-arm64/*.zip release_assets/ 2>/dev/null || true
+            cp artifacts/JiaorongAI-win-arm64/*.blockmap release_assets/ 2>/dev/null || true
           fi
 
           merge_windows_yml() {
             local name="$1"
-            local x64="artifacts/JiaoRongSuperIntelligentAgent-win-x64/$name"
-            local arm64="artifacts/JiaoRongSuperIntelligentAgent-win-arm64/$name"
+            local x64="artifacts/JiaorongAI-win-x64/$name"
+            local arm64="artifacts/JiaorongAI-win-arm64/$name"
             if [ -f "$x64" ] && [ -f "$arm64" ]; then
               ruby -ryaml -e '
                 x64 = YAML.load_file(ARGV[0]) || {}
@@ -462,33 +462,33 @@ jobs:
           merge_windows_yml beta.yml
 
           # Process Linux x64 artifacts
-          if [ -d "artifacts/JiaoRongSuperIntelligentAgent-linux-x64" ]; then
-            cp artifacts/JiaoRongSuperIntelligentAgent-linux-x64/*.AppImage release_assets/ 2>/dev/null || true
-            cp artifacts/JiaoRongSuperIntelligentAgent-linux-x64/*.deb release_assets/ 2>/dev/null || true
-            cp artifacts/JiaoRongSuperIntelligentAgent-linux-x64/*.rpm release_assets/ 2>/dev/null || true
-            cp artifacts/JiaoRongSuperIntelligentAgent-linux-x64/*.tar.gz release_assets/ 2>/dev/null || true
-            cp artifacts/JiaoRongSuperIntelligentAgent-linux-x64/*.yml release_assets/ 2>/dev/null || true
-            cp artifacts/JiaoRongSuperIntelligentAgent-linux-x64/*.blockmap release_assets/ 2>/dev/null || true
+          if [ -d "artifacts/JiaorongAI-linux-x64" ]; then
+            cp artifacts/JiaorongAI-linux-x64/*.AppImage release_assets/ 2>/dev/null || true
+            cp artifacts/JiaorongAI-linux-x64/*.deb release_assets/ 2>/dev/null || true
+            cp artifacts/JiaorongAI-linux-x64/*.rpm release_assets/ 2>/dev/null || true
+            cp artifacts/JiaorongAI-linux-x64/*.tar.gz release_assets/ 2>/dev/null || true
+            cp artifacts/JiaorongAI-linux-x64/*.yml release_assets/ 2>/dev/null || true
+            cp artifacts/JiaorongAI-linux-x64/*.blockmap release_assets/ 2>/dev/null || true
           fi
 
           # Process Mac x64 artifacts
-          if [ -d "artifacts/JiaoRongSuperIntelligentAgent-mac-x64" ]; then
-            cp artifacts/JiaoRongSuperIntelligentAgent-mac-x64/*.dmg release_assets/ 2>/dev/null || true
-            cp artifacts/JiaoRongSuperIntelligentAgent-mac-x64/*.zip release_assets/ 2>/dev/null || true
-            cp artifacts/JiaoRongSuperIntelligentAgent-mac-x64/*.blockmap release_assets/ 2>/dev/null || true
+          if [ -d "artifacts/JiaorongAI-mac-x64" ]; then
+            cp artifacts/JiaorongAI-mac-x64/*.dmg release_assets/ 2>/dev/null || true
+            cp artifacts/JiaorongAI-mac-x64/*.zip release_assets/ 2>/dev/null || true
+            cp artifacts/JiaorongAI-mac-x64/*.blockmap release_assets/ 2>/dev/null || true
           fi
 
           # Process Mac arm64 artifacts
-          if [ -d "artifacts/JiaoRongSuperIntelligentAgent-mac-arm64" ]; then
-            cp artifacts/JiaoRongSuperIntelligentAgent-mac-arm64/*.dmg release_assets/ 2>/dev/null || true
-            cp artifacts/JiaoRongSuperIntelligentAgent-mac-arm64/*.zip release_assets/ 2>/dev/null || true
-            cp artifacts/JiaoRongSuperIntelligentAgent-mac-arm64/*.blockmap release_assets/ 2>/dev/null || true
+          if [ -d "artifacts/JiaorongAI-mac-arm64" ]; then
+            cp artifacts/JiaorongAI-mac-arm64/*.dmg release_assets/ 2>/dev/null || true
+            cp artifacts/JiaorongAI-mac-arm64/*.zip release_assets/ 2>/dev/null || true
+            cp artifacts/JiaorongAI-mac-arm64/*.blockmap release_assets/ 2>/dev/null || true
           fi
 
           merge_mac_yml() {
             local name="$1"
-            local x64="artifacts/JiaoRongSuperIntelligentAgent-mac-x64/$name"
-            local arm64="artifacts/JiaoRongSuperIntelligentAgent-mac-arm64/$name"
+            local x64="artifacts/JiaorongAI-mac-x64/$name"
+            local arm64="artifacts/JiaorongAI-mac-arm64/$name"
             if [ -f "$x64" ] && [ -f "$arm64" ]; then
               ruby -ryaml -e '
                 x64 = YAML.load_file(ARGV[0]) || {}
@@ -526,7 +526,7 @@ jobs:
         uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v0.1.15
         with:
           tag_name: ${{ needs.resolve-tag.outputs.tag }}
-          name: DeepChat V${{ steps.get_version.outputs.version }}
+          name: JiaorongAI V${{ steps.get_version.outputs.version }}
           draft: true
           prerelease: ${{ steps.get_version.outputs.prerelease == 'true' }}
           files: |

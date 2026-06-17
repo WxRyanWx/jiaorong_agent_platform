@@ -1,87 +1,95 @@
-import logger from '@shared/logger'
-import { BrowserWindow } from 'electron'
-import { presenter } from '.'
-import * as http from 'http'
-import { URL } from 'url'
-import { createGitHubCopilotOAuth } from './githubCopilotOAuth'
-import { getGlobalGitHubCopilotDeviceFlow } from './githubCopilotDeviceFlow'
-import { eventBus } from '@/eventbus'
+import logger from "@shared/logger";
+import { BrowserWindow } from "electron";
+import { presenter } from ".";
+import * as http from "http";
+import { URL } from "url";
+import { createGitHubCopilotOAuth } from "./githubCopilotOAuth";
+import { getGlobalGitHubCopilotDeviceFlow } from "./githubCopilotDeviceFlow";
+import { eventBus } from "@/eventbus";
 
 export interface OAuthConfig {
-  authUrl: string
-  redirectUri: string
-  clientId: string
-  clientSecret?: string
-  scope: string
-  responseType: string
+  authUrl: string;
+  redirectUri: string;
+  clientId: string;
+  clientSecret?: string;
+  scope: string;
+  responseType: string;
 }
 
 export class OAuthPresenter {
-  private authWindow: BrowserWindow | null = null
-  private callbackServer: http.Server | null = null
-  private callbackPort = 3000
+  private authWindow: BrowserWindow | null = null;
+  private callbackServer: http.Server | null = null;
+  private callbackPort = 3000;
 
   /**
    * Validate GitHub access token
    */
   private async validateGitHubAccessToken(token: string): Promise<boolean> {
     try {
-      const response = await fetch('https://api.github.com/user', {
+      const response = await fetch("https://api.github.com/user", {
         headers: {
           Authorization: `Bearer ${token}`,
-          'User-Agent': 'DeepChat/1.0.0'
-        }
-      })
+          "User-Agent": "JiaorongAI/1.0.0",
+        },
+      });
 
-      return response.ok
+      return response.ok;
     } catch (error) {
-      console.error('Token validation failed:', error)
-      return false
+      console.error("Token validation failed:", error);
+      return false;
     }
   }
 
   /**
    * Start GitHub Copilot Device Flow login process (recommended)
    */
-  async startGitHubCopilotDeviceFlowLogin(providerId: string): Promise<boolean> {
+  async startGitHubCopilotDeviceFlowLogin(
+    providerId: string,
+  ): Promise<boolean> {
     try {
-      const provider = presenter.configPresenter.getProviderById(providerId)
-      const githubDeviceFlow = getGlobalGitHubCopilotDeviceFlow(provider?.copilotClientId)
+      const provider = presenter.configPresenter.getProviderById(providerId);
+      const githubDeviceFlow = getGlobalGitHubCopilotDeviceFlow(
+        provider?.copilotClientId,
+      );
 
       // 首先检查现有认证状态
       if (provider && provider.apiKey) {
-        const existingToken = await githubDeviceFlow.checkExistingAuth(provider.apiKey)
+        const existingToken = await githubDeviceFlow.checkExistingAuth(
+          provider.apiKey,
+        );
         if (existingToken) {
-          return true
+          return true;
         }
       }
 
       // 开始Device Flow登录
-      const accessToken = await githubDeviceFlow.startDeviceFlow()
+      const accessToken = await githubDeviceFlow.startDeviceFlow();
 
       // Validate token
-      logger.info('Validating access token...')
-      const isValid = await this.validateGitHubAccessToken(accessToken)
+      logger.info("Validating access token...");
+      const isValid = await this.validateGitHubAccessToken(accessToken);
       if (!isValid) {
-        throw new Error('Obtained access token is invalid')
+        throw new Error("Obtained access token is invalid");
       }
 
       // 保存访问令牌到provider配置
       if (provider) {
-        provider.apiKey = accessToken
-        presenter.configPresenter.setProviderById(providerId, provider)
-        logger.info('[GitHub Copilot] Device Flow login completed successfully')
+        provider.apiKey = accessToken;
+        presenter.configPresenter.setProviderById(providerId, provider);
+        logger.info(
+          "[GitHub Copilot] Device Flow login completed successfully",
+        );
 
         // 触发provider更新事件，通知前端刷新UI
-        eventBus.emit('providerUpdated', { providerId })
+        eventBus.emit("providerUpdated", { providerId });
       } else {
-        throw new Error(`Provider ${providerId} not found`)
+        throw new Error(`Provider ${providerId} not found`);
       }
 
-      return true
+      return true;
     } catch (error) {
-      console.error('[GitHub Copilot] Device Flow login failed:', error)
-      return false
+      console.error("[GitHub Copilot] Device Flow login failed:", error);
+      return false;
     }
   }
 
@@ -91,117 +99,138 @@ export class OAuthPresenter {
   async startGitHubCopilotLogin(providerId: string): Promise<boolean> {
     try {
       logger.info(
-        '[GitHub Copilot][OAuth] Starting traditional OAuth login for provider:',
-        providerId
-      )
+        "[GitHub Copilot][OAuth] Starting traditional OAuth login for provider:",
+        providerId,
+      );
 
       // 使用专门的GitHub Copilot OAuth实现
-      logger.info('[GitHub Copilot][OAuth] Creating GitHub OAuth instance...')
-      const provider = presenter.configPresenter.getProviderById(providerId)
-      const githubOAuth = createGitHubCopilotOAuth(provider?.copilotClientId)
+      logger.info("[GitHub Copilot][OAuth] Creating GitHub OAuth instance...");
+      const provider = presenter.configPresenter.getProviderById(providerId);
+      const githubOAuth = createGitHubCopilotOAuth(provider?.copilotClientId);
 
       // 开始OAuth登录
-      logger.info('[GitHub Copilot][OAuth] Starting OAuth login flow...')
-      const authCode = await githubOAuth.startLogin()
+      logger.info("[GitHub Copilot][OAuth] Starting OAuth login flow...");
+      const authCode = await githubOAuth.startLogin();
       logger.info(
-        '[GitHub Copilot][OAuth] OAuth login completed, auth code received:',
-        authCode ? 'SUCCESS' : 'FAILED'
-      )
+        "[GitHub Copilot][OAuth] OAuth login completed, auth code received:",
+        authCode ? "SUCCESS" : "FAILED",
+      );
 
       if (!authCode) {
-        throw new Error('Failed to obtain authorization code')
+        throw new Error("Failed to obtain authorization code");
       }
 
-      logger.info('[GitHub Copilot][OAuth] Auth code received successfully')
+      logger.info("[GitHub Copilot][OAuth] Auth code received successfully");
 
       // 用授权码交换访问令牌
-      logger.info('[GitHub Copilot][OAuth] Exchanging auth code for access token...')
-      const accessToken = await githubOAuth.exchangeCodeForToken(authCode)
       logger.info(
-        '[GitHub Copilot][OAuth] Token exchange completed, access token received:',
-        accessToken ? 'SUCCESS' : 'FAILED'
-      )
+        "[GitHub Copilot][OAuth] Exchanging auth code for access token...",
+      );
+      const accessToken = await githubOAuth.exchangeCodeForToken(authCode);
+      logger.info(
+        "[GitHub Copilot][OAuth] Token exchange completed, access token received:",
+        accessToken ? "SUCCESS" : "FAILED",
+      );
 
       if (accessToken) {
-        logger.info('[GitHub Copilot][OAuth] Access token received successfully')
+        logger.info(
+          "[GitHub Copilot][OAuth] Access token received successfully",
+        );
       }
 
       // Validate token
-      logger.info('[GitHub Copilot][OAuth] Validating access token...')
-      const isValid = await githubOAuth.validateToken(accessToken)
-      logger.info('[GitHub Copilot][OAuth] Token validation result:', isValid)
+      logger.info("[GitHub Copilot][OAuth] Validating access token...");
+      const isValid = await githubOAuth.validateToken(accessToken);
+      logger.info("[GitHub Copilot][OAuth] Token validation result:", isValid);
 
       if (!isValid) {
-        console.error('[GitHub Copilot][OAuth] Token validation failed - token is invalid')
-        throw new Error('获取的访问令牌无效')
+        console.error(
+          "[GitHub Copilot][OAuth] Token validation failed - token is invalid",
+        );
+        throw new Error("获取的访问令牌无效");
       }
 
       // 保存访问令牌到provider配置
-      logger.info('[GitHub Copilot][OAuth] Saving access token to provider configuration...')
+      logger.info(
+        "[GitHub Copilot][OAuth] Saving access token to provider configuration...",
+      );
       if (provider) {
-        provider.apiKey = accessToken
-        presenter.configPresenter.setProviderById(providerId, provider)
+        provider.apiKey = accessToken;
+        presenter.configPresenter.setProviderById(providerId, provider);
         logger.info(
-          '[GitHub Copilot][OAuth] Access token saved successfully to provider:',
-          providerId
-        )
-        logger.info('[GitHub Copilot][OAuth] Traditional OAuth login completed successfully')
+          "[GitHub Copilot][OAuth] Access token saved successfully to provider:",
+          providerId,
+        );
+        logger.info(
+          "[GitHub Copilot][OAuth] Traditional OAuth login completed successfully",
+        );
 
         // 触发provider更新事件，通知前端刷新UI
-        eventBus.emit('providerUpdated', { providerId })
+        eventBus.emit("providerUpdated", { providerId });
       } else {
-        console.error('[GitHub Copilot][OAuth] Provider not found:', providerId)
-        throw new Error(`Provider ${providerId} not found`)
+        console.error(
+          "[GitHub Copilot][OAuth] Provider not found:",
+          providerId,
+        );
+        throw new Error(`Provider ${providerId} not found`);
       }
 
-      return true
+      return true;
     } catch (error) {
-      console.error('[GitHub Copilot][OAuth][ERROR] Traditional OAuth login failed:')
       console.error(
-        '[GitHub Copilot][OAuth][ERROR] Error type:',
-        error instanceof Error ? error.constructor.name : typeof error
-      )
+        "[GitHub Copilot][OAuth][ERROR] Traditional OAuth login failed:",
+      );
       console.error(
-        '[GitHub Copilot][OAuth][ERROR] Error message:',
-        error instanceof Error ? error.message : error
-      )
+        "[GitHub Copilot][OAuth][ERROR] Error type:",
+        error instanceof Error ? error.constructor.name : typeof error,
+      );
+      console.error(
+        "[GitHub Copilot][OAuth][ERROR] Error message:",
+        error instanceof Error ? error.message : error,
+      );
       if (error instanceof Error && error.stack) {
-        console.error('[GitHub Copilot][OAuth][ERROR] Stack trace:', error.stack)
+        console.error(
+          "[GitHub Copilot][OAuth][ERROR] Stack trace:",
+          error.stack,
+        );
       }
-      return false
+      return false;
     }
   }
 
   /**
    * Start OAuth login flow (generic method)
    */
-  async startOAuthLogin(providerId: string, config: OAuthConfig): Promise<boolean> {
+  async startOAuthLogin(
+    providerId: string,
+    config: OAuthConfig,
+  ): Promise<boolean> {
     try {
       // Start callback server
-      await this.startCallbackServer()
+      await this.startCallbackServer();
 
       // Start OAuth login
-      const authCode = await this.startOAuthFlow(config)
+      const authCode = await this.startOAuthFlow(config);
 
       // Stop callback server
-      this.stopCallbackServer()
+      this.stopCallbackServer();
 
       // 用授权码交换访问令牌
-      const accessToken = await this.exchangeCodeForToken(authCode, config)
+      const accessToken = await this.exchangeCodeForToken(authCode, config);
 
       // Save access token to provider configuration
-      const provider = presenter.configPresenter.getProviderById(providerId)
+      const provider = presenter.configPresenter.getProviderById(providerId);
       if (provider) {
-        provider.apiKey = accessToken
-        presenter.configPresenter.setProviderById(providerId, provider)
+        provider.apiKey = accessToken;
+        presenter.configPresenter.setProviderById(providerId, provider);
       }
 
-      return true
+      return true;
     } catch (error) {
-      console.error('OAuth login failed:', error)
-      this.stopCallbackServer()
+      console.error("OAuth login failed:", error);
+      this.stopCallbackServer();
 
-      return false
+      return false;
     }
   }
 
@@ -211,22 +240,22 @@ export class OAuthPresenter {
   private async startCallbackServer(): Promise<void> {
     return new Promise((resolve, reject) => {
       this.callbackServer = http.createServer((req, res) => {
-        const url = new URL(req.url!, `http://localhost:${this.callbackPort}`)
+        const url = new URL(req.url!, `http://localhost:${this.callbackPort}`);
 
-        logger.info('Callback server received request:', url.href)
+        logger.info("Callback server received request:", url.href);
 
         // Set CORS headers
-        res.setHeader('Access-Control-Allow-Origin', '*')
-        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+        res.setHeader("Access-Control-Allow-Origin", "*");
+        res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+        res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-        if (url.pathname === '/auth/callback') {
-          const code = url.searchParams.get('code')
-          const error = url.searchParams.get('error')
+        if (url.pathname === "/auth/callback") {
+          const code = url.searchParams.get("code");
+          const error = url.searchParams.get("error");
 
           if (code) {
             // Success page
-            res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
+            res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
             res.end(`
               <!DOCTYPE html>
               <html>
@@ -250,13 +279,13 @@ export class OAuthPresenter {
                 </script>
               </body>
               </html>
-            `)
+            `);
 
             // Trigger callback handling
-            this.handleServerCallback(code, null)
+            this.handleServerCallback(code, null);
           } else if (error) {
             // Error page
-            res.writeHead(400, { 'Content-Type': 'text/html; charset=utf-8' })
+            res.writeHead(400, { "Content-Type": "text/html; charset=utf-8" });
             res.end(`
               <!DOCTYPE html>
               <html>
@@ -274,29 +303,31 @@ export class OAuthPresenter {
                 <p>You can close this window and try again.</p>
               </body>
               </html>
-            `)
+            `);
 
-            this.handleServerCallback(null, error)
+            this.handleServerCallback(null, error);
           } else {
-            res.writeHead(400, { 'Content-Type': 'text/plain' })
-            res.end('Invalid callback request')
+            res.writeHead(400, { "Content-Type": "text/plain" });
+            res.end("Invalid callback request");
           }
         } else {
-          res.writeHead(404, { 'Content-Type': 'text/plain' })
-          res.end('Not found')
+          res.writeHead(404, { "Content-Type": "text/plain" });
+          res.end("Not found");
         }
-      })
+      });
 
-      this.callbackServer.listen(this.callbackPort, 'localhost', () => {
-        logger.info(`OAuth callback server started on http://localhost:${this.callbackPort}`)
-        resolve()
-      })
+      this.callbackServer.listen(this.callbackPort, "localhost", () => {
+        logger.info(
+          `OAuth callback server started on http://localhost:${this.callbackPort}`,
+        );
+        resolve();
+      });
 
-      this.callbackServer.on('error', (error) => {
-        console.error('Callback server error:', error)
-        reject(error)
-      })
-    })
+      this.callbackServer.on("error", (error) => {
+        console.error("Callback server error:", error);
+        reject(error);
+      });
+    });
   }
 
   /**
@@ -304,31 +335,34 @@ export class OAuthPresenter {
    */
   private stopCallbackServer(): void {
     if (this.callbackServer) {
-      this.callbackServer.close()
-      this.callbackServer = null
-      logger.info('OAuth callback server stopped')
+      this.callbackServer.close();
+      this.callbackServer = null;
+      logger.info("OAuth callback server stopped");
     }
   }
 
   // Callback handling resolve and reject functions
-  private callbackResolve: ((value: string) => void) | null = null
-  private callbackReject: ((reason?: Error) => void) | null = null
+  private callbackResolve: ((value: string) => void) | null = null;
+  private callbackReject: ((reason?: Error) => void) | null = null;
 
   /**
    * Handle server callback
    */
-  private handleServerCallback(code: string | null, error: string | null): void {
+  private handleServerCallback(
+    code: string | null,
+    error: string | null,
+  ): void {
     if (error) {
-      console.error('OAuth server callback error:', error)
-      this.callbackReject?.(new Error(`OAuth authorization failed: ${error}`))
+      console.error("OAuth server callback error:", error);
+      this.callbackReject?.(new Error(`OAuth authorization failed: ${error}`));
     } else if (code) {
-      logger.info('OAuth server callback success, received authorization code')
-      this.callbackResolve?.(code)
+      logger.info("OAuth server callback success, received authorization code");
+      this.callbackResolve?.(code);
     }
 
     // Clean up callback functions
-    this.callbackResolve = null
-    this.callbackReject = null
+    this.callbackResolve = null;
+    this.callbackReject = null;
   }
 
   /**
@@ -337,8 +371,8 @@ export class OAuthPresenter {
   private async startOAuthFlow(config: OAuthConfig): Promise<string> {
     return new Promise((resolve, reject) => {
       // Save callback functions
-      this.callbackResolve = resolve
-      this.callbackReject = reject
+      this.callbackResolve = resolve;
+      this.callbackReject = reject;
 
       // Create authorization window
       this.authWindow = new BrowserWindow({
@@ -347,53 +381,63 @@ export class OAuthPresenter {
         show: false,
         webPreferences: {
           nodeIntegration: false,
-          contextIsolation: true
+          contextIsolation: true,
         },
         autoHideMenuBar: true,
-        title: 'GitHub Authorization Login'
-      })
+        title: "GitHub Authorization Login",
+      });
 
       // Build authorization URL
-      const authUrl = this.buildAuthUrl(config)
-      logger.info('Opening OAuth URL:', authUrl)
+      const authUrl = this.buildAuthUrl(config);
+      logger.info("Opening OAuth URL:", authUrl);
 
       // Load authorization page
-      this.authWindow.loadURL(authUrl)
-      this.authWindow.show()
+      this.authWindow.loadURL(authUrl);
+      this.authWindow.show();
 
       // Handle window close
-      this.authWindow.on('closed', () => {
-        this.authWindow = null
+      this.authWindow.on("closed", () => {
+        this.authWindow = null;
         if (this.callbackReject) {
-          this.callbackReject(new Error('User cancelled login'))
-          this.callbackReject = null
-          this.callbackResolve = null
+          this.callbackReject(new Error("User cancelled login"));
+          this.callbackReject = null;
+          this.callbackResolve = null;
         }
-      })
+      });
 
       // Handle loading errors
-      this.authWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription) => {
-        console.error('OAuth page load failed:', errorCode, errorDescription)
-        this.closeAuthWindow()
-        if (this.callbackReject) {
-          this.callbackReject(new Error(`Failed to load authorization page: ${errorDescription}`))
-          this.callbackReject = null
-          this.callbackResolve = null
-        }
-      })
+      this.authWindow.webContents.on(
+        "did-fail-load",
+        (_event, errorCode, errorDescription) => {
+          console.error("OAuth page load failed:", errorCode, errorDescription);
+          this.closeAuthWindow();
+          if (this.callbackReject) {
+            this.callbackReject(
+              new Error(
+                `Failed to load authorization page: ${errorDescription}`,
+              ),
+            );
+            this.callbackReject = null;
+            this.callbackResolve = null;
+          }
+        },
+      );
 
       // Monitor page navigation to check if callback page is reached
-      this.authWindow.webContents.on('did-navigate', (_event, navigationUrl) => {
-        logger.info('OAuth window navigated to:', navigationUrl)
-        // If navigated to our callback page, authorization flow is complete
-        if (navigationUrl.includes('deepchatai.cn/auth/github/callback')) {
-          // Close authorization window as callback server handles remaining logic
-          setTimeout(() => {
-            this.closeAuthWindow()
-          }, 2000) // Close after 2 seconds to let user see success page
-        }
-      })
-    })
+      this.authWindow.webContents.on(
+        "did-navigate",
+        (_event, navigationUrl) => {
+          logger.info("OAuth window navigated to:", navigationUrl);
+          // If navigated to our callback page, authorization flow is complete
+          if (navigationUrl.includes("deepchatai.cn/auth/github/callback")) {
+            // Close authorization window as callback server handles remaining logic
+            setTimeout(() => {
+              this.closeAuthWindow();
+            }, 2000); // Close after 2 seconds to let user see success page
+          }
+        },
+      );
+    });
   }
 
   /**
@@ -404,46 +448,57 @@ export class OAuthPresenter {
       client_id: config.clientId,
       redirect_uri: config.redirectUri,
       response_type: config.responseType,
-      scope: config.scope
-    })
+      scope: config.scope,
+    });
 
-    return `${config.authUrl}?${params.toString()}`
+    return `${config.authUrl}?${params.toString()}`;
   }
 
   /**
    * Exchange authorization code for access token
    */
-  private async exchangeCodeForToken(code: string, config: OAuthConfig): Promise<string> {
-    const response = await fetch('https://github.com/login/oauth/access_token', {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-        'User-Agent': 'DeepChat/1.0.0'
+  private async exchangeCodeForToken(
+    code: string,
+    config: OAuthConfig,
+  ): Promise<string> {
+    const response = await fetch(
+      "https://github.com/login/oauth/access_token",
+      {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          "User-Agent": "JiaorongAI/1.0.0",
+        },
+        body: JSON.stringify({
+          client_id: config.clientId,
+          client_secret:
+            config.clientSecret || process.env.GITHUB_CLIENT_SECRET,
+          code: code,
+          redirect_uri: config.redirectUri,
+        }),
       },
-      body: JSON.stringify({
-        client_id: config.clientId,
-        client_secret: config.clientSecret || process.env.GITHUB_CLIENT_SECRET,
-        code: code,
-        redirect_uri: config.redirectUri
-      })
-    })
+    );
 
     if (!response.ok) {
-      throw new Error(`Token exchange failed: ${response.status} ${response.statusText}`)
+      throw new Error(
+        `Token exchange failed: ${response.status} ${response.statusText}`,
+      );
     }
 
     const data = (await response.json()) as {
-      access_token: string
-      error?: string
-      error_description?: string
-    }
+      access_token: string;
+      error?: string;
+      error_description?: string;
+    };
 
     if (data.error) {
-      throw new Error(`Token exchange error: ${data.error_description || data.error}`)
+      throw new Error(
+        `Token exchange error: ${data.error_description || data.error}`,
+      );
     }
 
-    return data.access_token
+    return data.access_token;
   }
 
   /**
@@ -451,19 +506,20 @@ export class OAuthPresenter {
    */
   private closeAuthWindow(): void {
     if (this.authWindow && !this.authWindow.isDestroyed()) {
-      this.authWindow.close()
-      this.authWindow = null
+      this.authWindow.close();
+      this.authWindow = null;
     }
   }
 }
 
 // GitHub Copilot OAuth configuration
 export const GITHUB_COPILOT_OAUTH_CONFIG: OAuthConfig = {
-  authUrl: 'https://github.com/login/oauth/authorize',
+  authUrl: "https://github.com/login/oauth/authorize",
   redirectUri:
-    import.meta.env.VITE_GITHUB_REDIRECT_URI || 'https://deepchatai.cn/auth/github/callback',
+    import.meta.env.VITE_GITHUB_REDIRECT_URI ||
+    "https://deepchatai.cn/auth/github/callback",
   clientId: import.meta.env.VITE_GITHUB_CLIENT_ID,
   clientSecret: import.meta.env.VITE_GITHUB_CLIENT_SECRET,
-  scope: 'read:user read:org',
-  responseType: 'code'
-}
+  scope: "read:user read:org",
+  responseType: "code",
+};

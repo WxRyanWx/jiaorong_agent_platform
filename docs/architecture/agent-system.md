@@ -9,14 +9,14 @@
 flowchart TD
     UI["Renderer / IPC"] --> NewAgent["AgentSessionPresenter"]
     NewAgent --> Registry["AgentRegistry"]
-    Registry --> DeepChat["AgentRuntimePresenter"]
-    DeepChat --> Context["contextBuilder"]
-    DeepChat --> Process["process.ts"]
-    DeepChat --> Dispatch["dispatch.ts"]
-    DeepChat --> SessionStore["sessionStore"]
-    DeepChat --> MessageStore["messageStore"]
-    DeepChat --> ToolPresenter["ToolPresenter"]
-    DeepChat --> Llm["LLMProviderPresenter"]
+    Registry --> JiaorongAI["AgentRuntimePresenter"]
+    JiaorongAI --> Context["contextBuilder"]
+    JiaorongAI --> Process["process.ts"]
+    JiaorongAI --> Dispatch["dispatch.ts"]
+    JiaorongAI --> SessionStore["sessionStore"]
+    JiaorongAI --> MessageStore["messageStore"]
+    JiaorongAI --> ToolPresenter["ToolPresenter"]
+    JiaorongAI --> Llm["LLMProviderPresenter"]
 ```
 
 主原则：
@@ -73,16 +73,16 @@ agentRuntimePresenter/
 
 ## 关键职责拆分
 
-| 层 | 主文件 | 责任 |
-| --- | --- | --- |
-| Session orchestration | `src/main/presenter/agentSessionPresenter/index.ts` | session 生命周期与 IPC |
-| Agent runtime | `src/main/presenter/agentRuntimePresenter/index.ts` | run state、取消、恢复、模型/权限切换 |
-| Stream loop | `src/main/presenter/agentRuntimePresenter/process.ts` | 调用 provider、累计 blocks、驱动 tool loop |
-| Tool dispatch | `src/main/presenter/agentRuntimePresenter/dispatch.ts` | 调用 `ToolPresenter`、暂停交互、生成 tool 结果 |
-| Context build | `src/main/presenter/agentRuntimePresenter/contextBuilder.ts` | 历史裁剪、resume context、token budget |
-| Persistence | `src/main/presenter/agentRuntimePresenter/messageStore.ts` | 消息持久化、分页读取、结构化内容重组与故障恢复 |
-| Compaction | `src/main/presenter/agentRuntimePresenter/compactionService.ts` | 手动/自动上下文压缩与压缩状态消息 |
-| Pending input | `src/main/presenter/agentRuntimePresenter/pendingInputStore.ts` | queued input、steer、重排与恢复 |
+| 层                    | 主文件                                                          | 责任                                           |
+| --------------------- | --------------------------------------------------------------- | ---------------------------------------------- |
+| Session orchestration | `src/main/presenter/agentSessionPresenter/index.ts`             | session 生命周期与 IPC                         |
+| Agent runtime         | `src/main/presenter/agentRuntimePresenter/index.ts`             | run state、取消、恢复、模型/权限切换           |
+| Stream loop           | `src/main/presenter/agentRuntimePresenter/process.ts`           | 调用 provider、累计 blocks、驱动 tool loop     |
+| Tool dispatch         | `src/main/presenter/agentRuntimePresenter/dispatch.ts`          | 调用 `ToolPresenter`、暂停交互、生成 tool 结果 |
+| Context build         | `src/main/presenter/agentRuntimePresenter/contextBuilder.ts`    | 历史裁剪、resume context、token budget         |
+| Persistence           | `src/main/presenter/agentRuntimePresenter/messageStore.ts`      | 消息持久化、分页读取、结构化内容重组与故障恢复 |
+| Compaction            | `src/main/presenter/agentRuntimePresenter/compactionService.ts` | 手动/自动上下文压缩与压缩状态消息              |
+| Pending input         | `src/main/presenter/agentRuntimePresenter/pendingInputStore.ts` | queued input、steer、重排与恢复                |
 
 ## 持久化热路径
 

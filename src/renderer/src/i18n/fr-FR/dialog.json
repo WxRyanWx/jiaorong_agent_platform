@@ -69,7 +69,7 @@
     "moveAndDeleteAgent": "Déplacer et supprimer l’agent",
     "moveConversation": "Déplacer la conversation",
     "agentType": {
-      "deepchat": "DeepChat",
+      "deepchat": "JiaorongAI",
       "acp": "ACP"
     },
     "blockReason": {
@@ -84,6 +84,6 @@
       "draft": "Brouillon",
       "subagent": "Sous-agent"
     },
-    "deepChatTargetOnly": "Seuls les agents DeepChat peuvent être sélectionnés comme cibles de déplacement. Les conversations ACP peuvent être déplacées vers DeepChat, mais pas vers ACP."
+    "deepChatTargetOnly": "Seuls les agents JiaorongAI peuvent être sélectionnés comme cibles de déplacement. Les conversations ACP peuvent être déplacées vers JiaorongAI, mais pas vers ACP."
   }
 }

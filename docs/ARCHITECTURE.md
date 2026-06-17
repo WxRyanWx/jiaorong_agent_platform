@@ -1,4 +1,4 @@
-# DeepChat 当前架构概览
+# JiaorongAI 当前架构概览
 
 本文档描述 `2026-05-28` 的主架构。当前目标不是再做一次全量 main-kernel rewrite，
 而是维持 typed renderer-main boundary，并把新增能力接到既有 route/runtime owner 上。
@@ -34,22 +34,22 @@ flowchart LR
 
 ## 模块职责
 
-| 模块 | 位置 | 职责 |
-| --- | --- | --- |
-| `renderer/api` | `src/renderer/api/` | typed renderer clients，吸收 bridge/channel 细节 |
-| shared contracts | `src/shared/contracts/` | route registry、schema、typed event catalog |
-| preload bridge | `src/preload/createBridge.ts` / `src/preload/index.ts` | 暴露 `window.deepchat.invoke/on` |
-| main routes | `src/main/routes/` | typed route dispatch、services、handlers |
-| hot path ports | `src/main/routes/hotPathPorts.ts` / `src/main/presenter/runtimePorts.ts` | route runtime 到 presenter 的最小接口 |
-| `AgentSessionPresenter` | `src/main/presenter/agentSessionPresenter/` | session registry、window binding、legacy import、runtime delegation |
-| `AgentRuntimePresenter` | `src/main/presenter/agentRuntimePresenter/` | 聊天 loop、stream、tool interaction、message/session persistence |
-| `ToolPresenter` | `src/main/presenter/toolPresenter/` | MCP tools 与本地 agent tools 聚合、权限预检查、调用路由 |
-| `LLMProviderPresenter` | `src/main/presenter/llmProviderPresenter/` | provider 实例、model/runtime 管理、ACP helper、AI SDK runtime |
-| `StartupWorkloadCoordinator` | `src/main/presenter/startupWorkloadCoordinator/` | startup/settings/floating 等目标的分阶段后台任务调度 |
-| `RemoteControlPresenter` | `src/main/presenter/remoteControlPresenter/` | Telegram、Feishu/Lark、QQBot、Discord、WeChat iLink 远程控制 |
-| `ScheduledTasksService` | `src/main/presenter/scheduledTasks/` | 一次性、每日、每周任务调度和 prompt/notify action dispatch |
-| `DatabaseSecurityPresenter` | `src/main/presenter/databaseSecurityPresenter/` | SQLCipher 启用、改密、关闭、safeStorage/manual unlock |
-| Spotlight search | `src/renderer/src/stores/ui/spotlight.ts` | 全局搜索、会话/消息跳转、设置导航和非破坏性 action |
+| 模块                         | 位置                                                                     | 职责                                                                |
+| ---------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------- |
+| `renderer/api`               | `src/renderer/api/`                                                      | typed renderer clients，吸收 bridge/channel 细节                    |
+| shared contracts             | `src/shared/contracts/`                                                  | route registry、schema、typed event catalog                         |
+| preload bridge               | `src/preload/createBridge.ts` / `src/preload/index.ts`                   | 暴露 `window.deepchat.invoke/on`                                    |
+| main routes                  | `src/main/routes/`                                                       | typed route dispatch、services、handlers                            |
+| hot path ports               | `src/main/routes/hotPathPorts.ts` / `src/main/presenter/runtimePorts.ts` | route runtime 到 presenter 的最小接口                               |
+| `AgentSessionPresenter`      | `src/main/presenter/agentSessionPresenter/`                              | session registry、window binding、legacy import、runtime delegation |
+| `AgentRuntimePresenter`      | `src/main/presenter/agentRuntimePresenter/`                              | 聊天 loop、stream、tool interaction、message/session persistence    |
+| `ToolPresenter`              | `src/main/presenter/toolPresenter/`                                      | MCP tools 与本地 agent tools 聚合、权限预检查、调用路由             |
+| `LLMProviderPresenter`       | `src/main/presenter/llmProviderPresenter/`                               | provider 实例、model/runtime 管理、ACP helper、AI SDK runtime       |
+| `StartupWorkloadCoordinator` | `src/main/presenter/startupWorkloadCoordinator/`                         | startup/settings/floating 等目标的分阶段后台任务调度                |
+| `RemoteControlPresenter`     | `src/main/presenter/remoteControlPresenter/`                             | Telegram、Feishu/Lark、QQBot、Discord、WeChat iLink 远程控制        |
+| `ScheduledTasksService`      | `src/main/presenter/scheduledTasks/`                                     | 一次性、每日、每周任务调度和 prompt/notify action dispatch          |
+| `DatabaseSecurityPresenter`  | `src/main/presenter/databaseSecurityPresenter/`                          | SQLCipher 启用、改密、关闭、safeStorage/manual unlock               |
+| Spotlight search             | `src/renderer/src/stores/ui/spotlight.ts`                                | 全局搜索、会话/消息跳转、设置导航和非破坏性 action                  |
 
 ## 当前分层
 

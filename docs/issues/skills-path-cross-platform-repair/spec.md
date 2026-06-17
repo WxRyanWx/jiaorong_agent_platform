@@ -2,14 +2,14 @@
 
 ## Problem
 
-DeepChat can fail during startup when the persisted `skillsPath` points to a default skills
+JiaorongAI can fail during startup when the persisted `skillsPath` points to a default skills
 directory from another OS or user profile, such as `/Users/old-user/.deepchat/skills` on Windows.
 Windows resolves that POSIX-looking path under the current drive, then startup attempts to create a
 directory like `C:\Users\old-user\.deepchat\skills` and can fail with `EPERM`.
 
 ## User Story
 
-As a user who moved configuration between machines or OS accounts, I want DeepChat to recover from
+As a user who moved configuration between machines or OS accounts, I want JiaorongAI to recover from
 stale default skills paths so the app still opens and uses the current profile's skills directory.
 
 ## Acceptance Criteria

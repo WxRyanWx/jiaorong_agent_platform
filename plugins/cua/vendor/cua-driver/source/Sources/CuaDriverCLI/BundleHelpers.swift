@@ -1,17 +1,17 @@
 import Darwin
 import Foundation
 
-/// Shared "is this binary running from inside an installed DeepChat Computer Use.app
+/// Shared "is this binary running from inside an installed JiaorongAI Computer Use.app
 /// bundle?" heuristic used by both `ServeCommand` (for the
 /// auto-relaunch-via-`open` path) and `MCPCommand` (for the daemon proxy
 /// path). Resolves `Bundle.main.executablePath` (falling back to
 /// `CommandLine.arguments.first`) through any symlinks via `realpath` and
 /// checks whether the resolved path lives inside some
-/// `DeepChat Computer Use.app/Contents/MacOS/` directory.
+/// `JiaorongAI Computer Use.app/Contents/MacOS/` directory.
 ///
 /// That's the "installed via install-local.sh / install.sh" shape —
 /// `/usr/local/bin/cua-driver` is a symlink into
-/// `/Applications/DeepChat Computer Use.app`, and `realpath` walks into the
+/// `/Applications/JiaorongAI Computer Use.app`, and `realpath` walks into the
 /// bundle. Returns `false` for `swift run` /
 /// raw `.build/<config>/cua-driver` dev invocations, which have no installed
 /// bundle to relaunch into.
@@ -31,5 +31,5 @@ func isExecutableInsideCuaDriverApp() -> Bool {
     var buffer = [CChar](repeating: 0, count: Int(PATH_MAX))
     guard realpath(candidate, &buffer) != nil else { return false }
     let resolved = String(cString: buffer)
-    return resolved.contains("/DeepChat Computer Use.app/Contents/MacOS/")
+    return resolved.contains("/JiaorongAI Computer Use.app/Contents/MacOS/")
 }

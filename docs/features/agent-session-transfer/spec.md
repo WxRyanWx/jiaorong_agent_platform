@@ -6,37 +6,37 @@
 agent can make the user's valuable work feel lost because the app does not explain what happens to
 that agent's chats. The current implementation is inconsistent:
 
-- Custom DeepChat agent deletion asks for a simple browser confirm, then reassigns
+- Custom JiaorongAI agent deletion asks for a simple browser confirm, then reassigns
   `new_sessions.agent_id` to the built-in `deepchat`.
 - Manual ACP agent deletion asks for a simple browser confirm, then removes the agent record without
   reassigning sessions. Sessions that still point at the removed ACP agent can become unavailable in
   the session list.
 
 The feature should turn agent deletion from an opaque destructive action into an explicit choice:
-move/import related conversations to another eligible DeepChat agent, or delete those conversations
+move/import related conversations to another eligible JiaorongAI agent, or delete those conversations
 together with the agent.
 
 ## User Need
 
 Users need to understand and control what happens to chats owned by an agent before deleting that
-agent. They also need a normal chat-level way to move an idle conversation to another DeepChat agent
+agent. They also need a normal chat-level way to move an idle conversation to another JiaorongAI agent
 when the conversation history is useful but the next turns should use a different agent.
 
 ## Goals
 
-- Show a structured delete-agent dialog whenever a deletable DeepChat, manual ACP, or installed
+- Show a structured delete-agent dialog whenever a deletable JiaorongAI, manual ACP, or installed
   registry ACP agent has related sessions.
 - Offer two clear outcomes in that dialog:
-  - Move related sessions to another enabled DeepChat agent, then delete the source agent.
+  - Move related sessions to another enabled JiaorongAI agent, then delete the source agent.
   - Delete related sessions, then delete the source agent.
-- Allow regular idle sessions to move from their current agent to a DeepChat agent outside the delete
+- Allow regular idle sessions to move from their current agent to a JiaorongAI agent outside the delete
   flow.
 - Expose exactly two first-increment migration entry points:
   - One-shot migration while deleting an agent.
   - A chat detail action from the active conversation's top-right `...` menu.
-- Support DeepChat-to-DeepChat and ACP-to-DeepChat moves for idle sessions by preserving
-  conversation history and reinitializing the target DeepChat agent runtime for future turns.
-- Prevent moves into ACP agents. DeepChat history must not be moved to ACP, and ACP-to-ACP moves are
+- Support JiaorongAI-to-JiaorongAI and ACP-to-JiaorongAI moves for idle sessions by preserving
+  conversation history and reinitializing the target JiaorongAI agent runtime for future turns.
+- Prevent moves into ACP agents. JiaorongAI history must not be moved to ACP, and ACP-to-ACP moves are
   blocked to avoid future ACP session binding conflicts.
 - Keep empty draft sessions from blocking deletion.
 
@@ -51,12 +51,12 @@ when the conversation history is useful but the next turns should use a differen
 - No deep copy/duplicate UI in the first increment. The first shipped action is move/import, not
   "duplicate and keep the original under the old agent".
 - No moving any conversation history into ACP agents in the first increment. ACP sessions may only
-  move out to a DeepChat agent.
+  move out to a JiaorongAI agent.
 
 ## Terminology
 
-- **Move/import**: keep the same DeepChat session id and stored messages, change the owning
-  `agent_id`, and make future turns use the target DeepChat agent.
+- **Move/import**: keep the same JiaorongAI session id and stored messages, change the owning
+  `agent_id`, and make future turns use the target JiaorongAI agent.
 - **Related sessions**: rows in `new_sessions` whose `agent_id` is the agent being deleted, including
   regular sessions, subagent sessions, and drafts.
 - **Importable sessions**: related sessions that are idle and can be safely re-bound to a target
@@ -66,31 +66,31 @@ when the conversation history is useful but the next turns should use a differen
 
 ## User Stories
 
-1. As a user deleting a custom DeepChat agent, I can see how many chats will be affected before I
+1. As a user deleting a custom JiaorongAI agent, I can see how many chats will be affected before I
    confirm deletion.
-2. As a user deleting a manual ACP agent, I can move that agent's finished chats to a DeepChat agent
+2. As a user deleting a manual ACP agent, I can move that agent's finished chats to a JiaorongAI agent
    so they remain visible and usable.
 3. As a user uninstalling an installed registry ACP agent, I get the same session protection before
    the agent is removed from the local install.
 4. As a user who does not want to keep related chats, I can explicitly delete those chats together
    with the agent.
-5. As a user viewing an idle regular conversation, I can move it to a different DeepChat agent from
+5. As a user viewing an idle regular conversation, I can move it to a different JiaorongAI agent from
    the chat UI, then continue the conversation with the target agent.
 6. As a user with an active conversation, I am told to stop or wait before moving the conversation.
 
 ## Acceptance Criteria
 
-1. Deleting a custom DeepChat, manual ACP, or installed registry ACP agent with related non-empty
+1. Deleting a custom JiaorongAI, manual ACP, or installed registry ACP agent with related non-empty
    sessions opens an in-app dialog rather than `window.confirm`.
 2. The delete dialog shows counts for regular sessions, subagent sessions, empty drafts, and sessions
    that cannot currently be moved because they are active.
-3. The primary safe action is "Move chats to..." and requires selecting an enabled DeepChat target
+3. The primary safe action is "Move chats to..." and requires selecting an enabled JiaorongAI target
    agent that is not the source agent.
 4. The destructive action is "Delete chats and agent"; it clearly states that related chats will be
    removed.
 5. If the source agent has no non-empty related sessions, deletion can use a shorter in-app confirm
    that states there are no chats to move.
-6. Moving to a DeepChat agent applies the target agent's runtime defaults for future turns while
+6. Moving to a JiaorongAI agent applies the target agent's runtime defaults for future turns while
    preserving existing messages, attachments, search documents, tape entries, and title.
 7. Moving into ACP is not allowed. The UI must not list ACP agents as transfer targets, and the main
    process must reject direct move requests whose target agent resolves to ACP.
@@ -106,8 +106,8 @@ when the conversation history is useful but the next turns should use a differen
     actions visible, and scroll only the detailed body content when the impact list or help text is
     long.
 13. All new user-facing text uses i18n keys.
-14. Tests cover impact summary, DeepChat deletion with move, manual/registry ACP deletion with move
-    to a DeepChat target, explicit delete of related sessions, chat-level move, active-session
+14. Tests cover impact summary, JiaorongAI deletion with move, manual/registry ACP deletion with move
+    to a JiaorongAI target, explicit delete of related sessions, chat-level move, active-session
     blocking, ACP cleanup ordering, partial batch failure reporting, and rejection of ACP targets.
 
 ## UX States
@@ -120,7 +120,7 @@ when the conversation history is useful but the next turns should use a differen
 | Agent: Code Reviewer                                           |
 +----------------------------------------------------------------+
 | This agent has conversations attached to it. Choose how        |
-| DeepChat should handle them before the agent is deleted.       |
+| JiaorongAI should handle them before the agent is deleted.       |
 |                                                                |
 | Impact                                                         |
 |   Regular chats        12                                      |
@@ -130,9 +130,9 @@ when the conversation history is useful but the next turns should use a differen
 |                                                                |
 | What should happen to these chats?                             |
 |                                                                |
-| (o) Move chats to another DeepChat Agent                       |
+| (o) Move chats to another JiaorongAI Agent                       |
 |     Target Agent                                               |
-|     [ DeepChat                                        v ]       |
+|     [ JiaorongAI                                        v ]       |
 |                                                                |
 |     Future replies will use the target Agent. Existing         |
 |     messages and files stay in the same chats.                 |
@@ -207,15 +207,15 @@ Move dialog
 | Project notes                                              |
 +------------------------------------------------------------+
 | Current Agent                                              |
-|   DeepChat                                                 |
+|   JiaorongAI                                                 |
 |                                                            |
 | Target Agent                                               |
 |   [ Code Reviewer                                  v ]      |
 |                                                            |
 | Existing messages and files stay in this conversation.      |
-| Future replies will use the target DeepChat Agent.          |
+| Future replies will use the target JiaorongAI Agent.          |
 | ACP agents are not listed as targets. ACP chats can move    |
-| out to DeepChat, but chats cannot move into ACP.            |
+| out to JiaorongAI, but chats cannot move into ACP.            |
 +------------------------------------------------------------+
 |                                      [ Cancel ] [ Move ]    |
 +------------------------------------------------------------+
@@ -259,7 +259,7 @@ Narrow mobile
   the next message can still report the old agent id.
 - ACP transfer must treat `acp_sessions` as target-agent-specific because it is keyed by
   `(conversation_id, agent_id)`.
-- Clearing stale ACP provider bindings must happen only after the target DeepChat context and
+- Clearing stale ACP provider bindings must happen only after the target JiaorongAI context and
   session ownership have been durably updated.
 
 ## Open Questions

@@ -69,7 +69,7 @@
     "moveAndDeleteAgent": "انتقال و حذف عامل",
     "moveConversation": "انتقال گفتگو",
     "agentType": {
-      "deepchat": "DeepChat",
+      "deepchat": "JiaorongAI",
       "acp": "ACP"
     },
     "blockReason": {
@@ -84,6 +84,6 @@
       "draft": "پیش‌نویس",
       "subagent": "زیرعامل"
     },
-    "deepChatTargetOnly": "فقط عامل‌های DeepChat می‌توانند به عنوان مقصد انتقال انتخاب شوند. گفتگوهای ACP می‌توانند به DeepChat منتقل شوند، اما نمی‌توانند به ACP منتقل شوند."
+    "deepChatTargetOnly": "فقط عامل‌های JiaorongAI می‌توانند به عنوان مقصد انتقال انتخاب شوند. گفتگوهای ACP می‌توانند به JiaorongAI منتقل شوند، اما نمی‌توانند به ACP منتقل شوند."
   }
 }

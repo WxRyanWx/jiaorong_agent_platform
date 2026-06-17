@@ -1,4 +1,4 @@
 interface:
-  display_name: "DeepChat Data Import"
-  short_description: "Import DeepChat config and chat data"
-  default_prompt: "Use $deepchat-data-import to help a third-party tool import DeepChat provider config, sessions, messages, and encrypted or unencrypted agent.db data."
+  display_name: "JiaorongAI Data Import"
+  short_description: "Import JiaorongAI config and chat data"
+  default_prompt: "Use $deepchat-data-import to help a third-party tool import JiaorongAI provider config, sessions, messages, and encrypted or unencrypted agent.db data."

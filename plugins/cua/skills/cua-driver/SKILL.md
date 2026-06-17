@@ -1,6 +1,6 @@
 ---
 name: cua-driver
-description: Drive native macOS apps through DeepChat's plugin-provided Computer Use MCP tools. Use when the user asks to operate, inspect, automate, or perform a GUI task in a real macOS application.
+description: Drive native macOS apps through JiaorongAI's plugin-provided Computer Use MCP tools. Use when the user asks to operate, inspect, automate, or perform a GUI task in a real macOS application.
 platforms:
   - darwin
 metadata:
@@ -9,14 +9,14 @@ metadata:
 
 # cua-driver
 
-Use DeepChat's CUA plugin MCP tools for macOS app automation. Treat the tools exposed by the `cua-driver` MCP server as the only action surface for this skill.
+Use JiaorongAI's CUA plugin MCP tools for macOS app automation. Treat the tools exposed by the `cua-driver` MCP server as the only action surface for this skill.
 
 ## Runtime Context
 
 - Plugin id: `${OWNER_PLUGIN_ID}`.
 - Plugin root: `${PLUGIN_ROOT}`.
-- Helper app bundle: `${PLUGIN_ROOT}/runtime/darwin/${PROCESS_ARCH}/DeepChat Computer Use.app`.
-- Helper binary: `${PLUGIN_ROOT}/runtime/darwin/${PROCESS_ARCH}/DeepChat Computer Use.app/Contents/MacOS/cua-driver`.
+- Helper app bundle: `${PLUGIN_ROOT}/runtime/darwin/${PROCESS_ARCH}/JiaorongAI Computer Use.app`.
+- Helper binary: `${PLUGIN_ROOT}/runtime/darwin/${PROCESS_ARCH}/JiaorongAI Computer Use.app/Contents/MacOS/cua-driver`.
 - Permissions belong to the helper app bundle shown above.
 
 ## Required Loop
@@ -32,7 +32,7 @@ Element indices come from the latest `get_window_state` result for the same `pid
 
 ## Permissions
 
-Use `check_permissions` for permission status and prompting. If Accessibility or Screen Recording is missing, tell the user to grant it to `DeepChat Computer Use.app` from the helper app bundle path in this skill's runtime context.
+Use `check_permissions` for permission status and prompting. If Accessibility or Screen Recording is missing, tell the user to grant it to `JiaorongAI Computer Use.app` from the helper app bundle path in this skill's runtime context.
 
 ## Sparse UI Fallback
 

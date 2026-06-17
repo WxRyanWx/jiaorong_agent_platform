@@ -1,6 +1,6 @@
-# DeepChat Plugin Packaging
+# JiaorongAI Plugin Packaging
 
-This guide documents `.dcplugin` packaging for official DeepChat plugins bundled with DeepChat
+This guide documents `.dcplugin` packaging for official JiaorongAI plugins bundled with JiaorongAI
 release packages.
 
 ## Package Format
@@ -17,7 +17,7 @@ Required files:
 The packager excludes development-only sources such as `vendor/`, `build/`, `node_modules/`,
 `.build/`, `.DS_Store`, and symlinks.
 
-Official packages keep DeepChat release asset URLs in their manifest metadata:
+Official packages keep JiaorongAI release asset URLs in their manifest metadata:
 
 ```text
 https://github.com/ThinkInAIXYZ/deepchat/releases/download/v<version>/<asset-name>.dcplugin
@@ -99,7 +99,7 @@ deepchat-plugin-cua-<version>-darwin-x64.dcplugin
 Runtime detection inside the package uses architecture-specific paths:
 
 ```text
-plugin:runtime/darwin/<arch>/DeepChat Computer Use.app/Contents/MacOS/cua-driver
+plugin:runtime/darwin/<arch>/JiaorongAI Computer Use.app/Contents/MacOS/cua-driver
 ```
 
 Each `.dcplugin` contains only the runtime directory for its target architecture.

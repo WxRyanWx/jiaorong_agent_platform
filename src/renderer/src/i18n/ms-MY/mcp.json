@@ -178,11 +178,11 @@
     },
     "buildInFileSystem": {
       "name": "sistem fail",
-      "desc": "Dayakan DeepChat untuk beroperasi pada fail tempatan"
+      "desc": "Dayakan JiaorongAI untuk beroperasi pada fail tempatan"
     },
     "Artifacts": {
       "name": "Artifacts",
-      "desc": "Kandungan Artifacts yang pelbagai untuk output DeepChat anda"
+      "desc": "Kandungan Artifacts yang pelbagai untuk output JiaorongAI anda"
     },
     "braveSearch": {
       "name": "Carian Brave",
@@ -202,15 +202,15 @@
     },
     "builtinKnowledge": {
       "name": "Carian asas pengetahuan terbina dalam",
-      "desc": "DeepChat mempunyai perkhidmatan pencarian pangkalan pengetahuan terbina dalam, yang boleh mencari kandungan pangkalan pengetahuan terbina dalam DeepChat."
+      "desc": "JiaorongAI mempunyai perkhidmatan pencarian pangkalan pengetahuan terbina dalam, yang boleh mencari kandungan pangkalan pengetahuan terbina dalam JiaorongAI."
     },
     "deepchat-inmemory/custom-prompts-server": {
       "name": "Perkataan gesaan tersuai",
-      "desc": "Perkhidmatan kata gesaan tersuai terbina dalam DeepChat"
+      "desc": "Perkhidmatan kata gesaan tersuai terbina dalam JiaorongAI"
     },
     "deepchat-inmemory/deep-research-server": {
       "name": "DeepResearch",
-      "desc": "DeepChat mempunyai perkhidmatan penyelidikan mendalam terbina dalam berdasarkan carian Bocha (perhatikan bahawa model konteks yang panjang diperlukan untuk menggunakannya dan model dengan konteks yang tidak mencukupi mungkin gagal)"
+      "desc": "JiaorongAI mempunyai perkhidmatan penyelidikan mendalam terbina dalam berdasarkan carian Bocha (perhatikan bahawa model konteks yang panjang diperlukan untuk menggunakannya dan model dengan konteks yang tidak mencukupi mungkin gagal)"
     },
     "deepchat-inmemory/auto-prompting-server": {
       "name": "Kata gesaan templat automatik",
@@ -218,7 +218,7 @@
     },
     "deepchat-inmemory/conversation-search-server": {
       "name": "Carian sejarah perbualan",
-      "desc": "DeepChat mempunyai perkhidmatan carian sejarah perbualan terbina dalam yang boleh mencari rekod perbualan sejarah dan kandungan mesej."
+      "desc": "JiaorongAI mempunyai perkhidmatan carian sejarah perbualan terbina dalam yang boleh mencari rekod perbualan sejarah dan kandungan mesej."
     },
     "deepchat/apple-server": {
       "name": "Pembantu sistem macOS",

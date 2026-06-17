@@ -3,7 +3,7 @@
 ## User Need
 
 Users drag the floating button/widget to a comfortable spot on screen. After
-restarting DeepChat, the button should reappear where they last left it. Today it
+restarting JiaorongAI, the button should reappear where they last left it. Today it
 jumps back to the top-left corner of the primary display on every restart, which
 feels broken.
 

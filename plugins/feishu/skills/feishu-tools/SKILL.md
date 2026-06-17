@@ -7,7 +7,7 @@ metadata:
 
 # feishu-tools
 
-This plugin is an MCP server tool surface exposed by DeepChat's Feishu plugin. Do not ask the user to classify the plugin as an MCP server, a CLI tool, or another plugin type. When a request is about Feishu/Lark content and matching tools are available, invoke the relevant tool directly.
+This plugin is an MCP server tool surface exposed by JiaorongAI's Feishu plugin. Do not ask the user to classify the plugin as an MCP server, a CLI tool, or another plugin type. When a request is about Feishu/Lark content and matching tools are available, invoke the relevant tool directly.
 
 ## Runtime Context
 

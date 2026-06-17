@@ -1,4 +1,4 @@
-# DeepChat Release Checklist
+# JiaorongAI Release Checklist
 
 Use this file for the exact command sequence after you know the target version and the current git state.
 
@@ -86,6 +86,7 @@ git branch -d release/vX.Y.Z
 
 ```md
 ## vX.Y.Z (YYYY-MM-DD)
+
 - English bullet
 - English bullet
 - 中文条目

@@ -2,7 +2,7 @@
 
 ## User Need
 
-When a user stops an active generation, DeepChat must stop the current turn and must not immediately
+When a user stops an active generation, JiaorongAI must stop the current turn and must not immediately
 continue queued pending inputs. The pending queue should remain visible so the user can resume it
 explicitly.
 

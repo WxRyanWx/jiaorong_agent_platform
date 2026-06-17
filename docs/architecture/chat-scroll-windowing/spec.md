@@ -2,7 +2,7 @@
 
 ## User Need
 
-DeepChat's chat page must remain fast and smooth for long conversations while preserving reliable message anchors for future features such as a chat minimap. The solution must not use a fully opaque virtual list model that makes anchor scrolling, search jumps, trace jumps, or minimap positioning depend on whether a message currently exists in the DOM.
+JiaorongAI's chat page must remain fast and smooth for long conversations while preserving reliable message anchors for future features such as a chat minimap. The solution must not use a fully opaque virtual list model that makes anchor scrolling, search jumps, trace jumps, or minimap positioning depend on whether a message currently exists in the DOM.
 
 ## Goal
 
@@ -77,9 +77,9 @@ A viewport anchor should be based on stable message identity rather than raw DOM
 
 ```ts
 type ViewportAnchor = {
-  messageId: string
-  offsetWithinMessage: number
-}
+  messageId: string;
+  offsetWithinMessage: number;
+};
 ```
 
 When message heights change because of streaming, Markdown hydration, artifact rendering, image load, code block rendering, or history insertion, the system should compensate scroll position to keep the anchor visually stable unless the active mode is bottom-follow.
@@ -188,4 +188,4 @@ The scroll/layout system should batch work during streaming:
 
 ## Review Notes
 
-The preferred architecture is a dedicated chat windowing model instead of enabling a fully opaque virtual list. Existing `vue-virtual-scroller` usage may still be referenced or used temporarily if it can satisfy the anchor and line-of-sight requirements, but the layout model should remain owned by DeepChat so minimap and jump behavior have stable coordinates.
+The preferred architecture is a dedicated chat windowing model instead of enabling a fully opaque virtual list. Existing `vue-virtual-scroller` usage may still be referenced or used temporarily if it can satisfy the anchor and line-of-sight requirements, but the layout model should remain owned by JiaorongAI so minimap and jump behavior have stable coordinates.

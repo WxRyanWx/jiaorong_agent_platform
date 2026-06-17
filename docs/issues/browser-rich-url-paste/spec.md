@@ -2,7 +2,7 @@
 
 ## User Story
 
-When a user copies a URL from Chrome or Edge and pastes it into the chat input, DeepChat should insert only the URL text, even if the clipboard also contains rich HTML metadata such as a page title or description.
+When a user copies a URL from Chrome or Edge and pastes it into the chat input, JiaorongAI should insert only the URL text, even if the clipboard also contains rich HTML metadata such as a page title or description.
 
 ## Acceptance Criteria
 

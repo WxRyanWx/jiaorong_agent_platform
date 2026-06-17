@@ -2,7 +2,7 @@
 
 ## User Story
 
-As a DeepChat user on macOS, I want the app to respond like a regular Mac desktop app rather than a web page in a wrapper, so core windowing, shortcuts, scrolling, cursor behavior, and materials match platform expectations.
+As a JiaorongAI user on macOS, I want the app to respond like a regular Mac desktop app rather than a web page in a wrapper, so core windowing, shortcuts, scrolling, cursor behavior, and materials match platform expectations.
 
 ## Problem
 
@@ -43,6 +43,6 @@ The current Electron shell already has some native-facing choices, including a s
 
 ## Platform Trade-offs
 
-- Shortcut handling changes on all desktop platforms: app commands become application-menu accelerators instead of system-level registrations. This is more native, but it means those shortcuts are only guaranteed while DeepChat is the active app. The show/hide window shortcut remains global.
+- Shortcut handling changes on all desktop platforms: app commands become application-menu accelerators instead of system-level registrations. This is more native, but it means those shortcuts are only guaranteed while JiaorongAI is the active app. The show/hide window shortcut remains global.
 - Cursor and scroll changes affect all renderer platforms because the renderer is shared. The benefit is a desktop-like default; the cost is that clickable rows feel less like web links.
 - Window material changes are macOS-only and should not alter Windows mica or Linux behavior.

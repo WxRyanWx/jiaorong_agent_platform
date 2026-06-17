@@ -1,231 +1,239 @@
-import { mount, flushPromises } from '@vue/test-utils'
-import { reactive, ref } from 'vue'
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import { APP_RUNTIME_EVENTS, DEEPLINK_EVENTS, DEV_EVENTS, SHORTCUT_EVENTS } from '@/events'
+import { mount, flushPromises } from "@vue/test-utils";
+import { reactive, ref } from "vue";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  APP_RUNTIME_EVENTS,
+  DEEPLINK_EVENTS,
+  DEV_EVENTS,
+  SHORTCUT_EVENTS,
+} from "@/events";
 import {
   GUIDED_ONBOARDING_RESUME_REQUESTED_EVENT,
-  GUIDED_ONBOARDING_RESUME_STORAGE_KEY
-} from '@/lib/onboardingResume'
+  GUIDED_ONBOARDING_RESUME_STORAGE_KEY,
+} from "@/lib/onboardingResume";
 
-const DEV_WELCOME_OVERRIDE_KEY = '__deepchat_dev_force_welcome'
+const DEV_WELCOME_OVERRIDE_KEY = "__deepchat_dev_force_welcome";
 
 const mountApp = async (options?: {
-  initComplete?: boolean
-  routeName?: 'chat' | 'welcome'
-  hasActiveSession?: boolean
-  pageRouteName?: 'newThread' | 'chat'
-  chatSessionId?: string | null
-  onboardingStatus?: 'idle' | 'active' | 'completed'
+  initComplete?: boolean;
+  routeName?: "chat" | "welcome";
+  hasActiveSession?: boolean;
+  pageRouteName?: "newThread" | "chat";
+  chatSessionId?: string | null;
+  onboardingStatus?: "idle" | "active" | "completed";
   onboardingCurrentStepId?:
-    | 'provider'
-    | 'first-chat'
-    | 'switch-model'
-    | 'mcp'
-    | 'skills'
-    | 'plugins'
-    | null
+    | "provider"
+    | "first-chat"
+    | "switch-model"
+    | "mcp"
+    | "skills"
+    | "plugins"
+    | null;
 }) => {
-  vi.resetModules()
+  vi.resetModules();
 
-  const initComplete = options?.initComplete ?? false
-  const routeName = options?.routeName ?? 'chat'
-  const hasActiveSession = options?.hasActiveSession ?? false
-  const pageRouteName = options?.pageRouteName ?? 'chat'
-  const chatSessionId = options?.chatSessionId ?? (pageRouteName === 'chat' ? 'session-1' : null)
-  const onboardingStatus = options?.onboardingStatus ?? 'idle'
-  const onboardingCurrentStepId = options?.onboardingCurrentStepId ?? null
+  const initComplete = options?.initComplete ?? false;
+  const routeName = options?.routeName ?? "chat";
+  const hasActiveSession = options?.hasActiveSession ?? false;
+  const pageRouteName = options?.pageRouteName ?? "chat";
+  const chatSessionId =
+    options?.chatSessionId ?? (pageRouteName === "chat" ? "session-1" : null);
+  const onboardingStatus = options?.onboardingStatus ?? "idle";
+  const onboardingCurrentStepId = options?.onboardingCurrentStepId ?? null;
   const route = reactive({
     name: routeName,
-    path: routeName === 'welcome' ? '/welcome' : '/chat',
-    fullPath: routeName === 'welcome' ? '/welcome' : '/chat'
-  })
-  const currentRoute = ref(route)
+    path: routeName === "welcome" ? "/welcome" : "/chat",
+    fullPath: routeName === "welcome" ? "/welcome" : "/chat",
+  });
+  const currentRoute = ref(route);
 
-  const setRoute = (name: 'chat' | 'welcome') => {
-    route.name = name
-    route.path = name === 'welcome' ? '/welcome' : '/chat'
-    route.fullPath = route.path
-    currentRoute.value = route
-  }
+  const setRoute = (name: "chat" | "welcome") => {
+    route.name = name;
+    route.path = name === "welcome" ? "/welcome" : "/chat";
+    route.fullPath = route.path;
+    currentRoute.value = route;
+  };
 
   const router = {
     isReady: vi.fn().mockResolvedValue(undefined),
-    replace: vi.fn().mockImplementation(async ({ name }: { name: 'chat' | 'welcome' }) => {
-      setRoute(name)
-    }),
+    replace: vi
+      .fn()
+      .mockImplementation(async ({ name }: { name: "chat" | "welcome" }) => {
+        setRoute(name);
+      }),
     push: vi.fn().mockImplementation(async ({ name }: { name: string }) => {
-      if (name === 'chat' || name === 'welcome') {
-        setRoute(name)
+      if (name === "chat" || name === "welcome") {
+        setRoute(name);
       }
     }),
-    currentRoute
-  }
+    currentRoute,
+  };
 
   const configPresenter = {
-    getSetting: vi.fn().mockResolvedValue(initComplete)
-  }
+    getSetting: vi.fn().mockResolvedValue(initComplete),
+  };
   const onboardingClient = {
     getState: vi.fn().mockResolvedValue({
       version: 1,
       status: onboardingStatus,
-      startedAt: onboardingStatus === 'idle' ? null : 1,
-      completedAt: onboardingStatus === 'completed' ? 5 : null,
+      startedAt: onboardingStatus === "idle" ? null : 1,
+      completedAt: onboardingStatus === "completed" ? 5 : null,
       lastActiveAt: 1,
       currentStepId: onboardingCurrentStepId,
       steps: [
         {
-          id: 'provider',
+          id: "provider",
           required: true,
           status:
-            onboardingStatus === 'completed'
-              ? 'completed'
-              : onboardingCurrentStepId === 'provider'
-                ? 'in_progress'
-                : 'pending',
-          startedAt: onboardingCurrentStepId === 'provider' ? 1 : null,
-          completedAt: onboardingStatus === 'completed' ? 2 : null,
-          skippedAt: null
+            onboardingStatus === "completed"
+              ? "completed"
+              : onboardingCurrentStepId === "provider"
+                ? "in_progress"
+                : "pending",
+          startedAt: onboardingCurrentStepId === "provider" ? 1 : null,
+          completedAt: onboardingStatus === "completed" ? 2 : null,
+          skippedAt: null,
         },
         {
-          id: 'first-chat',
+          id: "first-chat",
           required: true,
           status:
-            onboardingStatus === 'completed'
-              ? 'completed'
-              : onboardingCurrentStepId === 'first-chat'
-                ? 'in_progress'
-                : 'pending',
-          startedAt: onboardingCurrentStepId === 'first-chat' ? 1 : null,
-          completedAt: onboardingStatus === 'completed' ? 3 : null,
-          skippedAt: null
+            onboardingStatus === "completed"
+              ? "completed"
+              : onboardingCurrentStepId === "first-chat"
+                ? "in_progress"
+                : "pending",
+          startedAt: onboardingCurrentStepId === "first-chat" ? 1 : null,
+          completedAt: onboardingStatus === "completed" ? 3 : null,
+          skippedAt: null,
         },
         {
-          id: 'switch-model',
+          id: "switch-model",
           required: true,
           status:
-            onboardingStatus === 'completed'
-              ? 'completed'
-              : onboardingCurrentStepId === 'switch-model'
-                ? 'in_progress'
-                : 'pending',
-          startedAt: onboardingCurrentStepId === 'switch-model' ? 1 : null,
-          completedAt: onboardingStatus === 'completed' ? 4 : null,
-          skippedAt: null
+            onboardingStatus === "completed"
+              ? "completed"
+              : onboardingCurrentStepId === "switch-model"
+                ? "in_progress"
+                : "pending",
+          startedAt: onboardingCurrentStepId === "switch-model" ? 1 : null,
+          completedAt: onboardingStatus === "completed" ? 4 : null,
+          skippedAt: null,
         },
         {
-          id: 'mcp',
+          id: "mcp",
           required: false,
           status:
-            onboardingStatus === 'completed'
-              ? 'skipped'
-              : onboardingCurrentStepId === 'mcp'
-                ? 'in_progress'
-                : 'pending',
-          startedAt: onboardingCurrentStepId === 'mcp' ? 1 : null,
+            onboardingStatus === "completed"
+              ? "skipped"
+              : onboardingCurrentStepId === "mcp"
+                ? "in_progress"
+                : "pending",
+          startedAt: onboardingCurrentStepId === "mcp" ? 1 : null,
           completedAt: null,
-          skippedAt: onboardingStatus === 'completed' ? 5 : null
+          skippedAt: onboardingStatus === "completed" ? 5 : null,
         },
         {
-          id: 'skills',
+          id: "skills",
           required: false,
           status:
-            onboardingStatus === 'completed'
-              ? 'skipped'
-              : onboardingCurrentStepId === 'skills'
-                ? 'in_progress'
-                : 'pending',
-          startedAt: onboardingCurrentStepId === 'skills' ? 1 : null,
+            onboardingStatus === "completed"
+              ? "skipped"
+              : onboardingCurrentStepId === "skills"
+                ? "in_progress"
+                : "pending",
+          startedAt: onboardingCurrentStepId === "skills" ? 1 : null,
           completedAt: null,
-          skippedAt: onboardingStatus === 'completed' ? 5 : null
+          skippedAt: onboardingStatus === "completed" ? 5 : null,
         },
         {
-          id: 'plugins',
+          id: "plugins",
           required: false,
           status:
-            onboardingStatus === 'completed'
-              ? 'skipped'
-              : onboardingCurrentStepId === 'plugins'
-                ? 'in_progress'
-                : 'pending',
-          startedAt: onboardingCurrentStepId === 'plugins' ? 1 : null,
+            onboardingStatus === "completed"
+              ? "skipped"
+              : onboardingCurrentStepId === "plugins"
+                ? "in_progress"
+                : "pending",
+          startedAt: onboardingCurrentStepId === "plugins" ? 1 : null,
           completedAt: null,
-          skippedAt: onboardingStatus === 'completed' ? 5 : null
-        }
-      ]
+          skippedAt: onboardingStatus === "completed" ? 5 : null,
+        },
+      ],
     }),
     start: vi.fn().mockResolvedValue({
       version: 1,
-      status: 'active',
+      status: "active",
       startedAt: 1,
       completedAt: null,
       lastActiveAt: 1,
-      currentStepId: 'provider',
+      currentStepId: "provider",
       steps: [
         {
-          id: 'provider',
+          id: "provider",
           required: true,
-          status: 'in_progress',
+          status: "in_progress",
           startedAt: 1,
           completedAt: null,
-          skippedAt: null
+          skippedAt: null,
         },
         {
-          id: 'first-chat',
+          id: "first-chat",
           required: true,
-          status: 'pending',
+          status: "pending",
           startedAt: null,
           completedAt: null,
-          skippedAt: null
+          skippedAt: null,
         },
         {
-          id: 'switch-model',
+          id: "switch-model",
           required: true,
-          status: 'pending',
+          status: "pending",
           startedAt: null,
           completedAt: null,
-          skippedAt: null
+          skippedAt: null,
         },
         {
-          id: 'mcp',
+          id: "mcp",
           required: false,
-          status: 'pending',
+          status: "pending",
           startedAt: null,
           completedAt: null,
-          skippedAt: null
+          skippedAt: null,
         },
         {
-          id: 'skills',
+          id: "skills",
           required: false,
-          status: 'pending',
+          status: "pending",
           startedAt: null,
           completedAt: null,
-          skippedAt: null
+          skippedAt: null,
         },
         {
-          id: 'plugins',
+          id: "plugins",
           required: false,
-          status: 'pending',
+          status: "pending",
           startedAt: null,
           completedAt: null,
-          skippedAt: null
-        }
-      ]
-    })
-  }
+          skippedAt: null,
+        },
+      ],
+    }),
+  };
   const pageRouterStore = {
     currentRoute: pageRouteName,
     chatSessionId,
-    goToNewThread: vi.fn()
-  }
+    goToNewThread: vi.fn(),
+  };
   const sidepanelStore = {
-    toggleWorkspace: vi.fn()
-  }
+    toggleWorkspace: vi.fn(),
+  };
   const sidebarStore = {
-    toggleSidebar: vi.fn()
-  }
+    toggleSidebar: vi.fn(),
+  };
   const spotlightStore = {
     open: false,
-    query: '',
+    query: "",
     results: [] as unknown[],
     activeIndex: -1,
     loading: false,
@@ -236,60 +244,60 @@ const mountApp = async (options?: {
     moveActiveItem: vi.fn(),
     executeItem: vi.fn(),
     executeActiveItem: vi.fn(),
-    toggleSpotlight: vi.fn()
-  }
+    toggleSpotlight: vi.fn(),
+  };
   const agentStore = {
-    setSelectedAgent: vi.fn()
-  }
+    setSelectedAgent: vi.fn(),
+  };
   const draftStore = reactive({
     pendingStartDeeplink: null as null | Record<string, unknown>,
     setPendingStartDeeplink: vi.fn((payload: Record<string, unknown>) => {
       draftStore.pendingStartDeeplink = {
         ...payload,
-        token: 1
-      }
-    })
-  })
+        token: 1,
+      };
+    }),
+  });
   const sessionStore = {
     hasActiveSession,
-    activeSessionId: hasActiveSession ? 'session-1' : null,
+    activeSessionId: hasActiveSession ? "session-1" : null,
     startNewConversation: vi.fn().mockResolvedValue(undefined),
     closeSession: vi.fn().mockResolvedValue(undefined),
     selectSession: vi.fn(),
-    fetchSessions: vi.fn().mockResolvedValue(undefined)
-  }
+    fetchSessions: vi.fn().mockResolvedValue(undefined),
+  };
   const providerStore = {
-    ensureInitialized: vi.fn().mockResolvedValue(undefined)
-  }
+    ensureInitialized: vi.fn().mockResolvedValue(undefined),
+  };
   const modelStore = {
-    initialize: vi.fn().mockResolvedValue(undefined)
-  }
-  const toast = vi.fn(() => ({ dismiss: vi.fn() }))
-  const ipcOn = vi.fn()
-  const ipcRemoveAllListeners = vi.fn()
+    initialize: vi.fn().mockResolvedValue(undefined),
+  };
+  const toast = vi.fn(() => ({ dismiss: vi.fn() }));
+  const ipcOn = vi.fn();
+  const ipcRemoveAllListeners = vi.fn();
 
-  ;(window as any).electron = {
+  (window as any).electron = {
     ipcRenderer: {
       on: ipcOn,
       removeAllListeners: ipcRemoveAllListeners,
-      send: vi.fn()
-    }
-  }
-  ;(window as any).deepchat = {
+      send: vi.fn(),
+    },
+  };
+  (window as any).deepchat = {
     invoke: vi.fn((routeName: string) => {
       switch (routeName) {
-        case 'config.getEntries':
-          return Promise.resolve({ version: 0, values: {} })
-        case 'models.getProviderCatalog':
+        case "config.getEntries":
+          return Promise.resolve({ version: 0, values: {} });
+        case "models.getProviderCatalog":
           return Promise.resolve({
             catalog: {
               providerModels: [],
               customModels: [],
               dbProviderModels: [],
-              modelStatusMap: {}
-            }
-          })
-        case 'models.getCapabilities':
+              modelStatusMap: {},
+            },
+          });
+        case "models.getCapabilities":
           return Promise.resolve({
             capabilities: {
               supportsReasoning: null,
@@ -298,10 +306,10 @@ const mountApp = async (options?: {
               supportsSearch: null,
               searchDefaults: null,
               supportsTemperatureControl: true,
-              temperatureCapability: true
-            }
-          })
-        case 'models.getConfig':
+              temperatureCapability: true,
+            },
+          });
+        case "models.getConfig":
           return Promise.resolve({
             config: {
               maxTokens: 4096,
@@ -310,118 +318,119 @@ const mountApp = async (options?: {
               vision: false,
               functionCall: true,
               reasoning: false,
-              type: 'chat'
-            }
-          })
+              type: "chat",
+            },
+          });
         default:
-          return Promise.resolve({})
+          return Promise.resolve({});
       }
     }),
-    on: vi.fn(() => vi.fn())
-  }
+    on: vi.fn(() => vi.fn()),
+  };
 
-  vi.doMock('vue-router', async () => {
-    const actual = await vi.importActual<typeof import('vue-router')>('vue-router')
+  vi.doMock("vue-router", async () => {
+    const actual =
+      await vi.importActual<typeof import("vue-router")>("vue-router");
     return {
       ...actual,
       useRoute: () => route,
-      useRouter: () => router
-    }
-  })
+      useRouter: () => router,
+    };
+  });
 
-  vi.doMock('vue-i18n', () => ({
+  vi.doMock("vue-i18n", () => ({
     useI18n: () => ({
-      t: (key: string) => key
-    })
-  }))
+      t: (key: string) => key,
+    }),
+  }));
 
-  vi.doMock('@api/ConfigClient', () => ({
-    createConfigClient: vi.fn(() => configPresenter)
-  }))
-  vi.doMock('@api/OnboardingClient', () => ({
-    createOnboardingClient: vi.fn(() => onboardingClient)
-  }))
-  vi.doMock('@/stores/artifact', () => ({
+  vi.doMock("@api/ConfigClient", () => ({
+    createConfigClient: vi.fn(() => configPresenter),
+  }));
+  vi.doMock("@api/OnboardingClient", () => ({
+    createOnboardingClient: vi.fn(() => onboardingClient),
+  }));
+  vi.doMock("@/stores/artifact", () => ({
     useArtifactStore: () => ({
-      hideArtifact: vi.fn()
-    })
-  }))
-  vi.doMock('@/stores/ui/session', () => ({
-    useSessionStore: () => sessionStore
-  }))
-  vi.doMock('@/stores/ui/agent', () => ({
-    useAgentStore: () => agentStore
-  }))
-  vi.doMock('@/stores/ui/draft', () => ({
-    useDraftStore: () => draftStore
-  }))
-  vi.doMock('@/stores/ui/pageRouter', () => ({
-    usePageRouterStore: () => pageRouterStore
-  }))
-  vi.doMock('@/stores/ui/sidepanel', () => ({
-    useSidepanelStore: () => sidepanelStore
-  }))
-  vi.doMock('@/stores/ui/sidebar', () => ({
-    useSidebarStore: () => sidebarStore
-  }))
-  vi.doMock('@/stores/ui/spotlight', () => ({
-    useSpotlightStore: () => spotlightStore
-  }))
-  vi.doMock('@/components/use-toast', () => ({
+      hideArtifact: vi.fn(),
+    }),
+  }));
+  vi.doMock("@/stores/ui/session", () => ({
+    useSessionStore: () => sessionStore,
+  }));
+  vi.doMock("@/stores/ui/agent", () => ({
+    useAgentStore: () => agentStore,
+  }));
+  vi.doMock("@/stores/ui/draft", () => ({
+    useDraftStore: () => draftStore,
+  }));
+  vi.doMock("@/stores/ui/pageRouter", () => ({
+    usePageRouterStore: () => pageRouterStore,
+  }));
+  vi.doMock("@/stores/ui/sidepanel", () => ({
+    useSidepanelStore: () => sidepanelStore,
+  }));
+  vi.doMock("@/stores/ui/sidebar", () => ({
+    useSidebarStore: () => sidebarStore,
+  }));
+  vi.doMock("@/stores/ui/spotlight", () => ({
+    useSpotlightStore: () => spotlightStore,
+  }));
+  vi.doMock("@/components/use-toast", () => ({
     useToast: () => ({
-      toast
-    })
-  }))
-  vi.doMock('@/stores/uiSettingsStore', () => ({
+      toast,
+    }),
+  }));
+  vi.doMock("@/stores/uiSettingsStore", () => ({
     useUiSettingsStore: () => ({
-      fontSizeClass: 'text-base',
+      fontSizeClass: "text-base",
       fontSizeLevel: 1,
-      updateFontSizeLevel: vi.fn()
-    })
-  }))
-  vi.doMock('@/stores/theme', () => ({
+      updateFontSizeLevel: vi.fn(),
+    }),
+  }));
+  vi.doMock("@/stores/theme", () => ({
     useThemeStore: () => ({
-      themeMode: 'light',
-      isDark: false
-    })
-  }))
-  vi.doMock('@/stores/language', () => ({
+      themeMode: "light",
+      isDark: false,
+    }),
+  }));
+  vi.doMock("@/stores/language", () => ({
     useLanguageStore: () => ({
-      dir: 'ltr'
-    })
-  }))
-  vi.doMock('@/stores/modelCheck', () => ({
+      dir: "ltr",
+    }),
+  }));
+  vi.doMock("@/stores/modelCheck", () => ({
     useModelCheckStore: () => ({
       isDialogOpen: false,
       currentProviderId: null,
-      closeDialog: vi.fn()
-    })
-  }))
-  vi.doMock('@/stores/providerStore', () => ({
-    useProviderStore: () => providerStore
-  }))
-  vi.doMock('@/stores/modelStore', () => ({
-    useModelStore: () => modelStore
-  }))
-  vi.doMock('@/lib/storeInitializer', () => ({
+      closeDialog: vi.fn(),
+    }),
+  }));
+  vi.doMock("@/stores/providerStore", () => ({
+    useProviderStore: () => providerStore,
+  }));
+  vi.doMock("@/stores/modelStore", () => ({
+    useModelStore: () => modelStore,
+  }));
+  vi.doMock("@/lib/storeInitializer", () => ({
     initAppStores: vi.fn(),
     useMcpInstallDeeplinkHandler: () => ({
       setup: vi.fn(),
-      cleanup: vi.fn()
-    })
-  }))
-  vi.doMock('@/composables/useFontManager', () => ({
+      cleanup: vi.fn(),
+    }),
+  }));
+  vi.doMock("@/composables/useFontManager", () => ({
     useFontManager: () => ({
-      setupFontListener: vi.fn()
-    })
-  }))
-  vi.doMock('@/composables/useDeviceVersion', () => ({
+      setupFontListener: vi.fn(),
+    }),
+  }));
+  vi.doMock("@/composables/useDeviceVersion", () => ({
     useDeviceVersion: () => ({
-      isWinMacOS: false
-    })
-  }))
+      isWinMacOS: false,
+    }),
+  }));
 
-  const App = (await import('@/App.vue')).default
+  const App = (await import("@/App.vue")).default;
 
   mount(App, {
     global: {
@@ -436,15 +445,15 @@ const mountApp = async (options?: {
         TranslatePopup: true,
         SpotlightOverlay: true,
         ModelCheckDialog: {
-          template: '<div />',
-          props: ['open', 'providerId']
+          template: "<div />",
+          props: ["open", "providerId"],
         },
-        Toaster: true
-      }
-    }
-  })
+        Toaster: true,
+      },
+    },
+  });
 
-  await flushPromises()
+  await flushPromises();
 
   return {
     route,
@@ -458,404 +467,416 @@ const mountApp = async (options?: {
     draftStore,
     sessionStore,
     ipcOn,
-    spotlightStore
-  }
-}
+    spotlightStore,
+  };
+};
 
 afterEach(() => {
-  window.sessionStorage.removeItem(DEV_WELCOME_OVERRIDE_KEY)
-  window.sessionStorage.removeItem(GUIDED_ONBOARDING_RESUME_STORAGE_KEY)
-})
+  window.sessionStorage.removeItem(DEV_WELCOME_OVERRIDE_KEY);
+  window.sessionStorage.removeItem(GUIDED_ONBOARDING_RESUME_STORAGE_KEY);
+});
 
-describe('App startup welcome flow', () => {
-  it('routes to welcome when init is incomplete', async () => {
+describe("App startup welcome flow", () => {
+  it("routes to welcome when init is incomplete", async () => {
     const { router, configPresenter, onboardingClient } = await mountApp({
       initComplete: false,
-      routeName: 'chat'
-    })
+      routeName: "chat",
+    });
 
-    expect(configPresenter.getSetting).toHaveBeenCalledWith('init_complete')
-    expect(onboardingClient.getState).toHaveBeenCalledTimes(1)
-    expect(onboardingClient.start).toHaveBeenCalledTimes(1)
-    expect(router.replace).toHaveBeenCalledWith({ name: 'welcome' })
-  }, 10000)
+    expect(configPresenter.getSetting).toHaveBeenCalledWith("init_complete");
+    expect(onboardingClient.getState).toHaveBeenCalledTimes(1);
+    expect(onboardingClient.start).toHaveBeenCalledTimes(1);
+    expect(router.replace).toHaveBeenCalledWith({ name: "welcome" });
+  }, 10000);
 
-  it('redirects welcome back to chat when init is complete', async () => {
-    const { router, configPresenter, onboardingClient, route } = await mountApp({
-      initComplete: true,
-      routeName: 'welcome',
-      onboardingStatus: 'idle'
-    })
+  it("redirects welcome back to chat when init is complete", async () => {
+    const { router, configPresenter, onboardingClient, route } = await mountApp(
+      {
+        initComplete: true,
+        routeName: "welcome",
+        onboardingStatus: "idle",
+      },
+    );
 
-    expect(configPresenter.getSetting).toHaveBeenCalledWith('init_complete')
-    expect(onboardingClient.start).not.toHaveBeenCalled()
-    expect(router.replace).toHaveBeenCalledWith({ name: 'chat' })
-    expect(route.name).toBe('chat')
-  })
+    expect(configPresenter.getSetting).toHaveBeenCalledWith("init_complete");
+    expect(onboardingClient.start).not.toHaveBeenCalled();
+    expect(router.replace).toHaveBeenCalledWith({ name: "chat" });
+    expect(route.name).toBe("chat");
+  });
 
-  it('routes to welcome when onboarding is already active', async () => {
+  it("routes to welcome when onboarding is already active", async () => {
     const { router, onboardingClient, route } = await mountApp({
       initComplete: true,
-      routeName: 'chat',
-      onboardingStatus: 'active',
-      onboardingCurrentStepId: 'first-chat'
-    })
+      routeName: "chat",
+      onboardingStatus: "active",
+      onboardingCurrentStepId: "first-chat",
+    });
 
-    expect(onboardingClient.getState).toHaveBeenCalledTimes(1)
-    expect(onboardingClient.start).not.toHaveBeenCalled()
-    expect(router.replace).toHaveBeenCalledWith({ name: 'welcome' })
-    expect(route.name).toBe('welcome')
-  })
+    expect(onboardingClient.getState).toHaveBeenCalledTimes(1);
+    expect(onboardingClient.start).not.toHaveBeenCalled();
+    expect(router.replace).toHaveBeenCalledWith({ name: "welcome" });
+    expect(route.name).toBe("welcome");
+  });
 
-  it('keeps welcome when dev override is enabled', async () => {
-    window.sessionStorage.setItem(DEV_WELCOME_OVERRIDE_KEY, '1')
+  it("keeps welcome when dev override is enabled", async () => {
+    window.sessionStorage.setItem(DEV_WELCOME_OVERRIDE_KEY, "1");
 
     const { router, route } = await mountApp({
       initComplete: true,
-      routeName: 'chat'
-    })
+      routeName: "chat",
+    });
 
-    expect(router.replace).toHaveBeenCalledWith({ name: 'welcome' })
-    expect(route.name).toBe('welcome')
-  })
+    expect(router.replace).toHaveBeenCalledWith({ name: "welcome" });
+    expect(route.name).toBe("welcome");
+  });
 
-  it('starts guided onboarding and routes to welcome from the dev event', async () => {
+  it("starts guided onboarding and routes to welcome from the dev event", async () => {
     const { ipcOn, onboardingClient, route } = await mountApp({
       initComplete: true,
-      routeName: 'chat',
-      onboardingStatus: 'completed'
-    })
+      routeName: "chat",
+      onboardingStatus: "completed",
+    });
 
     const devGuideHandler = ipcOn.mock.calls.find(
-      ([eventName]: [string]) => eventName === DEV_EVENTS.START_GUIDED_ONBOARDING
-    )?.[1]
+      ([eventName]: [string]) =>
+        eventName === DEV_EVENTS.START_GUIDED_ONBOARDING,
+    )?.[1];
 
-    expect(devGuideHandler).toBeTypeOf('function')
+    expect(devGuideHandler).toBeTypeOf("function");
 
-    await devGuideHandler?.({})
-    await flushPromises()
+    await devGuideHandler?.({});
+    await flushPromises();
 
     expect(onboardingClient.start).toHaveBeenCalledWith({
       force: true,
-      stepId: 'select-provider'
-    })
-    expect(route.name).toBe('welcome')
-  })
+      stepId: "select-provider",
+    });
+    expect(route.name).toBe("welcome");
+  });
 
-  it('returns to welcome when the main window refocuses with a pending onboarding resume', async () => {
+  it("returns to welcome when the main window refocuses with a pending onboarding resume", async () => {
     window.sessionStorage.setItem(
       GUIDED_ONBOARDING_RESUME_STORAGE_KEY,
       JSON.stringify({
-        stepId: 'select-provider',
-        trigger: 'window-focus',
-        createdAt: Date.now()
-      })
-    )
+        stepId: "select-provider",
+        trigger: "window-focus",
+        createdAt: Date.now(),
+      }),
+    );
 
     const { ipcOn, onboardingClient, route } = await mountApp({
       initComplete: true,
-      routeName: 'chat',
-      onboardingStatus: 'idle'
-    })
+      routeName: "chat",
+      onboardingStatus: "idle",
+    });
 
     onboardingClient.getState.mockResolvedValue({
       version: 4,
-      status: 'active',
+      status: "active",
       startedAt: 1,
       completedAt: null,
       lastActiveAt: 1,
-      currentStepId: 'select-provider',
+      currentStepId: "select-provider",
       steps: [
         {
-          id: 'select-provider',
+          id: "select-provider",
           required: true,
-          status: 'in_progress',
+          status: "in_progress",
           startedAt: 1,
           completedAt: null,
-          skippedAt: null
+          skippedAt: null,
         },
         {
-          id: 'provider-api-key',
+          id: "provider-api-key",
           required: false,
-          status: 'pending',
+          status: "pending",
           startedAt: null,
           completedAt: null,
-          skippedAt: null
+          skippedAt: null,
         },
         {
-          id: 'provider-model',
+          id: "provider-model",
           required: false,
-          status: 'pending',
+          status: "pending",
           startedAt: null,
           completedAt: null,
-          skippedAt: null
+          skippedAt: null,
         },
         {
-          id: 'mcp',
+          id: "mcp",
           required: false,
-          status: 'pending',
+          status: "pending",
           startedAt: null,
           completedAt: null,
-          skippedAt: null
+          skippedAt: null,
         },
         {
-          id: 'skills',
+          id: "skills",
           required: false,
-          status: 'pending',
+          status: "pending",
           startedAt: null,
           completedAt: null,
-          skippedAt: null
+          skippedAt: null,
         },
         {
-          id: 'switch-agent',
+          id: "switch-agent",
           required: true,
-          status: 'pending',
+          status: "pending",
           startedAt: null,
           completedAt: null,
-          skippedAt: null
+          skippedAt: null,
         },
         {
-          id: 'switch-model',
+          id: "switch-model",
           required: true,
-          status: 'pending',
+          status: "pending",
           startedAt: null,
           completedAt: null,
-          skippedAt: null
+          skippedAt: null,
         },
         {
-          id: 'first-chat',
+          id: "first-chat",
           required: true,
-          status: 'pending',
+          status: "pending",
           startedAt: null,
           completedAt: null,
-          skippedAt: null
-        }
-      ]
-    })
+          skippedAt: null,
+        },
+      ],
+    });
 
     const focusHandler = ipcOn.mock.calls.find(
-      ([eventName]: [string]) => eventName === APP_RUNTIME_EVENTS.WINDOW_FOCUSED
-    )?.[1]
+      ([eventName]: [string]) =>
+        eventName === APP_RUNTIME_EVENTS.WINDOW_FOCUSED,
+    )?.[1];
 
-    expect(focusHandler).toBeTypeOf('function')
+    expect(focusHandler).toBeTypeOf("function");
 
-    await focusHandler?.({})
-    await flushPromises()
+    await focusHandler?.({});
+    await flushPromises();
 
-    expect(route.name).toBe('welcome')
-    expect(window.sessionStorage.getItem(GUIDED_ONBOARDING_RESUME_STORAGE_KEY)).toBeNull()
-  })
+    expect(route.name).toBe("welcome");
+    expect(
+      window.sessionStorage.getItem(GUIDED_ONBOARDING_RESUME_STORAGE_KEY),
+    ).toBeNull();
+  });
 
-  it('returns to chat when a completed onboarding step resumes the chat phase', async () => {
+  it("returns to chat when a completed onboarding step resumes the chat phase", async () => {
     window.sessionStorage.setItem(
       GUIDED_ONBOARDING_RESUME_STORAGE_KEY,
       JSON.stringify({
-        stepId: 'first-chat',
-        trigger: 'step-completed',
-        createdAt: Date.now()
-      })
-    )
+        stepId: "first-chat",
+        trigger: "step-completed",
+        createdAt: Date.now(),
+      }),
+    );
 
     const { onboardingClient, route } = await mountApp({
       initComplete: true,
-      routeName: 'chat',
-      onboardingStatus: 'idle'
-    })
+      routeName: "chat",
+      onboardingStatus: "idle",
+    });
 
     onboardingClient.getState.mockResolvedValue({
       version: 1,
-      status: 'active',
+      status: "active",
       startedAt: 1,
       completedAt: null,
       lastActiveAt: 2,
-      currentStepId: 'switch-model',
+      currentStepId: "switch-model",
       steps: [
         {
-          id: 'provider',
+          id: "provider",
           required: true,
-          status: 'completed',
+          status: "completed",
           startedAt: 1,
           completedAt: 2,
-          skippedAt: null
+          skippedAt: null,
         },
         {
-          id: 'first-chat',
+          id: "first-chat",
           required: true,
-          status: 'completed',
+          status: "completed",
           startedAt: 2,
           completedAt: 3,
-          skippedAt: null
+          skippedAt: null,
         },
         {
-          id: 'switch-model',
+          id: "switch-model",
           required: true,
-          status: 'in_progress',
+          status: "in_progress",
           startedAt: 3,
           completedAt: null,
-          skippedAt: null
+          skippedAt: null,
         },
         {
-          id: 'mcp',
+          id: "mcp",
           required: false,
-          status: 'pending',
+          status: "pending",
           startedAt: null,
           completedAt: null,
-          skippedAt: null
+          skippedAt: null,
         },
         {
-          id: 'skills',
+          id: "skills",
           required: false,
-          status: 'pending',
+          status: "pending",
           startedAt: null,
           completedAt: null,
-          skippedAt: null
+          skippedAt: null,
         },
         {
-          id: 'plugins',
+          id: "plugins",
           required: false,
-          status: 'pending',
+          status: "pending",
           startedAt: null,
           completedAt: null,
-          skippedAt: null
-        }
-      ]
-    })
+          skippedAt: null,
+        },
+      ],
+    });
 
     window.dispatchEvent(
       new CustomEvent(GUIDED_ONBOARDING_RESUME_REQUESTED_EVENT, {
-        detail: { trigger: 'step-completed' }
-      })
-    )
-    await flushPromises()
+        detail: { trigger: "step-completed" },
+      }),
+    );
+    await flushPromises();
 
-    expect(route.name).toBe('chat')
-    expect(window.sessionStorage.getItem(GUIDED_ONBOARDING_RESUME_STORAGE_KEY)).toBeNull()
-  })
+    expect(route.name).toBe("chat");
+    expect(
+      window.sessionStorage.getItem(GUIDED_ONBOARDING_RESUME_STORAGE_KEY),
+    ).toBeNull();
+  });
 
-  it('stores start deeplink payload and routes to a new deepchat thread', async () => {
-    const { draftStore, pageRouterStore, agentStore, sessionStore, ipcOn } = await mountApp({
-      initComplete: true,
-      routeName: 'chat',
-      hasActiveSession: true
-    })
+  it("stores start deeplink payload and routes to a new deepchat thread", async () => {
+    const { draftStore, pageRouterStore, agentStore, sessionStore, ipcOn } =
+      await mountApp({
+        initComplete: true,
+        routeName: "chat",
+        hasActiveSession: true,
+      });
 
     const startHandler = ipcOn.mock.calls.find(
-      ([eventName]: [string]) => eventName === DEEPLINK_EVENTS.START
-    )?.[1]
+      ([eventName]: [string]) => eventName === DEEPLINK_EVENTS.START,
+    )?.[1];
 
-    expect(startHandler).toBeTypeOf('function')
+    expect(startHandler).toBeTypeOf("function");
 
     await startHandler?.(
       {},
       {
-        msg: '你好，DeepChat',
-        modelId: 'deepseek-chat',
-        systemPrompt: 'Be concise',
-        mentions: ['README.md'],
-        autoSend: false
-      }
-    )
-    await flushPromises()
+        msg: "你好，JiaorongAI",
+        modelId: "deepseek-chat",
+        systemPrompt: "Be concise",
+        mentions: ["README.md"],
+        autoSend: false,
+      },
+    );
+    await flushPromises();
 
     expect(draftStore.setPendingStartDeeplink).toHaveBeenCalledWith({
-      msg: '你好，DeepChat',
-      modelId: 'deepseek-chat',
-      systemPrompt: 'Be concise',
-      mentions: ['README.md'],
-      autoSend: false
-    })
-    expect(agentStore.setSelectedAgent).toHaveBeenCalledWith('deepchat')
-    expect(sessionStore.closeSession).toHaveBeenCalledTimes(1)
-    expect(pageRouterStore.goToNewThread).not.toHaveBeenCalled()
-  })
+      msg: "你好，JiaorongAI",
+      modelId: "deepseek-chat",
+      systemPrompt: "Be concise",
+      mentions: ["README.md"],
+      autoSend: false,
+    });
+    expect(agentStore.setSelectedAgent).toHaveBeenCalledWith("deepchat");
+    expect(sessionStore.closeSession).toHaveBeenCalledTimes(1);
+    expect(pageRouterStore.goToNewThread).not.toHaveBeenCalled();
+  });
 
-  it('opens spotlight from the global shortcut event', async () => {
+  it("opens spotlight from the global shortcut event", async () => {
     const { ipcOn, spotlightStore } = await mountApp({
       initComplete: true,
-      routeName: 'chat'
-    })
+      routeName: "chat",
+    });
 
     const shortcutHandler = ipcOn.mock.calls.find(
-      ([eventName]: [string]) => eventName === SHORTCUT_EVENTS.TOGGLE_SPOTLIGHT
-    )?.[1]
+      ([eventName]: [string]) => eventName === SHORTCUT_EVENTS.TOGGLE_SPOTLIGHT,
+    )?.[1];
 
-    expect(shortcutHandler).toBeTypeOf('function')
+    expect(shortcutHandler).toBeTypeOf("function");
 
-    shortcutHandler?.()
+    shortcutHandler?.();
 
-    expect(spotlightStore.openSpotlight).toHaveBeenCalledTimes(1)
-    expect(spotlightStore.toggleSpotlight).not.toHaveBeenCalled()
-  })
+    expect(spotlightStore.openSpotlight).toHaveBeenCalledTimes(1);
+    expect(spotlightStore.toggleSpotlight).not.toHaveBeenCalled();
+  });
 
-  it('toggles the sidebar from the global shortcut event', async () => {
+  it("toggles the sidebar from the global shortcut event", async () => {
     const { ipcOn, sidebarStore } = await mountApp({
       initComplete: true,
-      routeName: 'chat'
-    })
+      routeName: "chat",
+    });
 
     const shortcutHandler = ipcOn.mock.calls.find(
-      ([eventName]: [string]) => eventName === SHORTCUT_EVENTS.TOGGLE_SIDEBAR
-    )?.[1]
+      ([eventName]: [string]) => eventName === SHORTCUT_EVENTS.TOGGLE_SIDEBAR,
+    )?.[1];
 
-    expect(shortcutHandler).toBeTypeOf('function')
+    expect(shortcutHandler).toBeTypeOf("function");
 
-    shortcutHandler?.()
+    shortcutHandler?.();
 
-    expect(sidebarStore.toggleSidebar).toHaveBeenCalledTimes(1)
-  })
+    expect(sidebarStore.toggleSidebar).toHaveBeenCalledTimes(1);
+  });
 
-  it('delegates the create-new-conversation shortcut to the unified session action', async () => {
+  it("delegates the create-new-conversation shortcut to the unified session action", async () => {
     const { ipcOn, sessionStore } = await mountApp({
       initComplete: true,
-      routeName: 'chat'
-    })
+      routeName: "chat",
+    });
 
     const shortcutHandler = ipcOn.mock.calls.find(
-      ([eventName]: [string]) => eventName === SHORTCUT_EVENTS.CREATE_NEW_CONVERSATION
-    )?.[1]
+      ([eventName]: [string]) =>
+        eventName === SHORTCUT_EVENTS.CREATE_NEW_CONVERSATION,
+    )?.[1];
 
-    expect(shortcutHandler).toBeTypeOf('function')
+    expect(shortcutHandler).toBeTypeOf("function");
 
-    await shortcutHandler?.()
+    await shortcutHandler?.();
 
-    expect(sessionStore.startNewConversation).toHaveBeenCalledWith({ refresh: true })
-  })
+    expect(sessionStore.startNewConversation).toHaveBeenCalledWith({
+      refresh: true,
+    });
+  });
 
-  it('toggles the workspace panel from the global shortcut event when a chat session is active', async () => {
+  it("toggles the workspace panel from the global shortcut event when a chat session is active", async () => {
     const { ipcOn, sidepanelStore } = await mountApp({
       initComplete: true,
-      routeName: 'chat',
-      pageRouteName: 'chat',
-      chatSessionId: 'session-42'
-    })
+      routeName: "chat",
+      pageRouteName: "chat",
+      chatSessionId: "session-42",
+    });
 
     const shortcutHandler = ipcOn.mock.calls.find(
-      ([eventName]: [string]) => eventName === SHORTCUT_EVENTS.TOGGLE_WORKSPACE
-    )?.[1]
+      ([eventName]: [string]) => eventName === SHORTCUT_EVENTS.TOGGLE_WORKSPACE,
+    )?.[1];
 
-    expect(shortcutHandler).toBeTypeOf('function')
+    expect(shortcutHandler).toBeTypeOf("function");
 
-    shortcutHandler?.()
+    shortcutHandler?.();
 
-    expect(sidepanelStore.toggleWorkspace).toHaveBeenCalledWith('session-42')
-  })
+    expect(sidepanelStore.toggleWorkspace).toHaveBeenCalledWith("session-42");
+  });
 
-  it('ignores the workspace shortcut when no chat session is active', async () => {
+  it("ignores the workspace shortcut when no chat session is active", async () => {
     const { ipcOn, sidepanelStore } = await mountApp({
       initComplete: true,
-      routeName: 'chat',
-      pageRouteName: 'newThread',
-      chatSessionId: null
-    })
+      routeName: "chat",
+      pageRouteName: "newThread",
+      chatSessionId: null,
+    });
 
     const shortcutHandler = ipcOn.mock.calls.find(
-      ([eventName]: [string]) => eventName === SHORTCUT_EVENTS.TOGGLE_WORKSPACE
-    )?.[1]
+      ([eventName]: [string]) => eventName === SHORTCUT_EVENTS.TOGGLE_WORKSPACE,
+    )?.[1];
 
-    expect(shortcutHandler).toBeTypeOf('function')
+    expect(shortcutHandler).toBeTypeOf("function");
 
-    shortcutHandler?.()
+    shortcutHandler?.();
 
-    expect(sidepanelStore.toggleWorkspace).not.toHaveBeenCalled()
-  })
-})
+    expect(sidepanelStore.toggleWorkspace).not.toHaveBeenCalled();
+  });
+});

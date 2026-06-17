@@ -28,7 +28,7 @@ Target state:
   - Toggle Workspace
   - Clean Chat History
   - Delete Conversation
-- Focused-window commands use any focused DeepChat window:
+- Focused-window commands use any focused JiaorongAI window:
   - New Conversation
   - Close Window
 - App commands can work without a focused chat window:

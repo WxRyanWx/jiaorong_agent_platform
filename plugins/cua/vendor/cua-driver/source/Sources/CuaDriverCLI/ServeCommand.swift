@@ -31,9 +31,9 @@ struct ServeCommand: ParsableCommand {
             symlink from a shell that itself lacks Accessibility + Screen Recording
             grants (any IDE terminal — Claude Code, Cursor, VS Code, Conductor),
             macOS attributes the serve process to the parent shell/IDE, not to
-            DeepChat Computer Use.app. AX probes no-op silently and the daemon never becomes
+            JiaorongAI Computer Use.app. AX probes no-op silently and the daemon never becomes
             useful. To sidestep, `serve` detects that context and re-execs itself
-            via `open -n -g -a "DeepChat Computer Use" --args serve`, which relaunches under
+            via `open -n -g -a "JiaorongAI Computer Use" --args serve`, which relaunches under
             LaunchServices so TCC attributes the process to com.wefonk.deepchat.computeruse.
             Pass `--no-relaunch` (or set `CUA_DRIVER_NO_RELAUNCH=1`) to opt out
             and stay in the current process — useful when you know the caller
@@ -49,9 +49,9 @@ struct ServeCommand: ParsableCommand {
         name: .long,
         help: """
             Stay in the current process instead of re-execing via \
-            `open -n -g -a "DeepChat Computer Use"`. \
+            `open -n -g -a "JiaorongAI Computer Use"`. \
             Use when the calling context already has the right TCC responsibility \
-            (running inside DeepChat Computer Use.app directly, or from a shell that's been \
+            (running inside JiaorongAI Computer Use.app directly, or from a shell that's been \
             granted Accessibility + Screen Recording itself). Also toggleable via \
             CUA_DRIVER_NO_RELAUNCH=1.
             """
@@ -105,7 +105,7 @@ struct ServeCommand: ParsableCommand {
 
         AppKitBootstrap.runBlockingAppKitWith {
             // Keep daemon startup non-blocking. Tools surface permission errors at use time,
-            // while DeepChat settings owns the guided TCC setup flow.
+            // while JiaorongAI settings owns the guided TCC setup flow.
             // Advisory flock on a dedicated lock file — only applied
             // for the default socket path (passing `--socket` is an
             // explicit opt-in to running a second daemon elsewhere,
@@ -147,7 +147,7 @@ struct ServeCommand: ParsableCommand {
 
 extension ServeCommand {
     /// Decide whether the current `serve` invocation should re-exec itself
-    /// via `/usr/bin/open -n -g -a "DeepChat Computer Use" --args serve`. True when all of
+    /// via `/usr/bin/open -n -g -a "JiaorongAI Computer Use" --args serve`. True when all of
     /// the following hold:
     ///
     ///   - `--no-relaunch` is NOT set and `CUA_DRIVER_NO_RELAUNCH` is not
@@ -157,11 +157,11 @@ extension ServeCommand {
     ///     `~/.local/bin/cua-driver` symlink from a shell — rather
     ///     than as the main executable of a loaded `.app` bundle. The
     ///     `open -n -g -a` path always lands in the second form
-    ///     (bundlePath ends in `/DeepChat Computer Use.app`), so checking for its
+    ///     (bundlePath ends in `/JiaorongAI Computer Use.app`), so checking for its
     ///     absence distinguishes "shell-spawned via symlink" from
     ///     "already relaunched by LaunchServices" without a loop risk.
     ///   - The symlink / argv path resolves (via `realpath`) to a file
-    ///     living inside some `DeepChat Computer Use.app/Contents/MacOS/`. This
+    ///     living inside some `JiaorongAI Computer Use.app/Contents/MacOS/`. This
     ///     rules out raw `swift run cua-driver serve` dev invocations,
     ///     where the resolved binary lives under `.build/<config>/` —
     ///     no `.app` to relaunch into.
@@ -177,7 +177,7 @@ extension ServeCommand {
     /// checks are evaluated against the IDE's bundle id — not
     /// com.wefonk.deepchat.computeruse — and the daemon's AppKitBootstrap silently
     /// no-ops. Bouncing through `open` relaunches under LaunchServices so
-    /// TCC attributes the fresh process to DeepChat Computer Use.app.
+    /// TCC attributes the fresh process to JiaorongAI Computer Use.app.
     fileprivate func shouldRelaunchViaOpen() -> Bool {
         if noRelaunch { return false }
         if isEnvTruthy(ProcessInfo.processInfo.environment["CUA_DRIVER_NO_RELAUNCH"]) {
@@ -186,11 +186,11 @@ extension ServeCommand {
         // When Bundle.main.bundlePath ends in `.app` we're already the
         // main executable of a loaded bundle — either LaunchServices
         // launched us (good, no relaunch needed) or the user invoked
-        // `/Applications/DeepChat Computer Use.app/Contents/MacOS/cua-driver`
+        // `/Applications/JiaorongAI Computer Use.app/Contents/MacOS/cua-driver`
         // directly (the symlink-less path, also fine to leave alone).
         if Bundle.main.bundlePath.hasSuffix(".app") { return false }
         // Otherwise: we're running from some bare path. Only relaunch
-        // if that bare path actually resolves into a DeepChat Computer Use.app
+        // if that bare path actually resolves into a JiaorongAI Computer Use.app
         // bundle on disk — the symlink case. Raw `swift run` dev
         // invocations resolve into `.build/<config>/cua-driver`
         // instead, and have no bundle to relaunch into.
@@ -202,7 +202,7 @@ extension ServeCommand {
         return true
     }
 
-    /// Spawn `/usr/bin/open -n -g -a "DeepChat Computer Use" --args serve [--socket …]`,
+    /// Spawn `/usr/bin/open -n -g -a "JiaorongAI Computer Use" --args serve [--socket …]`,
     /// then wait (up to 5s) for the canonical daemon socket to accept a
     /// protocol-speaking probe. The `open` CLI returns immediately once
     /// LaunchServices accepts the request, which is well before the
@@ -215,7 +215,7 @@ extension ServeCommand {
     fileprivate func relaunchViaOpen(socketPath: String) throws {
         FileHandle.standardError.write(
             Data(
-                "cua-driver: relaunching via `open -n -g -a \"DeepChat Computer Use\" --args serve` for correct TCC context. Pass --no-relaunch to stay in this process.\n"
+                "cua-driver: relaunching via `open -n -g -a \"JiaorongAI Computer Use\" --args serve` for correct TCC context. Pass --no-relaunch to stay in this process.\n"
                     .utf8))
 
         // If --socket was ever passed through to `serve`, forward it to
@@ -235,10 +235,10 @@ extension ServeCommand {
         //     `cua-driver mcp` started by an MCP client) would re-use
         //     that instance and drop our `--args serve`, leaving us
         //     with "launched something but no serve daemon appeared".
-        // -g: keep the new instance in the background. DeepChat Computer Use.app is
+        // -g: keep the new instance in the background. JiaorongAI Computer Use.app is
         //     LSUIElement=true so it wouldn't take focus anyway, but this
         //     makes that explicit.
-        process.arguments = ["-n", "-g", "-a", "DeepChat Computer Use", "--args", "serve"] + extraArgs
+        process.arguments = ["-n", "-g", "-a", "JiaorongAI Computer Use", "--args", "serve"] + extraArgs
         // Discard `open`'s own stdout/stderr — on success it's silent,
         // on failure the exit code is what we care about.
         process.standardOutput = FileHandle.nullDevice
@@ -257,7 +257,7 @@ extension ServeCommand {
         if process.terminationStatus != 0 {
             FileHandle.standardError.write(
                 Data(
-                    "cua-driver: `open -n -g -a \"DeepChat Computer Use\" --args serve` exited \(process.terminationStatus). Check that `/Applications/DeepChat Computer Use.app` is installed, or pass --no-relaunch to bypass.\n"
+                    "cua-driver: `open -n -g -a \"JiaorongAI Computer Use\" --args serve` exited \(process.terminationStatus). Check that `/Applications/JiaorongAI Computer Use.app` is installed, or pass --no-relaunch to bypass.\n"
                         .utf8))
             throw ExitCode(1)
         }
@@ -278,14 +278,14 @@ extension ServeCommand {
         if probeReachable {
             FileHandle.standardOutput.write(
                 Data(
-                    "cua-driver daemon is running (relaunched via DeepChat Computer Use.app)\n  socket: \(socketPath)\n"
+                    "cua-driver daemon is running (relaunched via JiaorongAI Computer Use.app)\n  socket: \(socketPath)\n"
                         .utf8))
             return
         }
 
         FileHandle.standardError.write(
             Data(
-                "cua-driver: relaunched DeepChat Computer Use.app but no daemon appeared on \(socketPath) within 5s. Check Accessibility + Screen Recording grants for DeepChat Computer Use.app, or re-run with --no-relaunch to see in-process errors.\n"
+                "cua-driver: relaunched JiaorongAI Computer Use.app but no daemon appeared on \(socketPath) within 5s. Check Accessibility + Screen Recording grants for JiaorongAI Computer Use.app, or re-run with --no-relaunch to see in-process errors.\n"
                     .utf8))
         throw ExitCode(1)
     }

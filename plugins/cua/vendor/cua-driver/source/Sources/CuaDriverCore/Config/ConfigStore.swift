@@ -2,7 +2,7 @@ import Foundation
 import os
 
 /// Owns the on-disk JSON config file at
-/// `~/Library/Application Support/<CFBundleName ?? "DeepChat Computer Use">/config.json`.
+/// `~/Library/Application Support/<CFBundleName ?? "JiaorongAI Computer Use">/config.json`.
 ///
 /// Actor-isolated so concurrent `mutate` calls serialize through a single
 /// load-modify-save cycle. Reads are tolerant: missing file, unreadable
@@ -60,9 +60,9 @@ public actor ConfigStore {
     }
 
     /// Resolve the Application Support subdirectory name. Prefers
-    /// `CFBundleName` from the running bundle (so `DeepChat Computer Use.app` with
-    /// `CFBundleName=DeepChat Computer Use` writes under `DeepChat Computer Use/`). Falls back
-    /// to the string literal `"DeepChat Computer Use"` when running from the raw
+    /// `CFBundleName` from the running bundle (so `JiaorongAI Computer Use.app` with
+    /// `CFBundleName=JiaorongAI Computer Use` writes under `JiaorongAI Computer Use/`). Falls back
+    /// to the string literal `"JiaorongAI Computer Use"` when running from the raw
     /// `.build/debug/cua-driver` executable with no bundle.
     private static func appDirectoryName() -> String {
         if let name = Bundle.main.object(forInfoDictionaryKey: "CFBundleName")
@@ -71,7 +71,7 @@ public actor ConfigStore {
         {
             return name
         }
-        return "DeepChat Computer Use"
+        return "JiaorongAI Computer Use"
     }
 
     /// Load the config from disk. Returns `CuaDriverConfig.default`

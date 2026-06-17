@@ -1,377 +1,382 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { defineComponent } from 'vue'
-import { flushPromises, mount } from '@vue/test-utils'
-import { DEV_EVENTS } from '@/events'
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { defineComponent } from "vue";
+import { flushPromises, mount } from "@vue/test-utils";
+import { DEV_EVENTS } from "@/events";
 
 const buttonStub = defineComponent({
-  name: 'Button',
-  emits: ['click'],
-  template: '<button @click="$emit(\'click\')"><slot /></button>'
-})
+  name: "Button",
+  emits: ["click"],
+  template: "<button @click=\"$emit('click')\"><slot /></button>",
+});
 
 const passthroughStub = (name: string) =>
   defineComponent({
     name,
-    template: '<div><slot /></div>'
-  })
+    template: "<div><slot /></div>",
+  });
 
 const route = {
-  name: 'settings-about'
-}
+  name: "settings-about",
+};
 
 const presenterMocks = {
   devicePresenter: {
-    getAppVersion: vi.fn().mockResolvedValue('1.0.0-beta.3')
+    getAppVersion: vi.fn().mockResolvedValue("1.0.0-beta.3"),
   },
   configPresenter: {
-    getUpdateChannel: vi.fn().mockResolvedValue('stable'),
-    setUpdateChannel: vi.fn().mockResolvedValue(undefined)
+    getUpdateChannel: vi.fn().mockResolvedValue("stable"),
+    setUpdateChannel: vi.fn().mockResolvedValue(undefined),
   },
   windowPresenter: {
     sendToAllWindows: vi.fn().mockResolvedValue(undefined),
-    focusMainWindow: vi.fn().mockResolvedValue(true)
-  }
-}
+    focusMainWindow: vi.fn().mockResolvedValue(true),
+  },
+};
 
 const upgradeStoreMock = {
   shouldShowUpdateNotes: true,
   updateInfo: {
-    version: '1.0.0-beta.4',
-    releaseNotes: '- Added floating window'
+    version: "1.0.0-beta.4",
+    releaseNotes: "- Added floating window",
   },
   showManualDownloadOptions: true,
-  updateError: 'network failed',
+  updateError: "network failed",
   isChecking: false,
   isDownloading: false,
   isRestarting: false,
   updateProgress: null,
   isReadyToInstall: false,
   isMockUpdate: false,
-  updateState: 'error',
-  refreshStatus: vi.fn().mockResolvedValue('error'),
-  checkUpdate: vi.fn().mockResolvedValue('error'),
-  mockDownloadedUpdate: vi.fn().mockResolvedValue('downloaded'),
-  clearMockUpdate: vi.fn().mockResolvedValue('not-available'),
-  handleUpdate: vi.fn().mockResolvedValue(undefined)
-}
+  updateState: "error",
+  refreshStatus: vi.fn().mockResolvedValue("error"),
+  checkUpdate: vi.fn().mockResolvedValue("error"),
+  mockDownloadedUpdate: vi.fn().mockResolvedValue("downloaded"),
+  clearMockUpdate: vi.fn().mockResolvedValue("not-available"),
+  handleUpdate: vi.fn().mockResolvedValue(undefined),
+};
 
-vi.mock('@api/legacy/presenters', () => ({
-  useLegacyPresenter: (name: keyof typeof presenterMocks) => presenterMocks[name]
-}))
+vi.mock("@api/legacy/presenters", () => ({
+  useLegacyPresenter: (name: keyof typeof presenterMocks) =>
+    presenterMocks[name],
+}));
 
-vi.mock('@/stores/upgrade', () => ({
-  useUpgradeStore: () => upgradeStoreMock
-}))
+vi.mock("@/stores/upgrade", () => ({
+  useUpgradeStore: () => upgradeStoreMock,
+}));
 
-vi.mock('@/stores/language', () => ({
+vi.mock("@/stores/language", () => ({
   useLanguageStore: () => ({
-    dir: 'ltr'
-  })
-}))
+    dir: "ltr",
+  }),
+}));
 
-vi.mock('@/stores/theme', () => ({
+vi.mock("@/stores/theme", () => ({
   useThemeStore: () => ({
-    isDark: true
-  })
-}))
+    isDark: true,
+  }),
+}));
 
-vi.mock('@/components/use-toast', () => ({
+vi.mock("@/components/use-toast", () => ({
   useToast: () => ({
-    toast: vi.fn()
-  })
-}))
+    toast: vi.fn(),
+  }),
+}));
 
-vi.mock('vue-i18n', () => ({
+vi.mock("vue-i18n", () => ({
   useI18n: () => ({
     t: (key: string, params?: { version?: string }) => {
       const messages: Record<string, string> = {
-        'about.title': 'DeepChat',
-        'about.description': 'DeepChat description',
-        'about.website': '访问我们的网站',
-        'about.updateChannel': '更新渠道',
-        'about.stableChannel': '稳定版',
-        'about.betaChannel': '内测版',
-        'about.feedbackButton': '意见反馈',
-        'about.disclaimerButton': '免责声明',
-        'about.checkUpdateButton': '检查更新',
-        'about.disclaimerTitle': '免责声明',
-        'about.mockUpdateButton': '模拟已下载更新',
-        'about.clearMockUpdateButton': '清除模拟更新',
-        'about.mockOnboardingButton': '模拟首次进入引导',
-        'update.versionAvailable': `${params?.version ?? ''} 可用`,
-        'update.autoUpdateFailed': '自动更新可能不稳定，请手动下载更新',
-        'update.githubDownload': 'GitHub 下载',
-        'update.officialDownload': '官网下载',
-        'update.installNow': '立即安装',
-        'update.installUpdate': '安装更新',
-        'update.downloading': '下载中',
-        'settings.about.checking': '检查中',
-        'common.close': '关闭',
-        searchDisclaimer: 'disclaimer'
-      }
+        "about.title": "JiaorongAI",
+        "about.description": "JiaorongAI description",
+        "about.website": "访问我们的网站",
+        "about.updateChannel": "更新渠道",
+        "about.stableChannel": "稳定版",
+        "about.betaChannel": "内测版",
+        "about.feedbackButton": "意见反馈",
+        "about.disclaimerButton": "免责声明",
+        "about.checkUpdateButton": "检查更新",
+        "about.disclaimerTitle": "免责声明",
+        "about.mockUpdateButton": "模拟已下载更新",
+        "about.clearMockUpdateButton": "清除模拟更新",
+        "about.mockOnboardingButton": "模拟首次进入引导",
+        "update.versionAvailable": `${params?.version ?? ""} 可用`,
+        "update.autoUpdateFailed": "自动更新可能不稳定，请手动下载更新",
+        "update.githubDownload": "GitHub 下载",
+        "update.officialDownload": "官网下载",
+        "update.installNow": "立即安装",
+        "update.installUpdate": "安装更新",
+        "update.downloading": "下载中",
+        "settings.about.checking": "检查中",
+        "common.close": "关闭",
+        searchDisclaimer: "disclaimer",
+      };
 
-      return messages[key] ?? key
-    }
-  })
-}))
+      return messages[key] ?? key;
+    },
+  }),
+}));
 
-vi.mock('vue-router', () => ({
-  useRoute: () => route
-}))
+vi.mock("vue-router", () => ({
+  useRoute: () => route,
+}));
 
-describe('AboutUsSettings', () => {
+describe("AboutUsSettings", () => {
   beforeEach(() => {
-    vi.clearAllMocks()
+    vi.clearAllMocks();
     Object.assign(upgradeStoreMock, {
       shouldShowUpdateNotes: true,
       updateInfo: {
-        version: '1.0.0-beta.4',
-        releaseNotes: '- Added floating window'
+        version: "1.0.0-beta.4",
+        releaseNotes: "- Added floating window",
       },
       showManualDownloadOptions: true,
-      updateError: 'network failed',
+      updateError: "network failed",
       isChecking: false,
       isDownloading: false,
       isRestarting: false,
       updateProgress: null,
       isReadyToInstall: false,
       isMockUpdate: false,
-      updateState: 'error'
-    })
+      updateState: "error",
+    });
     Object.assign(window, {
       electron: {
         ipcRenderer: {
           on: vi.fn(),
-          removeListener: vi.fn()
-        }
+          removeListener: vi.fn(),
+        },
       },
       api: {
-        openExternal: vi.fn()
-      }
-    })
-  })
+        openExternal: vi.fn(),
+      },
+    });
+  });
 
-  it('renders fallback download actions in the bottom action row', async () => {
+  it("renders fallback download actions in the bottom action row", async () => {
     const { default: AboutUsSettings } =
-      await import('../../../src/renderer/settings/components/AboutUsSettings.vue')
+      await import("../../../src/renderer/settings/components/AboutUsSettings.vue");
 
     const wrapper = mount(AboutUsSettings, {
       global: {
         stubs: {
           Button: buttonStub,
           Icon: true,
-          Dialog: passthroughStub('Dialog'),
-          DialogContent: passthroughStub('DialogContent'),
-          DialogDescription: passthroughStub('DialogDescription'),
-          DialogFooter: passthroughStub('DialogFooter'),
-          DialogHeader: passthroughStub('DialogHeader'),
-          DialogTitle: passthroughStub('DialogTitle'),
-          Select: passthroughStub('Select'),
-          SelectContent: passthroughStub('SelectContent'),
-          SelectItem: passthroughStub('SelectItem'),
-          SelectTrigger: passthroughStub('SelectTrigger'),
-          SelectValue: passthroughStub('SelectValue'),
-          NodeRenderer: passthroughStub('NodeRenderer')
-        }
-      }
-    })
+          Dialog: passthroughStub("Dialog"),
+          DialogContent: passthroughStub("DialogContent"),
+          DialogDescription: passthroughStub("DialogDescription"),
+          DialogFooter: passthroughStub("DialogFooter"),
+          DialogHeader: passthroughStub("DialogHeader"),
+          DialogTitle: passthroughStub("DialogTitle"),
+          Select: passthroughStub("Select"),
+          SelectContent: passthroughStub("SelectContent"),
+          SelectItem: passthroughStub("SelectItem"),
+          SelectTrigger: passthroughStub("SelectTrigger"),
+          SelectValue: passthroughStub("SelectValue"),
+          NodeRenderer: passthroughStub("NodeRenderer"),
+        },
+      },
+    });
 
-    await flushPromises()
+    await flushPromises();
 
-    const buttons = wrapper.findAll('button').map((button) => button.text())
+    const buttons = wrapper.findAll("button").map((button) => button.text());
     expect(buttons).toEqual([
-      '意见反馈',
-      '免责声明',
-      '模拟已下载更新',
-      '模拟首次进入引导',
-      'GitHub 下载',
-      '官网下载',
-      '关闭'
-    ])
-    expect(wrapper.text()).not.toContain('检查更新')
+      "意见反馈",
+      "免责声明",
+      "模拟已下载更新",
+      "模拟首次进入引导",
+      "GitHub 下载",
+      "官网下载",
+      "关闭",
+    ]);
+    expect(wrapper.text()).not.toContain("检查更新");
 
-    const officialButton = wrapper.findAll('button').find((button) => button.text() === '官网下载')
-    expect(officialButton).toBeTruthy()
+    const officialButton = wrapper
+      .findAll("button")
+      .find((button) => button.text() === "官网下载");
+    expect(officialButton).toBeTruthy();
 
-    await officialButton!.trigger('click')
+    await officialButton!.trigger("click");
 
-    expect(upgradeStoreMock.handleUpdate).toHaveBeenCalledWith('official')
-  })
+    expect(upgradeStoreMock.handleUpdate).toHaveBeenCalledWith("official");
+  });
 
-  it('subscribes to tray update checks before initial presenter calls resolve', async () => {
-    let resolveAppVersion: ((value: string) => void) | null = null
+  it("subscribes to tray update checks before initial presenter calls resolve", async () => {
+    let resolveAppVersion: ((value: string) => void) | null = null;
     presenterMocks.devicePresenter.getAppVersion.mockReturnValueOnce(
       new Promise<string>((resolve) => {
-        resolveAppVersion = resolve
-      })
-    )
+        resolveAppVersion = resolve;
+      }),
+    );
 
     const { default: AboutUsSettings } =
-      await import('../../../src/renderer/settings/components/AboutUsSettings.vue')
+      await import("../../../src/renderer/settings/components/AboutUsSettings.vue");
 
     const wrapper = mount(AboutUsSettings, {
       global: {
         stubs: {
           Button: buttonStub,
           Icon: true,
-          Dialog: passthroughStub('Dialog'),
-          DialogContent: passthroughStub('DialogContent'),
-          DialogDescription: passthroughStub('DialogDescription'),
-          DialogFooter: passthroughStub('DialogFooter'),
-          DialogHeader: passthroughStub('DialogHeader'),
-          DialogTitle: passthroughStub('DialogTitle'),
-          Select: passthroughStub('Select'),
-          SelectContent: passthroughStub('SelectContent'),
-          SelectItem: passthroughStub('SelectItem'),
-          SelectTrigger: passthroughStub('SelectTrigger'),
-          SelectValue: passthroughStub('SelectValue'),
-          NodeRenderer: passthroughStub('NodeRenderer')
-        }
-      }
-    })
+          Dialog: passthroughStub("Dialog"),
+          DialogContent: passthroughStub("DialogContent"),
+          DialogDescription: passthroughStub("DialogDescription"),
+          DialogFooter: passthroughStub("DialogFooter"),
+          DialogHeader: passthroughStub("DialogHeader"),
+          DialogTitle: passthroughStub("DialogTitle"),
+          Select: passthroughStub("Select"),
+          SelectContent: passthroughStub("SelectContent"),
+          SelectItem: passthroughStub("SelectItem"),
+          SelectTrigger: passthroughStub("SelectTrigger"),
+          SelectValue: passthroughStub("SelectValue"),
+          NodeRenderer: passthroughStub("NodeRenderer"),
+        },
+      },
+    });
 
     const registration = vi
       .mocked(window.electron.ipcRenderer.on)
-      .mock.calls.find(([event]) => event === 'settings:check-for-updates')
+      .mock.calls.find(([event]) => event === "settings:check-for-updates");
 
-    expect(registration).toBeTruthy()
+    expect(registration).toBeTruthy();
 
-    const handler = registration?.[1] as () => Promise<void>
-    await handler()
+    const handler = registration?.[1] as () => Promise<void>;
+    await handler();
 
-    expect(upgradeStoreMock.checkUpdate).toHaveBeenCalledWith(false)
+    expect(upgradeStoreMock.checkUpdate).toHaveBeenCalledWith(false);
 
-    resolveAppVersion?.('1.0.0-beta.3')
-    await flushPromises()
-    wrapper.unmount()
-  })
+    resolveAppVersion?.("1.0.0-beta.3");
+    await flushPromises();
+    wrapper.unmount();
+  });
 
-  it('does not trigger install flow for external check requests when update is ready to install', async () => {
-    upgradeStoreMock.showManualDownloadOptions = false
-    upgradeStoreMock.updateError = null
-    upgradeStoreMock.isReadyToInstall = true
-    upgradeStoreMock.updateState = 'ready_to_install'
+  it("does not trigger install flow for external check requests when update is ready to install", async () => {
+    upgradeStoreMock.showManualDownloadOptions = false;
+    upgradeStoreMock.updateError = null;
+    upgradeStoreMock.isReadyToInstall = true;
+    upgradeStoreMock.updateState = "ready_to_install";
 
     const { default: AboutUsSettings } =
-      await import('../../../src/renderer/settings/components/AboutUsSettings.vue')
+      await import("../../../src/renderer/settings/components/AboutUsSettings.vue");
 
     const wrapper = mount(AboutUsSettings, {
       global: {
         stubs: {
           Button: buttonStub,
           Icon: true,
-          Dialog: passthroughStub('Dialog'),
-          DialogContent: passthroughStub('DialogContent'),
-          DialogDescription: passthroughStub('DialogDescription'),
-          DialogFooter: passthroughStub('DialogFooter'),
-          DialogHeader: passthroughStub('DialogHeader'),
-          DialogTitle: passthroughStub('DialogTitle'),
-          Select: passthroughStub('Select'),
-          SelectContent: passthroughStub('SelectContent'),
-          SelectItem: passthroughStub('SelectItem'),
-          SelectTrigger: passthroughStub('SelectTrigger'),
-          SelectValue: passthroughStub('SelectValue'),
-          NodeRenderer: passthroughStub('NodeRenderer')
-        }
-      }
-    })
+          Dialog: passthroughStub("Dialog"),
+          DialogContent: passthroughStub("DialogContent"),
+          DialogDescription: passthroughStub("DialogDescription"),
+          DialogFooter: passthroughStub("DialogFooter"),
+          DialogHeader: passthroughStub("DialogHeader"),
+          DialogTitle: passthroughStub("DialogTitle"),
+          Select: passthroughStub("Select"),
+          SelectContent: passthroughStub("SelectContent"),
+          SelectItem: passthroughStub("SelectItem"),
+          SelectTrigger: passthroughStub("SelectTrigger"),
+          SelectValue: passthroughStub("SelectValue"),
+          NodeRenderer: passthroughStub("NodeRenderer"),
+        },
+      },
+    });
 
-    await flushPromises()
+    await flushPromises();
 
     const registration = vi
       .mocked(window.electron.ipcRenderer.on)
-      .mock.calls.find(([event]) => event === 'settings:check-for-updates')
+      .mock.calls.find(([event]) => event === "settings:check-for-updates");
 
-    expect(registration).toBeTruthy()
+    expect(registration).toBeTruthy();
 
-    const handler = registration?.[1] as () => Promise<void>
-    await handler()
+    const handler = registration?.[1] as () => Promise<void>;
+    await handler();
 
-    expect(upgradeStoreMock.handleUpdate).not.toHaveBeenCalled()
-    expect(upgradeStoreMock.checkUpdate).not.toHaveBeenCalled()
+    expect(upgradeStoreMock.handleUpdate).not.toHaveBeenCalled();
+    expect(upgradeStoreMock.checkUpdate).not.toHaveBeenCalled();
 
-    wrapper.unmount()
-  })
+    wrapper.unmount();
+  });
 
-  it('renders the mock update button and injects the mock downloaded state', async () => {
-    upgradeStoreMock.showManualDownloadOptions = false
-    upgradeStoreMock.updateError = null
-    upgradeStoreMock.updateState = 'idle'
+  it("renders the mock update button and injects the mock downloaded state", async () => {
+    upgradeStoreMock.showManualDownloadOptions = false;
+    upgradeStoreMock.updateError = null;
+    upgradeStoreMock.updateState = "idle";
 
     const { default: AboutUsSettings } =
-      await import('../../../src/renderer/settings/components/AboutUsSettings.vue')
+      await import("../../../src/renderer/settings/components/AboutUsSettings.vue");
 
     const wrapper = mount(AboutUsSettings, {
       global: {
         stubs: {
           Button: buttonStub,
           Icon: true,
-          Dialog: passthroughStub('Dialog'),
-          DialogContent: passthroughStub('DialogContent'),
-          DialogDescription: passthroughStub('DialogDescription'),
-          DialogFooter: passthroughStub('DialogFooter'),
-          DialogHeader: passthroughStub('DialogHeader'),
-          DialogTitle: passthroughStub('DialogTitle'),
-          Select: passthroughStub('Select'),
-          SelectContent: passthroughStub('SelectContent'),
-          SelectItem: passthroughStub('SelectItem'),
-          SelectTrigger: passthroughStub('SelectTrigger'),
-          SelectValue: passthroughStub('SelectValue'),
-          NodeRenderer: passthroughStub('NodeRenderer')
-        }
-      }
-    })
+          Dialog: passthroughStub("Dialog"),
+          DialogContent: passthroughStub("DialogContent"),
+          DialogDescription: passthroughStub("DialogDescription"),
+          DialogFooter: passthroughStub("DialogFooter"),
+          DialogHeader: passthroughStub("DialogHeader"),
+          DialogTitle: passthroughStub("DialogTitle"),
+          Select: passthroughStub("Select"),
+          SelectContent: passthroughStub("SelectContent"),
+          SelectItem: passthroughStub("SelectItem"),
+          SelectTrigger: passthroughStub("SelectTrigger"),
+          SelectValue: passthroughStub("SelectValue"),
+          NodeRenderer: passthroughStub("NodeRenderer"),
+        },
+      },
+    });
 
-    await flushPromises()
+    await flushPromises();
 
     const mockButton = wrapper
-      .findAll('button')
-      .find((button) => button.text() === '模拟已下载更新')
-    expect(mockButton).toBeTruthy()
+      .findAll("button")
+      .find((button) => button.text() === "模拟已下载更新");
+    expect(mockButton).toBeTruthy();
 
-    await mockButton!.trigger('click')
+    await mockButton!.trigger("click");
 
-    expect(upgradeStoreMock.mockDownloadedUpdate).toHaveBeenCalledTimes(1)
-  })
+    expect(upgradeStoreMock.mockDownloadedUpdate).toHaveBeenCalledTimes(1);
+  });
 
-  it('starts the dev onboarding guide from the about page', async () => {
+  it("starts the dev onboarding guide from the about page", async () => {
     const { default: AboutUsSettings } =
-      await import('../../../src/renderer/settings/components/AboutUsSettings.vue')
+      await import("../../../src/renderer/settings/components/AboutUsSettings.vue");
 
     const wrapper = mount(AboutUsSettings, {
       global: {
         stubs: {
           Button: buttonStub,
           Icon: true,
-          Dialog: passthroughStub('Dialog'),
-          DialogContent: passthroughStub('DialogContent'),
-          DialogDescription: passthroughStub('DialogDescription'),
-          DialogFooter: passthroughStub('DialogFooter'),
-          DialogHeader: passthroughStub('DialogHeader'),
-          DialogTitle: passthroughStub('DialogTitle'),
-          Select: passthroughStub('Select'),
-          SelectContent: passthroughStub('SelectContent'),
-          SelectItem: passthroughStub('SelectItem'),
-          SelectTrigger: passthroughStub('SelectTrigger'),
-          SelectValue: passthroughStub('SelectValue'),
-          NodeRenderer: passthroughStub('NodeRenderer')
-        }
-      }
-    })
+          Dialog: passthroughStub("Dialog"),
+          DialogContent: passthroughStub("DialogContent"),
+          DialogDescription: passthroughStub("DialogDescription"),
+          DialogFooter: passthroughStub("DialogFooter"),
+          DialogHeader: passthroughStub("DialogHeader"),
+          DialogTitle: passthroughStub("DialogTitle"),
+          Select: passthroughStub("Select"),
+          SelectContent: passthroughStub("SelectContent"),
+          SelectItem: passthroughStub("SelectItem"),
+          SelectTrigger: passthroughStub("SelectTrigger"),
+          SelectValue: passthroughStub("SelectValue"),
+          NodeRenderer: passthroughStub("NodeRenderer"),
+        },
+      },
+    });
 
-    await flushPromises()
+    await flushPromises();
 
     const onboardingButton = wrapper
-      .findAll('button')
-      .find((button) => button.text() === '模拟首次进入引导')
+      .findAll("button")
+      .find((button) => button.text() === "模拟首次进入引导");
 
-    expect(onboardingButton).toBeTruthy()
+    expect(onboardingButton).toBeTruthy();
 
-    await onboardingButton!.trigger('click')
+    await onboardingButton!.trigger("click");
 
-    expect(presenterMocks.windowPresenter.sendToAllWindows).toHaveBeenCalledWith(
-      DEV_EVENTS.START_GUIDED_ONBOARDING
-    )
-    expect(presenterMocks.windowPresenter.focusMainWindow).toHaveBeenCalledTimes(1)
-  })
-})
+    expect(
+      presenterMocks.windowPresenter.sendToAllWindows,
+    ).toHaveBeenCalledWith(DEV_EVENTS.START_GUIDED_ONBOARDING);
+    expect(
+      presenterMocks.windowPresenter.focusMainWindow,
+    ).toHaveBeenCalledTimes(1);
+  });
+});

@@ -178,11 +178,11 @@
     },
     "buildInFileSystem": {
       "name": "文件系统",
-      "desc": "让 DeepChat 能够操作本地文件"
+      "desc": "让 JiaorongAI 能够操作本地文件"
     },
     "Artifacts": {
       "name": "Artifacts",
-      "desc": "让你的 DeepChat 输出的多样化的 Artifacts 内容"
+      "desc": "让你的 JiaorongAI 输出的多样化的 Artifacts 内容"
     },
     "braveSearch": {
       "name": "Brave搜索",

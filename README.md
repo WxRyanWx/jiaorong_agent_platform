@@ -1,10 +1,10 @@
 <p align='center'>
-<img src='./build/icon.png' width="150" height="150" alt="DeepChat AI Assistant Icon" />
+<img src='./build/icon.png' width="150" height="150" alt="JiaorongAI AI Assistant Icon" />
 </p>
 
-<h1 align="center">DeepChat - Powerful Open-Source AI Agent Platform</h1>
+<h1 align="center">JiaorongAI - Powerful Open-Source AI Agent Platform</h1>
 
-<p align="center">DeepChat is a feature-rich open-source AI agent platform that unifies models, tools, and agents: multi-LLM chat, MCP tool calling, Skills, ACP agent integration, and remote control.</p>
+<p align="center">JiaorongAI is a feature-rich open-source AI agent platform that unifies models, tools, and agents: multi-LLM chat, MCP tool calling, Skills, ACP agent integration, and remote control.</p>
 
 <p align="center">
   <a href="https://github.com/ThinkInAIXYZ/deepchat/stargazers"><img src="https://img.shields.io/github/stars/ThinkInAIXYZ/deepchat" alt="Stars Badge"/></a>
@@ -28,7 +28,7 @@
 
 - [📑 Table of Contents](#-table-of-contents)
 - [🚀 Project Introduction](#-project-introduction)
-- [💡 Why Choose DeepChat](#-why-choose-deepchat)
+- [💡 Why Choose JiaorongAI](#-why-choose-deepchat)
 - [🔥 Main Features](#-main-features)
 - [🧠 Skills Support](#-skills-support)
 - [🧩 ACP Integration (Agent Client Protocol)](#-acp-integration-agent-client-protocol)
@@ -51,32 +51,32 @@
 
 ## 🚀 Project Introduction
 
-DeepChat is a powerful open-source AI agent platform that brings together models, tools, and agent runtimes in one desktop app. Whether you're using cloud APIs like OpenAI, Gemini, Anthropic, or locally deployed Ollama models, DeepChat delivers a smooth user experience.
+JiaorongAI is a powerful open-source AI agent platform that brings together models, tools, and agent runtimes in one desktop app. Whether you're using cloud APIs like OpenAI, Gemini, Anthropic, or locally deployed Ollama models, JiaorongAI delivers a smooth user experience.
 
-Beyond chat, DeepChat supports agentic workflows: rich tool calling via MCP (Model Context Protocol), installable Skills for specialized tasks, unique ACP (Agent Client Protocol) integration that lets you run ACP-compatible agents as first-class “models” with a dedicated workspace UI, and remote control from messaging apps.
+Beyond chat, JiaorongAI supports agentic workflows: rich tool calling via MCP (Model Context Protocol), installable Skills for specialized tasks, unique ACP (Agent Client Protocol) integration that lets you run ACP-compatible agents as first-class “models” with a dedicated workspace UI, and remote control from messaging apps.
 
 <table align="center">
   <tr>
     <td align="center" style="padding: 10px;">
-      <img src='https://github.com/user-attachments/assets/6e932a65-78e0-4d2e-9654-ccc010f78bf7' alt="DeepChat Light Mode" width="400"/>
+      <img src='https://github.com/user-attachments/assets/6e932a65-78e0-4d2e-9654-ccc010f78bf7' alt="JiaorongAI Light Mode" width="400"/>
       <br/>
     </td>
     <td align="center" style="padding: 10px;">
-      <img src='https://github.com/user-attachments/assets/ea6ccf60-32af-4bc1-91cc-e72703bdc1ff' alt="DeepChat Dark Mode" width="400"/>
+      <img src='https://github.com/user-attachments/assets/ea6ccf60-32af-4bc1-91cc-e72703bdc1ff' alt="JiaorongAI Dark Mode" width="400"/>
       <br/>
     </td>
   </tr>
 </table>
 
-## 💡 Why Choose DeepChat
+## 💡 Why Choose JiaorongAI
 
-Compared to other AI tools, DeepChat offers the following unique advantages:
+Compared to other AI tools, JiaorongAI offers the following unique advantages:
 
 - **Unified Multi-Model Management**: One application supports almost all mainstream LLMs, eliminating the need to switch between multiple apps
 - **Seamless Local Model Integration**: Built-in Ollama support allows you to manage and use local models without command-line operations
-- **Agentic Protocol Ecosystem**: Built-in MCP support enables tool calling (code execution, web access, etc.), Skills add reusable task expertise, and built-in ACP support connects external agents into DeepChat with a native workspace UX
+- **Agentic Protocol Ecosystem**: Built-in MCP support enables tool calling (code execution, web access, etc.), Skills add reusable task expertise, and built-in ACP support connects external agents into JiaorongAI with a native workspace UX
 - **Powerful Search Enhancement**: Support for multiple search engines makes AI responses more accurate and timely, providing non-standard web search paradigms that can be quickly customized
-- **Remote-Ready Workflows**: Control DeepChat sessions from Telegram, Feishu/Lark, QQBot, Discord, and WeChat iLink
+- **Remote-Ready Workflows**: Control JiaorongAI sessions from Telegram, Feishu/Lark, QQBot, Discord, and WeChat iLink
 - **Privacy-Focused**: Local data storage and network proxy support reduce the risk of information leakage
 - **Business-Friendly**: Embraces open source under the Apache License 2.0, suitable for both commercial and personal use
 
@@ -109,14 +109,14 @@ Compared to other AI tools, DeepChat offers the following unique advantages:
   - Converts visual model capabilities into universally usable functions for any model via the built-in MCP service
 - 🧠 **Skills**
   - Install Skills from folders, ZIP files, or URLs
-  - Enable Skills per conversation so DeepChat can load task-specific instructions, references, and optional scripts
+  - Enable Skills per conversation so JiaorongAI can load task-specific instructions, references, and optional scripts
   - Import and export Skills with other AI coding assistants
   - Built-in Skills cover code review, document collaboration, Office/PDF processing, frontend design, MCP development, and more
 - 🤝 **ACP (Agent Client Protocol) Agent Integration**
   - Run ACP-compatible agents (built-in or custom commands) as selectable “models”
   - ACP workspace UI for structured plans, tool calls, and terminal output when provided by the agent
 - 📡 **Remote Control**
-  - Control DeepChat sessions from Telegram, Feishu/Lark, QQBot, Discord, and WeChat iLink
+  - Control JiaorongAI sessions from Telegram, Feishu/Lark, QQBot, Discord, and WeChat iLink
   - Bind remote endpoints to sessions and manage conversations from messaging apps
   - Create or switch sessions, stop generation, open desktop sessions, handle pending interactions, switch models, and check status remotely
 - 💻 **Multi-Platform Support**: Windows, macOS, Linux
@@ -134,20 +134,21 @@ For more details on how to use these features, see the [documentation index](./d
 
 ## 🧠 Skills Support
 
-DeepChat Skills are designed to be compatible with the standard Agent Skills specification. A Skill can include task instructions, reference files, assets, and optional scripts, so DeepChat can act more like a domain specialist after it is enabled.
+JiaorongAI Skills are designed to be compatible with the standard Agent Skills specification. A Skill can include task instructions, reference files, assets, and optional scripts, so JiaorongAI can act more like a domain specialist after it is enabled.
 
 You can install Skills from folders, ZIP files, or URLs, and import/export them with Claude Code, Codex, Cursor, Windsurf, GitHub Copilot, Kiro, Antigravity, OpenCode, Goose, Kilo Code, and other compatible tools.
 
-Built-in Skills cover generative art, code review, DeepChat settings, document collaboration, DOCX, frontend design, git commit messages, infographic syntax, MCP building, PDF, PPTX, Skill creation, Web Artifacts, and XLSX workflows.
+Built-in Skills cover generative art, code review, JiaorongAI settings, document collaboration, DOCX, frontend design, git commit messages, infographic syntax, MCP building, PDF, PPTX, Skill creation, Web Artifacts, and XLSX workflows.
 
 Quick start:
 
 1. Open **Settings → Skills**
 2. Install or import a Skill
 3. Enable it in conversations that need that capability
+
 ## 🧩 ACP Integration (Agent Client Protocol)
 
-DeepChat has built-in support for [Agent Client Protocol (ACP)](https://agentclientprotocol.com), allowing you to integrate external agent runtimes into DeepChat with a native UI. Once enabled, ACP agents appear as first-class entries in the model selector, so you can use coding agents and task agents directly inside DeepChat.
+JiaorongAI has built-in support for [Agent Client Protocol (ACP)](https://agentclientprotocol.com), allowing you to integrate external agent runtimes into JiaorongAI with a native UI. Once enabled, ACP agents appear as first-class entries in the model selector, so you can use coding agents and task agents directly inside JiaorongAI.
 
 Quick start:
 
@@ -159,9 +160,9 @@ To explore the ecosystem of compatible agents and clients, see: https://agentcli
 
 ## 📡 Remote Control
 
-DeepChat can be controlled from messaging apps, so you can keep a session running even when you are away from the desktop. Configure remote channels under **Settings → Remote**.
+JiaorongAI can be controlled from messaging apps, so you can keep a session running even when you are away from the desktop. Configure remote channels under **Settings → Remote**.
 
-Supported channels include Telegram, Feishu/Lark, QQBot, Discord, and WeChat iLink. Remote endpoints can bind to one DeepChat session, then create new sessions, list and switch recent sessions, stop generation, open the current session on desktop, answer pending questions or permission prompts, switch models, and check runtime status.
+Supported channels include Telegram, Feishu/Lark, QQBot, Discord, and WeChat iLink. Remote endpoints can bind to one JiaorongAI session, then create new sessions, list and switch recent sessions, stop generation, open the current session on desktop, answer pending questions or permission prompts, switch models, and check runtime status.
 
 Common commands include `/start`, `/help`, `/pair`, `/new`, `/sessions`, `/use`, `/stop`, `/open`, `/pending`, `/model`, and `/status`.
 
@@ -365,7 +366,7 @@ Common commands include `/start`, `/help`, `/pair`, `/new`, `/sessions`, `/use`,
 
 ## 🔍 Use Cases
 
-DeepChat is suitable for various AI application scenarios:
+JiaorongAI is suitable for various AI application scenarios:
 
 - **Daily Assistant**: Answering questions, providing suggestions, assisting with writing and creation
 - **Development Aid**: Code generation, debugging, technical problem solving
@@ -377,7 +378,7 @@ DeepChat is suitable for various AI application scenarios:
 
 ### Download and Install
 
-You can install DeepChat using one of the following methods:
+You can install JiaorongAI using one of the following methods:
 
 **Option 1: GitHub Releases**
 
@@ -393,7 +394,7 @@ Download from the [official website](https://deepchatai.cn/#/download).
 
 **Option 3: Homebrew (macOS only)**
 
-For macOS users, you can install DeepChat using Homebrew:
+For macOS users, you can install JiaorongAI using Homebrew:
 
 ```bash
 brew install --cask deepchat
@@ -401,7 +402,7 @@ brew install --cask deepchat
 
 ### Configure Models
 
-1. Launch the DeepChat application
+1. Launch the JiaorongAI application
 2. Click the settings icon
 3. Select the "Model Providers" tab
 4. Add your API keys or configure local Ollama
@@ -430,7 +431,7 @@ $ pnpm run installRuntime
 $ pip install setuptools
 ```
 
-* For Windows: To allow non-admin users to create symlinks and hardlinks, enable `Developer Mode` in Settings or use an administrator account. Otherwise `pnpm` ops will fail.
+- For Windows: To allow non-admin users to create symlinks and hardlinks, enable `Developer Mode` in Settings or use an administrator account. Otherwise `pnpm` ops will fail.
 
 ### Start Development
 
@@ -463,7 +464,7 @@ For a more detailed guide on development, project structure, and architecture, p
 
 ## 👥 Community & Contribution
 
-DeepChat is an active open-source community project, and we welcome various forms of contribution:
+JiaorongAI is an active open-source community project, and we welcome various forms of contribution:
 
 - 🐛 [Report issues](https://github.com/ThinkInAIXYZ/deepchat/issues)
 - 💡 [Submit feature suggestions](https://github.com/ThinkInAIXYZ/deepchat/issues)
@@ -493,7 +494,7 @@ This project is built with the help of these awesome libraries and projects:
 - [Electron](https://www.electronjs.org/)
 - [Electron-Vite](https://electron-vite.org/)
 - [oxlint](https://github.com/oxc-project/oxc)
-- [Bub](https://github.com/bubbuild/bub), whose tape model inspired DeepChat's session tape design. For the underlying tape architecture, visit [tape.systems](https://tape.systems/).
+- [Bub](https://github.com/bubbuild/bub), whose tape model inspired JiaorongAI's session tape design. For the underlying tape architecture, visit [tape.systems](https://tape.systems/).
 
 ## 📃 License
 

@@ -2,7 +2,7 @@
   "id": "com.deepchat.plugins.cua",
   "name": "CUA Computer Use Runtime",
   "version": "1.0.4-beta.3",
-  "publisher": "DeepChat",
+  "publisher": "JiaorongAI",
   "engines": {
     "deepchat": ">=${app.version}",
     "platforms": ["darwin"]
@@ -19,14 +19,14 @@
   "source": {
     "type": "deepchat-official",
     "url": "${github.release.download}/deepchat-plugin-cua-${app.version}-darwin-${arch}.dcplugin",
-    "publisher": "DeepChat"
+    "publisher": "JiaorongAI"
   },
   "runtime": {
     "id": "cua-driver",
     "type": "external-helper",
     "displayName": "Cua Driver",
     "detect": [
-      "plugin:runtime/darwin/${arch}/DeepChat Computer Use.app/Contents/MacOS/cua-driver",
+      "plugin:runtime/darwin/${arch}/JiaorongAI Computer Use.app/Contents/MacOS/cua-driver",
       "/Applications/CuaDriver.app/Contents/MacOS/cua-driver"
     ],
     "install": {

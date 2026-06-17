@@ -69,7 +69,7 @@
     "moveAndDeleteAgent": "Flyt og slet agent",
     "moveConversation": "Flyt samtale",
     "agentType": {
-      "deepchat": "DeepChat",
+      "deepchat": "JiaorongAI",
       "acp": "ACP"
     },
     "blockReason": {
@@ -84,6 +84,6 @@
       "draft": "Kladde",
       "subagent": "Underagent"
     },
-    "deepChatTargetOnly": "Kun DeepChat-agenter kan vælges som overførselsmål. ACP-samtaler kan flyttes til DeepChat, men ikke ind i ACP."
+    "deepChatTargetOnly": "Kun JiaorongAI-agenter kan vælges som overførselsmål. ACP-samtaler kan flyttes til JiaorongAI, men ikke ind i ACP."
   }
 }

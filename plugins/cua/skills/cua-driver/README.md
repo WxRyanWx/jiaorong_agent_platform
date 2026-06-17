@@ -1,6 +1,6 @@
 # CUA MCP Workflow
 
-This skill uses DeepChat's plugin-provided `cua-driver` MCP tools.
+This skill uses JiaorongAI's plugin-provided `cua-driver` MCP tools.
 
 Core workflow:
 
@@ -15,4 +15,4 @@ Use element indices only after a snapshot for the same `pid` and `window_id`. Us
 
 Permission setup uses `check_permissions`. The macOS grants belong to:
 
-`${PLUGIN_ROOT}/runtime/darwin/${PROCESS_ARCH}/DeepChat Computer Use.app`
+`${PLUGIN_ROOT}/runtime/darwin/${PROCESS_ARCH}/JiaorongAI Computer Use.app`

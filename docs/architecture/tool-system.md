@@ -5,22 +5,22 @@
 
 ## 当前组件
 
-| 组件 | 位置 | 职责 |
-| --- | --- | --- |
-| `ToolPresenter` | `src/main/presenter/toolPresenter/index.ts` | 聚合工具定义、建立映射、路由调用 |
-| `ToolMapper` | `src/main/presenter/toolPresenter/toolMapper.ts` | `toolName -> source` 映射 |
-| `AgentToolManager` | `src/main/presenter/toolPresenter/agentTools/agentToolManager.ts` | 本地 agent tools 装配与执行 |
-| `AgentFileSystemHandler` | `src/main/presenter/toolPresenter/agentTools/agentFileSystemHandler.ts` | 文件系统类工具 |
-| `AgentBashHandler` | `src/main/presenter/toolPresenter/agentTools/agentBashHandler.ts` | 命令执行与后台 session |
-| `chatSettingsTools` | `src/main/presenter/toolPresenter/agentTools/chatSettingsTools.ts` | chat/session settings 工具 |
-| `McpPresenter` | `src/main/presenter/mcpPresenter/` | 外部 MCP servers 与 tools |
-| `ACP helpers` | `src/main/presenter/llmProviderPresenter/acp/` | ACP provider runtime、workdir、config、MCP 映射 |
+| 组件                     | 位置                                                                    | 职责                                            |
+| ------------------------ | ----------------------------------------------------------------------- | ----------------------------------------------- |
+| `ToolPresenter`          | `src/main/presenter/toolPresenter/index.ts`                             | 聚合工具定义、建立映射、路由调用                |
+| `ToolMapper`             | `src/main/presenter/toolPresenter/toolMapper.ts`                        | `toolName -> source` 映射                       |
+| `AgentToolManager`       | `src/main/presenter/toolPresenter/agentTools/agentToolManager.ts`       | 本地 agent tools 装配与执行                     |
+| `AgentFileSystemHandler` | `src/main/presenter/toolPresenter/agentTools/agentFileSystemHandler.ts` | 文件系统类工具                                  |
+| `AgentBashHandler`       | `src/main/presenter/toolPresenter/agentTools/agentBashHandler.ts`       | 命令执行与后台 session                          |
+| `chatSettingsTools`      | `src/main/presenter/toolPresenter/agentTools/chatSettingsTools.ts`      | chat/session settings 工具                      |
+| `McpPresenter`           | `src/main/presenter/mcpPresenter/`                                      | 外部 MCP servers 与 tools                       |
+| `ACP helpers`            | `src/main/presenter/llmProviderPresenter/acp/`                          | ACP provider runtime、workdir、config、MCP 映射 |
 
 ## 路由关系
 
 ```mermaid
 graph LR
-    DeepChat["AgentRuntimePresenter"] --> ToolPresenter["ToolPresenter"]
+    JiaorongAI["AgentRuntimePresenter"] --> ToolPresenter["ToolPresenter"]
     ToolPresenter --> Mapper["ToolMapper"]
     ToolPresenter --> Mcp["McpPresenter"]
     ToolPresenter --> AgentTools["AgentToolManager"]

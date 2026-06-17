@@ -6,7 +6,7 @@ Use this reference before opening `agent.db` or `chat.db`.
 
 1. Locate `database-security.json`.
 2. If the file is absent or `metadata.enabled !== true`, open `agent.db` as plain SQLite.
-3. If `metadata.enabled === true`, open with SQLCipher using the DeepChat SQLite password.
+3. If `metadata.enabled === true`, open with SQLCipher using the JiaorongAI SQLite password.
 4. If `metadata.passwordStorage === "safeStorage"` and `wrappedPassword` exists, first try an
    Electron safeStorage helper.
 5. If safeStorage is unavailable, decryption fails, or the importing runtime is not Electron, ask the
@@ -29,13 +29,13 @@ If the importer sees `file is not a database`, `SQLITE_NOTADB`, or `SQLITE_CORRU
 
 ## Opening Encrypted SQLite
 
-DeepChat uses `better-sqlite3-multiple-ciphers` and configures SQLCipher compatibility before
+JiaorongAI uses `better-sqlite3-multiple-ciphers` and configures SQLCipher compatibility before
 applying the key:
 
 ```ts
-db.pragma("cipher='sqlcipher'")
-db.pragma('legacy=4')
-db.key(Buffer.from(password, 'utf8'))
+db.pragma("cipher='sqlcipher'");
+db.pragma("legacy=4");
+db.key(Buffer.from(password, "utf8"));
 ```
 
 Then validate with:
@@ -51,34 +51,39 @@ them.
 
 ## Electron Importer
 
-An Electron-based third-party importer has the best chance of using DeepChat's wrapped password.
+An Electron-based third-party importer has the best chance of using JiaorongAI's wrapped password.
 Read the metadata JSON manually, then try `safeStorage.decryptString`.
 
 ```ts
-import { app, safeStorage } from 'electron'
-import fs from 'node:fs'
-import path from 'node:path'
+import { app, safeStorage } from "electron";
+import fs from "node:fs";
+import path from "node:path";
 
-async function readDeepChatPassword(deepChatUserData: string): Promise<string | null> {
-  await app.whenReady()
-  const metadataPath = path.join(deepChatUserData, 'database-security.json')
-  const raw = JSON.parse(fs.readFileSync(metadataPath, 'utf8')) as {
+async function readDeepChatPassword(
+  deepChatUserData: string,
+): Promise<string | null> {
+  await app.whenReady();
+  const metadataPath = path.join(deepChatUserData, "database-security.json");
+  const raw = JSON.parse(fs.readFileSync(metadataPath, "utf8")) as {
     metadata?: {
-      enabled?: boolean
-      passwordStorage?: string
-      wrappedPassword?: string
-    }
-  }
+      enabled?: boolean;
+      passwordStorage?: string;
+      wrappedPassword?: string;
+    };
+  };
 
-  const metadata = raw.metadata
-  if (!metadata?.enabled) return undefined
-  if (metadata.passwordStorage !== 'safeStorage' || !metadata.wrappedPassword) return null
-  if (!safeStorage.isEncryptionAvailable()) return null
+  const metadata = raw.metadata;
+  if (!metadata?.enabled) return undefined;
+  if (metadata.passwordStorage !== "safeStorage" || !metadata.wrappedPassword)
+    return null;
+  if (!safeStorage.isEncryptionAvailable()) return null;
 
   try {
-    return safeStorage.decryptString(Buffer.from(metadata.wrappedPassword, 'base64'))
+    return safeStorage.decryptString(
+      Buffer.from(metadata.wrappedPassword, "base64"),
+    );
   } catch {
-    return null
+    return null;
   }
 }
 ```
@@ -100,7 +105,7 @@ Tauri cannot directly call Electron safeStorage. Prefer this flow:
    through a local, user-consented channel.
 
 Use Tauri or OS keyring APIs only to store the importer's own remembered password. Do not assume
-they can unwrap DeepChat's Electron safeStorage blob.
+they can unwrap JiaorongAI's Electron safeStorage blob.
 
 ## Native macOS, Windows, And Linux
 
@@ -112,12 +117,12 @@ unless you deliberately ship an Electron helper.
 Platform notes:
 
 - macOS: Electron safeStorage depends on Keychain-backed OS crypto. Native Keychain access can be
-  app-permission dependent and should not be treated as a stable DeepChat import API.
+  app-permission dependent and should not be treated as a stable JiaorongAI import API.
 - Windows: Electron safeStorage commonly relies on current-user OS protection. Native DPAPI
   experiments may work for some blobs, but the blob format and Electron behavior are implementation
   details. Prefer manual password fallback.
 - Linux: safeStorage may use libsecret, KWallet, or a weaker backend reported as
-  `safeStorageBackend`. If the user's desktop secret service is unavailable, DeepChat stores
+  `safeStorageBackend`. If the user's desktop secret service is unavailable, JiaorongAI stores
   metadata in manual mode and the importer must ask for the password.
 
 ## Validation Errors
@@ -125,6 +130,6 @@ Platform notes:
 - Wrong password usually surfaces as `file is not a database`, `SQLITE_NOTADB`, or a failure reading
   `sqlite_master`.
 - A missing WAL file can make recent rows disappear from a copied live database. Re-copy sidecars or
-  ask the user to close DeepChat.
-- Do not run rekey or migration operations from an importer. DeepChat's own migration flow copies
+  ask the user to close JiaorongAI.
+- Do not run rekey or migration operations from an importer. JiaorongAI's own migration flow copies
   through an attached temp database and updates metadata only after validation.

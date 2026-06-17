@@ -39,7 +39,7 @@
             :timestamp="currentMessage.timestamp"
           /> -->
           <MessageInfo
-            :name="'通用智能体'"
+            :name="'交融对话'"
             :timestamp="currentMessage.timestamp"
           />
           <Spinner

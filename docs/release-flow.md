@@ -1,6 +1,6 @@
 # Release Flow
 
-This document defines the maintainer release flow for DeepChat without rewriting existing `dev` / `main` history.
+This document defines the maintainer release flow for JiaorongAI without rewriting existing `dev` / `main` history.
 
 ## Goals
 
@@ -20,7 +20,6 @@ This document defines the maintainer release flow for DeepChat without rewriting
 ## Standard Release Sequence
 
 1. Prepare release metadata on `dev`.
-
    - Update the version, `CHANGELOG.md`, and any release notes on `dev`.
    - Run the required local checks before cutting a release branch.
 
@@ -34,7 +33,6 @@ This document defines the maintainer release flow for DeepChat without rewriting
    ```
 
 3. Open a PR from `release/<version>` to `main`.
-
    - The PR exists for review and CI only.
    - Do not use the GitHub merge button to land the PR.
    - Do not click "Update branch" on the PR, because it creates new merge commits.
@@ -59,7 +57,6 @@ This document defines the maintainer release flow for DeepChat without rewriting
    ```
 
    The helper script validates:
-
    - the working tree is clean
    - the target release commit already exists on `origin/dev`
    - `origin/main` is an ancestor of the target commit

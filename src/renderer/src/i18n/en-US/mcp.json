@@ -187,7 +187,7 @@
   "title": "MCP Settings",
   "inmemory": {
     "Artifacts": {
-      "desc": "Produce richer Artifacts in DeepChat",
+      "desc": "Produce richer Artifacts in JiaorongAI",
       "name": "Artifacts"
     },
     "bochaSearch": {
@@ -195,7 +195,7 @@
       "name": "Bocha Search"
     },
     "buildInFileSystem": {
-      "desc": "Allow DeepChat to interact with the local file system.",
+      "desc": "Allow JiaorongAI to interact with the local file system.",
       "name": "File System"
     },
     "braveSearch": {
@@ -215,11 +215,11 @@
       "desc": "FastGPT knowledge base search service, can search FastGPT knowledge base content"
     },
     "deepchat-inmemory/custom-prompts-server": {
-      "desc": "DeepChat built-in custom prompts service",
+      "desc": "JiaorongAI built-in custom prompts service",
       "name": "Custom Prompts"
     },
     "deepchat-inmemory/deep-research-server": {
-      "desc": "DeepChat built-in deep research powered by Bocha Search. Long-context models are recommended.",
+      "desc": "JiaorongAI built-in deep research powered by Bocha Search. Long-context models are recommended.",
       "name": "DeepResearch"
     },
     "deepchat-inmemory/auto-prompting-server": {
@@ -228,10 +228,10 @@
     },
     "deepchat-inmemory/conversation-search-server": {
       "name": "Conversation History Search",
-      "desc": "DeepChat built-in conversation history search for past chats and messages."
+      "desc": "JiaorongAI built-in conversation history search for past chats and messages."
     },
     "builtinKnowledge": {
-      "desc": "DeepChat built-in knowledge base search for DeepChat docs and guides.",
+      "desc": "JiaorongAI built-in knowledge base search for JiaorongAI docs and guides.",
       "name": "Built-in knowledge base search"
     },
     "deepchat/apple-server": {

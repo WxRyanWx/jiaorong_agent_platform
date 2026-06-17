@@ -2,7 +2,7 @@
 
 ## Approach
 
-- Add a model-aware Agent runtime helper that returns true only when DeepChat should use its chat
+- Add a model-aware Agent runtime helper that returns true only when JiaorongAI should use its chat
   context budget.
 - Keep ACP bypass behavior, and also bypass when the model config explicitly identifies
   `ImageGeneration`, `TTS`, a non-chat API endpoint, or `endpointType === 'image-generation'`.

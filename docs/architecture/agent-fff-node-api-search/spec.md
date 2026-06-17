@@ -2,13 +2,13 @@
 
 ## Goal
 
-Replace DeepChat agent/runtime file search with direct Node.js calls to `@ff-labs/fff-node`.
-The implementation is FFF-only: DeepChat must not use bundled ripgrep as a fallback, must not
+Replace JiaorongAI agent/runtime file search with direct Node.js calls to `@ff-labs/fff-node`.
+The implementation is FFF-only: JiaorongAI must not use bundled ripgrep as a fallback, must not
 install bundled ripgrep, and must not inject bundled ripgrep into command execution environments.
 
 ## Scope
 
-- Add DeepChat tool-layer wrappers:
+- Add JiaorongAI tool-layer wrappers:
   - `findFiles(query: string, options?: object)` returns `Array<{ path, score }>`
   - `grep(query: string, pathScope?: string[], contextLines?: number)` returns
     `Array<{ path, lineNumber, snippet, score }>`

@@ -3,7 +3,7 @@
 ## Approach
 
 Extend `SkillPresenter.resolveSkillsDir()` with a small default-path repair step. The repair only
-matches paths that look like DeepChat's default skills location under an OS user home directory:
+matches paths that look like JiaorongAI's default skills location under an OS user home directory:
 
 - `/Users/<name>/.deepchat/skills`
 - `<drive>:\Users\<name>\.deepchat\skills`

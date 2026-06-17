@@ -20,7 +20,7 @@ Add a `/agent` slash command on every remote channel:
 2. `/agent <id>` (text channels) and a button click (Telegram) switch the channel's `defaultAgentId` and create a new bound session whose `agentId` matches.
 3. Agent identifier is `Agent.id` (with `resolveAcpAgentAlias` fallback for legacy ACP aliases).
 4. The reply explicitly tells the user a new session was created.
-5. Switching to an ACP agent (`Agent.type === 'acp'`) when the channel has no default workdir fails with `Cannot switch to ACP agent: this channel has no default workdir set. Configure the channel default workdir in DeepChat first.`
+5. Switching to an ACP agent (`Agent.type === 'acp'`) when the channel has no default workdir fails with `Cannot switch to ACP agent: this channel has no default workdir set. Configure the channel default workdir in JiaorongAI first.`
 6. Disabled agents (`enabled === false`) are not listed and cannot be switched to.
 7. `/help` includes `/agent` automatically through the per-channel command registry.
 
@@ -29,7 +29,7 @@ Add a `/agent` slash command on every remote channel:
 - Reuse the existing presenter boundaries: routing happens in the channel-specific command routers, business logic in `RemoteConversationRunner`, persistence in `RemoteBindingStore` via `setChannelDefaultAgentId`.
 - Reuse `resolveAcpAgentAlias` to keep parity with `sanitizeDefaultAgentId`.
 - Reuse `createNewSession`, which already calls `resolveDefaultAgentId` and rebinds the endpoint.
-- `/agent` does NOT modify an existing session's `agentId` (that's not a supported operation in DeepChat); switching always rolls a new session.
+- `/agent` does NOT modify an existing session's `agentId` (that's not a supported operation in JiaorongAI); switching always rolls a new session.
 
 ## Non-goals
 

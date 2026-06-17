@@ -8,10 +8,10 @@
     "searchEngine": "enjin carian",
     "searchEngineSelect": "Pilih enjin carian",
     "searchPreview": "Pratonton carian",
-    "launchAtLoginEnabled": "Lancarkan DeepChat semasa but",
+    "launchAtLoginEnabled": "Lancarkan JiaorongAI semasa but",
     "autoScrollEnabled": "Tatal secara automatik apabila dijana",
     "privacyMode": "mod privasi",
-    "privacyModeDescription": "Selepas mengaktifkan mod privasi, DeepChat tidak akan memulakan permintaan berikut secara automatik:",
+    "privacyModeDescription": "Selepas mengaktifkan mod privasi, JiaorongAI tidak akan memulakan permintaan berikut secara automatik:",
     "privacyModeAutoUpdate": "Semakan kemas kini apl",
     "privacyModeProviderDb": "Penyedia perkhidmatan dan penyegaran metadata model",
     "privacyModeAcpRegistry": "Muat semula pendaftaran ACP dan penyegerakan ikon",
@@ -21,7 +21,7 @@
     "autoCompaction": {
       "title": "pemampatan automatik",
       "enabled": "Dayakan pemampatan automatik",
-      "description": "Apabila perbualan menghampiri had tetingkap konteks model, DeepChat secara automatik meringkaskan sejarah lama untuk membantu perbualan diteruskan. Selepas ditutup, sejarah melebihi belanjawan akan dibuang terus dan tiada ringkasan akan dijana.",
+      "description": "Apabila perbualan menghampiri had tetingkap konteks model, JiaorongAI secara automatik meringkaskan sejarah lama untuk membantu perbualan diteruskan. Selepas ditutup, sejarah melebihi belanjawan akan dibuang terus dan tiada ringkasan akan dijana.",
       "thresholdLabel": "ambang pencetus",
       "thresholdMin": "Pendahuluan ({value}%)",
       "thresholdMax": "Ditunda ({value}%)",
@@ -64,8 +64,8 @@
     },
     "contentProtection": "Perlindungan tayangan skrin",
     "contentProtectionDialogTitle": "Pengesahan suis perlindungan tayangan skrin",
-    "contentProtectionEnableDesc": "Menghidupkan perlindungan siaran skrin boleh menghalang perisian siaran skrin daripada menangkap tetingkap utama DeepChat untuk melindungi privasi kandungan anda. Sila ambil perhatian bahawa fungsi ini tidak akan menyembunyikan semua antara muka sepenuhnya, sila gunakannya dengan munasabah dan patuh. Selain itu, tidak semua perisian penyiaran skrin menghormati tetapan privasi pengguna. Fungsi ini mungkin gagal pada sesetengah perisian penyiaran skrin yang tidak mematuhi tetapan privasi dan tetingkap hitam mungkin kekal dalam sesetengah persekitaran.",
-    "contentProtectionDisableDesc": "Mematikan perlindungan siaran skrin akan membolehkan perisian siaran skrin menangkap tetingkap DeepChat.",
+    "contentProtectionEnableDesc": "Menghidupkan perlindungan siaran skrin boleh menghalang perisian siaran skrin daripada menangkap tetingkap utama JiaorongAI untuk melindungi privasi kandungan anda. Sila ambil perhatian bahawa fungsi ini tidak akan menyembunyikan semua antara muka sepenuhnya, sila gunakannya dengan munasabah dan patuh. Selain itu, tidak semua perisian penyiaran skrin menghormati tetapan privasi pengguna. Fungsi ini mungkin gagal pada sesetengah perisian penyiaran skrin yang tidak mematuhi tetapan privasi dan tetingkap hitam mungkin kekal dalam sesetengah persekitaran.",
+    "contentProtectionDisableDesc": "Mematikan perlindungan siaran skrin akan membolehkan perisian siaran skrin menangkap tetingkap JiaorongAI.",
     "contentProtectionRestartNotice": "Menukar tetapan ini akan menyebabkan program dimulakan semula. Adakah anda pasti mahu meneruskan?",
     "copyWithCotEnabled": "Salin maklumat COT",
     "traceDebugEnabled": "Jejaki panggilan",
@@ -77,7 +77,7 @@
     "loggingRestartNotice": "Menukar tetapan ini akan menyebabkan program dimulakan semula. Adakah anda pasti mahu meneruskan?",
     "openLogFolder": "Buka folder log",
     "notifications": "Pemberitahuan sistem",
-    "notificationsDesc": "Apabila DeepChat tiada di latar depan, pemberitahuan sistem akan dihantar jika sesi dijana.",
+    "notificationsDesc": "Apabila JiaorongAI tiada di latar depan, pemberitahuan sistem akan dihantar jika sesi dijana.",
     "fileMaxSize": "saiz fail maksimum",
     "fileMaxSizeHint": "Hadkan saiz muat naik maksimum satu fail",
     "defaultModel": {
@@ -86,11 +86,11 @@
     }
   },
   "deepchatAgents": {
-    "title": "DeepChat Agents",
-    "description": "Urus DeepChat Agent dan lalai sesi baharu mereka.",
+    "title": "JiaorongAI Agents",
+    "description": "Urus JiaorongAI Agent dan lalai sesi baharu mereka.",
     "builtIn": "terbina dalam",
-    "editTitle": "Edit DeepChat Agent",
-    "createTitle": "DeepChat Agent baharu",
+    "editTitle": "Edit JiaorongAI Agent",
+    "createTitle": "JiaorongAI Agent baharu",
     "unnamed": "Agent yang tidak dinamakan",
     "name": "nama",
     "namePlaceholder": "Contohnya Writer / Research / Translate",
@@ -99,7 +99,7 @@
     "descriptionPlaceholder": "Pilihan, digunakan untuk menerangkan tujuan Agent ini",
     "avatarTitle": "avatar",
     "avatarDefault": "lalai",
-    "avatarDefaultDesc": "DeepChat menggunakan ikon lalai, dan Agent lain menggunakan avatar teks.",
+    "avatarDefaultDesc": "JiaorongAI menggunakan ikon lalai, dan Agent lain menggunakan avatar teks.",
     "avatarLucide": "ikon Lucide",
     "avatarLucideDesc": "Pilih daripada ikon Lucide dan tetapkan warna terang/gelap masing-masing.",
     "avatarMonogram": "Avatar teks",
@@ -143,10 +143,10 @@
     "toolsTitle": "Alat terbina dalam",
     "compactionTitle": "pemampatan automatik",
     "compactionEnabled": "Dayakan pemampatan automatik",
-    "compactionDescription": "Tetapan ini hanya mempengaruhi sesi DeepChat yang baru dibuat berikutnya.",
+    "compactionDescription": "Tetapan ini hanya mempengaruhi sesi JiaorongAI yang baru dibuat berikutnya.",
     "compactionThreshold": "ambang pencetus",
     "compactionRetainPairs": "Simpan mesej terbaharu",
-    "deleteConfirm": "Adakah anda pasti mahu memadamkan Agent \"{name}\"? Sesi sejarahnya secara automatik kembali kepada DeepChat terbina dalam."
+    "deleteConfirm": "Adakah anda pasti mahu memadamkan Agent \"{name}\"? Sesi sejarahnya secara automatik kembali kepada JiaorongAI terbina dalam."
   },
   "notificationsHooks": {
     "title": "Hooks",
@@ -174,7 +174,7 @@
       "empty": "Pada masa ini tiada Hook, klik pada penjuru kanan sebelah atas untuk mencipta yang baharu.",
       "defaultName": "Hook {index}",
       "guideTitle": "Arahan penggunaan",
-      "guideDescription": "Selepas peristiwa yang diperiksa dicetuskan, DeepChat akan melaksanakan arahan ini. Peristiwa semasa boleh dibaca melalui stdin JSON, pembolehubah persekitaran dan ruang letak baris arahan.",
+      "guideDescription": "Selepas peristiwa yang diperiksa dicetuskan, JiaorongAI akan melaksanakan arahan ini. Peristiwa semasa boleh dibaca melalui stdin JSON, pembolehubah persekitaran dan ruang letak baris arahan.",
       "deliveryTitle": "Kaedah pemindahan parameter",
       "deliveryStdin": "payload yang lengkap akan ditulis sebagai JSON kepada stdin.",
       "deliveryPlaceholder": "Pemegang tempat baris perintah boleh digunakan terus pada baris arahan.",
@@ -271,7 +271,7 @@
       "summaryManualOnly": "Masih terdapat isu {manual} yang memerlukan pemprosesan manual",
       "manualHint": "Masih terdapat isu {count} yang belum dibetulkan secara automatik dan memerlukan pemprosesan manual.",
       "toastSuggestedTitle": "Adalah disyorkan untuk membaiki pangkalan data",
-      "toastSuggestedDescription": "DeepChat telah mengesan masalah struktur pangkalan data ({reason}) dan kini boleh melakukan pembaikan pangkalan data.",
+      "toastSuggestedDescription": "JiaorongAI telah mengesan masalah struktur pangkalan data ({reason}) dan kini boleh melakukan pembaikan pangkalan data.",
       "toastAction": "untuk membaiki",
       "toastHealthyTitle": "Struktur pangkalan data adalah normal",
       "toastHealthyDescription": "Tiada isu schema ditemui yang perlu diperbaiki.",
@@ -307,7 +307,7 @@
       "newPassword": "Kata laluan SQLite baharu",
       "confirmPassword": "Sahkan Kata Laluan",
       "passwordMismatch": "Kata laluan yang dimasukkan dua kali tidak konsisten",
-      "systemCredentialStore": "Apabila storan selamat sistem tersedia, DeepChat menyimpan kata laluan SQLite yang disulitkan ke stor bukti kelayakan sistem (seperti macOS Keychain, Windows Credential Vault atau Linux secret store). Selepas buka kunci awal berjaya, pelancaran berikutnya biasanya dibuka secara automatik; anda hanya perlu memasukkan kunci penyulitan semula apabila data dipindahkan, bukti kelayakan sistem hilang atau tidak boleh dinyahsulit, dan storan selamat tidak tersedia.",
+      "systemCredentialStore": "Apabila storan selamat sistem tersedia, JiaorongAI menyimpan kata laluan SQLite yang disulitkan ke stor bukti kelayakan sistem (seperti macOS Keychain, Windows Credential Vault atau Linux secret store). Selepas buka kunci awal berjaya, pelancaran berikutnya biasanya dibuka secara automatik; anda hanya perlu memasukkan kunci penyulitan semula apabila data dipindahkan, bukti kelayakan sistem hilang atau tidak boleh dinyahsulit, dan storan selamat tidak tersedia.",
       "safeStorageUnavailable": "Electron safeStorage tidak tersedia pada sistem semasa. Setelah didayakan, anda perlu memasukkan kata laluan secara manual setiap kali anda bermula.",
       "enableButton": "Dayakan penyulitan",
       "changeButton": "Tukar kata laluan",
@@ -365,7 +365,7 @@
       "entryDescription": "Imbas konfigurasi provider setempat untuk CC Switch, Alma, Cherry Studio, Hermes dan OpenClaw untuk memindahkan senarai kunci dan model dengan cepat.",
       "entryButton": "Import dari Agent lain",
       "dialogTitle": "Import dari Agent lain",
-      "dialogDescription": "Mula-mula pilih aplikasi yang dikesan, dan kemudian sahkan provider untuk diimport ke dalam DeepChat satu demi satu.",
+      "dialogDescription": "Mula-mula pilih aplikasi yang dikesan, dan kemudian sahkan provider untuk diimport ke dalam JiaorongAI satu demi satu.",
       "toastTitle": "Import Provider selesai",
       "toastDescription": "{count} provider telah diimport.",
       "steps": {
@@ -374,23 +374,23 @@
         "done": "Selesai"
       },
       "scanningTitle": "Mengimbas dipasang Agent",
-      "scanningDescription": "DeepChat hanya membaca fail konfigurasi setempat yang diketahui dan tidak memuat naik sebarang data.",
+      "scanningDescription": "JiaorongAI hanya membaca fail konfigurasi setempat yang diketahui dan tidak memuat naik sebarang data.",
       "scanFailedTitle": "Imbasan gagal",
       "sourcesTitle": "Sumber dikesan",
-      "sourcesDescription": "Anda boleh memilih satu atau lebih Agent, dan DeepChat akan memprosesnya mengikut susunan senarai.",
+      "sourcesDescription": "Anda boleh memilih satu atau lebih Agent, dan JiaorongAI akan memprosesnya mengikut susunan senarai.",
       "selectedSources": "{selected}/{total} dipilih",
       "noSourcesTitle": "Tiada konfigurasi provider yang boleh diimport ditemui",
       "noSourcesDescription": "Sila pasang Agent yang disokong dahulu, atau konfigurasikan kekunci provider dalam Agent yang sepadan.",
       "providersFound": "{count} provider",
       "sourceProgress": "{current}/{total}",
-      "overwriteNote": "Jika berbilang provider yang dipilih dipetakan kepada DeepChat provider yang sama, sumber yang kemudian akan menimpa sumber yang lebih awal.",
+      "overwriteNote": "Jika berbilang provider yang dipilih dipetakan kepada JiaorongAI provider yang sama, sumber yang kemudian akan menimpa sumber yang lebih awal.",
       "noProvidersTitle": "Tiada data provider dalam sumber ini",
       "noProvidersDescription": "Agent telah dipilih, tetapi tiada entri provider yang boleh diimport telah diselesaikan.",
       "apiKey": "Kunci {value}",
       "noModels": "Tiada senarai model",
       "modelsImported": "model {count}",
       "importingTitle": "Mengimport provider",
-      "importingDescription": "DeepChat sedang menulis provider terpilih dan entri model tersuai.",
+      "importingDescription": "JiaorongAI sedang menulis provider terpilih dan entri model tersuai.",
       "doneTitle": "Keadaan am import",
       "doneDescription": "{count} provider telah diimport. Keputusan untuk setiap provider boleh dilihat di bawah.",
       "badges": {
@@ -408,14 +408,14 @@
         "unsupported": "Tidak disokong"
       },
       "warnings": {
-        "already_configured": "Ia sudah dikonfigurasikan dalam DeepChat dan tidak akan dipilih secara lalai.",
+        "already_configured": "Ia sudah dikonfigurasikan dalam JiaorongAI dan tidak akan dipilih secara lalai.",
         "missing_api_key": "Tiada API Key atau endpoint yang diperlukan.",
-        "unsupported_provider": "DeepChat tidak dapat mengimport provider ini buat sementara waktu.",
+        "unsupported_provider": "JiaorongAI tidak dapat mengimport provider ini buat sementara waktu.",
         "overwrites_previous_selection": "Pilihan ini bercanggah dengan sumber sebelumnya.",
-        "credential_only_import": "Hanya API Key diimport, DeepChat mengekalkan endpoint dan runtime terbina dalam provider."
+        "credential_only_import": "Hanya API Key diimport, JiaorongAI mengekalkan endpoint dan runtime terbina dalam provider."
       },
       "conflicts": {
-        "overridesPrevious": "Pemilihan ini akan menimpa DeepChat provider yang dipilih sebelum ini dengan nama yang sama.",
+        "overridesPrevious": "Pemilihan ini akan menimpa JiaorongAI provider yang dipilih sebelum ini dengan nama yang sama.",
         "overwrittenByLater": "Sumber yang dipilih kemudiannya akan menulis ganti provider ini."
       },
       "summary": {
@@ -532,7 +532,7 @@
       "recordingStartedAtDescription": "Masa rekod usage terawal dalam papan kanban semasa.",
       "withDeepChatDaysLabel": "Bilangan hari persahabatan",
       "withDeepChatDaysValue": "{days} hari",
-      "withDeepChatDaysSentence": "Anda telah menghabiskan hari {days} anda dengan DeepChat",
+      "withDeepChatDaysSentence": "Anda telah menghabiskan hari {days} anda dengan JiaorongAI",
       "withDeepChatDaysDescription": "Berdasarkan rekod penggunaan terawal anda: {date}.",
       "withDeepChatDaysDescriptionUnavailable": "Tiada rekod penggunaan lagi.",
       "tokenUsage": "Penggunaan Token",
@@ -541,7 +541,7 @@
       "nostalgiaSessionsValue": "Sesi {count}",
       "nostalgiaMessagesValue": "Mesej {count}",
       "nostalgiaDaysDetailLabel": "Berjalan bersama-sama",
-      "nostalgiaDaysDetail": "Anda telah menghabiskan hari {days} anda dengan DeepChat.",
+      "nostalgiaDaysDetail": "Anda telah menghabiskan hari {days} anda dengan JiaorongAI.",
       "nostalgiaSessionsDetailLabel": "Jumlah bilangan sesi",
       "nostalgiaSessionsDetail": "Anda telah mengadakan sesi {count} bersama-sama.",
       "nostalgiaMessagesDetailLabel": "Jumlah bilangan mesej",
@@ -565,7 +565,7 @@
     },
     "rtk": {
       "title": "RTK Jimat",
-      "description": "Tunjukkan RTK Dalam pautan pelaksanaan arahan asli DeepChat, anggarkan bilangan token yang belum memasuki konteks model disekat.",
+      "description": "Tunjukkan RTK Dalam pautan pelaksanaan arahan asli JiaorongAI, anggarkan bilangan token yang belum memasuki konteks model disekat.",
       "actions": {
         "retry": "Cuba semula pengesanan"
       },
@@ -576,8 +576,8 @@
         "unhealthy": "Tidak tersedia"
       },
       "descriptionDisabled": "RTK telah ditutup dalam sesi aplikasi semasa dan arahan akan terus mengikut laluan pelaksanaan asal.",
-      "descriptionChecking": "DeepChat sedang menguji sama ada RTK boleh berjalan secara normal dalam persekitaran semasa.",
-      "descriptionHealthy": "RTK telah disambungkan kepada pelaksanaan arahan asli DeepChat.",
+      "descriptionChecking": "JiaorongAI sedang menguji sama ada RTK boleh berjalan secara normal dalam persekitaran semasa.",
+      "descriptionHealthy": "RTK telah disambungkan kepada pelaksanaan arahan asli JiaorongAI.",
       "descriptionUnhealthy": "RTK Pemeriksaan kesihatan permulaan gagal dan telah dilumpuhkan secara automatik dalam sesi aplikasi semasa.",
       "sourceLabel": "Sumber masa jalan: {source}",
       "source": {
@@ -678,7 +678,7 @@
       },
       "functionCall": {
         "label": "panggilan fungsi",
-        "description": "Sama ada model itu menyokong panggilan fungsi secara asli (DeepChat akan secara automatik mensimulasikan panggilan fungsi selepas mematikan pilihan ini)"
+        "description": "Sama ada model itu menyokong panggilan fungsi secara asli (JiaorongAI akan secara automatik mensimulasikan panggilan fungsi selepas mematikan pilihan ini)"
       },
       "reasoning": {
         "label": "kebolehan menaakul",
@@ -1147,7 +1147,7 @@
     "loggingIn": "Log masuk...",
     "githubCopilotClientId": "Client ID tersuai",
     "githubCopilotClientIdHint": "Pilihan, biarkan kosong untuk menggunakan Client ID lalai, yang hanya menjejaskan kebenaran GitHub Copilot.",
-    "githubCopilotLoginTip": "Klik untuk membenarkan DeepChat mengakses langganan GitHub Copilot anda",
+    "githubCopilotLoginTip": "Klik untuk membenarkan JiaorongAI mengakses langganan GitHub Copilot anda",
     "loginSuccess": "Log masuk berjaya",
     "loginFailed": "Log masuk gagal",
     "tokenValid": "Token adalah sah",
@@ -1162,7 +1162,7 @@
     "apiKeyLabel": "API Key",
     "apiUrlLabel": "API URL",
     "bedrockLimitTip": "*Hanya menyokong model Anthropic Claude (termasuk model Opus, Sonnet, Haiku)",
-    "bedrockVerifyTip": "DeepChat menggunakan model Claude 3.5 Sonnet untuk pengesahan. Jika anda tidak mempunyai kebenaran memanggil untuk model ini, pengesahan akan gagal. Ini tidak menjejaskan penggunaan model lain.",
+    "bedrockVerifyTip": "JiaorongAI menggunakan model Claude 3.5 Sonnet untuk pengesahan. Jika anda tidak mempunyai kebenaran memanggil untuk model ini, pengesahan akan gagal. Ini tidak menjejaskan penggunaan model lain.",
     "center": {
       "title": "Provider Center",
       "description": "Urus sambungan pembekal, model dan konfigurasi lanjutan.",
@@ -1481,7 +1481,7 @@
       "redetectFailed": "Ujian semula gagal",
       "redetectFailedDesc": "Tidak dapat mengesan semula sumber optimum, konfigurasi lalai akan digunakan"
     },
-    "managedServerReadOnly": "Perkhidmatan pengehosan DeepChat",
+    "managedServerReadOnly": "Perkhidmatan pengehosan JiaorongAI",
     "managedServerReadOnlyDesc": "Sila uruskan pengaktifan dan kebenaran dalam tetapan pemalam yang sepadan",
     "center": {
       "title": "MCP Center",
@@ -1553,11 +1553,11 @@
   },
   "acp": {
     "title": "ACP Agent",
-    "description": "Urus ACP Agent tempatan yang dimulakan oleh DeepChat.",
+    "description": "Urus ACP Agent tempatan yang dimulakan oleh JiaorongAI.",
     "enabledTitle": "Dayakan ACP",
     "enabledDescription": "Selepas mendayakan, ACP Agent yang dikonfigurasikan akan muncul dalam senarai model.",
-    "useBuiltinRuntimeTitle": "Menggunakan persekitaran terbina dalam DeepChat",
-    "useBuiltinRuntimeDescription": "Apabila disemak, arahan node dan uv sistem akan dipintas dan versi terbina dalam DeepChat akan digunakan.",
+    "useBuiltinRuntimeTitle": "Menggunakan persekitaran terbina dalam JiaorongAI",
+    "useBuiltinRuntimeDescription": "Apabila disemak, arahan node dan uv sistem akan dipintas dan versi terbina dalam JiaorongAI akan digunakan.",
     "enableToAccess": "Agent tidak boleh dikonfigurasikan sehingga ACP didayakan.",
     "registryInstallEntry": "Pasang Agent",
     "registryInstallEntryDescription": "Cari dan pasang Agent daripada ACP Registry, kemudian kembali ke sini untuk mendayakan dan mengkonfigurasi selepas pemasangan selesai.",
@@ -1593,7 +1593,7 @@
     "registryInstallAction": "Pasang",
     "registryUninstallAction": "nyahpasang",
     "registryUninstallConfirm": "Nyahpasang \"{name}\"?",
-    "registryUninstallDescription": "DeepChat melumpuhkan Agent dan membersihkan data pemasangan yang dihoskan secara setempat apabila berkenaan, dan masih boleh dipasang semula dalam ACP Registry kemudian.",
+    "registryUninstallDescription": "JiaorongAI melumpuhkan Agent dan membersihkan data pemasangan yang dihoskan secara setempat apabila berkenaan, dan masih boleh dipasang semula dalam ACP Registry kemudian.",
     "registryUninstallFailed": "Gagal menyahpasang Agent",
     "registryInstallTitle": "ACP Registry",
     "registryInstallDescription": "Cari, tapis dan pasang ACP Agent. Selepas pemasangan selesai, kembali ke halaman tetapan untuk konfigurasi.",
@@ -2029,7 +2029,7 @@
       "botToken": "Bot Token",
       "botTokenPlaceholder": "Discord Bot Token",
       "remoteControlDescription": "Alat kawalan jauh Discord menggunakan proses Bot Token, Gateway dan REST bebas.",
-      "accessRule1": "Hantar /pair [kod berpasangan] dalam sembang peribadi atau saluran untuk membenarkan DM atau saluran semasa kepada DeepChat.",
+      "accessRule1": "Hantar /pair [kod berpasangan] dalam sembang peribadi atau saluran untuk membenarkan DM atau saluran semasa kepada JiaorongAI.",
       "accessRule2": "Mesej saluran hanya akan memasuki perbualan apabila bot disebut, untuk mengelakkan salah pengendalian sembang biasa."
     },
     "sections": {
@@ -2058,7 +2058,7 @@
       "pairDialogInstructionFeishu": "Pergi ke sembang peribadi Feishu Robot dan hantar arahan ini:",
       "pairDialogInstructionDiscord": "Pergi ke sembang peribadi atau saluran sasaran robot Discord dan hantar arahan ini:",
       "bindingsDialogTitle": "{channel} mengikat",
-      "bindingsDialogDescription": "Keluarkan hubungan mengikat antara portal jauh dan sesi DeepChat satu demi satu.",
+      "bindingsDialogDescription": "Keluarkan hubungan mengikat antara portal jauh dan sesi JiaorongAI satu demi satu.",
       "bindingsEmpty": "Pada masa ini tiada sesi terikat.",
       "pairingSuccessTitle": "Berganding berjaya",
       "pairingSuccessDescription": "Senarai pengetua berpasangan telah dimuat semula.",
@@ -2067,7 +2067,7 @@
       "authorizedPrincipalsDescription": "Akaun {channel} ini diberi kuasa untuk menggandingkan dan mengendalikan sesi.",
       "authorizedPrincipalsEmpty": "Pada masa ini tiada pengetua yang diberi kuasa.",
       "sessionBindingsTitle": "mengikat sesi",
-      "sessionBindingsDescription": "Setiap portal jauh di bawah terikat pada sesi DeepChat pada masa ini.",
+      "sessionBindingsDescription": "Setiap portal jauh di bawah terikat pada sesi JiaorongAI pada masa ini.",
       "acpDefaultWorkdirRequiredTitle": "Direktori lalai diperlukan",
       "acpDefaultWorkdirRequiredDescription": "Ejen ACP memerlukan ruang kerja tempatan. Pilih direktori lalai sebelum menyimpan."
     },
@@ -2121,8 +2121,8 @@
     "weixinIlink": {
       "title": "WeChat iLink",
       "description": "Imbas kod QR untuk mengakses WeChat iLink Bot rasmi, dan gunakan penyesuai terbina dalam untuk mengambil alih sesi kawalan jauh.",
-      "loginDescription": "Selepas mengklik butang di bawah, DeepChat akan membuka tetingkap log masuk WeChat rasmi. Sila lengkapkan kebenaran pengimbasan kod iLink Bot dalam tetingkap ini. Akaun yang berjaya disambungkan akan ditambahkan secara automatik ke senarai di bawah.",
-      "ownerOnlyNotice": "Versi pertama semasa hanya membenarkan pemilik akaun yang sepadan mengimbas kod QR untuk log masuk untuk mengawal DeepChat.",
+      "loginDescription": "Selepas mengklik butang di bawah, JiaorongAI akan membuka tetingkap log masuk WeChat rasmi. Sila lengkapkan kebenaran pengimbasan kod iLink Bot dalam tetingkap ini. Akaun yang berjaya disambungkan akan ditambahkan secara automatik ke senarai di bawah.",
+      "ownerOnlyNotice": "Versi pertama semasa hanya membenarkan pemilik akaun yang sepadan mengimbas kod QR untuk log masuk untuk mengawal JiaorongAI.",
       "connectButton": "Buka tetingkap log masuk",
       "refreshQrCode": "Buka semula tetingkap log masuk",
       "loginDialogTitle": "Sambung ke WeChat iLink",
@@ -2150,11 +2150,11 @@
   },
   "plugins": {
     "title": "pemalam",
-    "officialOnly": "Urus status pengaktifan pemalam rasmi terbina dalam versi DeepChat semasa",
+    "officialOnly": "Urus status pengaktifan pemalam rasmi terbina dalam versi JiaorongAI semasa",
     "refresh": "segarkan semula",
     "empty": "Tiada pemalam rasmi tersedia lagi",
     "emptyTitle": "Tiada pemalam terbina dalam lagi",
-    "emptyDescription": "Platform semasa tidak mempunyai pemalam rasmi terbina dalam dalam versi DeepChat ini.",
+    "emptyDescription": "Platform semasa tidak mempunyai pemalam rasmi terbina dalam dalam versi JiaorongAI ini.",
     "loadFailed": "Pemuatan pemalam gagal",
     "actionFailed": "Operasi pemalam gagal",
     "install": "Pasang",
@@ -2193,7 +2193,7 @@
       "searchPlaceholder": "Tetapan carian, pembekal perkhidmatan, model, Agent, MCP...",
       "providers": "Providers",
       "mcp": "MCP",
-      "deepchatAgents": "DeepChat Agents",
+      "deepchatAgents": "JiaorongAI Agents",
       "data": "Masa sandaran terakhir",
       "enabledCount": "{count} didayakan",
       "runningCount": "{count} berjalan",

@@ -1,6 +1,6 @@
-# DeepChat 贡献指南
+# JiaorongAI 贡献指南
 
-我们非常欢迎您的贡献！我们希望让参与 DeepChat 项目变得简单透明。您可以通过以下方式参与：
+我们非常欢迎您的贡献！我们希望让参与 JiaorongAI 项目变得简单透明。您可以通过以下方式参与：
 
 - 报告 Bug
 - 讨论当前代码状态
@@ -55,13 +55,11 @@
    ```
 
 2. 安装必要的开发工具:
-
    - 安装 [Node.js](https://nodejs.org/) (推荐使用最新的 LTS 版本)
 
 3. 根据您的操作系统进行额外设置:
 
    **Windows:**
-
    - 安装 Windows Build Tools:
      图形化安装:
      - 安装 [Visual Studio Community](https://visualstudio.microsoft.com/vs/community/)
@@ -70,7 +68,6 @@
    - 安装 Git for Windows
 
    **macOS:**
-
    - 安装 Xcode Command Line Tools:
      ```bash
      xcode-select --install
@@ -81,7 +78,6 @@
      ```
 
    **Linux:**
-
    - 安装必要的构建依赖:
      ```bash
      # Ubuntu/Debian
@@ -99,6 +95,7 @@
    ```
 
 5. 启动开发服务器：
+
 ```bash
 pnpm run dev
 ```

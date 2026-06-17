@@ -46,7 +46,7 @@ struct DoctorCommand: AsyncParsableCommand {
         let axOk = AXIsProcessTrusted()
         let sckOk = await probeSCK()
 
-        // 2. Attribution check — are we attributed to DeepChat Computer Use.app or a shell?
+        // 2. Attribution check — are we attributed to JiaorongAI Computer Use.app or a shell?
         let bundleID = Bundle.main.bundleIdentifier ?? ""
         let isCorrectBundle = bundleID == "com.wefonk.deepchat.computeruse"
 
@@ -133,9 +133,9 @@ struct DoctorCommand: AsyncParsableCommand {
                 severity: .error,
                 summary: "Accessibility is denied.",
                 detail: """
-                    Grant Accessibility to DeepChat Computer Use.app in System Settings → Privacy & Security → Accessibility, then restart the daemon:
-                      open -n -g -a "DeepChat Computer Use" --args serve
-                    DeepChat's bundled `cua-driver mcp` auto-relaunches through DeepChat Computer Use.app when needed.
+                    Grant Accessibility to JiaorongAI Computer Use.app in System Settings → Privacy & Security → Accessibility, then restart the daemon:
+                      open -n -g -a "JiaorongAI Computer Use" --args serve
+                    JiaorongAI's bundled `cua-driver mcp` auto-relaunches through JiaorongAI Computer Use.app when needed.
                     """
             )
         }
@@ -144,11 +144,11 @@ struct DoctorCommand: AsyncParsableCommand {
             return Recommendation(
                 captureMode: nil,
                 severity: .warning,
-                summary: "TCC is attributed to the wrong process (not DeepChat Computer Use.app).",
+                summary: "TCC is attributed to the wrong process (not JiaorongAI Computer Use.app).",
                 detail: """
-                    Your shell or IDE is the responsible process for TCC, not DeepChat Computer Use.app.
-                    DeepChat's bundled `cua-driver mcp` auto-relaunches through DeepChat Computer Use.app.
-                    Or start the daemon manually: open -n -g -a "DeepChat Computer Use" --args serve
+                    Your shell or IDE is the responsible process for TCC, not JiaorongAI Computer Use.app.
+                    JiaorongAI's bundled `cua-driver mcp` auto-relaunches through JiaorongAI Computer Use.app.
+                    Or start the daemon manually: open -n -g -a "JiaorongAI Computer Use" --args serve
                     """
             )
         }

@@ -1,6 +1,6 @@
 {
   "input": {
-    "placeholder": "Ask DeepChat anything, {'@'} to mention files, / for commands",
+    "placeholder": "Ask JiaorongAI anything, {'@'} to mention files, / for commands",
     "fileArea": "File Area",
     "inputArea": "Input Area",
     "functionSwitch": "Function Switch",
@@ -10,7 +10,7 @@
     "voiceRecognitionUnsupportedTitle": "Local recording is not available here",
     "voiceRecognitionUnsupportedDescription": "Use this feature in a browser or desktop environment that supports microphone recording.",
     "voiceRecognitionPermissionDeniedTitle": "Microphone access is unavailable",
-    "voiceRecognitionPermissionDeniedDescription": "Allow DeepChat to use the microphone and try again.",
+    "voiceRecognitionPermissionDeniedDescription": "Allow JiaorongAI to use the microphone and try again.",
     "voiceRecognitionErrorTitle": "Audio transcription failed",
     "voiceRecognitionErrorDescription": "Could not complete audio transcription. Please try again later.",
     "send": "Send",
@@ -59,7 +59,7 @@
         "agentCore": "Agent Core",
         "agentImageGeneration": "Image Generation",
         "agentSkills": "Agent Skills",
-        "deepchatSettings": "DeepChat Settings",
+        "deepchatSettings": "JiaorongAI Settings",
         "yobrowser": "YoBrowser"
       }
     },
@@ -392,12 +392,12 @@
   },
   "onboarding": {
     "agentSwitch": {
-      "title": "Switch to DeepChat Agent",
-      "description": "Before chatting, switch away from ACP and return to the built-in DeepChat flow.",
+      "title": "Switch to JiaorongAI Agent",
+      "description": "Before chatting, switch away from ACP and return to the built-in JiaorongAI flow.",
       "caption": "Click the highlighted agent button in the sidebar to continue."
     },
     "switchModel": {
-      "description": "Pick the model you want to use for your first DeepChat conversation.",
+      "description": "Pick the model you want to use for your first JiaorongAI conversation.",
       "caption": "Use the highlighted model switcher and choose any available model."
     },
     "firstChat": {

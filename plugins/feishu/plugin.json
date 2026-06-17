@@ -2,17 +2,22 @@
   "id": "com.deepchat.plugins.feishu",
   "name": "Feishu/Lark Integration",
   "version": "0.1.0",
-  "publisher": "DeepChat",
+  "publisher": "JiaorongAI",
   "engines": {
     "deepchat": ">=${app.version}",
     "platforms": ["darwin", "linux", "win32"]
   },
   "activationEvents": ["onEnable"],
-  "capabilities": ["runtime.manage", "mcp.register", "skills.register", "settings.contribute"],
+  "capabilities": [
+    "runtime.manage",
+    "mcp.register",
+    "skills.register",
+    "settings.contribute"
+  ],
   "source": {
     "type": "deepchat-official",
     "url": "${github.release.download}/deepchat-plugin-feishu-${app.version}-${target.platform}-${arch}.dcplugin",
-    "publisher": "DeepChat"
+    "publisher": "JiaorongAI"
   },
   "mcpServers": [
     {

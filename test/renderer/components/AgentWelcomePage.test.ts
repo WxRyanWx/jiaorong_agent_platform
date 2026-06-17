@@ -1,98 +1,99 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { mount } from "@vue/test-utils";
 
 afterEach(() => {
-  vi.clearAllTimers()
-  vi.useRealTimers()
-})
+  vi.clearAllTimers();
+  vi.useRealTimers();
+});
 
-describe('AgentWelcomePage', () => {
-  it('renders up to nine agents and navigates to DeepChat agent settings', async () => {
-    vi.resetModules()
-    vi.useFakeTimers()
+describe("AgentWelcomePage", () => {
+  it("renders up to nine agents and navigates to JiaorongAI agent settings", async () => {
+    vi.resetModules();
+    vi.useFakeTimers();
 
     const settingsClient = {
-      openSettings: vi.fn().mockResolvedValue({ windowId: 9 })
-    }
+      openSettings: vi.fn().mockResolvedValue({ windowId: 9 }),
+    };
     const agentStore = {
       enabledAgents: Array.from({ length: 12 }, (_, index) => ({
         id: `agent-${index + 1}`,
         name: `Agent ${index + 1}`,
-        type: index === 0 ? 'deepchat' : 'acp',
-        enabled: true
+        type: index === 0 ? "deepchat" : "acp",
+        enabled: true,
       })),
-      setSelectedAgent: vi.fn()
-    }
+      setSelectedAgent: vi.fn(),
+    };
 
-    vi.doMock('@api/SettingsClient', () => ({
-      createSettingsClient: vi.fn(() => settingsClient)
-    }))
-    vi.doMock('@/stores/ui/agent', () => ({
-      useAgentStore: () => agentStore
-    }))
-    vi.doMock('vue-i18n', () => ({
+    vi.doMock("@api/SettingsClient", () => ({
+      createSettingsClient: vi.fn(() => settingsClient),
+    }));
+    vi.doMock("@/stores/ui/agent", () => ({
+      useAgentStore: () => agentStore,
+    }));
+    vi.doMock("vue-i18n", () => ({
       useI18n: () => ({
         t: (key: string) =>
           (
             ({
-              'welcome.agentPage.title': '选择 Agent 开始创作',
-              'welcome.agentPage.manageAgents': '管理 DeepChat Agent',
-              'welcome.agentPage.deepchatType': 'DeepChat Agent',
-              'welcome.agentPage.acpType': 'ACP Agent Localized'
+              "welcome.agentPage.title": "选择 Agent 开始创作",
+              "welcome.agentPage.manageAgents": "管理 JiaorongAI Agent",
+              "welcome.agentPage.deepchatType": "JiaorongAI Agent",
+              "welcome.agentPage.acpType": "ACP Agent Localized",
             }) as Record<string, string>
-          )[key] ?? key
-      })
-    }))
-    vi.doMock('@iconify/vue', () => ({
+          )[key] ?? key,
+      }),
+    }));
+    vi.doMock("@iconify/vue", () => ({
       Icon: {
-        name: 'Icon',
-        template: '<span />'
-      }
-    }))
-    vi.doMock('@/components/icons/AgentAvatar.vue', () => ({
+        name: "Icon",
+        template: "<span />",
+      },
+    }));
+    vi.doMock("@/components/icons/AgentAvatar.vue", () => ({
       default: {
-        name: 'AgentAvatar',
-        template: '<span />'
-      }
-    }))
+        name: "AgentAvatar",
+        template: "<span />",
+      },
+    }));
 
-    const AgentWelcomePage = (await import('@/pages/AgentWelcomePage.vue')).default
+    const AgentWelcomePage = (await import("@/pages/AgentWelcomePage.vue"))
+      .default;
     const wrapper = mount(AgentWelcomePage, {
       global: {
         stubs: {
           Icon: true,
-          AgentAvatar: true
-        }
-      }
-    })
+          AgentAvatar: true,
+        },
+      },
+    });
 
-    expect(wrapper.text()).toContain('选择 Agent 开始创作')
-    expect(wrapper.text()).not.toContain('welcome.agentPage.description')
-    expect(wrapper.find('.grid').classes()).toContain('grid-cols-3')
+    expect(wrapper.text()).toContain("选择 Agent 开始创作");
+    expect(wrapper.text()).not.toContain("welcome.agentPage.description");
+    expect(wrapper.find(".grid").classes()).toContain("grid-cols-3");
 
     const agentButtons = wrapper
-      .findAll('button')
-      .filter((button) => button.text().includes('Agent '))
+      .findAll("button")
+      .filter((button) => button.text().includes("Agent "));
 
-    expect(agentButtons).toHaveLength(9)
-    expect(wrapper.text()).not.toContain('Agent 10')
-    expect(wrapper.text()).toContain('ACP Agent Localized')
+    expect(agentButtons).toHaveLength(9);
+    expect(wrapper.text()).not.toContain("Agent 10");
+    expect(wrapper.text()).toContain("ACP Agent Localized");
 
-    await agentButtons[0].trigger('click')
-    expect(agentStore.setSelectedAgent).toHaveBeenCalledWith('agent-1')
+    await agentButtons[0].trigger("click");
+    expect(agentStore.setSelectedAgent).toHaveBeenCalledWith("agent-1");
 
     const manageButton = wrapper
-      .findAll('button')
-      .find((button) => button.text().includes('管理 DeepChat Agent'))
+      .findAll("button")
+      .find((button) => button.text().includes("管理 JiaorongAI Agent"));
 
-    expect(manageButton).toBeDefined()
+    expect(manageButton).toBeDefined();
 
-    await manageButton!.trigger('click')
-    await vi.runAllTimersAsync()
+    await manageButton!.trigger("click");
+    await vi.runAllTimersAsync();
 
-    expect(settingsClient.openSettings).toHaveBeenCalledTimes(1)
+    expect(settingsClient.openSettings).toHaveBeenCalledTimes(1);
     expect(settingsClient.openSettings).toHaveBeenCalledWith({
-      routeName: 'settings-deepchat-agents'
-    })
-  })
-})
+      routeName: "settings-deepchat-agents",
+    });
+  });
+});

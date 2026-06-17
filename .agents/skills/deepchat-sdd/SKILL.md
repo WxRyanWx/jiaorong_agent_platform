@@ -1,13 +1,13 @@
 ---
 name: deepchat-sdd
-description: Use for any DeepChat code, configuration, documentation, feature, issue fix, refactor, or architecture change before implementation. This skill enforces the project SDD workflow: classify the goal, create or update spec.md, plan.md, and tasks.md under docs/features, docs/issues, or docs/architecture, resolve NEEDS CLARIFICATION items, then implement and validate.
+description: Use for any JiaorongAI code, configuration, documentation, feature, issue fix, refactor, or architecture change before implementation. This skill enforces the project SDD workflow: classify the goal, create or update spec.md, plan.md, and tasks.md under docs/features, docs/issues, or docs/architecture, resolve NEEDS CLARIFICATION items, then implement and validate.
 ---
 
-# DeepChat SDD
+# JiaorongAI SDD
 
 ## When To Use
 
-Use this skill before changing DeepChat source code, configuration, tests, docs, build scripts, release workflows, or project structure.
+Use this skill before changing JiaorongAI source code, configuration, tests, docs, build scripts, release workflows, or project structure.
 
 ## Classify The Goal
 
@@ -34,7 +34,7 @@ Resolve every `[NEEDS CLARIFICATION]` marker before implementation. If a request
 1. Inspect the current code and docs first.
 2. Pick the target folder from the classification rules.
 3. Create or update `spec.md`, `plan.md`, and `tasks.md`.
-4. Keep the implementation aligned with existing DeepChat patterns:
+4. Keep the implementation aligned with existing JiaorongAI patterns:
    - main process Presenter boundaries
    - typed `shared/contracts/*`
    - renderer `api/*Client`

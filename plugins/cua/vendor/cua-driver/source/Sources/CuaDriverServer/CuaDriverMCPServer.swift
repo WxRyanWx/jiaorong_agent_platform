@@ -133,7 +133,7 @@ public enum CuaDriverMCPServer {
         case .noDaemon:
             throw MCPError.internalError(
                 "cua-driver daemon not reachable on \(socketPath). "
-                    + "Start it with `open -n -g -a \"DeepChat Computer Use\" --args serve` and retry."
+                    + "Start it with `open -n -g -a \"JiaorongAI Computer Use\" --args serve` and retry."
             )
         case .error(let message):
             throw MCPError.internalError(
@@ -186,7 +186,7 @@ public enum CuaDriverMCPServer {
         case .noDaemon:
             throw MCPError.internalError(
                 "cua-driver daemon not reachable on \(socketPath). "
-                    + "Start it with `open -n -g -a \"DeepChat Computer Use\" --args serve` and retry."
+                    + "Start it with `open -n -g -a \"JiaorongAI Computer Use\" --args serve` and retry."
             )
         case .error(let message):
             throw MCPError.internalError("daemon transport: \(message)")

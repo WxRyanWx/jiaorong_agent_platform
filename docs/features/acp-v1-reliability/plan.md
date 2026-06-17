@@ -6,13 +6,13 @@
 
 - `acpProcessManager.ts` 负责 launch、initialize、client method dispatch、capability snapshot、debug log、session update buffer。
 - `acpSessionManager.ts` 负责 `new/load/resume/close/list` 的选择、持久化、listener 注册和 terminal/session cleanup。
-- `acpProvider.ts` 负责 chat turn、debug action、renderer 状态事件和 DeepChat stream event 输出。
+- `acpProvider.ts` 负责 chat turn、debug action、renderer 状态事件和 JiaorongAI stream event 输出。
 - `acpMessageFormatter.ts`、`acpContentMapper.ts`、`acpTerminalManager.ts`、`acpFsHandler.ts` 分别收口 prompt、update、terminal、fs 规范。
 - shared contracts / presenter types 只增加必要字段，不新增并行的 ACP 框架。
 
 推荐分 5 个可 review 增量落地：capabilities/auth、session lifecycle、prompt/content/update、terminal/fs、UI diagnostics + E2E matrix。
 
-数据所有权原则：DeepChat conversation/message records 是事实源。ACP agent session 是外部 session catalog 和运行时上下文，进入 DeepChat 后必须先形成本地 link，再转换、去重、持久化为 DeepChat 自己的消息和 metadata。
+数据所有权原则：JiaorongAI conversation/message records 是事实源。ACP agent session 是外部 session catalog 和运行时上下文，进入 JiaorongAI 后必须先形成本地 link，再转换、去重、持久化为 JiaorongAI 自己的消息和 metadata。
 
 ## Runtime Flow
 
@@ -28,7 +28,7 @@ initialize(protocolVersion, clientCapabilities, clientInfo)
         +--> auth required? --> authenticate/logout/debug/UI
         |
         v
-resolve DeepChat conversation:
+resolve JiaorongAI conversation:
   existing AcpSessionLink -> resume/load remote context
   imported remote session -> attach link + optional load import
   new local conversation -> session/new remote context
@@ -48,35 +48,35 @@ cancel/detach/explicit remote close/release terminals/process cleanup
 
 ## Data Ownership and Sync Model
 
-DeepChat 不把远端 agent session 当作本地数据库的事实源。远端 session 只提供三类信息：
+JiaorongAI 不把远端 agent session 当作本地数据库的事实源。远端 session 只提供三类信息：
 
 - catalog：`session/list` 返回的 sessionId、cwd、title、updatedAt、`_meta`。
 - replay：`session/load` 可能重放历史 update，用于导入远端历史。
 - runtime context：`session/resume` 或 `session/new` 后承接新的 prompt turn。
 
-本地用一个 link 记录 DeepChat conversation 与远端 ACP session 的关系：
+本地用一个 link 记录 JiaorongAI conversation 与远端 ACP session 的关系：
 
 ```typescript
 interface AcpSessionLink {
-  conversationId: string
-  agentId: string
-  canonicalWorkdir: string
-  remoteSessionId: string
-  remoteTitle?: string
-  remoteUpdatedAt?: string
-  lastImportedRemoteUpdatedAt?: string
-  lastImportFingerprint?: string
-  importedMessageFingerprints: string[]
-  syncState: 'cataloged' | 'imported' | 'attached' | 'stale' | 'error'
+  conversationId: string;
+  agentId: string;
+  canonicalWorkdir: string;
+  remoteSessionId: string;
+  remoteTitle?: string;
+  remoteUpdatedAt?: string;
+  lastImportedRemoteUpdatedAt?: string;
+  lastImportFingerprint?: string;
+  importedMessageFingerprints: string[];
+  syncState: "cataloged" | "imported" | "attached" | "stale" | "error";
 }
 ```
 
 约束：
 
 - 稳定去重 key 是 `agentId + canonicalWorkdir + remoteSessionId`。
-- `session/list` 只更新 catalog/link metadata，不创建重复 DeepChat conversation。
-- 用户选择导入时，如果 link 已存在，打开/更新已有 DeepChat conversation；如果不存在，创建本地 conversation 并写 link。
-- `session/load` 重放内容先进入 staging buffer；转换为 DeepChat message/block 后，再按 message fingerprint 落库。
+- `session/list` 只更新 catalog/link metadata，不创建重复 JiaorongAI conversation。
+- 用户选择导入时，如果 link 已存在，打开/更新已有 JiaorongAI conversation；如果不存在，创建本地 conversation 并写 link。
+- `session/load` 重放内容先进入 staging buffer；转换为 JiaorongAI message/block 后，再按 message fingerprint 落库。
 - fingerprint 使用远端 session id、update type、role/channel、规范化 content、tool id、turn boundary 等字段生成；没有足够字段时仍要在同一次 import 内去重。
 - `session_info_update` 只更新 link metadata；本地会话标题只有在“自动标题”状态下才可被建议更新。
 - 本地删除或关闭 conversation 默认只 detach link，不调用远端 `session/close`。
@@ -99,25 +99,25 @@ interface AcpSessionLink {
 
 ```typescript
 interface AcpCapabilitySnapshot {
-  protocolVersion: number
-  agentInfo?: schema.AgentInfo
-  agentCapabilities?: schema.AgentCapabilities
-  sessionCapabilities?: schema.SessionCapabilities
-  promptCapabilities?: schema.PromptCapabilities
-  authMethods: schema.AuthMethod[]
-  mcpCapabilities?: schema.McpCapabilities
+  protocolVersion: number;
+  agentInfo?: schema.AgentInfo;
+  agentCapabilities?: schema.AgentCapabilities;
+  sessionCapabilities?: schema.SessionCapabilities;
+  promptCapabilities?: schema.PromptCapabilities;
+  authMethods: schema.AuthMethod[];
+  mcpCapabilities?: schema.McpCapabilities;
   supports: {
-    loadSession: boolean
-    sessionList: boolean
-    sessionResume: boolean
-    sessionClose: boolean
-    sessionFork: boolean
-    authLogout: boolean
-  }
+    loadSession: boolean;
+    sessionList: boolean;
+    sessionResume: boolean;
+    sessionClose: boolean;
+    sessionFork: boolean;
+    authLogout: boolean;
+  };
 }
 ```
 
-- `buildClientCapabilities` 只声明 DeepChat 已真实支持的能力。
+- `buildClientCapabilities` 只声明 JiaorongAI 已真实支持的能力。
 - 首轮实现中，`fs`、`terminal` 继续声明；`auth.terminal` 只能在 terminal auth flow 完成后声明。
 - 初始化失败分三类展示：protocol version mismatch、process exited、timeout。
 - 初始化返回的 `models`、`modes`、`configOptions` 统一走 `normalizeAcpConfigState`，并发布 ready event。
@@ -132,11 +132,11 @@ interface AcpCapabilitySnapshot {
 
 各 auth method 处理方式：
 
-| Auth type | 对接方式 |
-| --- | --- |
-| `agent` 或默认类型 | 直接调用 `connection.authenticate({ methodId })`，成功后刷新 status；失败保留错误详情 |
-| `env_var` | 在 agent settings 中标出必需 env var；缺失时不启动 prompt；设置后重启 agent 并重新 initialize |
-| `terminal` | 在 DeepChat 控制的 terminal/auth runner 中执行 agent 指定流程；完成后重新 initialize；只有该能力完成后才声明 `auth.terminal=true` |
+| Auth type          | 对接方式                                                                                                                            |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `agent` 或默认类型 | 直接调用 `connection.authenticate({ methodId })`，成功后刷新 status；失败保留错误详情                                               |
+| `env_var`          | 在 agent settings 中标出必需 env var；缺失时不启动 prompt；设置后重启 agent 并重新 initialize                                       |
+| `terminal`         | 在 JiaorongAI 控制的 terminal/auth runner 中执行 agent 指定流程；完成后重新 initialize；只有该能力完成后才声明 `auth.terminal=true` |
 
 `logout` 只在 `agentCapabilities.auth.logout` 存在时启用。logout 成功后关闭或失效当前 ACP session handle，避免继续使用旧认证上下文。
 
@@ -145,12 +145,12 @@ interface AcpCapabilitySnapshot {
 `acpSessionManager` 增加 capability-gated lifecycle：
 
 - `listSessions(agentId, cwd?, cursor?)`：循环读取分页，按 workspace 同步 external catalog。
-- `importSession(agentId, remoteSessionId, cwd)`：创建或复用 DeepChat conversation，写入 `AcpSessionLink`。
+- `importSession(agentId, remoteSessionId, cwd)`：创建或复用 JiaorongAI conversation，写入 `AcpSessionLink`。
 - `resumeSession(agentId, remoteSessionId, cwd)`：仅用于已绑定 conversation 的运行时上下文恢复。
 - `detachSessionLink(conversationId)`：解除本地 link，不写远端。
 - `closeRemoteSession(agentId, remoteSessionId)`：仅用户显式操作或活跃 runtime cleanup 时调用。
 - `loadSession(agentId, remoteSessionId, cwd)`：用于远端历史重放导入。
-- `newSession(agentId, cwd, mcpServers)`：只在新的 DeepChat conversation 需要远端上下文时调用。
+- `newSession(agentId, cwd, mcpServers)`：只在新的 JiaorongAI conversation 需要远端上下文时调用。
 
 本地 conversation 打开后的远端上下文恢复优先级固定为：
 
@@ -171,14 +171,14 @@ no AcpSessionLink                                 -> session/new
 导入策略：
 
 - `session/list` 结果只写 external catalog，不直接生成 messages。
-- `session/load` 重放用于导入历史；导入过程先汇总成 DeepChat turn，再落库。
+- `session/load` 重放用于导入历史；导入过程先汇总成 JiaorongAI turn，再落库。
 - 已导入过的远端 session 再次同步时，先比较 `remoteUpdatedAt` 和 `lastImportedRemoteUpdatedAt`；未变化则跳过。
 - 即使 `updatedAt` 变化，也必须用 message fingerprint 去重，避免重复导入相同 replay 内容。
-- 新 prompt turn 由 DeepChat 产生并持久化；agent response 通过 mapper 转换后追加到同一个本地 conversation。
+- 新 prompt turn 由 JiaorongAI 产生并持久化；agent response 通过 mapper 转换后追加到同一个本地 conversation。
 
 ### 5. Session Update Buffer
 
-当前风险是 `session/new` 返回前后，agent 已经发送 `session/update`，但 DeepChat listener 尚未注册，导致 commands/modes/config 早期状态丢失。
+当前风险是 `session/new` 返回前后，agent 已经发送 `session/update`，但 JiaorongAI listener 尚未注册，导致 commands/modes/config 早期状态丢失。
 
 修复方式：
 
@@ -191,23 +191,23 @@ no AcpSessionLink                                 -> session/new
 
 `acpMessageFormatter` 改成当前 turn only：
 
-- 从 DeepChat messages 中提取最后一个 user message。
+- 从 JiaorongAI messages 中提取最后一个 user message。
 - 不再把完整历史拼成 `USER:`/`ASSISTANT:` 文本。
 - 不再把 temperature、maxTokens 注入 prompt 文本。
-- 若 DeepChat session 有 system prompt，只在本地 conversation 首次绑定远端 runtime 时作为 context text 发送一次。
+- 若 JiaorongAI session 有 system prompt，只在本地 conversation 首次绑定远端 runtime 时作为 context text 发送一次。
 - 每个 content block 先判断 agent `promptCapabilities`，不支持则降级。
 
 输入映射策略：
 
-| DeepChat content | ACP content |
-| --- | --- |
-| text | `text` |
-| local/remote URL attachment | `resource_link` |
-| base64 image + image supported | `image` |
-| image unsupported | `resource_link` 或文本 fallback |
-| audio + audio supported | `audio` |
-| audio unsupported | 文本 fallback |
-| embedded file/context + embeddedContext supported | `resource` 或 text context |
+| JiaorongAI content                                | ACP content                     |
+| ------------------------------------------------- | ------------------------------- |
+| text                                              | `text`                          |
+| local/remote URL attachment                       | `resource_link`                 |
+| base64 image + image supported                    | `image`                         |
+| image unsupported                                 | `resource_link` 或文本 fallback |
+| audio + audio supported                           | `audio`                         |
+| audio unsupported                                 | 文本 fallback                   |
+| embedded file/context + embeddedContext supported | `resource` 或 text context      |
 
 输出映射策略：
 
@@ -222,7 +222,7 @@ no AcpSessionLink                                 -> session/new
 工具调用保持现有 mapper，但修正语义：
 
 - `tool_call` 表示工具生命周期，不默认当作权限请求。
-- 只有 ACP `session/request_permission` 才进入 DeepChat permission overlay。
+- 只有 ACP `session/request_permission` 才进入 JiaorongAI permission overlay。
 - `tool_call_update.content` 中的 `terminal`、`diff`、`content`、`locations`、raw input/output 都保留到 block extra/debug。
 - permission resolver 增加 timeout 默认 outcome，用户取消或窗口关闭时返回 cancelled。
 - remote control 侧沿用现有 permission/question 交互模型。
@@ -333,7 +333,7 @@ Integration/manual matrix:
 - DimCode：init -> list -> new -> commands -> close -> resume -> prompt。
 - Claude Code ACP：init -> auth required -> authenticate flow -> cleanup。
 - Codex ACP：registry launch spec -> version drift diagnostics -> auth methods。
-- Regression：普通 non-ACP chat、MCP permission、DeepChat internal agent 不受影响。
+- Regression：普通 non-ACP chat、MCP permission、JiaorongAI internal agent 不受影响。
 
 Quality gates:
 
@@ -348,10 +348,10 @@ pnpm test -- test/main/presenter/acpProvider.test.ts
 
 ## Risks and Mitigations
 
-| Risk | Mitigation |
-| --- | --- |
-| 不同 ACP wrapper 对 auth method 字段解释不一致 | diagnostics 显示 raw auth method；未知字段保留 `_meta`；只按官方 required 字段做控制流 |
-| Claude/Codex wrapper 拉起子进程后 probe 卡住 | 所有 real-agent probe 必须 timeout + process tree cleanup |
-| resume/load/new 语义混用导致历史重复 | DeepChat conversation 为事实源；远端 replay 先 staging 再 fingerprint 去重；prompt formatter current-turn-only |
-| terminal command 兼容性变化 | 直接 spawn 是协议正确行为；若 agent 要 shell，agent 应把 shell 作为 command |
-| session title 更新覆盖用户标题 | 只更新 ACP metadata；DeepChat 用户手工标题优先 |
+| Risk                                           | Mitigation                                                                                                       |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| 不同 ACP wrapper 对 auth method 字段解释不一致 | diagnostics 显示 raw auth method；未知字段保留 `_meta`；只按官方 required 字段做控制流                           |
+| Claude/Codex wrapper 拉起子进程后 probe 卡住   | 所有 real-agent probe 必须 timeout + process tree cleanup                                                        |
+| resume/load/new 语义混用导致历史重复           | JiaorongAI conversation 为事实源；远端 replay 先 staging 再 fingerprint 去重；prompt formatter current-turn-only |
+| terminal command 兼容性变化                    | 直接 spawn 是协议正确行为；若 agent 要 shell，agent 应把 shell 作为 command                                      |
+| session title 更新覆盖用户标题                 | 只更新 ACP metadata；JiaorongAI 用户手工标题优先                                                                 |

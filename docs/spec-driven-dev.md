@@ -1,8 +1,8 @@
-# Specification-Driven Development for DeepChat
+# Specification-Driven Development for JiaorongAI
 
 ## Core Philosophy
 
-Specification-Driven Development (SDD) eliminates the gap between requirements and implementation by making specifications the primary artifact. Specifications don't serve code—code serves specifications. When implementing features in DeepChat, start with clear specifications that define WHAT users need and WHY, before deciding HOW to implement.
+Specification-Driven Development (SDD) eliminates the gap between requirements and implementation by making specifications the primary artifact. Specifications don't serve code—code serves specifications. When implementing features in JiaorongAI, start with clear specifications that define WHAT users need and WHY, before deciding HOW to implement.
 
 In practice, SDD works best when the spec is concrete enough to drive design decisions, tests, and PR review. Prefer small, reviewable increments that keep spec → plan → code traceability.
 
@@ -50,7 +50,8 @@ Write clear requirements with measurable acceptance criteria before writing code
 
 ### 2. Architectural Consistency
 
-Follow DeepChat's existing architectural patterns:
+Follow JiaorongAI's existing architectural patterns:
+
 - **Presenter Pattern**: Add behavior in the appropriate module under `src/main/presenter/`
 - **Event-Driven Communication**: Use `EventBus` + event constants for main ↔ renderer flows
 - **Secure IPC**: Prefer typed IPC via `src/preload/` (contextIsolation on); avoid ad-hoc channels
@@ -64,6 +65,7 @@ Every feature should integrate seamlessly with existing Presenters and use the e
 ### 3. Minimal Complexity
 
 Start simple. Add complexity only when proven necessary. Avoid:
+
 - Future-proofing (build for now, not hypothetical future needs)
 - Unnecessary abstraction layers
 - Over-generalization
@@ -82,6 +84,7 @@ Prefer forward-looking designs, but treat stored user data, config, and external
 ### 5. UI Consistency
 
 Maintain consistency across the codebase:
+
 - **Vue 3 Composition API** for all components
 - **i18n** for all user-facing strings in `src/renderer/src/i18n/`
 - **Tailwind CSS** following existing utility patterns
@@ -94,6 +97,7 @@ Use Vitest + Vue Test Utils for testing. Test files mirror source structure unde
 ## Development Checklist
 
 ### Specification Phase
+
 - [ ] User stories clearly defined
 - [ ] Acceptance criteria testable and measurable
 - [ ] Non-goals and constraints stated
@@ -102,6 +106,7 @@ Use Vitest + Vue Test Utils for testing. Test files mirror source structure unde
 - [ ] Business value articulated
 
 ### Planning Phase
+
 - [ ] Identify all involved Presenters
 - [ ] Design event flow (if cross-process communication required)
 - [ ] Define/verify IPC surface (`src/preload/`) and types (`src/shared/`)
@@ -110,6 +115,7 @@ Use Vitest + Vue Test Utils for testing. Test files mirror source structure unde
 - [ ] Identify risks (security/privacy/perf) and mitigations
 
 ### Implementation Phase
+
 - [ ] Create/update test file
 - [ ] Implement Presenter method(s)
 - [ ] Implement UI component (if needed)

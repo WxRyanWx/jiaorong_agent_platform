@@ -1,6 +1,6 @@
 {
   "input": {
-    "placeholder": "Hantar mesej kepada DeepChat, {'@'} boleh merujuk fail, / boleh menggunakan arahan",
+    "placeholder": "Hantar mesej kepada JiaorongAI, {'@'} boleh merujuk fail, / boleh menggunakan arahan",
     "fileArea": "kawasan fail",
     "inputArea": "kawasan input",
     "functionSwitch": "Suis fungsi",
@@ -10,7 +10,7 @@
     "voiceRecognitionUnsupportedTitle": "Persekitaran semasa tidak menyokong rakaman tempatan",
     "voiceRecognitionUnsupportedDescription": "Sila gunakan ciri ini dalam pelayar atau persekitaran desktop yang menyokong rakaman mikrofon.",
     "voiceRecognitionPermissionDeniedTitle": "Tidak dapat mengakses mikrofon",
-    "voiceRecognitionPermissionDeniedDescription": "Sila benarkan DeepChat menggunakan mikrofon dan cuba lagi.",
+    "voiceRecognitionPermissionDeniedDescription": "Sila benarkan JiaorongAI menggunakan mikrofon dan cuba lagi.",
     "voiceRecognitionErrorTitle": "Transkripsi audio gagal",
     "voiceRecognitionErrorDescription": "Gagal melengkapkan transkripsi audio, sila cuba sebentar lagi.",
     "send": "hantar",
@@ -59,7 +59,7 @@
         "agentCore": "alat teras",
         "agentImageGeneration": "penjanaan imej",
         "agentSkills": "Alat kemahiran",
-        "deepchatSettings": "Tetapan DeepChat",
+        "deepchatSettings": "Tetapan JiaorongAI",
         "yobrowser": "YoBrowser"
       }
     },
@@ -373,12 +373,12 @@
   },
   "onboarding": {
     "agentSwitch": {
-      "title": "Tukar kepada DeepChat Agent",
-      "description": "Sebelum memulakan sembang, tukar kembali kepada aliran perbualan DeepChat daripada ACP Agent.",
+      "title": "Tukar kepada JiaorongAI Agent",
+      "description": "Sebelum memulakan sembang, tukar kembali kepada aliran perbualan JiaorongAI daripada ACP Agent.",
       "caption": "Klik butang Agent yang diserlahkan di bar sisi untuk meneruskan."
     },
     "switchModel": {
-      "description": "Pilih model yang anda mahu gunakan untuk perbualan DeepChat pertama anda.",
+      "description": "Pilih model yang anda mahu gunakan untuk perbualan JiaorongAI pertama anda.",
       "caption": "Gunakan penukar model yang diserlahkan untuk memilih mana-mana model yang tersedia."
     },
     "firstChat": {

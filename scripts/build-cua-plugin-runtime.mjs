@@ -18,7 +18,7 @@ const vendorRoot = process.env.DEEPCHAT_CUA_VENDOR_ROOT
   : path.join(pluginDir, "vendor", "cua-driver");
 const vendorSourceDir = path.join(vendorRoot, "source");
 const upstreamMetadataPath = path.join(vendorRoot, "upstream.json");
-const helperAppName = "DeepChat Computer Use";
+const helperAppName = "JiaorongAI Computer Use";
 const helperAppDirName = `${helperAppName}.app`;
 const helperBinaryName = "cua-driver";
 
@@ -151,7 +151,7 @@ async function validateVendorSource(metadata) {
   const commandContent = await fs.readFile(commandPath, "utf8");
   if (!commandContent.includes("DeepChatPermissionProbeCommand")) {
     throw new Error(
-      `Vendored CUA Driver source is missing DeepChat permission probe patch for ${metadata.commit}`,
+      `Vendored CUA Driver source is missing JiaorongAI permission probe patch for ${metadata.commit}`,
     );
   }
 }

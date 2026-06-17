@@ -2,7 +2,7 @@
 
 Use these checks after enabling the CUA plugin:
 
-- `check_permissions` reports Accessibility and Screen Recording state for `DeepChat Computer Use.app`.
+- `check_permissions` reports Accessibility and Screen Recording state for `JiaorongAI Computer Use.app`.
 - `list_apps` returns installed macOS apps.
 - `launch_app` starts a target app and returns a `pid`.
 - `list_windows` returns windows for that `pid`.

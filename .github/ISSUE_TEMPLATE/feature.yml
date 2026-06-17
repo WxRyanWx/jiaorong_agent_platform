@@ -7,7 +7,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Remember: DeepChat is an open source gift, not a product you bought from a vendor.
+        Remember: JiaorongAI is an open source gift, not a product you bought from a vendor.
 
         Use English or Chinese. You may keep only one language when filling.
         可以只使用其中一种语言填写，保留一种语言即可。
@@ -22,4 +22,3 @@ body:
         中文：我需要……，因为……
     validations:
       required: true
-

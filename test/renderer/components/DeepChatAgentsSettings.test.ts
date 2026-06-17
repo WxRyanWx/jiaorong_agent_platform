@@ -1,905 +1,925 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { defineComponent } from 'vue'
-import { flushPromises, mount } from '@vue/test-utils'
-import { ModelType } from '../../../src/shared/model'
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { defineComponent } from "vue";
+import { flushPromises, mount } from "@vue/test-utils";
+import { ModelType } from "../../../src/shared/model";
 
 const passthrough = (name: string) =>
   defineComponent({
     name,
     props: {
-      open: { type: Boolean, default: false }
+      open: { type: Boolean, default: false },
     },
-    template: '<div><slot /></div>'
-  })
+    template: "<div><slot /></div>",
+  });
 
 const DialogStub = defineComponent({
-  name: 'Dialog',
+  name: "Dialog",
   props: {
-    open: { type: Boolean, default: false }
+    open: { type: Boolean, default: false },
   },
-  emits: ['update:open'],
-  template: '<div v-if="open"><slot /></div>'
-})
+  emits: ["update:open"],
+  template: '<div v-if="open"><slot /></div>',
+});
 
 const ButtonStub = defineComponent({
-  name: 'Button',
+  name: "Button",
   props: {
-    disabled: { type: Boolean, default: false }
+    disabled: { type: Boolean, default: false },
   },
-  emits: ['click'],
+  emits: ["click"],
   template:
-    '<button v-bind="$attrs" :disabled="disabled" @click="$emit(\'click\', $event)"><slot /></button>'
-})
+    '<button v-bind="$attrs" :disabled="disabled" @click="$emit(\'click\', $event)"><slot /></button>',
+});
 
 const InputStub = defineComponent({
-  name: 'Input',
+  name: "Input",
   props: {
-    modelValue: { type: [String, Number], default: '' }
+    modelValue: { type: [String, Number], default: "" },
   },
-  emits: ['update:modelValue'],
+  emits: ["update:modelValue"],
   template:
-    '<input v-bind="$attrs" :value="modelValue ?? \'\'" @input="$emit(\'update:modelValue\', $event.target.value)" />'
-})
+    '<input v-bind="$attrs" :value="modelValue ?? \'\'" @input="$emit(\'update:modelValue\', $event.target.value)" />',
+});
 
 const TextareaStub = defineComponent({
-  name: 'Textarea',
+  name: "Textarea",
   props: {
-    modelValue: { type: String, default: '' }
+    modelValue: { type: String, default: "" },
   },
-  emits: ['update:modelValue'],
+  emits: ["update:modelValue"],
   template:
-    '<textarea v-bind="$attrs" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />'
-})
+    '<textarea v-bind="$attrs" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
+});
 
 const SwitchStub = defineComponent({
-  name: 'Switch',
+  name: "Switch",
   props: {
-    modelValue: { type: Boolean, default: false }
+    modelValue: { type: Boolean, default: false },
   },
-  emits: ['update:modelValue'],
+  emits: ["update:modelValue"],
   template:
-    '<button v-bind="$attrs" type="button" :data-model-value="String(modelValue)" @click="$emit(\'update:modelValue\', !modelValue)" />'
-})
+    '<button v-bind="$attrs" type="button" :data-model-value="String(modelValue)" @click="$emit(\'update:modelValue\', !modelValue)" />',
+});
 
 const DropdownMenuItemStub = defineComponent({
-  name: 'DropdownMenuItem',
-  emits: ['select'],
+  name: "DropdownMenuItem",
+  emits: ["select"],
   template:
-    '<button v-bind="$attrs" type="button" @click="$emit(\'select\', $event)"><slot /></button>'
-})
+    '<button v-bind="$attrs" type="button" @click="$emit(\'select\', $event)"><slot /></button>',
+});
 
-vi.mock('@/components/ModelSelect.vue', () => ({
+vi.mock("@/components/ModelSelect.vue", () => ({
   default: defineComponent({
-    name: 'ModelSelect',
+    name: "ModelSelect",
     props: {
       type: { type: Array, default: undefined },
-      visionOnly: { type: Boolean, default: false }
+      visionOnly: { type: Boolean, default: false },
     },
-    template: '<div data-testid="model-select-stub"></div>'
-  })
-}))
+    template: '<div data-testid="model-select-stub"></div>',
+  }),
+}));
 
-describe('DeepChatAgentsSettings', () => {
+describe("DeepChatAgentsSettings", () => {
   beforeEach(() => {
-    vi.clearAllMocks()
-  })
+    vi.clearAllMocks();
+  });
 
-  it('mounts and saves DeepChat agents without advanced model overrides', async () => {
-    vi.resetModules()
+  it("mounts and saves JiaorongAI agents without advanced model overrides", async () => {
+    vi.resetModules();
 
     const existingAgent = {
-      id: 'deepchat',
-      type: 'deepchat',
-      name: 'DeepChat',
+      id: "deepchat",
+      type: "deepchat",
+      name: "JiaorongAI",
       enabled: true,
       protected: true,
-      description: 'Writer agent',
+      description: "Writer agent",
       avatar: null,
       config: {
         defaultModelPreset: {
-          providerId: 'openai',
-          modelId: 'gpt-4.1',
+          providerId: "openai",
+          modelId: "gpt-4.1",
           temperature: 1.2,
           contextLength: 64000,
           maxTokens: 8192,
           thinkingBudget: 2048,
-          reasoningEffort: 'high',
-          verbosity: 'high',
-          forceInterleavedThinkingCompat: true
+          reasoningEffort: "high",
+          verbosity: "high",
+          forceInterleavedThinkingCompat: true,
         },
         assistantModel: null,
         visionModel: null,
-        imageGenerationModel: { providerId: 'openai', modelId: 'gpt-image-1' },
-        systemPrompt: 'system prompt',
-        permissionMode: 'default',
-        disabledAgentTools: ['tool_beta'],
+        imageGenerationModel: { providerId: "openai", modelId: "gpt-image-1" },
+        systemPrompt: "system prompt",
+        permissionMode: "default",
+        disabledAgentTools: ["tool_beta"],
         autoCompactionEnabled: false,
         autoCompactionTriggerThreshold: 72,
-        autoCompactionRetainRecentPairs: 4
-      }
-    }
+        autoCompactionRetainRecentPairs: 4,
+      },
+    };
 
     const configPresenter = {
       listAgents: vi.fn().mockResolvedValue([existingAgent]),
       getSystemPrompts: vi.fn().mockResolvedValue([]),
       updateDeepChatAgent: vi.fn().mockResolvedValue(existingAgent),
-      createDeepChatAgent: vi.fn().mockResolvedValue({ id: 'deepchat-new' }),
-      deleteDeepChatAgent: vi.fn().mockResolvedValue(undefined)
-    }
+      createDeepChatAgent: vi.fn().mockResolvedValue({ id: "deepchat-new" }),
+      deleteDeepChatAgent: vi.fn().mockResolvedValue(undefined),
+    };
     const toolPresenter = {
       getAllToolDefinitions: vi.fn().mockResolvedValue([
         {
-          source: 'agent',
-          function: { name: 'tool_alpha', description: 'Alpha tool' },
-          server: { name: 'alpha-server' }
+          source: "agent",
+          function: { name: "tool_alpha", description: "Alpha tool" },
+          server: { name: "alpha-server" },
         },
         {
-          source: 'agent',
-          function: { name: 'tool_beta', description: 'Beta tool' },
-          server: { name: 'beta-server' }
-        }
-      ])
-    }
+          source: "agent",
+          function: { name: "tool_beta", description: "Beta tool" },
+          server: { name: "beta-server" },
+        },
+      ]),
+    };
     const projectPresenter = {
       getRecentProjects: vi.fn().mockResolvedValue([]),
-      selectDirectory: vi.fn().mockResolvedValue(null)
-    }
+      selectDirectory: vi.fn().mockResolvedValue(null),
+    };
     const modelStore = {
       allProviderModels: [
         {
-          providerId: 'openai',
+          providerId: "openai",
           models: [
-            { id: 'gpt-4.1', name: 'GPT-4.1' },
-            { id: 'gpt-image-1', name: 'GPT Image 1', type: ModelType.ImageGeneration }
-          ]
-        }
+            { id: "gpt-4.1", name: "GPT-4.1" },
+            {
+              id: "gpt-image-1",
+              name: "GPT Image 1",
+              type: ModelType.ImageGeneration,
+            },
+          ],
+        },
       ],
       findModelByIdOrName: vi.fn((modelId: string) =>
-        modelId === 'gpt-image-1'
+        modelId === "gpt-image-1"
           ? {
-              providerId: 'openai',
-              model: { id: 'gpt-image-1', name: 'GPT Image 1', type: ModelType.ImageGeneration }
+              providerId: "openai",
+              model: {
+                id: "gpt-image-1",
+                name: "GPT Image 1",
+                type: ModelType.ImageGeneration,
+              },
             }
           : {
-              providerId: 'openai',
-              model: { id: 'gpt-4.1', name: 'GPT-4.1' }
-            }
-      )
-    }
+              providerId: "openai",
+              model: { id: "gpt-4.1", name: "GPT-4.1" },
+            },
+      ),
+    };
 
-    vi.doMock('@api/legacy/presenters', () => ({
+    vi.doMock("@api/legacy/presenters", () => ({
       useLegacyPresenter: (name: string) => {
-        if (name === 'configPresenter') return configPresenter
-        if (name === 'projectPresenter') return projectPresenter
-        if (name === 'toolPresenter') return toolPresenter
-        return {}
-      }
-    }))
-    vi.doMock('@/stores/modelStore', () => ({
-      useModelStore: () => modelStore
-    }))
-    vi.doMock('vue-i18n', () => ({
+        if (name === "configPresenter") return configPresenter;
+        if (name === "projectPresenter") return projectPresenter;
+        if (name === "toolPresenter") return toolPresenter;
+        return {};
+      },
+    }));
+    vi.doMock("@/stores/modelStore", () => ({
+      useModelStore: () => modelStore,
+    }));
+    vi.doMock("vue-i18n", () => ({
       useI18n: () => ({
-        t: (key: string) => key
-      })
-    }))
-    vi.doMock('@iconify/vue', () => ({
+        t: (key: string) => key,
+      }),
+    }));
+    vi.doMock("@iconify/vue", () => ({
       Icon: {
-        name: 'Icon',
-        template: '<span />'
-      }
-    }))
+        name: "Icon",
+        template: "<span />",
+      },
+    }));
 
     const DeepChatAgentsSettings = (
-      await import('../../../src/renderer/settings/components/DeepChatAgentsSettings.vue')
-    ).default
+      await import("../../../src/renderer/settings/components/DeepChatAgentsSettings.vue")
+    ).default;
 
     const wrapper = mount(DeepChatAgentsSettings, {
       global: {
         stubs: {
           Button: ButtonStub,
-          Badge: passthrough('Badge'),
+          Badge: passthrough("Badge"),
           Input: InputStub,
           Textarea: TextareaStub,
           Switch: SwitchStub,
           Dialog: DialogStub,
-          DialogContent: passthrough('DialogContent'),
-          DialogHeader: passthrough('DialogHeader'),
-          DialogTitle: passthrough('DialogTitle'),
-          DropdownMenu: passthrough('DropdownMenu'),
-          DropdownMenuContent: passthrough('DropdownMenuContent'),
+          DialogContent: passthrough("DialogContent"),
+          DialogHeader: passthrough("DialogHeader"),
+          DialogTitle: passthrough("DialogTitle"),
+          DropdownMenu: passthrough("DropdownMenu"),
+          DropdownMenuContent: passthrough("DropdownMenuContent"),
           DropdownMenuItem: DropdownMenuItemStub,
-          DropdownMenuSeparator: passthrough('DropdownMenuSeparator'),
-          DropdownMenuTrigger: passthrough('DropdownMenuTrigger'),
-          Popover: passthrough('Popover'),
-          PopoverContent: passthrough('PopoverContent'),
-          PopoverTrigger: passthrough('PopoverTrigger'),
-          Select: passthrough('Select'),
-          SelectContent: passthrough('SelectContent'),
-          SelectItem: passthrough('SelectItem'),
-          SelectTrigger: passthrough('SelectTrigger'),
-          SelectValue: passthrough('SelectValue'),
-          ModelSelect: passthrough('ModelSelect'),
-          AgentAvatar: passthrough('AgentAvatar'),
-          ModelIcon: passthrough('ModelIcon'),
-          Icon: true
-        }
-      }
-    })
+          DropdownMenuSeparator: passthrough("DropdownMenuSeparator"),
+          DropdownMenuTrigger: passthrough("DropdownMenuTrigger"),
+          Popover: passthrough("Popover"),
+          PopoverContent: passthrough("PopoverContent"),
+          PopoverTrigger: passthrough("PopoverTrigger"),
+          Select: passthrough("Select"),
+          SelectContent: passthrough("SelectContent"),
+          SelectItem: passthrough("SelectItem"),
+          SelectTrigger: passthrough("SelectTrigger"),
+          SelectValue: passthrough("SelectValue"),
+          ModelSelect: passthrough("ModelSelect"),
+          AgentAvatar: passthrough("AgentAvatar"),
+          ModelIcon: passthrough("ModelIcon"),
+          Icon: true,
+        },
+      },
+    });
 
-    await flushPromises()
+    await flushPromises();
 
-    expect(wrapper.text()).not.toContain('settings.deepchatAgents.temperature')
-    expect(wrapper.text()).not.toContain('settings.deepchatAgents.reasoningEffort')
-    expect(wrapper.text()).not.toContain('settings.deepchatAgents.verbosity')
-    expect(wrapper.text()).not.toContain('settings.deepchatAgents.interleaved')
-    expect(wrapper.text()).toContain('GPT-4.1')
-    expect(wrapper.text()).toContain('GPT Image 1')
-    expect(wrapper.text()).not.toContain('openai/gpt-4.1')
-    expect(wrapper.text().indexOf('settings.deepchatAgents.visionModel')).toBeLessThan(
-      wrapper.text().indexOf('settings.deepchatAgents.imageGenerationModel')
-    )
+    expect(wrapper.text()).not.toContain("settings.deepchatAgents.temperature");
+    expect(wrapper.text()).not.toContain(
+      "settings.deepchatAgents.reasoningEffort",
+    );
+    expect(wrapper.text()).not.toContain("settings.deepchatAgents.verbosity");
+    expect(wrapper.text()).not.toContain("settings.deepchatAgents.interleaved");
+    expect(wrapper.text()).toContain("GPT-4.1");
+    expect(wrapper.text()).toContain("GPT Image 1");
+    expect(wrapper.text()).not.toContain("openai/gpt-4.1");
+    expect(
+      wrapper.text().indexOf("settings.deepchatAgents.visionModel"),
+    ).toBeLessThan(
+      wrapper.text().indexOf("settings.deepchatAgents.imageGenerationModel"),
+    );
 
     const saveButton = wrapper
-      .findAll('button')
-      .find((button) => button.text().includes('common.save'))
+      .findAll("button")
+      .find((button) => button.text().includes("common.save"));
 
-    expect(saveButton).toBeDefined()
+    expect(saveButton).toBeDefined();
 
-    await saveButton!.trigger('click')
-    await flushPromises()
+    await saveButton!.trigger("click");
+    await flushPromises();
 
-    expect(configPresenter.updateDeepChatAgent).toHaveBeenCalledTimes(1)
+    expect(configPresenter.updateDeepChatAgent).toHaveBeenCalledTimes(1);
 
-    const [, payload] = configPresenter.updateDeepChatAgent.mock.calls[0]
+    const [, payload] = configPresenter.updateDeepChatAgent.mock.calls[0];
     expect(payload).toMatchObject({
-      name: 'DeepChat',
+      name: "JiaorongAI",
       enabled: true,
-      description: 'Writer agent',
+      description: "Writer agent",
       config: {
         defaultModelPreset: {
-          providerId: 'openai',
-          modelId: 'gpt-4.1'
+          providerId: "openai",
+          modelId: "gpt-4.1",
         },
         assistantModel: null,
         visionModel: null,
-        imageGenerationModel: { providerId: 'openai', modelId: 'gpt-image-1' },
+        imageGenerationModel: { providerId: "openai", modelId: "gpt-image-1" },
         defaultProjectPath: null,
-        systemPrompt: 'system prompt',
-        permissionMode: 'default',
-        disabledAgentTools: ['tool_beta'],
+        systemPrompt: "system prompt",
+        permissionMode: "default",
+        disabledAgentTools: ["tool_beta"],
         autoCompactionEnabled: false,
         autoCompactionTriggerThreshold: 72,
-        autoCompactionRetainRecentPairs: 4
-      }
-    })
+        autoCompactionRetainRecentPairs: 4,
+      },
+    });
     expect(payload.config.defaultModelPreset).toEqual({
-      providerId: 'openai',
-      modelId: 'gpt-4.1'
-    })
+      providerId: "openai",
+      modelId: "gpt-4.1",
+    });
     expect(payload.config.imageGenerationModel).toEqual({
-      providerId: 'openai',
-      modelId: 'gpt-image-1'
-    })
-  })
+      providerId: "openai",
+      modelId: "gpt-image-1",
+    });
+  });
 
-  it('filters the image generation model selector to image models', async () => {
-    vi.resetModules()
+  it("filters the image generation model selector to image models", async () => {
+    vi.resetModules();
 
     const existingAgent = {
-      id: 'deepchat',
-      type: 'deepchat',
-      name: 'DeepChat',
+      id: "deepchat",
+      type: "deepchat",
+      name: "JiaorongAI",
       enabled: true,
       protected: true,
-      description: 'Writer agent',
+      description: "Writer agent",
       avatar: null,
       config: {
         defaultModelPreset: null,
         assistantModel: null,
         visionModel: null,
         imageGenerationModel: null,
-        systemPrompt: '',
-        permissionMode: 'default',
-        disabledAgentTools: []
-      }
-    }
+        systemPrompt: "",
+        permissionMode: "default",
+        disabledAgentTools: [],
+      },
+    };
     const configPresenter = {
       listAgents: vi.fn().mockResolvedValue([existingAgent]),
       getSystemPrompts: vi.fn().mockResolvedValue([]),
       updateDeepChatAgent: vi.fn().mockResolvedValue(existingAgent),
-      createDeepChatAgent: vi.fn().mockResolvedValue({ id: 'deepchat-new' }),
-      deleteDeepChatAgent: vi.fn().mockResolvedValue(undefined)
-    }
+      createDeepChatAgent: vi.fn().mockResolvedValue({ id: "deepchat-new" }),
+      deleteDeepChatAgent: vi.fn().mockResolvedValue(undefined),
+    };
     const toolPresenter = {
-      getAllToolDefinitions: vi.fn().mockResolvedValue([])
-    }
+      getAllToolDefinitions: vi.fn().mockResolvedValue([]),
+    };
     const projectPresenter = {
       getRecentProjects: vi.fn().mockResolvedValue([]),
-      selectDirectory: vi.fn().mockResolvedValue(null)
-    }
+      selectDirectory: vi.fn().mockResolvedValue(null),
+    };
 
-    vi.doMock('@api/legacy/presenters', () => ({
+    vi.doMock("@api/legacy/presenters", () => ({
       useLegacyPresenter: (name: string) => {
-        if (name === 'configPresenter') return configPresenter
-        if (name === 'projectPresenter') return projectPresenter
-        if (name === 'toolPresenter') return toolPresenter
-        return {}
-      }
-    }))
-    vi.doMock('@/stores/modelStore', () => ({
+        if (name === "configPresenter") return configPresenter;
+        if (name === "projectPresenter") return projectPresenter;
+        if (name === "toolPresenter") return toolPresenter;
+        return {};
+      },
+    }));
+    vi.doMock("@/stores/modelStore", () => ({
       useModelStore: () => ({
         allProviderModels: [],
-        findModelByIdOrName: vi.fn(() => null)
-      })
-    }))
-    vi.doMock('vue-i18n', () => ({
+        findModelByIdOrName: vi.fn(() => null),
+      }),
+    }));
+    vi.doMock("vue-i18n", () => ({
       useI18n: () => ({
-        t: (key: string) => key
-      })
-    }))
-    vi.doMock('@iconify/vue', () => ({
+        t: (key: string) => key,
+      }),
+    }));
+    vi.doMock("@iconify/vue", () => ({
       Icon: {
-        name: 'Icon',
-        template: '<span />'
-      }
-    }))
+        name: "Icon",
+        template: "<span />",
+      },
+    }));
 
     const DeepChatAgentsSettings = (
-      await import('../../../src/renderer/settings/components/DeepChatAgentsSettings.vue')
-    ).default
+      await import("../../../src/renderer/settings/components/DeepChatAgentsSettings.vue")
+    ).default;
 
     const wrapper = mount(DeepChatAgentsSettings, {
       global: {
         stubs: {
           Button: ButtonStub,
-          Badge: passthrough('Badge'),
+          Badge: passthrough("Badge"),
           Input: InputStub,
           Textarea: TextareaStub,
           Switch: SwitchStub,
           Dialog: DialogStub,
-          DialogContent: passthrough('DialogContent'),
-          DialogHeader: passthrough('DialogHeader'),
-          DialogTitle: passthrough('DialogTitle'),
-          DropdownMenu: passthrough('DropdownMenu'),
-          DropdownMenuContent: passthrough('DropdownMenuContent'),
+          DialogContent: passthrough("DialogContent"),
+          DialogHeader: passthrough("DialogHeader"),
+          DialogTitle: passthrough("DialogTitle"),
+          DropdownMenu: passthrough("DropdownMenu"),
+          DropdownMenuContent: passthrough("DropdownMenuContent"),
           DropdownMenuItem: DropdownMenuItemStub,
-          DropdownMenuSeparator: passthrough('DropdownMenuSeparator'),
-          DropdownMenuTrigger: passthrough('DropdownMenuTrigger'),
-          Popover: passthrough('Popover'),
-          PopoverContent: passthrough('PopoverContent'),
-          PopoverTrigger: passthrough('PopoverTrigger'),
-          Select: passthrough('Select'),
-          SelectContent: passthrough('SelectContent'),
-          SelectItem: passthrough('SelectItem'),
-          SelectTrigger: passthrough('SelectTrigger'),
-          SelectValue: passthrough('SelectValue'),
-          AgentAvatar: passthrough('AgentAvatar'),
-          ModelIcon: passthrough('ModelIcon'),
-          Icon: true
-        }
-      }
-    })
+          DropdownMenuSeparator: passthrough("DropdownMenuSeparator"),
+          DropdownMenuTrigger: passthrough("DropdownMenuTrigger"),
+          Popover: passthrough("Popover"),
+          PopoverContent: passthrough("PopoverContent"),
+          PopoverTrigger: passthrough("PopoverTrigger"),
+          Select: passthrough("Select"),
+          SelectContent: passthrough("SelectContent"),
+          SelectItem: passthrough("SelectItem"),
+          SelectTrigger: passthrough("SelectTrigger"),
+          SelectValue: passthrough("SelectValue"),
+          AgentAvatar: passthrough("AgentAvatar"),
+          ModelIcon: passthrough("ModelIcon"),
+          Icon: true,
+        },
+      },
+    });
 
-    await flushPromises()
+    await flushPromises();
 
-    const modelSelects = wrapper.findAllComponents({ name: 'ModelSelect' })
-    expect(modelSelects).toHaveLength(4)
-    expect(modelSelects[2].props('visionOnly')).toBe(true)
-    expect(modelSelects[3].props('type')).toEqual([ModelType.ImageGeneration])
-  })
+    const modelSelects = wrapper.findAllComponents({ name: "ModelSelect" });
+    expect(modelSelects).toHaveLength(4);
+    expect(modelSelects[2].props("visionOnly")).toBe(true);
+    expect(modelSelects[3].props("type")).toEqual([ModelType.ImageGeneration]);
+  });
 
-  it('keeps the editor header sticky so save actions stay visible while scrolling', async () => {
-    vi.resetModules()
+  it("keeps the editor header sticky so save actions stay visible while scrolling", async () => {
+    vi.resetModules();
 
     const existingAgent = {
-      id: 'deepchat',
-      type: 'deepchat',
-      name: 'DeepChat',
+      id: "deepchat",
+      type: "deepchat",
+      name: "JiaorongAI",
       enabled: true,
       protected: true,
-      description: 'Writer agent',
+      description: "Writer agent",
       avatar: null,
-      config: {}
-    }
+      config: {},
+    };
 
     const configPresenter = {
       listAgents: vi.fn().mockResolvedValue([existingAgent]),
       getSystemPrompts: vi.fn().mockResolvedValue([]),
       updateDeepChatAgent: vi.fn().mockResolvedValue(existingAgent),
-      createDeepChatAgent: vi.fn().mockResolvedValue({ id: 'deepchat-new' }),
-      deleteDeepChatAgent: vi.fn().mockResolvedValue(undefined)
-    }
+      createDeepChatAgent: vi.fn().mockResolvedValue({ id: "deepchat-new" }),
+      deleteDeepChatAgent: vi.fn().mockResolvedValue(undefined),
+    };
     const toolPresenter = {
-      getAllToolDefinitions: vi.fn().mockResolvedValue([])
-    }
+      getAllToolDefinitions: vi.fn().mockResolvedValue([]),
+    };
     const projectPresenter = {
       getRecentProjects: vi.fn().mockResolvedValue([]),
-      selectDirectory: vi.fn().mockResolvedValue(null)
-    }
+      selectDirectory: vi.fn().mockResolvedValue(null),
+    };
     const modelStore = {
       allProviderModels: [],
-      findModelByIdOrName: vi.fn(() => null)
-    }
+      findModelByIdOrName: vi.fn(() => null),
+    };
 
-    vi.doMock('@api/legacy/presenters', () => ({
+    vi.doMock("@api/legacy/presenters", () => ({
       useLegacyPresenter: (name: string) => {
-        if (name === 'configPresenter') return configPresenter
-        if (name === 'projectPresenter') return projectPresenter
-        if (name === 'toolPresenter') return toolPresenter
-        return {}
-      }
-    }))
-    vi.doMock('@/stores/modelStore', () => ({
-      useModelStore: () => modelStore
-    }))
-    vi.doMock('vue-i18n', () => ({
+        if (name === "configPresenter") return configPresenter;
+        if (name === "projectPresenter") return projectPresenter;
+        if (name === "toolPresenter") return toolPresenter;
+        return {};
+      },
+    }));
+    vi.doMock("@/stores/modelStore", () => ({
+      useModelStore: () => modelStore,
+    }));
+    vi.doMock("vue-i18n", () => ({
       useI18n: () => ({
-        t: (key: string) => key
-      })
-    }))
-    vi.doMock('@iconify/vue', () => ({
+        t: (key: string) => key,
+      }),
+    }));
+    vi.doMock("@iconify/vue", () => ({
       Icon: {
-        name: 'Icon',
-        template: '<span />'
-      }
-    }))
+        name: "Icon",
+        template: "<span />",
+      },
+    }));
 
     const DeepChatAgentsSettings = (
-      await import('../../../src/renderer/settings/components/DeepChatAgentsSettings.vue')
-    ).default
+      await import("../../../src/renderer/settings/components/DeepChatAgentsSettings.vue")
+    ).default;
 
     const wrapper = mount(DeepChatAgentsSettings, {
       global: {
         stubs: {
           Button: ButtonStub,
-          Badge: passthrough('Badge'),
+          Badge: passthrough("Badge"),
           Input: InputStub,
           Textarea: TextareaStub,
           Switch: SwitchStub,
           Dialog: DialogStub,
-          DialogContent: passthrough('DialogContent'),
-          DialogHeader: passthrough('DialogHeader'),
-          DialogTitle: passthrough('DialogTitle'),
-          DropdownMenu: passthrough('DropdownMenu'),
-          DropdownMenuContent: passthrough('DropdownMenuContent'),
+          DialogContent: passthrough("DialogContent"),
+          DialogHeader: passthrough("DialogHeader"),
+          DialogTitle: passthrough("DialogTitle"),
+          DropdownMenu: passthrough("DropdownMenu"),
+          DropdownMenuContent: passthrough("DropdownMenuContent"),
           DropdownMenuItem: DropdownMenuItemStub,
-          DropdownMenuSeparator: passthrough('DropdownMenuSeparator'),
-          DropdownMenuTrigger: passthrough('DropdownMenuTrigger'),
-          Popover: passthrough('Popover'),
-          PopoverContent: passthrough('PopoverContent'),
-          PopoverTrigger: passthrough('PopoverTrigger'),
-          Select: passthrough('Select'),
-          SelectContent: passthrough('SelectContent'),
-          SelectItem: passthrough('SelectItem'),
-          SelectTrigger: passthrough('SelectTrigger'),
-          SelectValue: passthrough('SelectValue'),
-          ModelSelect: passthrough('ModelSelect'),
-          AgentAvatar: passthrough('AgentAvatar'),
-          ModelIcon: passthrough('ModelIcon'),
-          Icon: true
-        }
-      }
-    })
+          DropdownMenuSeparator: passthrough("DropdownMenuSeparator"),
+          DropdownMenuTrigger: passthrough("DropdownMenuTrigger"),
+          Popover: passthrough("Popover"),
+          PopoverContent: passthrough("PopoverContent"),
+          PopoverTrigger: passthrough("PopoverTrigger"),
+          Select: passthrough("Select"),
+          SelectContent: passthrough("SelectContent"),
+          SelectItem: passthrough("SelectItem"),
+          SelectTrigger: passthrough("SelectTrigger"),
+          SelectValue: passthrough("SelectValue"),
+          ModelSelect: passthrough("ModelSelect"),
+          AgentAvatar: passthrough("AgentAvatar"),
+          ModelIcon: passthrough("ModelIcon"),
+          Icon: true,
+        },
+      },
+    });
 
-    await flushPromises()
+    await flushPromises();
 
-    const stickyHeader = wrapper.get('[data-testid="deepchat-agents-sticky-header"]')
+    const stickyHeader = wrapper.get(
+      '[data-testid="deepchat-agents-sticky-header"]',
+    );
 
-    expect(stickyHeader.classes()).toContain('sticky')
-    expect(stickyHeader.classes()).toContain('top-0')
-    expect(stickyHeader.text()).toContain('common.save')
-    expect(stickyHeader.text()).toContain('common.reset')
-  })
+    expect(stickyHeader.classes()).toContain("sticky");
+    expect(stickyHeader.classes()).toContain("top-0");
+    expect(stickyHeader.text()).toContain("common.save");
+    expect(stickyHeader.text()).toContain("common.reset");
+  });
 
-  it('saves auto compaction settings when number inputs emit numeric values', async () => {
-    vi.resetModules()
+  it("saves auto compaction settings when number inputs emit numeric values", async () => {
+    vi.resetModules();
 
     const existingAgent = {
-      id: 'deepchat',
-      type: 'deepchat',
-      name: 'DeepChat',
+      id: "deepchat",
+      type: "deepchat",
+      name: "JiaorongAI",
       enabled: true,
       protected: true,
-      description: 'Writer agent',
-      avatar: null,
-      config: {
-        defaultModelPreset: null,
-        assistantModel: null,
-        visionModel: null,
-        systemPrompt: 'system prompt',
-        permissionMode: 'default',
-        disabledAgentTools: [],
-        autoCompactionEnabled: true,
-        autoCompactionTriggerThreshold: 72,
-        autoCompactionRetainRecentPairs: 4
-      }
-    }
-
-    const configPresenter = {
-      listAgents: vi.fn().mockResolvedValue([existingAgent]),
-      getSystemPrompts: vi.fn().mockResolvedValue([]),
-      updateDeepChatAgent: vi.fn().mockResolvedValue(existingAgent),
-      createDeepChatAgent: vi.fn().mockResolvedValue({ id: 'deepchat-new' }),
-      deleteDeepChatAgent: vi.fn().mockResolvedValue(undefined)
-    }
-    const toolPresenter = {
-      getAllToolDefinitions: vi.fn().mockResolvedValue([])
-    }
-    const projectPresenter = {
-      getRecentProjects: vi.fn().mockResolvedValue([]),
-      selectDirectory: vi.fn().mockResolvedValue(null)
-    }
-    const modelStore = {
-      allProviderModels: [],
-      findModelByIdOrName: vi.fn(() => null)
-    }
-
-    vi.doMock('@api/legacy/presenters', () => ({
-      useLegacyPresenter: (name: string) => {
-        if (name === 'configPresenter') return configPresenter
-        if (name === 'projectPresenter') return projectPresenter
-        if (name === 'toolPresenter') return toolPresenter
-        return {}
-      }
-    }))
-    vi.doMock('@/stores/modelStore', () => ({
-      useModelStore: () => modelStore
-    }))
-    vi.doMock('vue-i18n', () => ({
-      useI18n: () => ({
-        t: (key: string) => key
-      })
-    }))
-    vi.doMock('@iconify/vue', () => ({
-      Icon: {
-        name: 'Icon',
-        template: '<span />'
-      }
-    }))
-
-    const DeepChatAgentsSettings = (
-      await import('../../../src/renderer/settings/components/DeepChatAgentsSettings.vue')
-    ).default
-
-    const wrapper = mount(DeepChatAgentsSettings, {
-      global: {
-        stubs: {
-          Button: ButtonStub,
-          Badge: passthrough('Badge'),
-          Input: InputStub,
-          Textarea: TextareaStub,
-          Switch: SwitchStub,
-          Dialog: DialogStub,
-          DialogContent: passthrough('DialogContent'),
-          DialogHeader: passthrough('DialogHeader'),
-          DialogTitle: passthrough('DialogTitle'),
-          DropdownMenu: passthrough('DropdownMenu'),
-          DropdownMenuContent: passthrough('DropdownMenuContent'),
-          DropdownMenuItem: DropdownMenuItemStub,
-          DropdownMenuSeparator: passthrough('DropdownMenuSeparator'),
-          DropdownMenuTrigger: passthrough('DropdownMenuTrigger'),
-          Popover: passthrough('Popover'),
-          PopoverContent: passthrough('PopoverContent'),
-          PopoverTrigger: passthrough('PopoverTrigger'),
-          Select: passthrough('Select'),
-          SelectContent: passthrough('SelectContent'),
-          SelectItem: passthrough('SelectItem'),
-          SelectTrigger: passthrough('SelectTrigger'),
-          SelectValue: passthrough('SelectValue'),
-          ModelSelect: passthrough('ModelSelect'),
-          AgentAvatar: passthrough('AgentAvatar'),
-          ModelIcon: passthrough('ModelIcon'),
-          Icon: true
-        }
-      }
-    })
-
-    await flushPromises()
-
-    wrapper
-      .findComponent('[data-testid="auto-compaction-trigger-threshold-input"]')
-      .vm.$emit('update:modelValue', 91)
-    wrapper
-      .findComponent('[data-testid="auto-compaction-retain-recent-pairs-input"]')
-      .vm.$emit('update:modelValue', 6)
-
-    const saveButton = wrapper
-      .findAll('button')
-      .find((button) => button.text().includes('common.save'))
-
-    expect(saveButton).toBeDefined()
-
-    await saveButton!.trigger('click')
-    await flushPromises()
-
-    expect(configPresenter.updateDeepChatAgent).toHaveBeenCalledTimes(1)
-
-    const [, payload] = configPresenter.updateDeepChatAgent.mock.calls[0]
-    expect(payload.config.autoCompactionTriggerThreshold).toBe(91)
-    expect(payload.config.autoCompactionRetainRecentPairs).toBe(6)
-  })
-
-  it('falls back to default auto compaction values when inputs are blank or invalid', async () => {
-    vi.resetModules()
-
-    const existingAgent = {
-      id: 'deepchat',
-      type: 'deepchat',
-      name: 'DeepChat',
-      enabled: true,
-      protected: true,
-      description: 'Writer agent',
+      description: "Writer agent",
       avatar: null,
       config: {
         defaultModelPreset: null,
         assistantModel: null,
         visionModel: null,
-        systemPrompt: 'system prompt',
-        permissionMode: 'default',
+        systemPrompt: "system prompt",
+        permissionMode: "default",
         disabledAgentTools: [],
         autoCompactionEnabled: true,
         autoCompactionTriggerThreshold: 72,
-        autoCompactionRetainRecentPairs: 4
-      }
-    }
+        autoCompactionRetainRecentPairs: 4,
+      },
+    };
 
     const configPresenter = {
       listAgents: vi.fn().mockResolvedValue([existingAgent]),
       getSystemPrompts: vi.fn().mockResolvedValue([]),
       updateDeepChatAgent: vi.fn().mockResolvedValue(existingAgent),
-      createDeepChatAgent: vi.fn().mockResolvedValue({ id: 'deepchat-new' }),
-      deleteDeepChatAgent: vi.fn().mockResolvedValue(undefined)
-    }
+      createDeepChatAgent: vi.fn().mockResolvedValue({ id: "deepchat-new" }),
+      deleteDeepChatAgent: vi.fn().mockResolvedValue(undefined),
+    };
     const toolPresenter = {
-      getAllToolDefinitions: vi.fn().mockResolvedValue([])
-    }
+      getAllToolDefinitions: vi.fn().mockResolvedValue([]),
+    };
     const projectPresenter = {
       getRecentProjects: vi.fn().mockResolvedValue([]),
-      selectDirectory: vi.fn().mockResolvedValue(null)
-    }
+      selectDirectory: vi.fn().mockResolvedValue(null),
+    };
     const modelStore = {
       allProviderModels: [],
-      findModelByIdOrName: vi.fn(() => null)
-    }
+      findModelByIdOrName: vi.fn(() => null),
+    };
 
-    vi.doMock('@api/legacy/presenters', () => ({
+    vi.doMock("@api/legacy/presenters", () => ({
       useLegacyPresenter: (name: string) => {
-        if (name === 'configPresenter') return configPresenter
-        if (name === 'projectPresenter') return projectPresenter
-        if (name === 'toolPresenter') return toolPresenter
-        return {}
-      }
-    }))
-    vi.doMock('@/stores/modelStore', () => ({
-      useModelStore: () => modelStore
-    }))
-    vi.doMock('vue-i18n', () => ({
+        if (name === "configPresenter") return configPresenter;
+        if (name === "projectPresenter") return projectPresenter;
+        if (name === "toolPresenter") return toolPresenter;
+        return {};
+      },
+    }));
+    vi.doMock("@/stores/modelStore", () => ({
+      useModelStore: () => modelStore,
+    }));
+    vi.doMock("vue-i18n", () => ({
       useI18n: () => ({
-        t: (key: string) => key
-      })
-    }))
-    vi.doMock('@iconify/vue', () => ({
+        t: (key: string) => key,
+      }),
+    }));
+    vi.doMock("@iconify/vue", () => ({
       Icon: {
-        name: 'Icon',
-        template: '<span />'
-      }
-    }))
+        name: "Icon",
+        template: "<span />",
+      },
+    }));
 
     const DeepChatAgentsSettings = (
-      await import('../../../src/renderer/settings/components/DeepChatAgentsSettings.vue')
-    ).default
+      await import("../../../src/renderer/settings/components/DeepChatAgentsSettings.vue")
+    ).default;
 
     const wrapper = mount(DeepChatAgentsSettings, {
       global: {
         stubs: {
           Button: ButtonStub,
-          Badge: passthrough('Badge'),
+          Badge: passthrough("Badge"),
           Input: InputStub,
           Textarea: TextareaStub,
           Switch: SwitchStub,
           Dialog: DialogStub,
-          DialogContent: passthrough('DialogContent'),
-          DialogHeader: passthrough('DialogHeader'),
-          DialogTitle: passthrough('DialogTitle'),
-          DropdownMenu: passthrough('DropdownMenu'),
-          DropdownMenuContent: passthrough('DropdownMenuContent'),
+          DialogContent: passthrough("DialogContent"),
+          DialogHeader: passthrough("DialogHeader"),
+          DialogTitle: passthrough("DialogTitle"),
+          DropdownMenu: passthrough("DropdownMenu"),
+          DropdownMenuContent: passthrough("DropdownMenuContent"),
           DropdownMenuItem: DropdownMenuItemStub,
-          DropdownMenuSeparator: passthrough('DropdownMenuSeparator'),
-          DropdownMenuTrigger: passthrough('DropdownMenuTrigger'),
-          Popover: passthrough('Popover'),
-          PopoverContent: passthrough('PopoverContent'),
-          PopoverTrigger: passthrough('PopoverTrigger'),
-          Select: passthrough('Select'),
-          SelectContent: passthrough('SelectContent'),
-          SelectItem: passthrough('SelectItem'),
-          SelectTrigger: passthrough('SelectTrigger'),
-          SelectValue: passthrough('SelectValue'),
-          ModelSelect: passthrough('ModelSelect'),
-          AgentAvatar: passthrough('AgentAvatar'),
-          ModelIcon: passthrough('ModelIcon'),
-          Icon: true
-        }
-      }
-    })
+          DropdownMenuSeparator: passthrough("DropdownMenuSeparator"),
+          DropdownMenuTrigger: passthrough("DropdownMenuTrigger"),
+          Popover: passthrough("Popover"),
+          PopoverContent: passthrough("PopoverContent"),
+          PopoverTrigger: passthrough("PopoverTrigger"),
+          Select: passthrough("Select"),
+          SelectContent: passthrough("SelectContent"),
+          SelectItem: passthrough("SelectItem"),
+          SelectTrigger: passthrough("SelectTrigger"),
+          SelectValue: passthrough("SelectValue"),
+          ModelSelect: passthrough("ModelSelect"),
+          AgentAvatar: passthrough("AgentAvatar"),
+          ModelIcon: passthrough("ModelIcon"),
+          Icon: true,
+        },
+      },
+    });
 
-    await flushPromises()
+    await flushPromises();
 
     wrapper
       .findComponent('[data-testid="auto-compaction-trigger-threshold-input"]')
-      .vm.$emit('update:modelValue', '')
+      .vm.$emit("update:modelValue", 91);
     wrapper
-      .findComponent('[data-testid="auto-compaction-retain-recent-pairs-input"]')
-      .vm.$emit('update:modelValue', 'oops')
+      .findComponent(
+        '[data-testid="auto-compaction-retain-recent-pairs-input"]',
+      )
+      .vm.$emit("update:modelValue", 6);
 
     const saveButton = wrapper
-      .findAll('button')
-      .find((button) => button.text().includes('common.save'))
+      .findAll("button")
+      .find((button) => button.text().includes("common.save"));
 
-    expect(saveButton).toBeDefined()
+    expect(saveButton).toBeDefined();
 
-    await saveButton!.trigger('click')
-    await flushPromises()
+    await saveButton!.trigger("click");
+    await flushPromises();
 
-    expect(configPresenter.updateDeepChatAgent).toHaveBeenCalledTimes(1)
+    expect(configPresenter.updateDeepChatAgent).toHaveBeenCalledTimes(1);
 
-    const [, payload] = configPresenter.updateDeepChatAgent.mock.calls[0]
-    expect(payload.config.autoCompactionTriggerThreshold).toBe(80)
-    expect(payload.config.autoCompactionRetainRecentPairs).toBe(2)
-  })
+    const [, payload] = configPresenter.updateDeepChatAgent.mock.calls[0];
+    expect(payload.config.autoCompactionTriggerThreshold).toBe(91);
+    expect(payload.config.autoCompactionRetainRecentPairs).toBe(6);
+  });
 
-  it('fills the system prompt field from a prompt template dialog', async () => {
-    vi.resetModules()
+  it("falls back to default auto compaction values when inputs are blank or invalid", async () => {
+    vi.resetModules();
+
+    const existingAgent = {
+      id: "deepchat",
+      type: "deepchat",
+      name: "JiaorongAI",
+      enabled: true,
+      protected: true,
+      description: "Writer agent",
+      avatar: null,
+      config: {
+        defaultModelPreset: null,
+        assistantModel: null,
+        visionModel: null,
+        systemPrompt: "system prompt",
+        permissionMode: "default",
+        disabledAgentTools: [],
+        autoCompactionEnabled: true,
+        autoCompactionTriggerThreshold: 72,
+        autoCompactionRetainRecentPairs: 4,
+      },
+    };
+
+    const configPresenter = {
+      listAgents: vi.fn().mockResolvedValue([existingAgent]),
+      getSystemPrompts: vi.fn().mockResolvedValue([]),
+      updateDeepChatAgent: vi.fn().mockResolvedValue(existingAgent),
+      createDeepChatAgent: vi.fn().mockResolvedValue({ id: "deepchat-new" }),
+      deleteDeepChatAgent: vi.fn().mockResolvedValue(undefined),
+    };
+    const toolPresenter = {
+      getAllToolDefinitions: vi.fn().mockResolvedValue([]),
+    };
+    const projectPresenter = {
+      getRecentProjects: vi.fn().mockResolvedValue([]),
+      selectDirectory: vi.fn().mockResolvedValue(null),
+    };
+    const modelStore = {
+      allProviderModels: [],
+      findModelByIdOrName: vi.fn(() => null),
+    };
+
+    vi.doMock("@api/legacy/presenters", () => ({
+      useLegacyPresenter: (name: string) => {
+        if (name === "configPresenter") return configPresenter;
+        if (name === "projectPresenter") return projectPresenter;
+        if (name === "toolPresenter") return toolPresenter;
+        return {};
+      },
+    }));
+    vi.doMock("@/stores/modelStore", () => ({
+      useModelStore: () => modelStore,
+    }));
+    vi.doMock("vue-i18n", () => ({
+      useI18n: () => ({
+        t: (key: string) => key,
+      }),
+    }));
+    vi.doMock("@iconify/vue", () => ({
+      Icon: {
+        name: "Icon",
+        template: "<span />",
+      },
+    }));
+
+    const DeepChatAgentsSettings = (
+      await import("../../../src/renderer/settings/components/DeepChatAgentsSettings.vue")
+    ).default;
+
+    const wrapper = mount(DeepChatAgentsSettings, {
+      global: {
+        stubs: {
+          Button: ButtonStub,
+          Badge: passthrough("Badge"),
+          Input: InputStub,
+          Textarea: TextareaStub,
+          Switch: SwitchStub,
+          Dialog: DialogStub,
+          DialogContent: passthrough("DialogContent"),
+          DialogHeader: passthrough("DialogHeader"),
+          DialogTitle: passthrough("DialogTitle"),
+          DropdownMenu: passthrough("DropdownMenu"),
+          DropdownMenuContent: passthrough("DropdownMenuContent"),
+          DropdownMenuItem: DropdownMenuItemStub,
+          DropdownMenuSeparator: passthrough("DropdownMenuSeparator"),
+          DropdownMenuTrigger: passthrough("DropdownMenuTrigger"),
+          Popover: passthrough("Popover"),
+          PopoverContent: passthrough("PopoverContent"),
+          PopoverTrigger: passthrough("PopoverTrigger"),
+          Select: passthrough("Select"),
+          SelectContent: passthrough("SelectContent"),
+          SelectItem: passthrough("SelectItem"),
+          SelectTrigger: passthrough("SelectTrigger"),
+          SelectValue: passthrough("SelectValue"),
+          ModelSelect: passthrough("ModelSelect"),
+          AgentAvatar: passthrough("AgentAvatar"),
+          ModelIcon: passthrough("ModelIcon"),
+          Icon: true,
+        },
+      },
+    });
+
+    await flushPromises();
+
+    wrapper
+      .findComponent('[data-testid="auto-compaction-trigger-threshold-input"]')
+      .vm.$emit("update:modelValue", "");
+    wrapper
+      .findComponent(
+        '[data-testid="auto-compaction-retain-recent-pairs-input"]',
+      )
+      .vm.$emit("update:modelValue", "oops");
+
+    const saveButton = wrapper
+      .findAll("button")
+      .find((button) => button.text().includes("common.save"));
+
+    expect(saveButton).toBeDefined();
+
+    await saveButton!.trigger("click");
+    await flushPromises();
+
+    expect(configPresenter.updateDeepChatAgent).toHaveBeenCalledTimes(1);
+
+    const [, payload] = configPresenter.updateDeepChatAgent.mock.calls[0];
+    expect(payload.config.autoCompactionTriggerThreshold).toBe(80);
+    expect(payload.config.autoCompactionRetainRecentPairs).toBe(2);
+  });
+
+  it("fills the system prompt field from a prompt template dialog", async () => {
+    vi.resetModules();
 
     const configPresenter = {
       listAgents: vi.fn().mockResolvedValue([]),
       getSystemPrompts: vi.fn().mockResolvedValue([
         {
-          id: 'writer',
-          name: 'Writer',
-          content: 'You are a writing assistant.'
+          id: "writer",
+          name: "Writer",
+          content: "You are a writing assistant.",
         },
         {
-          id: 'coder',
-          name: 'Coder',
-          content: 'You write concise code.'
-        }
+          id: "coder",
+          name: "Coder",
+          content: "You write concise code.",
+        },
       ]),
-      updateDeepChatAgent: vi.fn().mockResolvedValue({ id: 'deepchat-new' }),
-      createDeepChatAgent: vi.fn().mockResolvedValue({ id: 'deepchat-new' }),
-      deleteDeepChatAgent: vi.fn().mockResolvedValue(undefined)
-    }
+      updateDeepChatAgent: vi.fn().mockResolvedValue({ id: "deepchat-new" }),
+      createDeepChatAgent: vi.fn().mockResolvedValue({ id: "deepchat-new" }),
+      deleteDeepChatAgent: vi.fn().mockResolvedValue(undefined),
+    };
     const toolPresenter = {
-      getAllToolDefinitions: vi.fn().mockResolvedValue([])
-    }
+      getAllToolDefinitions: vi.fn().mockResolvedValue([]),
+    };
     const projectPresenter = {
       getRecentProjects: vi.fn().mockResolvedValue([]),
-      selectDirectory: vi.fn().mockResolvedValue(null)
-    }
+      selectDirectory: vi.fn().mockResolvedValue(null),
+    };
     const modelStore = {
       allProviderModels: [],
-      findModelByIdOrName: vi.fn(() => null)
-    }
+      findModelByIdOrName: vi.fn(() => null),
+    };
 
-    vi.doMock('@api/legacy/presenters', () => ({
+    vi.doMock("@api/legacy/presenters", () => ({
       useLegacyPresenter: (name: string) => {
-        if (name === 'configPresenter') return configPresenter
-        if (name === 'projectPresenter') return projectPresenter
-        if (name === 'toolPresenter') return toolPresenter
-        return {}
-      }
-    }))
-    vi.doMock('@/stores/modelStore', () => ({
-      useModelStore: () => modelStore
-    }))
-    vi.doMock('vue-i18n', () => ({
+        if (name === "configPresenter") return configPresenter;
+        if (name === "projectPresenter") return projectPresenter;
+        if (name === "toolPresenter") return toolPresenter;
+        return {};
+      },
+    }));
+    vi.doMock("@/stores/modelStore", () => ({
+      useModelStore: () => modelStore,
+    }));
+    vi.doMock("vue-i18n", () => ({
       useI18n: () => ({
-        t: (key: string) => key
-      })
-    }))
-    vi.doMock('@iconify/vue', () => ({
+        t: (key: string) => key,
+      }),
+    }));
+    vi.doMock("@iconify/vue", () => ({
       Icon: {
-        name: 'Icon',
-        template: '<span />'
-      }
-    }))
+        name: "Icon",
+        template: "<span />",
+      },
+    }));
 
     const DeepChatAgentsSettings = (
-      await import('../../../src/renderer/settings/components/DeepChatAgentsSettings.vue')
-    ).default
+      await import("../../../src/renderer/settings/components/DeepChatAgentsSettings.vue")
+    ).default;
 
     const wrapper = mount(DeepChatAgentsSettings, {
       global: {
         stubs: {
           Button: ButtonStub,
-          Badge: passthrough('Badge'),
+          Badge: passthrough("Badge"),
           Input: InputStub,
           Textarea: TextareaStub,
           Switch: SwitchStub,
           Dialog: DialogStub,
-          DialogContent: passthrough('DialogContent'),
-          DialogHeader: passthrough('DialogHeader'),
-          DialogTitle: passthrough('DialogTitle'),
-          DropdownMenu: passthrough('DropdownMenu'),
-          DropdownMenuContent: passthrough('DropdownMenuContent'),
+          DialogContent: passthrough("DialogContent"),
+          DialogHeader: passthrough("DialogHeader"),
+          DialogTitle: passthrough("DialogTitle"),
+          DropdownMenu: passthrough("DropdownMenu"),
+          DropdownMenuContent: passthrough("DropdownMenuContent"),
           DropdownMenuItem: DropdownMenuItemStub,
-          DropdownMenuSeparator: passthrough('DropdownMenuSeparator'),
-          DropdownMenuTrigger: passthrough('DropdownMenuTrigger'),
-          Popover: passthrough('Popover'),
-          PopoverContent: passthrough('PopoverContent'),
-          PopoverTrigger: passthrough('PopoverTrigger'),
-          Select: passthrough('Select'),
-          SelectContent: passthrough('SelectContent'),
-          SelectItem: passthrough('SelectItem'),
-          SelectTrigger: passthrough('SelectTrigger'),
-          SelectValue: passthrough('SelectValue'),
-          ModelSelect: passthrough('ModelSelect'),
-          AgentAvatar: passthrough('AgentAvatar'),
-          ModelIcon: passthrough('ModelIcon'),
-          Icon: true
-        }
-      }
-    })
+          DropdownMenuSeparator: passthrough("DropdownMenuSeparator"),
+          DropdownMenuTrigger: passthrough("DropdownMenuTrigger"),
+          Popover: passthrough("Popover"),
+          PopoverContent: passthrough("PopoverContent"),
+          PopoverTrigger: passthrough("PopoverTrigger"),
+          Select: passthrough("Select"),
+          SelectContent: passthrough("SelectContent"),
+          SelectItem: passthrough("SelectItem"),
+          SelectTrigger: passthrough("SelectTrigger"),
+          SelectValue: passthrough("SelectValue"),
+          ModelSelect: passthrough("ModelSelect"),
+          AgentAvatar: passthrough("AgentAvatar"),
+          ModelIcon: passthrough("ModelIcon"),
+          Icon: true,
+        },
+      },
+    });
 
-    await flushPromises()
+    await flushPromises();
 
     const pickerButton = wrapper
-      .findAll('button')
-      .find((button) => button.text().includes('promptSetting.selectSystemPrompt'))
+      .findAll("button")
+      .find((button) =>
+        button.text().includes("promptSetting.selectSystemPrompt"),
+      );
 
-    expect(pickerButton).toBeDefined()
+    expect(pickerButton).toBeDefined();
 
-    await pickerButton!.trigger('click')
-    await flushPromises()
+    await pickerButton!.trigger("click");
+    await flushPromises();
 
-    expect(configPresenter.getSystemPrompts).toHaveBeenCalledTimes(1)
-    expect(wrapper.text()).toContain('Writer')
-    expect(wrapper.text()).toContain('Coder')
+    expect(configPresenter.getSystemPrompts).toHaveBeenCalledTimes(1);
+    expect(wrapper.text()).toContain("Writer");
+    expect(wrapper.text()).toContain("Coder");
 
     const templateButton = wrapper
-      .findAll('button')
-      .find((button) => button.text().includes('You write concise code.'))
+      .findAll("button")
+      .find((button) => button.text().includes("You write concise code."));
 
-    expect(templateButton).toBeDefined()
+    expect(templateButton).toBeDefined();
 
-    await templateButton!.trigger('click')
-    await flushPromises()
+    await templateButton!.trigger("click");
+    await flushPromises();
 
     const systemPromptTextarea = wrapper
-      .findAll('textarea')
+      .findAll("textarea")
       .find((textarea) =>
         textarea
-          .attributes('placeholder')
-          ?.includes('settings.deepchatAgents.systemPromptPlaceholder')
-      )
+          .attributes("placeholder")
+          ?.includes("settings.deepchatAgents.systemPromptPlaceholder"),
+      );
 
-    expect(systemPromptTextarea).toBeDefined()
-    expect(systemPromptTextarea!.element.value).toBe('You write concise code.')
-  })
+    expect(systemPromptTextarea).toBeDefined();
+    expect(systemPromptTextarea!.element.value).toBe("You write concise code.");
+  });
 
-  it('shows an unsaved draft agent in the sidebar before persisting', async () => {
-    vi.resetModules()
+  it("shows an unsaved draft agent in the sidebar before persisting", async () => {
+    vi.resetModules();
 
     const existingAgent = {
-      id: 'deepchat',
-      type: 'deepchat',
-      name: 'DeepChat',
+      id: "deepchat",
+      type: "deepchat",
+      name: "JiaorongAI",
       enabled: true,
       protected: true,
-      description: 'Writer agent',
+      description: "Writer agent",
       avatar: null,
-      config: {}
-    }
+      config: {},
+    };
     const createdAgent = {
-      id: 'deepchat-new',
-      type: 'deepchat',
-      name: 'Draft Writer',
+      id: "deepchat-new",
+      type: "deepchat",
+      name: "Draft Writer",
       enabled: true,
       protected: false,
-      description: '',
+      description: "",
       avatar: null,
-      config: {}
-    }
+      config: {},
+    };
 
     const configPresenter = {
       listAgents: vi
@@ -909,430 +929,444 @@ describe('DeepChatAgentsSettings', () => {
       getSystemPrompts: vi.fn().mockResolvedValue([]),
       updateDeepChatAgent: vi.fn().mockResolvedValue(existingAgent),
       createDeepChatAgent: vi.fn().mockResolvedValue(createdAgent),
-      deleteDeepChatAgent: vi.fn().mockResolvedValue(undefined)
-    }
+      deleteDeepChatAgent: vi.fn().mockResolvedValue(undefined),
+    };
     const toolPresenter = {
-      getAllToolDefinitions: vi.fn().mockResolvedValue([])
-    }
+      getAllToolDefinitions: vi.fn().mockResolvedValue([]),
+    };
     const projectPresenter = {
       getRecentProjects: vi.fn().mockResolvedValue([]),
-      selectDirectory: vi.fn().mockResolvedValue(null)
-    }
+      selectDirectory: vi.fn().mockResolvedValue(null),
+    };
     const modelStore = {
       allProviderModels: [],
-      findModelByIdOrName: vi.fn(() => null)
-    }
+      findModelByIdOrName: vi.fn(() => null),
+    };
 
-    vi.doMock('@api/legacy/presenters', () => ({
+    vi.doMock("@api/legacy/presenters", () => ({
       useLegacyPresenter: (name: string) => {
-        if (name === 'configPresenter') return configPresenter
-        if (name === 'projectPresenter') return projectPresenter
-        if (name === 'toolPresenter') return toolPresenter
-        return {}
-      }
-    }))
-    vi.doMock('@/stores/modelStore', () => ({
-      useModelStore: () => modelStore
-    }))
-    vi.doMock('vue-i18n', () => ({
+        if (name === "configPresenter") return configPresenter;
+        if (name === "projectPresenter") return projectPresenter;
+        if (name === "toolPresenter") return toolPresenter;
+        return {};
+      },
+    }));
+    vi.doMock("@/stores/modelStore", () => ({
+      useModelStore: () => modelStore,
+    }));
+    vi.doMock("vue-i18n", () => ({
       useI18n: () => ({
-        t: (key: string) => key
-      })
-    }))
-    vi.doMock('@iconify/vue', () => ({
+        t: (key: string) => key,
+      }),
+    }));
+    vi.doMock("@iconify/vue", () => ({
       Icon: {
-        name: 'Icon',
-        template: '<span />'
-      }
-    }))
+        name: "Icon",
+        template: "<span />",
+      },
+    }));
 
     const DeepChatAgentsSettings = (
-      await import('../../../src/renderer/settings/components/DeepChatAgentsSettings.vue')
-    ).default
+      await import("../../../src/renderer/settings/components/DeepChatAgentsSettings.vue")
+    ).default;
 
     const wrapper = mount(DeepChatAgentsSettings, {
       global: {
         stubs: {
           Button: ButtonStub,
-          Badge: passthrough('Badge'),
+          Badge: passthrough("Badge"),
           Input: InputStub,
           Textarea: TextareaStub,
           Switch: SwitchStub,
           Dialog: DialogStub,
-          DialogContent: passthrough('DialogContent'),
-          DialogHeader: passthrough('DialogHeader'),
-          DialogTitle: passthrough('DialogTitle'),
-          DropdownMenu: passthrough('DropdownMenu'),
-          DropdownMenuContent: passthrough('DropdownMenuContent'),
+          DialogContent: passthrough("DialogContent"),
+          DialogHeader: passthrough("DialogHeader"),
+          DialogTitle: passthrough("DialogTitle"),
+          DropdownMenu: passthrough("DropdownMenu"),
+          DropdownMenuContent: passthrough("DropdownMenuContent"),
           DropdownMenuItem: DropdownMenuItemStub,
-          DropdownMenuSeparator: passthrough('DropdownMenuSeparator'),
-          DropdownMenuTrigger: passthrough('DropdownMenuTrigger'),
-          Popover: passthrough('Popover'),
-          PopoverContent: passthrough('PopoverContent'),
-          PopoverTrigger: passthrough('PopoverTrigger'),
-          ModelSelect: passthrough('ModelSelect'),
-          AgentAvatar: passthrough('AgentAvatar'),
-          ModelIcon: passthrough('ModelIcon'),
-          Icon: true
-        }
-      }
-    })
+          DropdownMenuSeparator: passthrough("DropdownMenuSeparator"),
+          DropdownMenuTrigger: passthrough("DropdownMenuTrigger"),
+          Popover: passthrough("Popover"),
+          PopoverContent: passthrough("PopoverContent"),
+          PopoverTrigger: passthrough("PopoverTrigger"),
+          ModelSelect: passthrough("ModelSelect"),
+          AgentAvatar: passthrough("AgentAvatar"),
+          ModelIcon: passthrough("ModelIcon"),
+          Icon: true,
+        },
+      },
+    });
 
-    await flushPromises()
+    await flushPromises();
 
     const addButton = wrapper
-      .findAll('button')
-      .find((button) => button.text().includes('common.add'))
-    expect(addButton).toBeDefined()
+      .findAll("button")
+      .find((button) => button.text().includes("common.add"));
+    expect(addButton).toBeDefined();
 
-    await addButton!.trigger('click')
-    await flushPromises()
+    await addButton!.trigger("click");
+    await flushPromises();
 
-    expect(configPresenter.createDeepChatAgent).not.toHaveBeenCalled()
+    expect(configPresenter.createDeepChatAgent).not.toHaveBeenCalled();
     expect(
       wrapper
-        .findAll('aside button')
-        .some((button) => button.text().includes('settings.deepchatAgents.unnamed'))
-    ).toBe(true)
+        .findAll("aside button")
+        .some((button) =>
+          button.text().includes("settings.deepchatAgents.unnamed"),
+        ),
+    ).toBe(true);
 
     const nameInput = wrapper
-      .findAll('input')
+      .findAll("input")
       .find((input) =>
-        input.attributes('placeholder')?.includes('settings.deepchatAgents.namePlaceholder')
-      )
+        input
+          .attributes("placeholder")
+          ?.includes("settings.deepchatAgents.namePlaceholder"),
+      );
 
-    expect(nameInput).toBeDefined()
+    expect(nameInput).toBeDefined();
 
-    await nameInput!.setValue('Draft Writer')
-    await flushPromises()
+    await nameInput!.setValue("Draft Writer");
+    await flushPromises();
 
     expect(
-      wrapper.findAll('aside button').some((button) => button.text().includes('Draft Writer'))
-    ).toBe(true)
+      wrapper
+        .findAll("aside button")
+        .some((button) => button.text().includes("Draft Writer")),
+    ).toBe(true);
 
     const saveButton = wrapper
-      .findAll('button')
-      .find((button) => button.text().includes('common.save'))
+      .findAll("button")
+      .find((button) => button.text().includes("common.save"));
 
-    expect(saveButton).toBeDefined()
+    expect(saveButton).toBeDefined();
 
-    await saveButton!.trigger('click')
-    await flushPromises()
+    await saveButton!.trigger("click");
+    await flushPromises();
 
-    expect(configPresenter.createDeepChatAgent).toHaveBeenCalledTimes(1)
+    expect(configPresenter.createDeepChatAgent).toHaveBeenCalledTimes(1);
     expect(configPresenter.createDeepChatAgent).toHaveBeenCalledWith(
       expect.objectContaining({
-        name: 'Draft Writer'
-      })
-    )
-  })
+        name: "Draft Writer",
+      }),
+    );
+  });
 
-  it('stores an optional default directory on the agent config', async () => {
-    vi.resetModules()
+  it("stores an optional default directory on the agent config", async () => {
+    vi.resetModules();
 
     const existingAgent = {
-      id: 'deepchat',
-      type: 'deepchat',
-      name: 'DeepChat',
+      id: "deepchat",
+      type: "deepchat",
+      name: "JiaorongAI",
       enabled: true,
       protected: true,
-      description: '',
+      description: "",
       avatar: null,
       config: {
-        defaultProjectPath: '/workspaces/writer'
-      }
-    }
+        defaultProjectPath: "/workspaces/writer",
+      },
+    };
 
     const configPresenter = {
       listAgents: vi.fn().mockResolvedValue([existingAgent]),
       getSystemPrompts: vi.fn().mockResolvedValue([]),
       updateDeepChatAgent: vi.fn().mockResolvedValue(existingAgent),
-      createDeepChatAgent: vi.fn().mockResolvedValue({ id: 'deepchat-new' }),
-      deleteDeepChatAgent: vi.fn().mockResolvedValue(undefined)
-    }
+      createDeepChatAgent: vi.fn().mockResolvedValue({ id: "deepchat-new" }),
+      deleteDeepChatAgent: vi.fn().mockResolvedValue(undefined),
+    };
     const toolPresenter = {
-      getAllToolDefinitions: vi.fn().mockResolvedValue([])
-    }
+      getAllToolDefinitions: vi.fn().mockResolvedValue([]),
+    };
     const projectPresenter = {
       getRecentProjects: vi.fn().mockResolvedValue([]),
-      selectDirectory: vi.fn().mockResolvedValue('/workspaces/selected')
-    }
+      selectDirectory: vi.fn().mockResolvedValue("/workspaces/selected"),
+    };
     const modelStore = {
       allProviderModels: [],
-      findModelByIdOrName: vi.fn(() => null)
-    }
+      findModelByIdOrName: vi.fn(() => null),
+    };
 
-    vi.doMock('@api/legacy/presenters', () => ({
+    vi.doMock("@api/legacy/presenters", () => ({
       useLegacyPresenter: (name: string) => {
-        if (name === 'configPresenter') return configPresenter
-        if (name === 'projectPresenter') return projectPresenter
-        if (name === 'toolPresenter') return toolPresenter
-        return {}
-      }
-    }))
-    vi.doMock('@/stores/modelStore', () => ({
-      useModelStore: () => modelStore
-    }))
-    vi.doMock('vue-i18n', () => ({
+        if (name === "configPresenter") return configPresenter;
+        if (name === "projectPresenter") return projectPresenter;
+        if (name === "toolPresenter") return toolPresenter;
+        return {};
+      },
+    }));
+    vi.doMock("@/stores/modelStore", () => ({
+      useModelStore: () => modelStore,
+    }));
+    vi.doMock("vue-i18n", () => ({
       useI18n: () => ({
-        t: (key: string) => key
-      })
-    }))
-    vi.doMock('@iconify/vue', () => ({
+        t: (key: string) => key,
+      }),
+    }));
+    vi.doMock("@iconify/vue", () => ({
       Icon: {
-        name: 'Icon',
-        template: '<span />'
-      }
-    }))
+        name: "Icon",
+        template: "<span />",
+      },
+    }));
 
     const DeepChatAgentsSettings = (
-      await import('../../../src/renderer/settings/components/DeepChatAgentsSettings.vue')
-    ).default
+      await import("../../../src/renderer/settings/components/DeepChatAgentsSettings.vue")
+    ).default;
 
     const wrapper = mount(DeepChatAgentsSettings, {
       global: {
         stubs: {
           Button: ButtonStub,
-          Badge: passthrough('Badge'),
+          Badge: passthrough("Badge"),
           Input: InputStub,
           Textarea: TextareaStub,
           Switch: SwitchStub,
           Dialog: DialogStub,
-          DialogContent: passthrough('DialogContent'),
-          DialogHeader: passthrough('DialogHeader'),
-          DialogTitle: passthrough('DialogTitle'),
-          DropdownMenu: passthrough('DropdownMenu'),
-          DropdownMenuContent: passthrough('DropdownMenuContent'),
+          DialogContent: passthrough("DialogContent"),
+          DialogHeader: passthrough("DialogHeader"),
+          DialogTitle: passthrough("DialogTitle"),
+          DropdownMenu: passthrough("DropdownMenu"),
+          DropdownMenuContent: passthrough("DropdownMenuContent"),
           DropdownMenuItem: DropdownMenuItemStub,
-          DropdownMenuSeparator: passthrough('DropdownMenuSeparator'),
-          DropdownMenuTrigger: passthrough('DropdownMenuTrigger'),
-          Popover: passthrough('Popover'),
-          PopoverContent: passthrough('PopoverContent'),
-          PopoverTrigger: passthrough('PopoverTrigger'),
-          ModelSelect: passthrough('ModelSelect'),
-          AgentAvatar: passthrough('AgentAvatar'),
-          ModelIcon: passthrough('ModelIcon'),
-          Icon: true
-        }
-      }
-    })
+          DropdownMenuSeparator: passthrough("DropdownMenuSeparator"),
+          DropdownMenuTrigger: passthrough("DropdownMenuTrigger"),
+          Popover: passthrough("Popover"),
+          PopoverContent: passthrough("PopoverContent"),
+          PopoverTrigger: passthrough("PopoverTrigger"),
+          ModelSelect: passthrough("ModelSelect"),
+          AgentAvatar: passthrough("AgentAvatar"),
+          ModelIcon: passthrough("ModelIcon"),
+          Icon: true,
+        },
+      },
+    });
 
-    await flushPromises()
+    await flushPromises();
 
     const directoryTrigger = wrapper
-      .findAll('button')
-      .find((button) => button.attributes('title') === '/workspaces/writer')
+      .findAll("button")
+      .find((button) => button.attributes("title") === "/workspaces/writer");
 
-    expect(directoryTrigger).toBeDefined()
-    expect(directoryTrigger!.text()).toContain('writer')
+    expect(directoryTrigger).toBeDefined();
+    expect(directoryTrigger!.text()).toContain("writer");
 
     const pickButton = wrapper
-      .findAll('button')
-      .find((button) => button.text().includes('common.project.openFolder'))
+      .findAll("button")
+      .find((button) => button.text().includes("common.project.openFolder"));
 
-    expect(pickButton).toBeDefined()
+    expect(pickButton).toBeDefined();
 
-    await pickButton!.trigger('click')
-    await flushPromises()
+    await pickButton!.trigger("click");
+    await flushPromises();
 
-    expect(projectPresenter.selectDirectory).toHaveBeenCalledTimes(1)
+    expect(projectPresenter.selectDirectory).toHaveBeenCalledTimes(1);
     expect(
       wrapper
-        .findAll('button')
-        .some((button) => button.attributes('title') === '/workspaces/selected')
-    ).toBe(true)
+        .findAll("button")
+        .some(
+          (button) => button.attributes("title") === "/workspaces/selected",
+        ),
+    ).toBe(true);
 
     const saveButton = wrapper
-      .findAll('button')
-      .find((button) => button.text().includes('common.save'))
+      .findAll("button")
+      .find((button) => button.text().includes("common.save"));
 
-    expect(saveButton).toBeDefined()
+    expect(saveButton).toBeDefined();
 
-    await saveButton!.trigger('click')
-    await flushPromises()
+    await saveButton!.trigger("click");
+    await flushPromises();
 
     expect(configPresenter.updateDeepChatAgent).toHaveBeenCalledWith(
-      'deepchat',
+      "deepchat",
       expect.objectContaining({
         config: expect.objectContaining({
-          defaultProjectPath: '/workspaces/selected'
-        })
-      })
-    )
-  })
+          defaultProjectPath: "/workspaces/selected",
+        }),
+      }),
+    );
+  });
 
-  it('uses a flat target agent select for subagent slots', async () => {
-    vi.resetModules()
+  it("uses a flat target agent select for subagent slots", async () => {
+    vi.resetModules();
 
     const existingAgent = {
-      id: 'deepchat',
-      type: 'deepchat',
-      name: 'DeepChat',
+      id: "deepchat",
+      type: "deepchat",
+      name: "JiaorongAI",
       enabled: true,
       protected: true,
-      description: 'Writer agent',
+      description: "Writer agent",
       avatar: null,
       config: {
         subagentEnabled: true,
         subagents: [
           {
-            id: 'slot-current',
-            targetType: 'self',
-            displayName: 'Current',
-            description: ''
+            id: "slot-current",
+            targetType: "self",
+            displayName: "Current",
+            description: "",
           },
           {
-            id: 'slot-reviewer',
-            targetType: 'agent',
-            targetAgentId: 'acp-reviewer',
-            displayName: 'Reviewer',
-            description: ''
-          }
-        ]
-      }
-    }
+            id: "slot-reviewer",
+            targetType: "agent",
+            targetAgentId: "acp-reviewer",
+            displayName: "Reviewer",
+            description: "",
+          },
+        ],
+      },
+    };
     const acpAgent = {
-      id: 'acp-reviewer',
-      type: 'acp',
-      name: 'ACP Reviewer',
+      id: "acp-reviewer",
+      type: "acp",
+      name: "ACP Reviewer",
       enabled: true,
-      source: 'manual',
+      source: "manual",
       protected: false,
-      description: 'ACP reviewer',
+      description: "ACP reviewer",
       avatar: null,
-      config: {}
-    }
+      config: {},
+    };
     const uninstalledRegistryAgent = {
-      id: 'acp-uninstalled',
-      type: 'acp',
-      name: 'ACP Not Installed',
+      id: "acp-uninstalled",
+      type: "acp",
+      name: "ACP Not Installed",
       enabled: true,
-      source: 'registry',
+      source: "registry",
       protected: false,
-      description: 'ACP not installed',
+      description: "ACP not installed",
       avatar: null,
       config: {},
       installState: {
-        status: 'not_installed'
-      }
-    }
+        status: "not_installed",
+      },
+    };
 
     const configPresenter = {
-      listAgents: vi.fn().mockResolvedValue([existingAgent, acpAgent, uninstalledRegistryAgent]),
+      listAgents: vi
+        .fn()
+        .mockResolvedValue([existingAgent, acpAgent, uninstalledRegistryAgent]),
       getSystemPrompts: vi.fn().mockResolvedValue([]),
       updateDeepChatAgent: vi.fn().mockResolvedValue(existingAgent),
-      createDeepChatAgent: vi.fn().mockResolvedValue({ id: 'deepchat-new' }),
-      deleteDeepChatAgent: vi.fn().mockResolvedValue(undefined)
-    }
+      createDeepChatAgent: vi.fn().mockResolvedValue({ id: "deepchat-new" }),
+      deleteDeepChatAgent: vi.fn().mockResolvedValue(undefined),
+    };
     const toolPresenter = {
-      getAllToolDefinitions: vi.fn().mockResolvedValue([])
-    }
+      getAllToolDefinitions: vi.fn().mockResolvedValue([]),
+    };
     const projectPresenter = {
       getRecentProjects: vi.fn().mockResolvedValue([]),
-      selectDirectory: vi.fn().mockResolvedValue(null)
-    }
+      selectDirectory: vi.fn().mockResolvedValue(null),
+    };
     const modelStore = {
       allProviderModels: [],
-      findModelByIdOrName: vi.fn(() => null)
-    }
+      findModelByIdOrName: vi.fn(() => null),
+    };
 
-    vi.doMock('@api/legacy/presenters', () => ({
+    vi.doMock("@api/legacy/presenters", () => ({
       useLegacyPresenter: (name: string) => {
-        if (name === 'configPresenter') return configPresenter
-        if (name === 'projectPresenter') return projectPresenter
-        if (name === 'toolPresenter') return toolPresenter
-        return {}
-      }
-    }))
-    vi.doMock('@/stores/modelStore', () => ({
-      useModelStore: () => modelStore
-    }))
-    vi.doMock('vue-i18n', () => ({
+        if (name === "configPresenter") return configPresenter;
+        if (name === "projectPresenter") return projectPresenter;
+        if (name === "toolPresenter") return toolPresenter;
+        return {};
+      },
+    }));
+    vi.doMock("@/stores/modelStore", () => ({
+      useModelStore: () => modelStore,
+    }));
+    vi.doMock("vue-i18n", () => ({
       useI18n: () => ({
-        t: (key: string) => key
-      })
-    }))
-    vi.doMock('@iconify/vue', () => ({
+        t: (key: string) => key,
+      }),
+    }));
+    vi.doMock("@iconify/vue", () => ({
       Icon: {
-        name: 'Icon',
-        template: '<span />'
-      }
-    }))
+        name: "Icon",
+        template: "<span />",
+      },
+    }));
 
     const DeepChatAgentsSettings = (
-      await import('../../../src/renderer/settings/components/DeepChatAgentsSettings.vue')
-    ).default
+      await import("../../../src/renderer/settings/components/DeepChatAgentsSettings.vue")
+    ).default;
 
     const wrapper = mount(DeepChatAgentsSettings, {
       global: {
         stubs: {
           Button: ButtonStub,
-          Badge: passthrough('Badge'),
+          Badge: passthrough("Badge"),
           Input: InputStub,
           Textarea: TextareaStub,
           Switch: SwitchStub,
           Dialog: DialogStub,
-          DialogContent: passthrough('DialogContent'),
-          DialogHeader: passthrough('DialogHeader'),
-          DialogTitle: passthrough('DialogTitle'),
-          DropdownMenu: passthrough('DropdownMenu'),
-          DropdownMenuContent: passthrough('DropdownMenuContent'),
+          DialogContent: passthrough("DialogContent"),
+          DialogHeader: passthrough("DialogHeader"),
+          DialogTitle: passthrough("DialogTitle"),
+          DropdownMenu: passthrough("DropdownMenu"),
+          DropdownMenuContent: passthrough("DropdownMenuContent"),
           DropdownMenuItem: DropdownMenuItemStub,
-          DropdownMenuSeparator: passthrough('DropdownMenuSeparator'),
-          DropdownMenuTrigger: passthrough('DropdownMenuTrigger'),
-          Popover: passthrough('Popover'),
-          PopoverContent: passthrough('PopoverContent'),
-          PopoverTrigger: passthrough('PopoverTrigger'),
-          Select: passthrough('Select'),
-          SelectContent: passthrough('SelectContent'),
-          SelectItem: passthrough('SelectItem'),
-          SelectTrigger: passthrough('SelectTrigger'),
-          SelectValue: passthrough('SelectValue'),
-          ModelSelect: passthrough('ModelSelect'),
-          AgentAvatar: passthrough('AgentAvatar'),
-          ModelIcon: passthrough('ModelIcon'),
-          Icon: true
-        }
-      }
-    })
+          DropdownMenuSeparator: passthrough("DropdownMenuSeparator"),
+          DropdownMenuTrigger: passthrough("DropdownMenuTrigger"),
+          Popover: passthrough("Popover"),
+          PopoverContent: passthrough("PopoverContent"),
+          PopoverTrigger: passthrough("PopoverTrigger"),
+          Select: passthrough("Select"),
+          SelectContent: passthrough("SelectContent"),
+          SelectItem: passthrough("SelectItem"),
+          SelectTrigger: passthrough("SelectTrigger"),
+          SelectValue: passthrough("SelectValue"),
+          ModelSelect: passthrough("ModelSelect"),
+          AgentAvatar: passthrough("AgentAvatar"),
+          ModelIcon: passthrough("ModelIcon"),
+          Icon: true,
+        },
+      },
+    });
 
-    await flushPromises()
+    await flushPromises();
 
-    expect(wrapper.text()).not.toContain('settings.deepchatAgents.subagentTargetType')
+    expect(wrapper.text()).not.toContain(
+      "settings.deepchatAgents.subagentTargetType",
+    );
 
-    const targetSelects = wrapper.findAll('select')
-    expect(targetSelects).toHaveLength(2)
-    expect(targetSelects[0].text()).toContain('settings.deepchatAgents.subagentTargetSelf')
-    expect(targetSelects[0].text()).toContain('ACP Reviewer')
-    expect(targetSelects[0].text()).not.toContain('ACP Not Installed')
+    const targetSelects = wrapper.findAll("select");
+    expect(targetSelects).toHaveLength(2);
+    expect(targetSelects[0].text()).toContain(
+      "settings.deepchatAgents.subagentTargetSelf",
+    );
+    expect(targetSelects[0].text()).toContain("ACP Reviewer");
+    expect(targetSelects[0].text()).not.toContain("ACP Not Installed");
 
-    await targetSelects[0].setValue('acp-reviewer')
-    await targetSelects[1].setValue('__current_agent__')
+    await targetSelects[0].setValue("acp-reviewer");
+    await targetSelects[1].setValue("__current_agent__");
 
     const saveButton = wrapper
-      .findAll('button')
-      .find((button) => button.text().includes('common.save'))
+      .findAll("button")
+      .find((button) => button.text().includes("common.save"));
 
-    expect(saveButton).toBeDefined()
+    expect(saveButton).toBeDefined();
 
-    await saveButton!.trigger('click')
-    await flushPromises()
+    await saveButton!.trigger("click");
+    await flushPromises();
 
-    const [, payload] = configPresenter.updateDeepChatAgent.mock.calls[0]
+    const [, payload] = configPresenter.updateDeepChatAgent.mock.calls[0];
     expect(payload.config.subagents).toEqual([
       {
-        id: 'slot-current',
-        targetType: 'agent',
-        targetAgentId: 'acp-reviewer',
-        displayName: 'Current',
-        description: ''
+        id: "slot-current",
+        targetType: "agent",
+        targetAgentId: "acp-reviewer",
+        displayName: "Current",
+        description: "",
       },
       {
-        id: 'slot-reviewer',
-        targetType: 'self',
-        displayName: 'Reviewer',
-        description: ''
-      }
-    ])
-  })
-})
+        id: "slot-reviewer",
+        targetType: "self",
+        displayName: "Reviewer",
+        description: "",
+      },
+    ]);
+  });
+});

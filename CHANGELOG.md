@@ -400,9 +400,9 @@
 
 ## v1.0.0 (2026-03-31)
 
-- DeepChat 1.0 正式发布：完成全新 Agent 架构切换，统一 通用智能体 与 ACP Agent 主流程，并内置 DimCode Agent
+- JiaorongAI 1.0 正式发布：完成全新 Agent 架构切换，统一 交融对话 与 ACP Agent 主流程，并内置 DimCode Agent
 - 新增远程控制能力矩阵：支持 Telegram、Feishu 与 ACP Agent Remote，补齐权限消息、流式块渲染与工作目录选择
-- 强化工作流与工具链：支持 RTK 工具调用、Environments、Provider Deeplink 导入、Workspace 拖拽引用与 DeepChat Sub Agent 协作
+- 强化工作流与工具链：支持 RTK 工具调用、Environments、Provider Deeplink 导入、Workspace 拖拽引用与 JiaorongAI Sub Agent 协作
 - 持续打磨桌面端体验：新增浮动窗口、用户仪表盘、自动压缩控制，并优化侧边栏、悬浮按钮、状态栏与工具调用交互
 - 完成正式版稳定性收敛：修复 HTML 预览、主题同步、消息标题选择、会话工作目录、MCP 生命周期与历史序列化等问题
 
@@ -417,7 +417,7 @@
 ## v1.0.0-beta.6 (2026-03-24)
 
 - 新增 Telegram Remote Control，可通过 Telegram 远程查看与驱动会话，远程控制配置也已接入设置页
-- 统一 通用智能体 与 ACP Agent 的 Agent 能力和入口，补齐欢迎页、本地化文案与默认配置，整体使用路径更一致
+- 统一 交融对话 与 ACP Agent 的 Agent 能力和入口，补齐欢迎页、本地化文案与默认配置，整体使用路径更一致
 - 优化会话默认工作目录传递，修复 Agent / ACP / Skills 在 session workdir 继承上的问题
 - 强化启动与工具输出稳定性，修复 Splash 窗口显示时机，并为大体量工具输出增加保护与批处理适配
 - 移除过时 MCP UI 支持，修复 OpenAI Responses 历史序列化问题，同时继续打磨状态同步与路由细节

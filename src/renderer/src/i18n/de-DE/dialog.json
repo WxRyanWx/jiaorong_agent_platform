@@ -69,7 +69,7 @@
     "moveAndDeleteAgent": "Verschieben und Agent löschen",
     "moveConversation": "Unterhaltung verschieben",
     "agentType": {
-      "deepchat": "DeepChat",
+      "deepchat": "JiaorongAI",
       "acp": "ACP"
     },
     "blockReason": {
@@ -84,6 +84,6 @@
       "draft": "Entwurf",
       "subagent": "Unteragent"
     },
-    "deepChatTargetOnly": "Nur DeepChat-Agents können als Verschiebeziele ausgewählt werden. ACP-Unterhaltungen können zu DeepChat verschoben werden, aber nicht in ACP."
+    "deepChatTargetOnly": "Nur JiaorongAI-Agents können als Verschiebeziele ausgewählt werden. ACP-Unterhaltungen können zu JiaorongAI verschoben werden, aber nicht in ACP."
   }
 }

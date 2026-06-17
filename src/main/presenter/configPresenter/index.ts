@@ -518,7 +518,7 @@ export class ConfigPresenter implements IConfigPresenter {
         prompts: [
           {
             id: "default",
-            name: "JiaoRongSuperIntelligentAgent",
+            name: "JiaorongAI",
             content: DEFAULT_SYSTEM_PROMPT,
             isDefault: true,
             createdAt: Date.now(),
@@ -906,7 +906,7 @@ export class ConfigPresenter implements IConfigPresenter {
     const repository = this.getAgentRepositoryOrThrow();
 
     repository.ensureBuiltinDeepChatAgent({
-      name: "通用智能体",
+      name: "交融对话",
       config: this.buildLegacyBuiltinDeepChatConfig(),
     });
 
@@ -1431,7 +1431,7 @@ export class ConfigPresenter implements IConfigPresenter {
           } else {
             prompts.push({
               id: "default",
-              name: "DeepChat",
+              name: "JiaorongAI",
               content: legacyDefault,
               isDefault: true,
               createdAt: now,

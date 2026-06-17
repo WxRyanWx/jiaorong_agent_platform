@@ -11,9 +11,9 @@ This isolates two independent risks:
 
 ## Current Repository Constraints
 
-- DeepChat imports DuckDB through `src/main/presenter/knowledgePresenter/database/duckdbPresenter.ts`.
+- JiaorongAI imports DuckDB through `src/main/presenter/knowledgePresenter/database/duckdbPresenter.ts`.
 - The main-process startup path reaches built-in knowledge base code early enough that a missing native binding crashes the app before E2E can observe a window.
-- DeepChat's DuckDB flow uses both online `INSTALL/LOAD vss` and an offline copied extension path through `scripts/installVss.js` and runtime extension loading.
+- JiaorongAI's DuckDB flow uses both online `INSTALL/LOAD vss` and an offline copied extension path through `scripts/installVss.js` and runtime extension loading.
 - Project guidance requires keeping an SDD folder for active issue work and running `pnpm run format`, `pnpm run i18n`, and `pnpm run lint` after implementation.
 
 ## Proposed Changes
@@ -42,7 +42,7 @@ This step should fail with a narrow error message instead of allowing the workfl
 
 ### 3. Reuse Existing VSS Flow
 
-Keep the existing DeepChat runtime logic unchanged unless the upgraded API breaks it:
+Keep the existing JiaorongAI runtime logic unchanged unless the upgraded API breaks it:
 
 - `scripts/installVss.js` still performs `INSTALL vss` and copies the installed extension into `runtime/duckdb/extensions`
 - `duckdbPresenter.ts` still prefers the bundled extension and falls back to online `INSTALL/LOAD`

@@ -1,66 +1,81 @@
-import fs from 'node:fs/promises'
-import path from 'node:path'
+import fs from "node:fs/promises";
+import path from "node:path";
 
 // const LINUX_APP_NAME = 'deepchat'
 const ARCH_NAMES = new Map([
-  [0, 'ia32'],
-  [1, 'x64'],
-  [2, 'armv7l'],
-  [3, 'arm64'],
-  [4, 'universal']
-])
+  [0, "ia32"],
+  [1, "x64"],
+  [2, "armv7l"],
+  [3, "arm64"],
+  [4, "universal"],
+]);
 
 function getArchName(arch) {
-  return typeof arch === 'string' ? arch : ARCH_NAMES.get(arch)
+  return typeof arch === "string" ? arch : ARCH_NAMES.get(arch);
 }
 
 function getFffBinaryPackages(platform, arch) {
-  const archName = getArchName(arch)
+  const archName = getArchName(arch);
 
-  if (platform === 'darwin' && archName === 'universal') {
-    return ['@ff-labs/fff-bin-darwin-x64', '@ff-labs/fff-bin-darwin-arm64']
+  if (platform === "darwin" && archName === "universal") {
+    return ["@ff-labs/fff-bin-darwin-x64", "@ff-labs/fff-bin-darwin-arm64"];
   }
 
   switch (`${platform}:${archName}`) {
-    case 'darwin:x64':
-      return ['@ff-labs/fff-bin-darwin-x64']
-    case 'darwin:arm64':
-      return ['@ff-labs/fff-bin-darwin-arm64']
-    case 'win32:x64':
-      return ['@ff-labs/fff-bin-win32-x64']
-    case 'win32:arm64':
-      return ['@ff-labs/fff-bin-win32-arm64']
-    case 'linux:x64':
-      return ['@ff-labs/fff-bin-linux-x64-gnu']
-    case 'linux:arm64':
-      return ['@ff-labs/fff-bin-linux-arm64-gnu']
+    case "darwin:x64":
+      return ["@ff-labs/fff-bin-darwin-x64"];
+    case "darwin:arm64":
+      return ["@ff-labs/fff-bin-darwin-arm64"];
+    case "win32:x64":
+      return ["@ff-labs/fff-bin-win32-x64"];
+    case "win32:arm64":
+      return ["@ff-labs/fff-bin-win32-arm64"];
+    case "linux:x64":
+      return ["@ff-labs/fff-bin-linux-x64-gnu"];
+    case "linux:arm64":
+      return ["@ff-labs/fff-bin-linux-arm64-gnu"];
     default:
-      return []
+      return [];
   }
 }
 
 async function pathExists(filePath) {
   try {
-    await fs.access(filePath)
-    return true
+    await fs.access(filePath);
+    return true;
   } catch {
-    return false
+    return false;
   }
 }
 
 async function resolveInstalledPackageDir(projectDir, packageName) {
-  const packagePathParts = packageName.split('/')
+  const packagePathParts = packageName.split("/");
   const candidates = [
-    path.join(projectDir, 'node_modules', ...packagePathParts),
-    path.join(projectDir, 'node_modules', '.pnpm', 'node_modules', ...packagePathParts)
-  ]
+    path.join(projectDir, "node_modules", ...packagePathParts),
+    path.join(
+      projectDir,
+      "node_modules",
+      ".pnpm",
+      "node_modules",
+      ...packagePathParts,
+    ),
+  ];
 
-  const pnpmVirtualStoreDir = path.join(projectDir, 'node_modules', '.pnpm')
+  const pnpmVirtualStoreDir = path.join(projectDir, "node_modules", ".pnpm");
   try {
-    const virtualStoreEntries = await fs.readdir(pnpmVirtualStoreDir, { withFileTypes: true })
+    const virtualStoreEntries = await fs.readdir(pnpmVirtualStoreDir, {
+      withFileTypes: true,
+    });
     for (const entry of virtualStoreEntries) {
       if (entry.isDirectory()) {
-        candidates.push(path.join(pnpmVirtualStoreDir, entry.name, 'node_modules', ...packagePathParts))
+        candidates.push(
+          path.join(
+            pnpmVirtualStoreDir,
+            entry.name,
+            "node_modules",
+            ...packagePathParts,
+          ),
+        );
       }
     }
   } catch {
@@ -68,65 +83,78 @@ async function resolveInstalledPackageDir(projectDir, packageName) {
   }
 
   for (const candidate of candidates) {
-    if (await pathExists(path.join(candidate, 'package.json'))) {
-      return fs.realpath(candidate)
+    if (await pathExists(path.join(candidate, "package.json"))) {
+      return fs.realpath(candidate);
     }
   }
 
-  throw new Error(`Unable to find installed native package: ${packageName}`)
+  throw new Error(`Unable to find installed native package: ${packageName}`);
 }
 
 function getResourcesDir(context) {
-  const { appOutDir, electronPlatformName, packager } = context
+  const { appOutDir, electronPlatformName, packager } = context;
 
-  if (electronPlatformName === 'darwin') {
-    const productFilename = packager?.appInfo?.productFilename ?? 'DeepChat'
-    return path.join(appOutDir, `${productFilename}.app`, 'Contents', 'Resources')
+  if (electronPlatformName === "darwin") {
+    const productFilename = packager?.appInfo?.productFilename ?? "JiaorongAI";
+    return path.join(
+      appOutDir,
+      `${productFilename}.app`,
+      "Contents",
+      "Resources",
+    );
   }
 
-  return path.join(appOutDir, 'resources')
+  return path.join(appOutDir, "resources");
 }
 
 async function copyFffNativePackages(context) {
-  const { arch, electronPlatformName, packager } = context
-  const packageNames = getFffBinaryPackages(electronPlatformName, arch)
+  const { arch, electronPlatformName, packager } = context;
+  const packageNames = getFffBinaryPackages(electronPlatformName, arch);
 
   if (packageNames.length === 0) {
-    return
+    return;
   }
 
-  const nodeModulesDir = path.join(getResourcesDir(context), 'app.asar.unpacked', 'node_modules')
-  const fffNodeDir = path.join(nodeModulesDir, '@ff-labs', 'fff-node')
+  const nodeModulesDir = path.join(
+    getResourcesDir(context),
+    "app.asar.unpacked",
+    "node_modules",
+  );
+  const fffNodeDir = path.join(nodeModulesDir, "@ff-labs", "fff-node");
 
   if (!(await pathExists(fffNodeDir))) {
     throw new Error(
-      `Missing unpacked @ff-labs/fff-node at ${fffNodeDir}. Check electron-builder asarUnpack configuration.`
-    )
+      `Missing unpacked @ff-labs/fff-node at ${fffNodeDir}. Check electron-builder asarUnpack configuration.`,
+    );
   }
 
-  const projectDir = packager?.projectDir ?? process.cwd()
+  const projectDir = packager?.projectDir ?? process.cwd();
 
   for (const packageName of packageNames) {
-    const sourceDir = await resolveInstalledPackageDir(projectDir, packageName)
-    const destinationDir = path.join(nodeModulesDir, ...packageName.split('/'))
+    const sourceDir = await resolveInstalledPackageDir(projectDir, packageName);
+    const destinationDir = path.join(nodeModulesDir, ...packageName.split("/"));
 
-    await fs.mkdir(path.dirname(destinationDir), { recursive: true })
-    await fs.cp(sourceDir, destinationDir, { recursive: true, force: true, dereference: true })
+    await fs.mkdir(path.dirname(destinationDir), { recursive: true });
+    await fs.cp(sourceDir, destinationDir, {
+      recursive: true,
+      force: true,
+      dereference: true,
+    });
   }
 }
 
 function isLinux(targets) {
-  const re = /AppImage|snap|deb|rpm|freebsd|pacman/i
-  return !!targets.find((target) => re.test(target.name))
+  const re = /AppImage|snap|deb|rpm|freebsd|pacman/i;
+  return !!targets.find((target) => re.test(target.name));
 }
 
 async function afterPackLinux(context) {
   const { appOutDir, packager } = context;
-  const executableName = packager.appInfo.executableName || 
-                         packager.appInfo.productFilename;
-  
+  const executableName =
+    packager.appInfo.executableName || packager.appInfo.productFilename;
+
   if (!executableName) {
-    console.warn('无法获取可执行文件名，跳过 afterPack Linux 处理');
+    console.warn("无法获取可执行文件名，跳过 afterPack Linux 处理");
     return;
   }
 
@@ -149,4 +177,4 @@ async function afterPack(context) {
   }
 }
 
-export default afterPack
+export default afterPack;

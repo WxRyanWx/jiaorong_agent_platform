@@ -1,6 +1,6 @@
 {
   "input": {
-    "placeholder": "Envía un mensaje a DeepChat, {'@'} para mencionar archivos, / para comandos",
+    "placeholder": "Envía un mensaje a JiaorongAI, {'@'} para mencionar archivos, / para comandos",
     "fileArea": "Área de archivos",
     "inputArea": "Área de entrada",
     "functionSwitch": "Selector de funciones",
@@ -10,7 +10,7 @@
     "voiceRecognitionUnsupportedTitle": "La grabación local no está disponible aquí",
     "voiceRecognitionUnsupportedDescription": "Usa esta función en un navegador o entorno de escritorio que admita grabación con micrófono.",
     "voiceRecognitionPermissionDeniedTitle": "No se puede acceder al micrófono",
-    "voiceRecognitionPermissionDeniedDescription": "Permite que DeepChat use el micrófono e inténtalo de nuevo.",
+    "voiceRecognitionPermissionDeniedDescription": "Permite que JiaorongAI use el micrófono e inténtalo de nuevo.",
     "voiceRecognitionErrorTitle": "La transcripción de audio ha fallado",
     "voiceRecognitionErrorDescription": "No se ha podido completar la transcripción de audio. Inténtalo de nuevo más tarde.",
     "send": "Enviar",
@@ -59,7 +59,7 @@
         "agentCore": "Núcleo del Agent",
         "agentImageGeneration": "Generación de imágenes",
         "agentSkills": "Agent Skills",
-        "deepchatSettings": "Ajustes de DeepChat",
+        "deepchatSettings": "Ajustes de JiaorongAI",
         "yobrowser": "YoBrowser"
       }
     },
@@ -373,12 +373,12 @@
   },
   "onboarding": {
     "agentSwitch": {
-      "title": "Cambiar a DeepChat Agent",
-      "description": "Antes de chatear, vuelve de ACP Agent al flujo de conversación de DeepChat.",
+      "title": "Cambiar a JiaorongAI Agent",
+      "description": "Antes de chatear, vuelve de ACP Agent al flujo de conversación de JiaorongAI.",
       "caption": "Haz clic en el botón de Agent resaltado en la barra lateral para continuar."
     },
     "switchModel": {
-      "description": "Elige el modelo que quieres usar para tu primera conversación en DeepChat.",
+      "description": "Elige el modelo que quieres usar para tu primera conversación en JiaorongAI.",
       "caption": "Usa el selector de modelo resaltado y elige cualquier modelo disponible."
     },
     "firstChat": {

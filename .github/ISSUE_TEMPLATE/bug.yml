@@ -7,7 +7,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Remember: DeepChat is an open source gift, not a product you bought from a vendor.
+        Remember: JiaorongAI is an open source gift, not a product you bought from a vendor.
 
         Use English or Chinese. You may keep only one language when filling.
         可以只使用其中一种语言填写，保留一种语言即可。
@@ -16,8 +16,8 @@ body:
     id: system-details
     attributes:
       label: System details / 系统信息
-      description: CPU, OS and DeepChat version / CPU、操作系统与 DeepChat 版本
-      placeholder: e.g. M3 Max, macOS 26.0, DeepChat 0.3.7
+      description: CPU, OS and JiaorongAI version / CPU、操作系统与 JiaorongAI 版本
+      placeholder: e.g. M3 Max, macOS 26.0, JiaorongAI 0.3.7
     validations:
       required: true
 
@@ -40,4 +40,3 @@ body:
         实际：...
     validations:
       required: true
-

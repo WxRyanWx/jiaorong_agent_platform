@@ -2,9 +2,11 @@
   <div class="splash-shell">
     <div v-if="mode === 'unlock'" class="unlock-stage">
       <form class="unlock-panel" @submit.prevent="submitUnlock">
-        <div class="unlock-title">DeepChat</div>
+        <div class="unlock-title">JiaorongAI</div>
         <div class="unlock-subtitle">Local database is encrypted</div>
-        <label class="unlock-label" for="database-password">SQLite password</label>
+        <label class="unlock-label" for="database-password"
+          >SQLite password</label
+        >
         <input
           id="database-password"
           ref="passwordInput"
@@ -15,16 +17,20 @@
           autofocus
           :disabled="unlockSubmitting"
         />
-        <div v-if="unlockMessage" class="unlock-message">{{ unlockMessage }}</div>
+        <div v-if="unlockMessage" class="unlock-message">
+          {{ unlockMessage }}
+        </div>
         <div class="unlock-actions">
           <button
             class="unlock-button unlock-button--primary"
             type="submit"
             :disabled="!password || unlockSubmitting"
           >
-            {{ unlockSubmitting ? 'Opening...' : 'Unlock' }}
+            {{ unlockSubmitting ? "Opening..." : "Unlock" }}
           </button>
-          <button class="unlock-button" type="button" @click="cancelUnlock">Quit</button>
+          <button class="unlock-button" type="button" @click="cancelUnlock">
+            Quit
+          </button>
         </div>
         <p class="unlock-hint">{{ unlockHint }}</p>
       </form>
@@ -32,10 +38,11 @@
 
     <div v-else-if="mode === 'system-unlock'" class="unlock-stage">
       <div class="unlock-panel">
-        <div class="unlock-title">DeepChat</div>
+        <div class="unlock-title">JiaorongAI</div>
         <div class="unlock-subtitle">Unlocking local database</div>
         <p class="unlock-hint">
-          DeepChat is reading the saved password from the system credential store.
+          JiaorongAI is reading the saved password from the system credential
+          store.
         </p>
       </div>
     </div>
@@ -54,23 +61,40 @@
       </div>
     </div>
 
-    <div v-if="mode === 'loading' && activities.length > 0" class="activity-feed">
-      <div v-for="activity in activities" :key="activity.key" class="activity-item">
-        <span v-if="activity.status === 'completed'" class="status-icon status-icon--completed"
+    <div
+      v-if="mode === 'loading' && activities.length > 0"
+      class="activity-feed"
+    >
+      <div
+        v-for="activity in activities"
+        :key="activity.key"
+        class="activity-item"
+      >
+        <span
+          v-if="activity.status === 'completed'"
+          class="status-icon status-icon--completed"
           >✔</span
         >
-        <span v-else-if="activity.status === 'failed'" class="status-icon status-icon--failed"
+        <span
+          v-else-if="activity.status === 'failed'"
+          class="status-icon status-icon--failed"
           >!</span
         >
-        <span v-else class="status-dot status-dot--running" aria-hidden="true"></span>
-        <span class="activity-label">{{ getActivityLabel(activity.name) }}</span>
+        <span
+          v-else
+          class="status-dot status-dot--running"
+          aria-hidden="true"
+        ></span>
+        <span class="activity-label">{{
+          getActivityLabel(activity.name)
+        }}</span>
       </div>
     </div>
 
     <div v-if="mode === 'loading'" class="logo-corner">
       <img
         src="@/assets/logo.png"
-        alt="DeepChat Logo"
+        alt="JiaorongAI Logo"
         class="logo-mark"
         style="filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.24))"
       />
@@ -79,158 +103,174 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
 import {
   DATABASE_UNLOCK_CANCEL_CHANNEL,
   DATABASE_UNLOCK_PROGRESS_CHANNEL,
   DATABASE_UNLOCK_REQUEST_CHANNEL,
   DATABASE_UNLOCK_SUBMIT_CHANNEL,
   type DatabaseUnlockProgressPayload,
-  type DatabaseUnlockRequestPayload
-} from '@shared/contracts/databaseSecurity'
+  type DatabaseUnlockRequestPayload,
+} from "@shared/contracts/databaseSecurity";
 
-type SplashActivityStatus = 'running' | 'completed' | 'failed'
+type SplashActivityStatus = "running" | "completed" | "failed";
 
 interface SplashActivityItem {
-  key: string
-  name: string
-  status: SplashActivityStatus
+  key: string;
+  name: string;
+  status: SplashActivityStatus;
 }
 
 interface SplashUpdatePayload {
-  activities?: SplashActivityItem[]
+  activities?: SplashActivityItem[];
 }
 
-const activities = ref<SplashActivityItem[]>([])
-const mode = ref<'loading' | 'system-unlock' | 'unlock'>('loading')
-const requestId = ref('')
-const password = ref('')
-const unlockReason = ref<DatabaseUnlockRequestPayload['reason']>('manual-required')
-const safeStorageAvailable = ref(false)
-const unlockSubmitting = ref(false)
-const passwordInput = ref<HTMLInputElement | null>(null)
+const activities = ref<SplashActivityItem[]>([]);
+const mode = ref<"loading" | "system-unlock" | "unlock">("loading");
+const requestId = ref("");
+const password = ref("");
+const unlockReason =
+  ref<DatabaseUnlockRequestPayload["reason"]>("manual-required");
+const safeStorageAvailable = ref(false);
+const unlockSubmitting = ref(false);
+const passwordInput = ref<HTMLInputElement | null>(null);
 
 const ACTIVITY_LABELS: Record<string, string> = {
-  'config-initialization': 'Loading configuration',
-  'database-initialization': 'Opening local database',
-  'protocol-registration': 'Registering app protocol',
-  'presenter-initialization': 'Initializing presenters',
-  'event-listener-setup': 'Attaching event listeners',
-  'acp-registry-migration': 'Migrating registry data',
-  'window-creation': 'Creating main window',
-  'tray-setup': 'Starting tray integration',
-  'rtk-health-check': 'Checking runtime health',
-  'legacy-import': 'Queueing legacy import',
-  'usage-stats-backfill': 'Queueing usage stats backfill',
-  'startup-error': 'Startup error'
-}
+  "config-initialization": "Loading configuration",
+  "database-initialization": "Opening local database",
+  "protocol-registration": "Registering app protocol",
+  "presenter-initialization": "Initializing presenters",
+  "event-listener-setup": "Attaching event listeners",
+  "acp-registry-migration": "Migrating registry data",
+  "window-creation": "Creating main window",
+  "tray-setup": "Starting tray integration",
+  "rtk-health-check": "Checking runtime health",
+  "legacy-import": "Queueing legacy import",
+  "usage-stats-backfill": "Queueing usage stats backfill",
+  "startup-error": "Startup error",
+};
 
 const getActivityLabel = (name: string) => {
   if (ACTIVITY_LABELS[name]) {
-    return ACTIVITY_LABELS[name]
+    return ACTIVITY_LABELS[name];
   }
 
   return name
-    .split('-')
+    .split("-")
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ')
-}
+    .join(" ");
+};
 
 const handleSplashUpdate = (_event: unknown, payload: SplashUpdatePayload) => {
-  activities.value = payload.activities?.slice(0, 3) ?? []
-}
+  activities.value = payload.activities?.slice(0, 3) ?? [];
+};
 
 const unlockMessage = computed(() => {
-  if (unlockReason.value === 'invalid') {
-    return 'Wrong password. Try again.'
+  if (unlockReason.value === "invalid") {
+    return "Wrong password. Try again.";
   }
-  return ''
-})
+  return "";
+});
 
 const unlockHint = computed(() => {
-  if (unlockReason.value === 'system-key-missing') {
-    return 'The saved system credential is missing or cannot be decrypted. Enter the SQLite password once to unlock and save it again.'
+  if (unlockReason.value === "system-key-missing") {
+    return "The saved system credential is missing or cannot be decrypted. Enter the SQLite password once to unlock and save it again.";
   }
   if (!safeStorageAvailable.value) {
-    return 'System unlock is unavailable on this device, so manual unlock is required.'
+    return "System unlock is unavailable on this device, so manual unlock is required.";
   }
-  return 'Enter the SQLite password to unlock this database. Future startups can open automatically after it is saved to the system credential store.'
-})
+  return "Enter the SQLite password to unlock this database. Future startups can open automatically after it is saved to the system credential store.";
+});
 
 const focusPasswordInput = () => {
   void nextTick(() => {
-    passwordInput.value?.focus()
-  })
-}
+    passwordInput.value?.focus();
+  });
+};
 
-const handleUnlockRequest = (_event: unknown, payload: DatabaseUnlockRequestPayload) => {
-  requestId.value = payload.requestId
-  unlockReason.value = payload.reason
-  safeStorageAvailable.value = payload.safeStorageAvailable
-  password.value = ''
-  unlockSubmitting.value = false
-  mode.value = 'unlock'
-  focusPasswordInput()
-}
+const handleUnlockRequest = (
+  _event: unknown,
+  payload: DatabaseUnlockRequestPayload,
+) => {
+  requestId.value = payload.requestId;
+  unlockReason.value = payload.reason;
+  safeStorageAvailable.value = payload.safeStorageAvailable;
+  password.value = "";
+  unlockSubmitting.value = false;
+  mode.value = "unlock";
+  focusPasswordInput();
+};
 
-const handleUnlockProgress = (_event: unknown, payload: DatabaseUnlockProgressPayload) => {
-  unlockSubmitting.value = false
+const handleUnlockProgress = (
+  _event: unknown,
+  payload: DatabaseUnlockProgressPayload,
+) => {
+  unlockSubmitting.value = false;
   if (payload.active) {
-    safeStorageAvailable.value = payload.safeStorageAvailable
-    mode.value = 'system-unlock'
-    return
+    safeStorageAvailable.value = payload.safeStorageAvailable;
+    mode.value = "system-unlock";
+    return;
   }
-  if (mode.value === 'system-unlock') {
-    mode.value = 'loading'
+  if (mode.value === "system-unlock") {
+    mode.value = "loading";
   }
-}
+};
 
 const submitUnlock = () => {
   if (!requestId.value || !password.value || unlockSubmitting.value) {
-    return
+    return;
   }
-  unlockSubmitting.value = true
+  unlockSubmitting.value = true;
   window.electron?.ipcRenderer?.send?.(DATABASE_UNLOCK_SUBMIT_CHANNEL, {
     requestId: requestId.value,
-    password: password.value
-  })
-  password.value = ''
-}
+    password: password.value,
+  });
+  password.value = "";
+};
 
 const cancelUnlock = () => {
   if (!requestId.value) {
-    return
+    return;
   }
-  const canceledRequestId = requestId.value
-  unlockSubmitting.value = false
+  const canceledRequestId = requestId.value;
+  unlockSubmitting.value = false;
   window.electron?.ipcRenderer?.send?.(DATABASE_UNLOCK_CANCEL_CHANNEL, {
-    requestId: canceledRequestId
-  })
-  requestId.value = ''
-  password.value = ''
-  unlockReason.value = 'manual-required'
-  safeStorageAvailable.value = false
-  mode.value = 'loading'
-}
+    requestId: canceledRequestId,
+  });
+  requestId.value = "";
+  password.value = "";
+  unlockReason.value = "manual-required";
+  safeStorageAvailable.value = false;
+  mode.value = "loading";
+};
 
 onMounted(() => {
-  window.electron?.ipcRenderer?.on?.('splash-update', handleSplashUpdate)
-  window.electron?.ipcRenderer?.on?.(DATABASE_UNLOCK_REQUEST_CHANNEL, handleUnlockRequest)
-  window.electron?.ipcRenderer?.on?.(DATABASE_UNLOCK_PROGRESS_CHANNEL, handleUnlockProgress)
-})
+  window.electron?.ipcRenderer?.on?.("splash-update", handleSplashUpdate);
+  window.electron?.ipcRenderer?.on?.(
+    DATABASE_UNLOCK_REQUEST_CHANNEL,
+    handleUnlockRequest,
+  );
+  window.electron?.ipcRenderer?.on?.(
+    DATABASE_UNLOCK_PROGRESS_CHANNEL,
+    handleUnlockProgress,
+  );
+});
 
 onBeforeUnmount(() => {
-  window.electron?.ipcRenderer?.removeListener?.('splash-update', handleSplashUpdate)
+  window.electron?.ipcRenderer?.removeListener?.(
+    "splash-update",
+    handleSplashUpdate,
+  );
   window.electron?.ipcRenderer?.removeListener?.(
     DATABASE_UNLOCK_REQUEST_CHANNEL,
-    handleUnlockRequest
-  )
+    handleUnlockRequest,
+  );
   window.electron?.ipcRenderer?.removeListener?.(
     DATABASE_UNLOCK_PROGRESS_CHANNEL,
-    handleUnlockProgress
-  )
-})
+    handleUnlockProgress,
+  );
+});
 </script>
 
 <style scoped>
@@ -242,10 +282,10 @@ onBeforeUnmount(() => {
   color: white;
   background: linear-gradient(135deg, var(--base-900) 0%, var(--base-950) 100%);
   font-family:
-    'Geist',
+    "Geist",
     -apple-system,
     BlinkMacSystemFont,
-    'Segoe UI',
+    "Segoe UI",
     Roboto,
     sans-serif;
 }
@@ -353,10 +393,10 @@ onBeforeUnmount(() => {
   width: 154px;
   height: 154px;
   font-family:
-    'Geist',
+    "Geist",
     -apple-system,
     BlinkMacSystemFont,
-    'Segoe UI',
+    "Segoe UI",
     Roboto,
     sans-serif;
   font-size: 1.04em;

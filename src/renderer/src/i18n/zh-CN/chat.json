@@ -1,6 +1,6 @@
 {
   "input": {
-    "placeholder": "向 通用智能体 发送消息，{'@'} 可引用文件，/ 可使用命令",
+    "placeholder": "向 交融对话 发送消息，{'@'} 可引用文件，/ 可使用命令",
     "fileArea": "文件区域",
     "inputArea": "输入区域",
     "functionSwitch": "功能开关",
@@ -10,7 +10,7 @@
     "voiceRecognitionUnsupportedTitle": "当前环境不支持本地录音",
     "voiceRecognitionUnsupportedDescription": "请在支持麦克风录音的浏览器或桌面环境中使用该功能。",
     "voiceRecognitionPermissionDeniedTitle": "无法访问麦克风",
-    "voiceRecognitionPermissionDeniedDescription": "请允许 DeepChat 使用麦克风后重试。",
+    "voiceRecognitionPermissionDeniedDescription": "请允许 JiaorongAI 使用麦克风后重试。",
     "voiceRecognitionErrorTitle": "音频转写失败",
     "voiceRecognitionErrorDescription": "未能完成音频转写，请稍后重试。",
     "send": "发送",
@@ -59,7 +59,7 @@
         "agentCore": "核心工具",
         "agentImageGeneration": "图像生成",
         "agentSkills": "技能工具",
-        "deepchatSettings": "DeepChat 设置",
+        "deepchatSettings": "JiaorongAI 设置",
         "yobrowser": "YoBrowser"
       }
     },
@@ -393,11 +393,11 @@
   "onboarding": {
     "agentSwitch": {
       "title": "切换到 Jiaorong Agent",
-      "description": "开始聊天前，先从 ACP Agent 切回 JiaoRongSuperIntelligentAgent 对话流。",
+      "description": "开始聊天前，先从 ACP Agent 切回 JiaorongAI 对话流。",
       "caption": "点击侧边栏里高亮的 Agent 按钮即可继续。"
     },
     "switchModel": {
-      "description": "为第一次 JiaoRongSuperIntelligentAgent 对话选择你想使用的模型。",
+      "description": "为第一次 JiaorongAI 对话选择你想使用的模型。",
       "caption": "使用高亮的模型切换器，选择任意可用模型即可。"
     },
     "firstChat": {

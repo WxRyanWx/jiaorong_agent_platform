@@ -1,13 +1,13 @@
 ---
 name: deepchat-release
-description: Prepare and publish DeepChat releases in this repository. Use when Codex needs to bump the app version, update CHANGELOG.md, keep release notes bilingual from v1.0.1 onward with English bullets first and Chinese bullets second, run release checks, create or update versioned release branches such as release/v1.0.1, continue a half-finished release, fast-forward main with the documented release flow, create or push version tags, or clean up release branches after publishing.
+description: Prepare and publish JiaorongAI releases in this repository. Use when Codex needs to bump the app version, update CHANGELOG.md, keep release notes bilingual from v1.0.1 onward with English bullets first and Chinese bullets second, run release checks, create or update versioned release branches such as release/v1.0.1, continue a half-finished release, fast-forward main with the documented release flow, create or push version tags, or clean up release branches after publishing.
 ---
 
-# DeepChat Release
+# JiaorongAI Release
 
 ## Overview
 
-Follow the repository-specific DeepChat release process. Prepare release metadata on `dev`, keep `CHANGELOG.md` concise, and publish through the documented fast-forward flow instead of merge commits on `main`.
+Follow the repository-specific JiaorongAI release process. Prepare release metadata on `dev`, keep `CHANGELOG.md` concise, and publish through the documented fast-forward flow instead of merge commits on `main`.
 
 ## Start With Repo State
 
@@ -48,6 +48,7 @@ For `v1.0.1` and later, format changelog entries in this order:
 
 ```md
 ## vX.Y.Z (YYYY-MM-DD)
+
 - English bullet
 - English bullet
 - 中文条目
