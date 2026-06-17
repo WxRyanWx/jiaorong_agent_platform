@@ -113,4 +113,4 @@ npmRebuild: true
 publish:
   provider: generic
   url: https://c4ai.ccccltd.cn/xkprosdk/
-  channel: latest
+  channel: jrsi
