@@ -63,7 +63,7 @@
         <!-- Bottom action buttons -->
         <div class="w-5 h-px bg-border my-1"></div>
 
-        <Tooltip>
+        <!-- <Tooltip>
           <TooltipTrigger as-child>
             <Button
               class="flex items-center justify-center w-9 h-9 rounded-xl border transition-all duration-150 shadow-none"
@@ -81,7 +81,7 @@
           <TooltipContent side="right">{{
             t("chat.spotlight.placeholder")
           }}</TooltipContent>
-        </Tooltip>
+        </Tooltip> -->
 
         <Tooltip v-if="showRemoteControlButton">
           <TooltipTrigger as-child>
