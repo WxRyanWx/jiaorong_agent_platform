@@ -1,4 +1,5 @@
 import logger from '@shared/logger'
+import { autoCompleteGuidedOnboardingIfPreconfigured } from '@/routes/onboarding/autoCompletePreconfiguredOnboarding'
 import path from 'path'
 import { DialogPresenter } from './dialogPresenter/index'
 import { BrowserWindow, ipcMain, IpcMainInvokeEvent, app } from 'electron'
@@ -698,6 +699,7 @@ export class Presenter implements IPresenter {
     // 持久化 LLMProviderPresenter 的 Providers 数据
     const providers = this.configPresenter.getProviders()
     console.info(`[Startup][Main] Presenter.init begin providers=${providers.length}`)
+    autoCompleteGuidedOnboardingIfPreconfigured(this.configPresenter, providers)
     this.llmproviderPresenter.setProviders(providers)
     const mainRunId = this.startupWorkloadCoordinator.createRun('main')
 
