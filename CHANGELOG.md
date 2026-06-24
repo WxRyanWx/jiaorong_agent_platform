@@ -1,5 +1,18 @@
 # Changelog
 
+
+
+
+
+
+## v0.5.1 (2026-6-24)
+
+- 隐藏菜单
+- 默认开启mcp
+
+
+
+
 ## v1.0.4-beta.5 (2026-06-11)
 
 - Fixed packaged app startup by bundling the OpenDAL native binding needed by cloud sync
@@ -521,3 +534,5 @@
 - add acp process warmup and debug panel
 - add font settings
 - add Hebrew (he-IL) Translation
+
+
