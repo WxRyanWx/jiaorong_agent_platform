@@ -34,7 +34,10 @@
             :key="group.key"
             class="flex flex-col gap-1"
           >
-            <div class="px-2 text-xs font-medium text-muted-foreground">
+            <div
+              class="px-2 text-xs font-medium text-muted-foreground"
+              :class="{ hidden: isSidebarGroupVisuallyHidden(group) }"
+            >
               {{ t(group.titleKey) }}
             </div>
             <div class="flex flex-col gap-1">
@@ -48,6 +51,7 @@
                   route.name === setting.name
                     ? 'bg-accent text-accent-foreground'
                     : '',
+                  isSidebarItemVisuallyHidden(setting.name) ? 'hidden' : '',
                 ]"
                 @click="handleClick(setting.path)"
               >
@@ -131,16 +135,46 @@ import type {
 import ProviderDeeplinkImportDialog from "./components/ProviderDeeplinkImportDialog.vue";
 import { nanoid } from "nanoid";
 import {
-  getSettingsNavigationGroups,
+  getSettingsSidebarNavigationGroups,
   getSettingsRouteItems,
   resolveSettingsNavigationPath,
 } from "@shared/settingsNavigation";
-import type { SettingsNavigationPayload } from "@shared/settingsNavigation";
+import type {
+  SettingsNavigationItem,
+  SettingsNavigationPayload,
+} from "@shared/settingsNavigation";
 import { useStartupWorkloadStore } from "@/stores/startupWorkloadStore";
 
 const DATABASE_REPAIR_SECTION = "database-repair";
 const SETTINGS_SECTION_EVENT = "deepchat:settings-section";
 const SETTINGS_STARTUP_LOG_PREFIX = "[Startup][Settings][Renderer]";
+
+/** Sidebar routes kept in DOM but visually hidden via CSS */
+const SETTINGS_SIDEBAR_HIDDEN_ROUTES: SettingsNavigationItem["routeName"][] = [
+  "settings-overview",
+  "settings-provider",
+  "settings-acp",
+  "settings-dashboard",
+  "settings-mcp",
+  "settings-remote",
+  "settings-notifications-hooks",
+  "settings-scheduled-tasks",
+  "settings-plugins",
+  "settings-skills",
+  "settings-prompt",
+  "settings-knowledge-base",
+  "settings-database",
+];
+
+const SETTINGS_SIDEBAR_HIDDEN_ROUTE_SET = new Set(SETTINGS_SIDEBAR_HIDDEN_ROUTES);
+
+const isSidebarItemVisuallyHidden = (routeName: string) =>
+  SETTINGS_SIDEBAR_HIDDEN_ROUTE_SET.has(
+    routeName as SettingsNavigationItem["routeName"],
+  );
+
+const isSidebarGroupVisuallyHidden = (group: { items: { name: string }[] }) =>
+  group.items.every((item) => isSidebarItemVisuallyHidden(item.name));
 
 type SettingsWindowState = Window & {
   __deepchatSettingsPendingSection?: string | null;
@@ -531,7 +565,7 @@ const settings: Ref<
 );
 
 const settingGroups = ref(
-  getSettingsNavigationGroups(window.electron?.process?.platform).map(
+  getSettingsSidebarNavigationGroups(window.electron?.process?.platform).map(
     (group) => ({
       key: group.key,
       titleKey: group.titleKey,
