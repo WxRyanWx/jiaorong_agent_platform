@@ -14,7 +14,7 @@
         <p class="px-8 text-sm text-muted-foreground">
           {{ t("about.description") }}
         </p>
-        <div class="flex gap-2">
+        <!-- <div class="flex gap-2">
           <a
             class="flex items-center text-xs text-muted-foreground hover:text-primary"
             href="https://github.com/WxRyanWx/jiaorong_agent_platform/"
@@ -57,10 +57,10 @@
             <Icon icon="lucide:scale" class="mr-1 h-3 w-3" />
             Apache License 2.0
           </a>
-        </div>
+        </div> -->
       </div>
 
-      <div class="mt-4 flex items-center gap-4">
+      <!-- <div class="mt-4 flex items-center gap-4">
         <label class="text-sm font-medium"
           >{{ t("about.updateChannel") }}:</label
         >
@@ -82,7 +82,7 @@
             </SelectContent>
           </Select>
         </div>
-      </div>
+      </div> -->
 
       <div
         v-if="upgrade.shouldShowUpdateNotes"
@@ -278,17 +278,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@shadcn/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@shadcn/components/ui/select";
+// import {
+//   Select,
+//   SelectContent,
+//   SelectItem,
+//   SelectTrigger,
+//   SelectValue,
+// } from "@shadcn/components/ui/select";
 import NodeRenderer from "markstream-vue";
 import { useUpgradeStore } from "@/stores/upgrade";
 import { useLanguageStore } from "@/stores/language";
-import type { AcceptableValue } from "reka-ui";
+// import type { AcceptableValue } from "reka-ui";
 import { useThemeStore } from "@/stores/theme";
 import { useToast } from "@/components/use-toast";
 import { DEV_EVENTS, SETTINGS_EVENTS } from "@/events";
@@ -301,11 +301,11 @@ const themeStore = useThemeStore();
 const languageStore = useLanguageStore();
 const route = useRoute();
 const devicePresenter = useLegacyPresenter("devicePresenter");
-const configPresenter = useLegacyPresenter("configPresenter");
+// const configPresenter = useLegacyPresenter("configPresenter");
 const windowPresenter = useLegacyPresenter("windowPresenter");
 const appVersion = ref("");
 const upgrade = useUpgradeStore();
-const updateChannel = ref("stable");
+// const updateChannel = ref("stable");
 const isDisclaimerOpen = ref(false);
 const showMockUpdateControls = computed(() => import.meta.env.DEV);
 
@@ -334,13 +334,13 @@ const showUpdateErrorToast = (message: string) => {
   });
 };
 
-const setUpdateChannel = async (channel: AcceptableValue) => {
-  try {
-    await configPresenter.setUpdateChannel(channel as string);
-  } catch (error) {
-    console.error("updateChannelSetError:", error);
-  }
-};
+// const setUpdateChannel = async (channel: AcceptableValue) => {
+//   try {
+//     await configPresenter.setUpdateChannel(channel as string);
+//   } catch (error) {
+//     console.error("updateChannelSetError:", error);
+//   }
+// };
 
 const handlePrimaryAction = async () => {
   if (upgrade.isChecking || upgrade.isDownloading || upgrade.isRestarting) {
@@ -399,13 +399,13 @@ const syncUpdateStatus = async () => {
   await upgrade.refreshStatus();
 };
 
-const openExternalLink = (url: string) => {
-  if (window.api?.openExternal) {
-    window.api.openExternal(url);
-  } else {
-    window.open(url, "_blank", "noopener,noreferrer");
-  }
-};
+// const openExternalLink = (url: string) => {
+//   if (window.api?.openExternal) {
+//     window.api.openExternal(url);
+//   } else {
+//     window.open(url, "_blank", "noopener,noreferrer");
+//   }
+// };
 
 onMounted(async () => {
   window.electron?.ipcRenderer?.on(
@@ -413,7 +413,7 @@ onMounted(async () => {
     handleExternalCheckUpdate,
   );
   appVersion.value = await devicePresenter.getAppVersion();
-  updateChannel.value = await configPresenter.getUpdateChannel();
+  // updateChannel.value = await configPresenter.getUpdateChannel();
   await syncUpdateStatus();
 });
 

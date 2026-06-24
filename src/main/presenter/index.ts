@@ -859,6 +859,23 @@ export class Presenter implements IPresenter {
     } catch (error) {
       console.error('Failed to initialize McpPresenter:', error)
     }
+
+    try {
+      await this.ensureDefaultMcpEnabled()
+    } catch (error) {
+      console.error('[MCP] Failed to apply default MCP enabled state:', error)
+    }
+  }
+
+  private async ensureDefaultMcpEnabled(): Promise<void> {
+    const mcpConfHelper = this.configPresenter.getMcpConfHelper()
+    if (!mcpConfHelper.shouldApplyDefaultMcpEnabled()) {
+      return
+    }
+
+    logger.info('[MCP] Enabling MCP by default (same as settings toggle ON)')
+    await this.mcpPresenter.setMcpEnabled(true)
+    mcpConfHelper.markDefaultMcpEnabledApplied()
   }
 
   private async initializeRemoteControl() {

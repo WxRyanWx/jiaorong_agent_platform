@@ -18,14 +18,15 @@
         </h1>
 
         <!-- Project selector -->
-        <DropdownMenu>
-          <DropdownMenuTrigger as-child>
-            <Button
-              variant="ghost"
-              size="sm"
-              data-testid="new-thread-project-trigger"
-              class="h-7 px-2.5 gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-6"
-            >
+        <div class="mb-6">
+          <DropdownMenu>
+            <DropdownMenuTrigger as-child>
+              <Button
+                variant="ghost"
+                size="sm"
+                data-testid="new-thread-project-trigger"
+                class="h-7 px-2.5 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+              >
               <Icon icon="lucide:folder" class="w-3.5 h-3.5" />
               <span>{{ selectedProjectName }}</span>
               <Icon
@@ -78,6 +79,7 @@
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        </div>
 
         <!-- Input area -->
         <div ref="firstChatGuideHostRef" :class="['w-full max-w-4xl flex justify-center']">
