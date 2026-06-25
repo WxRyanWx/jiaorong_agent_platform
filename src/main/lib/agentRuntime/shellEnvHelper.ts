@@ -1,4 +1,3 @@
-import logger from '@shared/logger'
 import { spawn } from 'child_process'
 import fs from 'fs'
 import * as path from 'path'
@@ -427,11 +426,11 @@ function normalizeShellEnvironment(
 
 export async function getShellEnvironment(): Promise<Record<string, string>> {
   if (cachedShellEnv !== null) {
-    logger.info('[ACP] Using cached shell environment variables')
+    console.info('[ACP] Using cached shell environment variables')
     return cachedShellEnv
   }
 
-  logger.info('[ACP] Fetching shell environment variables (this may take a moment)...')
+  console.info('[ACP] Fetching shell environment variables (this may take a moment)...')
 
   try {
     const shellEnv = await resolveShellBootstrapEnv()
@@ -439,7 +438,7 @@ export async function getShellEnvironment(): Promise<Record<string, string>> {
 
     cachedShellEnv = normalizedEnv
 
-    logger.info('[ACP] Shell environment variables fetched and cached:', {
+    console.info('[ACP] Shell environment variables fetched and cached:', {
       pathLength: normalizedEnv.PATH?.length || normalizedEnv.Path?.length || 0,
       hasNvm: !!normalizedEnv.NVM_DIR,
       hasFnm: !!normalizedEnv.FNM_DIR,
@@ -457,5 +456,5 @@ export async function getShellEnvironment(): Promise<Record<string, string>> {
 
 export function clearShellEnvironmentCache(): void {
   cachedShellEnv = null
-  logger.info('[ACP] Shell environment cache cleared')
+  console.info('[ACP] Shell environment cache cleared')
 }
