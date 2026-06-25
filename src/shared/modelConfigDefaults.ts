@@ -36,3 +36,57 @@ export const resolveModelVision = (value: boolean | undefined | null): boolean =
 
 export const resolveModelFunctionCall = (value: boolean | undefined | null): boolean =>
   value ?? DEFAULT_MODEL_FUNCTION_CALL
+
+export type BuiltInModelCapabilityOverride = {
+  contextLength?: number
+  maxTokens?: number
+}
+
+/** Product defaults for specific provider/model pairs (not in public Provider DB). */
+export const BUILT_IN_MODEL_CAPABILITY_OVERRIDES: Readonly<
+  Record<string, Readonly<Record<string, BuiltInModelCapabilityOverride>>>
+> = Object.freeze({
+  jiaorong: Object.freeze({
+    'jiaorong-deepseek-v4-pro': Object.freeze({
+      contextLength: 1_000_000,
+      maxTokens: 32_000
+    })
+  })
+})
+
+const normalizeBuiltInOverrideKey = (value: string | undefined): string =>
+  value?.trim().toLowerCase() ?? ''
+
+export const getBuiltInModelCapabilityOverride = (
+  providerId: string | undefined,
+  modelId: string | undefined
+): BuiltInModelCapabilityOverride | undefined => {
+  const normalizedProviderId = normalizeBuiltInOverrideKey(providerId)
+  const normalizedModelId = normalizeBuiltInOverrideKey(modelId)
+  if (!normalizedProviderId || !normalizedModelId) {
+    return undefined
+  }
+
+  return BUILT_IN_MODEL_CAPABILITY_OVERRIDES[normalizedProviderId]?.[normalizedModelId]
+}
+
+export const applyBuiltInModelCapabilityOverrides = <
+  T extends { contextLength?: number; maxTokens?: number }
+>(
+  providerId: string | undefined,
+  modelId: string | undefined,
+  config: T
+): T => {
+  const override = getBuiltInModelCapabilityOverride(providerId, modelId)
+  if (!override) {
+    return config
+  }
+
+  return {
+    ...config,
+    ...(override.contextLength !== undefined ? { contextLength: override.contextLength } : {}),
+    ...(override.maxTokens !== undefined
+      ? { maxTokens: resolveDerivedModelMaxTokens(override.maxTokens) }
+      : {})
+  }
+}

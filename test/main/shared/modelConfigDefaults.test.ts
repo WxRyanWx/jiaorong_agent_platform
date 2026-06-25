@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   DERIVED_MODEL_MAX_TOKENS_CAP,
   DEFAULT_MODEL_MAX_TOKENS,
+  applyBuiltInModelCapabilityOverrides,
   resolveDerivedModelMaxTokens,
   resolveModelMaxTokens
 } from '../../../src/shared/modelConfigDefaults'
@@ -43,5 +44,24 @@ describe('resolveModelMaxTokens', () => {
 
   it('exports the shared derived cap constant', () => {
     expect(DERIVED_MODEL_MAX_TOKENS_CAP).toBe(32000)
+  })
+})
+
+describe('applyBuiltInModelCapabilityOverrides', () => {
+  it('applies jiaorong default model limits', () => {
+    expect(
+      applyBuiltInModelCapabilityOverrides('jiaorong', 'jiaorong-deepseek-v4-pro', {
+        contextLength: 16000,
+        maxTokens: 4096
+      })
+    ).toEqual({
+      contextLength: 1_000_000,
+      maxTokens: 32_000
+    })
+  })
+
+  it('leaves unrelated models unchanged', () => {
+    const config = { contextLength: 8192, maxTokens: 2048 }
+    expect(applyBuiltInModelCapabilityOverrides('openai', 'gpt-4o', config)).toBe(config)
   })
 })

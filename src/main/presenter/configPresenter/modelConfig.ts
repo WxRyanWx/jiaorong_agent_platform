@@ -8,6 +8,7 @@ import { IModelConfig, ModelConfig, ModelConfigSource } from '@shared/presenter'
 import {
   DEFAULT_MODEL_TIMEOUT,
   DEFAULT_MODEL_CAPABILITY_FALLBACKS,
+  applyBuiltInModelCapabilityOverrides,
   resolveDerivedModelMaxTokens,
   resolveModelContextLength,
   resolveModelFunctionCall
@@ -541,10 +542,14 @@ export class ModelConfigHelper {
       }
     }
 
-    const normalizedFinalConfig = this.applyProviderSpecificPolicies(providerId, modelId, {
-      ...finalConfig!,
-      isUserDefined: false
-    })
+    const normalizedFinalConfig = this.applyProviderSpecificPolicies(
+      providerId,
+      modelId,
+      applyBuiltInModelCapabilityOverrides(providerId, modelId, {
+        ...finalConfig!,
+        isUserDefined: false
+      })
+    )
     normalizedFinalConfig.isUserDefined = false
     return normalizedFinalConfig
   }
