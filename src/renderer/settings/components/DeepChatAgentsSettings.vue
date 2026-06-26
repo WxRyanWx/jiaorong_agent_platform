@@ -13,7 +13,9 @@
         <Button size="sm" @click="startCreate">{{ t("common.add") }}</Button>
       </div>
 
-      <div class="flex-1 space-y-3 overflow-y-auto px-4 pb-4">
+      <div
+        class="flex-1 space-y-3 overflow-y-auto px-4 pb-4 [&>button:first-child]:sr-only"
+      >
         <button
           v-for="agent in sidebarAgents"
           :key="agent.id"
@@ -59,7 +61,7 @@
       </div>
     </aside>
 
-    <main class="min-w-0 flex-1 overflow-y-auto">
+    <main v-if="isEditorVisible" class="min-w-0 flex-1 overflow-y-auto">
       <div
         data-testid="deepchat-agents-sticky-header"
         class="sticky top-0 z-20 border-b border-border/80 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85"
@@ -847,6 +849,7 @@ const LUCIDE_ICONS = [
   "rocket",
 ];
 const DRAFT_AGENT_ID = "__draft_deepchat_agent__";
+const BUILT_IN_AGENT_ID = "deepchat";
 const CURRENT_SUBAGENT_TARGET = "__current_agent__";
 const AUTO_COMPACTION_TRIGGER_THRESHOLD_DEFAULT = 80;
 const AUTO_COMPACTION_TRIGGER_THRESHOLD_MIN = 5;
@@ -877,6 +880,15 @@ const recentProjects = ref<Project[]>([]);
 const saving = ref(false);
 const deleting = ref(false);
 const selectedAgentId = ref<string | null>(null);
+const isBuiltInAgentId = (agentId: string | null | undefined) =>
+  agentId === BUILT_IN_AGENT_ID;
+const isEditorVisible = computed(() => {
+  const agentId = selectedAgentId.value;
+  if (!agentId || isBuiltInAgentId(agentId)) {
+    return false;
+  }
+  return true;
+});
 const chatOpen = ref(false);
 const assistantOpen = ref(false);
 const visionOpen = ref(false);
@@ -1497,17 +1509,24 @@ const loadAgents = async (preferredId?: string | null) => {
   allAgents.value = list;
   const nextId =
     preferredId &&
+    !isBuiltInAgentId(preferredId) &&
     deepchatAgents.value.some((agent) => agent.id === preferredId)
       ? preferredId
-      : (deepchatAgents.value[0]?.id ?? null);
+      : null;
   selectedAgentId.value = nextId;
   assignForm(
     fromAgent(
-      deepchatAgents.value.find((agent) => agent.id === nextId) ?? null,
+      nextId
+        ? (deepchatAgents.value.find((agent) => agent.id === nextId) ?? null)
+        : null,
     ),
   );
 };
 const selectAgent = (agentId: string) => {
+  if (isBuiltInAgentId(agentId)) {
+    return;
+  }
+
   if (agentId === DRAFT_AGENT_ID) {
     selectedAgentId.value = DRAFT_AGENT_ID;
     return;
@@ -1534,7 +1553,7 @@ const resetEditor = () => {
   selectAgent(agentId);
 };
 const saveAgent = async () => {
-  if (!form.name.trim()) return;
+  if (!form.name.trim() || isBuiltInAgentId(form.id) || form.protected) return;
   saving.value = true;
   try {
     const payload = {
@@ -1610,7 +1629,7 @@ const finishDeleteAgent = async (agentId: string) => {
   if (!removed) {
     throw new Error(t("dialog.agentTransfer.agentDeleteBlocked"));
   }
-  await loadAgents("deepchat");
+  await loadAgents();
   transferDialogOpen.value = false;
   pendingDeleteAgent.value = null;
 };
@@ -1659,7 +1678,7 @@ onMounted(async () => {
   await Promise.all([
     loadTools(),
     loadRecentProjects(),
-    loadAgents("deepchat"),
+    loadAgents(),
   ]);
 });
 </script>
