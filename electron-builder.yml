@@ -77,7 +77,7 @@ electronLanguages:
 win:
   executableName: JiaorongAI
 nsis:
-  artifactName: ${name}-${version}-windows-${arch}.${ext}
+  artifactName: ${name}-windows-${arch}.${ext}
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
@@ -98,14 +98,14 @@ mac:
   target:
     - target: dmg
     - target: zip
-  artifactName: ${name}-${version}-mac-${arch}.${ext}
+  artifactName: ${name}-mac-${arch}.${ext}
 linux:
   target:
     - AppImage
     - tar.gz
   maintainer: JiaoRong
   category: Utility
-  artifactName: ${name}-${version}-linux-${arch}.${ext}
+  artifactName: ${name}-linux-${arch}.${ext}
   mimeTypes:
     - x-scheme-handler/jiaorongsuperintelligentagent
   executableName: jiaorongsuperintelligentagent
