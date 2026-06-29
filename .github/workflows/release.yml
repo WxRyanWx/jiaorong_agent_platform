@@ -103,13 +103,14 @@ jobs:
           ref: ${{ needs.resolve-tag.outputs.sha }}
           fetch-depth: 0
 
-      - name: Validate tagged commit is mirrored on main
+      - name: Validate tagged commit is mirrored on default branch
         env:
           RELEASE_SHA: ${{ needs.resolve-tag.outputs.sha }}
+          RELEASE_BASE_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
-          git fetch origin main --prune
-          if ! git merge-base --is-ancestor "${RELEASE_SHA}" origin/main; then
-            echo "Release tags must point to commits already reachable from origin/main." >&2
+          git fetch origin "${RELEASE_BASE_BRANCH}" --prune
+          if ! git merge-base --is-ancestor "${RELEASE_SHA}" "origin/${RELEASE_BASE_BRANCH}"; then
+            echo "Release tags must point to commits already reachable from origin/${RELEASE_BASE_BRANCH}." >&2
             exit 1
           fi
 
