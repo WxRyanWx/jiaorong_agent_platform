@@ -1,6 +1,6 @@
 {
   "name": "JiaorongAI",
-  "version": "0.5.3",
+  "version": "0.5.4",
   "description": "JiaorongAI Agent 客户端",
   "main": "./out/main/index.js",
   "author": "ThinkInAIXYZ",
