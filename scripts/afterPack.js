@@ -143,15 +143,68 @@ async function copyFffNativePackages(context) {
   }
 }
 
-function isLinux(targets) {
-  const re = /AppImage|snap|deb|rpm|freebsd|pacman/i;
-  return !!targets.find((target) => re.test(target.name));
+function isLinux(context) {
+  const { targets, electronPlatformName } = context;
+  if (electronPlatformName === "linux") {
+    return true;
+  }
+  if (!targets?.length) {
+    return false;
+  }
+  const re = /AppImage|snap|deb|rpm|freebsd|pacman|tar\.gz|dir/i;
+  return targets.some((target) => re.test(target.name));
+}
+
+export function buildLinuxLauncherScript(
+  executableName,
+  productName = "JiaorongAI",
+) {
+  return `#!/bin/bash
+APP_DIR="$(cd "$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
+EXECUTABLE="\${APP_DIR}/${executableName}"
+DESKTOP_FILE="\${HOME}/.local/share/applications/jiaorong-ai.desktop"
+DESKTOP_DIR="\${HOME}/.local/share/applications"
+ICON="\${APP_DIR}/resources/app.ico"
+
+register_deepchat_protocol() {
+  if [ -z "\${XDG_CURRENT_DESKTOP:-}" ] && [ -z "\${DISPLAY:-}" ] && [ -z "\${WAYLAND_DISPLAY:-}" ]; then
+    return 0
+  fi
+
+  mkdir -p "\${DESKTOP_DIR}"
+
+  cat > "\${DESKTOP_FILE}" << EOF
+[Desktop Entry]
+Name=${productName}
+Comment=${productName}
+Exec="\${EXECUTABLE}" %u
+Icon=\${ICON}
+Type=Application
+Categories=Utility;
+StartupWMClass=${executableName}
+MimeType=x-scheme-handler/deepchat;
+EOF
+
+  if command -v update-desktop-database >/dev/null 2>&1; then
+    update-desktop-database "\${DESKTOP_DIR}" >/dev/null 2>&1 || true
+  fi
+
+  if command -v xdg-mime >/dev/null 2>&1; then
+    xdg-mime default jiaorong-ai.desktop x-scheme-handler/deepchat >/dev/null 2>&1 || true
+  fi
+}
+
+register_deepchat_protocol
+
+exec "\${APP_DIR}/${executableName}.bin" --no-sandbox "$@"
+`;
 }
 
 async function afterPackLinux(context) {
   const { appOutDir, packager } = context;
   const executableName =
-    packager.appInfo.executableName || packager.appInfo.productFilename;
+    packager?.appInfo?.executableName || packager?.appInfo?.productFilename;
+  const productName = packager?.appInfo?.productName ?? "JiaorongAI";
 
   if (!executableName) {
     console.warn("无法获取可执行文件名，跳过 afterPack Linux 处理");
@@ -163,16 +216,15 @@ async function afterPackLinux(context) {
     console.warn(`可执行文件不存在，跳过重命名: ${scriptPath}`);
     return;
   }
-  const script = `#!/bin/bash\n"\${BASH_SOURCE%/*}"/${executableName}.bin --no-sandbox "$@"`;
+  const script = buildLinuxLauncherScript(executableName, productName);
   await fs.rename(scriptPath, `${scriptPath}.bin`);
   await fs.writeFile(scriptPath, script);
   await fs.chmod(scriptPath, 0o755);
 }
 
 async function afterPack(context) {
-  const { targets } = context;
   await copyFffNativePackages(context);
-  if (isLinux(targets)) {
+  if (isLinux(context)) {
     await afterPackLinux(context);
   }
 }

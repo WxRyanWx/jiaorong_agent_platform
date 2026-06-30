@@ -107,7 +107,7 @@ linux:
   category: Utility
   artifactName: ${name}-linux-${arch}.${ext}
   mimeTypes:
-    - x-scheme-handler/jiaorongsuperintelligentagent
+    - x-scheme-handler/deepchat
   executableName: jiaorongsuperintelligentagent
 npmRebuild: true
 publish:

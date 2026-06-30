@@ -45,21 +45,52 @@ describe("afterPack", () => {
     await expect(readFile(launcherPath, "utf8")).resolves.toBe("launcher");
   });
 
-  it("adds the Linux no-sandbox wrapper for AppImage builds", async () => {
+  it("adds the Linux launcher wrapper for AppImage builds", async () => {
     const afterPack = await loadAfterPack();
-    const launcherPath = path.join(tmpDir, "deepchat");
+    const launcherPath = path.join(tmpDir, "jiaorongsuperintelligentagent");
     await writeFile(launcherPath, "#!/bin/bash\n");
 
     await afterPack({
       targets: [{ name: "AppImage" }],
       appOutDir: tmpDir,
       electronPlatformName: "linux",
+      packager: {
+        appInfo: {
+          executableName: "jiaorongsuperintelligentagent",
+          productName: "JiaorongAI",
+        },
+      },
     });
 
-    await expect(stat(path.join(tmpDir, "deepchat.bin"))).resolves.toBeTruthy();
-    await expect(readFile(launcherPath, "utf8")).resolves.toContain(
-      "--no-sandbox",
-    );
+    const launcherScript = await readFile(launcherPath, "utf8");
+    await expect(
+      stat(path.join(tmpDir, "jiaorongsuperintelligentagent.bin")),
+    ).resolves.toBeTruthy();
+    expect(launcherScript).toContain("--no-sandbox");
+    expect(launcherScript).toContain("register_deepchat_protocol");
+    expect(launcherScript).toContain("x-scheme-handler/deepchat");
+    expect(launcherScript).toContain('Exec="${EXECUTABLE}" %u');
+  });
+
+  it("adds the Linux launcher wrapper for tar.gz builds", async () => {
+    const afterPack = await loadAfterPack();
+    const launcherPath = path.join(tmpDir, "jiaorongsuperintelligentagent");
+    await writeFile(launcherPath, "#!/bin/bash\n");
+
+    await afterPack({
+      targets: [{ name: "tar.gz" }],
+      appOutDir: tmpDir,
+      electronPlatformName: "linux",
+      packager: {
+        appInfo: {
+          executableName: "jiaorongsuperintelligentagent",
+          productName: "JiaorongAI",
+        },
+      },
+    });
+
+    const launcherScript = await readFile(launcherPath, "utf8");
+    expect(launcherScript).toContain("xdg-mime default jiaorong-ai.desktop");
   });
 
   it.each([
