@@ -34,6 +34,15 @@ export interface FixedIframeAgentDefinition {
   hideSessionColumn?: boolean
 }
 
+const token = localStorage.getItem('xkaitoken')
+const url = 'https://c4ai.ccccltd.cn'
+
+const queryString = new URLSearchParams({
+  ...(token ? { token } : {}),
+  url,
+  time: String(new Date().getTime())
+}).toString()
+
 export const FIXED_IFRAME_AGENTS: FixedIframeAgentDefinition[] = [
   {
     id: 'intelligence-center',
@@ -107,13 +116,13 @@ export const FIXED_IFRAME_AGENTS: FixedIframeAgentDefinition[] = [
         id: 'ai-trends',
         nameKey: 'welcome.fixedAgents.headlinesAgentNav.aiTrends',
         // chat-web: learn-ai/comp/everyStudyAi.vue
-        iframeUrl: 'https://c4ai.ccccltd.cn/tutorial/xindongxiang/'
+        iframeUrl: `https://c4ai.ccccltd.cn/tutorial/xindongxiang/?${queryString}`
       },
       {
         id: 'learn-ai',
         nameKey: 'welcome.fixedAgents.headlinesAgentNav.learnAi',
         // chat-web: learn-ai/comp/everyStudyAi.vue
-        iframeUrl: 'https://c4ai.ccccltd.cn/tutorial/'
+        iframeUrl: `https://c4ai.ccccltd.cn/tutorial/?${queryString}`
       }
     ]
   }
