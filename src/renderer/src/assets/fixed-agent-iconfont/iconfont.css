@@ -1,0 +1,44 @@
+@font-face {
+  font-family: 'iconfont';
+  src: url('./iconfont.woff2') format('woff2');
+}
+
+.iconfont {
+  font-family: 'iconfont' !important;
+  font-size: 16px;
+  font-style: normal;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.icon-zhinengti-weixuanzhong:before {
+  content: '\e6e4';
+}
+
+.icon-ppt:before {
+  content: '\e703';
+}
+
+.icon-wendangzhuanxie:before {
+  content: '\e70b';
+}
+
+.icon-ririxin:before {
+  content: '\e724';
+}
+
+.icon-zhinengtiguangchang-moren:before {
+  content: '\e685';
+}
+
+.icon-zhishiku-weixuan:before {
+  content: '\e679';
+}
+
+.icon-yingyongguanli-weixuan:before {
+  content: '\e67b';
+}
+
+.icon-a-shuzhiyuangong-weixuan1:before {
+  content: '\e67d';
+}

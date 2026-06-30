@@ -3,7 +3,7 @@
     <div
       data-testid="window-sidebar"
       class="window-sidebar-shell flex flex-row h-full shrink-0 overflow-hidden window-drag-region transition-[width] duration-[var(--dc-motion-default)] ease-[var(--dc-ease-out-express)]"
-      :class="collapsed ? 'w-12' : 'w-[288px]'"
+      :class="sidebarShellWidthClass"
     >
       <!-- Left Column: Agent Icons (48px) -->
       <div
@@ -35,7 +35,72 @@
         <div class="w-5 h-px bg-border my-1"></div>
 
         <!-- Agent icons -->
-        <Tooltip v-for="agent in agentStore.enabledAgents" :key="agent.id">
+        <Tooltip v-if="agentStore.sidebarAgents.deepchat">
+          <TooltipTrigger as-child>
+            <Button
+              data-testid="sidebar-agent-button"
+              :data-agent-id="agentStore.sidebarAgents.deepchat.id"
+              :data-agent-type="
+                agentStore.sidebarAgents.deepchat.agentType ??
+                agentStore.sidebarAgents.deepchat.type
+              "
+              :data-selected="
+                String(sidebarSelectedAgentId === agentStore.sidebarAgents.deepchat.id)
+              "
+              size="icon"
+              class="flex items-center justify-center w-9 h-9 rounded-xl border transition-all duration-150"
+              :class="
+                sidebarSelectedAgentId === agentStore.sidebarAgents.deepchat.id
+                  ? 'bg-card/50 border-white/80 dark:border-white/20 ring-1 ring-black/10 hover:bg-white/30 dark:hover:bg-white/10'
+                  : 'bg-transparent border-none hover:bg-white/30 dark:hover:bg-white/10 shadow-none'
+              "
+              @click="handleAgentSelect(agentStore.sidebarAgents.deepchat!.id)"
+            >
+              <AgentAvatar
+                :agent="agentStore.sidebarAgents.deepchat"
+                class-name="w-4 h-4"
+              />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="right">{{
+            agentStore.sidebarAgents.deepchat.name
+          }}</TooltipContent>
+        </Tooltip>
+
+        <Tooltip
+          v-for="fixedAgent in agentStore.fixedIframeAgents"
+          :key="fixedAgent.id"
+        >
+          <TooltipTrigger as-child>
+            <Button
+              data-testid="sidebar-fixed-agent-button"
+              :data-agent-id="fixedAgent.id"
+              data-agent-type="fixed-iframe"
+              :data-selected="String(sidebarSelectedAgentId === fixedAgent.id)"
+              size="icon"
+              class="flex items-center justify-center w-9 h-9 rounded-xl border transition-all duration-150"
+              :class="
+                sidebarSelectedAgentId === fixedAgent.id
+                  ? 'bg-card/50 border-white/80 dark:border-white/20 ring-1 ring-black/10 hover:bg-white/30 dark:hover:bg-white/10'
+                  : 'bg-transparent border-none hover:bg-white/30 dark:hover:bg-white/10 shadow-none'
+              "
+              @click="handleAgentSelect(fixedAgent.id)"
+            >
+              <FixedIframeAgentIcon
+                :icon-class="fixedAgent.iconClass"
+                :selected="sidebarSelectedAgentId === fixedAgent.id"
+              />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="right">{{
+            t(fixedAgent.nameKey)
+          }}</TooltipContent>
+        </Tooltip>
+
+        <Tooltip
+          v-for="agent in agentStore.sidebarAgents.userAgents"
+          :key="agent.id"
+        >
           <TooltipTrigger as-child>
             <Button
               data-testid="sidebar-agent-button"
@@ -172,6 +237,7 @@
 
       <!-- Right Column: Session List (240px) -->
       <div
+        v-if="!hideMiddleColumnForSelectedAgent"
         data-testid="window-sidebar-session-column"
         class="window-sidebar-session-column window-no-drag-region flex flex-col w-0 flex-1 min-w-0 transition-[opacity,transform] duration-[var(--dc-motion-default)] ease-[var(--dc-ease-out-express)]"
         :class="
@@ -187,7 +253,7 @@
           <span class="text-sm font-medium text-foreground truncate">
             {{ selectedAgentName }}
           </span>
-          <div class="flex items-center gap-0.5">
+          <div v-if="!showFixedAgentSecondaryNav" class="flex items-center gap-0.5">
             <Tooltip>
               <TooltipTrigger as-child>
                 <button
@@ -223,6 +289,35 @@
           </div>
         </div>
 
+        <div
+          v-if="showFixedAgentSecondaryNav"
+          data-testid="fixed-agent-secondary-nav"
+          class="flex flex-1 flex-col gap-0.5 px-2 py-2"
+        >
+          <button
+            v-for="navItem in currentSecondaryNavItems"
+            :key="navItem.id"
+            type="button"
+            class="flex w-full items-center rounded-lg px-2.5 py-2 text-left text-sm transition-colors duration-150"
+            :class="[
+              navItem.iconDefaultSymbolId && navItem.iconSelectedSymbolId ? 'gap-2' : 'gap-0',
+              isSecondaryNavItemSelected(navItem.id)
+                ? 'bg-[#e7ecf3] text-[#1d2129] font-semibold dark:bg-primary/10 dark:text-primary'
+                : 'text-[#86909C] hover:bg-accent/50 hover:text-foreground dark:text-muted-foreground',
+            ]"
+            @click="handleFixedAgentSecondaryNavSelect(navItem.id)"
+          >
+            <IntelligenceCenterNavIcon
+              v-if="navItem.iconDefaultSymbolId && navItem.iconSelectedSymbolId"
+              :default-symbol-id="navItem.iconDefaultSymbolId"
+              :selected-symbol-id="navItem.iconSelectedSymbolId"
+              :selected="isSecondaryNavItemSelected(navItem.id)"
+            />
+            <span class="truncate">{{ t(navItem.nameKey) }}</span>
+          </button>
+        </div>
+
+        <template v-else>
         <div
           v-if="!collapsed"
           data-testid="window-sidebar-search"
@@ -407,6 +502,7 @@
             {{ t("common.loading") }}
           </div>
         </div>
+        </template>
       </div>
     </div>
   </TooltipProvider>
@@ -467,10 +563,18 @@ import type {
   RemoteRuntimeState,
 } from "@shared/presenter";
 import AgentAvatar from "./icons/AgentAvatar.vue";
+import FixedIframeAgentIcon from "./icons/FixedIframeAgentIcon.vue";
+import IntelligenceCenterNavIcon from "./icons/IntelligenceCenterNavIcon.vue";
 import WindowSideBarSessionItem from "./WindowSideBarSessionItem.vue";
 import { useI18n } from "vue-i18n";
 import { useSidebarStore } from "@/stores/ui/sidebar";
 import { useThemeStore } from "@/stores/theme";
+import {
+  getFixedIframeAgent,
+  hasFixedIframeSecondaryNav,
+  isFixedIframeAgentId,
+  type FixedIframeAgentId,
+} from "@shared/fixedIframeAgents";
 
 type PinFeedbackMode = "pinning" | "unpinning";
 
@@ -621,9 +725,54 @@ const sidebarSelectedAgentId = computed(() => {
   return selectedAgentId || null;
 });
 
+const hideMiddleColumnForSelectedAgent = computed(() => {
+  const agentId = sidebarSelectedAgentId.value;
+  if (!agentId || !isFixedIframeAgentId(agentId)) {
+    return false;
+  }
+
+  return getFixedIframeAgent(agentId)?.hideSessionColumn === true;
+});
+const selectedFixedIframeAgent = computed(() => {
+  const agentId = sidebarSelectedAgentId.value;
+  if (!agentId || !isFixedIframeAgentId(agentId)) {
+    return undefined;
+  }
+
+  return getFixedIframeAgent(agentId);
+});
+const showFixedAgentSecondaryNav = computed(
+  () =>
+    sidebarSelectedAgentId.value !== null &&
+    hasFixedIframeSecondaryNav(sidebarSelectedAgentId.value),
+);
+const currentSecondaryNavItems = computed(
+  () => selectedFixedIframeAgent.value?.secondaryNavItems ?? [],
+);
+const isSecondaryNavItemSelected = (navId: string) => {
+  const agentId = sidebarSelectedAgentId.value;
+  if (!agentId || !isFixedIframeAgentId(agentId)) {
+    return false;
+  }
+
+  return agentStore.getFixedIframeSecondaryNavId(agentId) === navId;
+};
+const sidebarShellWidthClass = computed(() => {
+  if (collapsed.value || hideMiddleColumnForSelectedAgent.value) {
+    return "w-12";
+  }
+
+  return "w-[288px]";
+});
+
 const selectedAgentName = computed(() => {
   if (sidebarSelectedAgentId.value === null) {
     return t("chat.sidebar.allAgents");
+  }
+
+  const fixedAgent = getFixedIframeAgent(sidebarSelectedAgentId.value);
+  if (fixedAgent) {
+    return t(fixedAgent.nameKey);
   }
 
   if (agentStore.selectedAgent?.id === sidebarSelectedAgentId.value) {
@@ -967,6 +1116,10 @@ const handleAgentSelect = async (id: string | null) => {
         return;
       }
 
+      if (nextAgentId && isFixedIframeAgentId(nextAgentId)) {
+        agentStore.resetFixedIframeNavigation(nextAgentId);
+      }
+
       agentStore.setSelectedAgent(nextAgentId);
     })
     .catch((error) => {
@@ -976,7 +1129,46 @@ const handleAgentSelect = async (id: string | null) => {
   await agentSwitchQueue;
 };
 
-const handleSessionClick = (session: { id: string }) => {
+const handleFixedAgentSecondaryNavSelect = (navId: string) => {
+  const agentId = sidebarSelectedAgentId.value;
+  if (agentId && isFixedIframeAgentId(agentId)) {
+    agentStore.setFixedIframeSecondaryNav(agentId, navId);
+  }
+};
+
+const openFixedIframeSession = async (
+  agentId: FixedIframeAgentId,
+  options: {
+    sessionId: string;
+    iframeUrl?: string;
+    queryParams?: Record<string, string>;
+  },
+) => {
+  if (sessionStore.hasActiveSession) {
+    try {
+      await sessionStore.closeSession();
+    } catch (error) {
+      console.warn(
+        "[WindowSideBar] Failed to close active session before opening fixed iframe:",
+        error,
+      );
+      return;
+    }
+  }
+
+  agentStore.openFixedIframeFromSession(agentId, options.sessionId, {
+    iframeUrl: options.iframeUrl,
+    queryParams: options.queryParams,
+  });
+};
+
+const handleSessionClick = (session: UISession) => {
+  const agentId = session.agentId?.trim();
+  if (agentId && isFixedIframeAgentId(agentId)) {
+    void openFixedIframeSession(agentId, { sessionId: session.id });
+    return;
+  }
+
   void sessionStore.selectSession(session.id);
 };
 

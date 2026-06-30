@@ -75,5 +75,34 @@
     "deepchatType": "Universal Agent",
     "acpType": "ACP Agent",
     "manageAgents": "管理 交融超级智能体 Agent"
+  },
+  "fixedAgents": {
+    "intelligenceCenter": {
+      "name": "智能中心",
+      "type": "Intelligence Center"
+    },
+    "pptAgent": {
+      "name": "PPT生成",
+      "type": "PPT Agent"
+    },
+    "writingAgent": {
+      "name": "公文写作",
+      "type": "Writing Agent"
+    },
+    "headlinesAgent": {
+      "name": "AI日日新",
+      "type": "Headlines Agent"
+    },
+    "intelligenceCenterNav": {
+      "agentSquare": "智能体广场",
+      "knowledgeBase": "知识库",
+      "aiTools": "AI工具",
+      "digitalEmployees": "数字员工"
+    },
+    "headlinesAgentNav": {
+      "ccccHeadlines": "中交头条",
+      "aiTrends": "AI新动向",
+      "learnAi": "人人学AI"
+    }
   }
 }

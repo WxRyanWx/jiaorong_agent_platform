@@ -7,6 +7,14 @@
         <AgentWelcomePage
           v-if="pageRouter.currentRoute === 'newThread' && agentStore.selectedAgentId === null"
         />
+        <FixedAgentIframePage
+          v-else-if="
+            pageRouter.currentRoute === 'newThread' &&
+            agentStore.isFixedIframeAgentSelected &&
+            agentStore.selectedAgentId
+          "
+          :agent-id="agentStore.selectedAgentId"
+        />
         <NewThreadPage v-else-if="pageRouter.currentRoute === 'newThread'" />
         <ChatPage
           v-else-if="pageRouter.currentRoute === 'chat' && pageRouter.chatSessionId"
@@ -29,6 +37,7 @@ import ChatSidePanel from '@/components/sidepanel/ChatSidePanel.vue'
 import NewThreadPage from '@/pages/NewThreadPage.vue'
 import ChatPage from '@/pages/ChatPage.vue'
 import AgentWelcomePage from '@/pages/AgentWelcomePage.vue'
+import FixedAgentIframePage from '@/pages/FixedAgentIframePage.vue'
 import { usePageRouterStore } from '@/stores/ui/pageRouter'
 import { useSessionStore } from '@/stores/ui/session'
 import { useAgentStore } from '@/stores/ui/agent'

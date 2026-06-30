@@ -3,6 +3,28 @@ import { ref, computed } from 'vue'
 import { createConfigClient } from '../../../api/ConfigClient'
 import { createSessionClient } from '../../../api/SessionClient'
 import type { Agent, AgentBootstrapItem } from '@shared/types/agent-interface'
+import {
+  FIXED_IFRAME_AGENTS,
+  type FixedIframeAgentId,
+  type OpenFixedIframeOptions,
+  buildFixedIframeUrl,
+  getFixedIframeAgent,
+  isFixedIframeAgentId,
+  mergeFixedIframeQueryParams,
+  partitionSidebarAgents,
+  resolveFixedIframeBaseUrl
+} from '@shared/fixedIframeAgents'
+import { getToken } from '@/lib/auth/local-user'
+
+function createDefaultSecondaryNavIds(): Partial<Record<FixedIframeAgentId, string>> {
+  const defaults: Partial<Record<FixedIframeAgentId, string>> = {}
+  for (const agent of FIXED_IFRAME_AGENTS) {
+    if (agent.defaultSecondaryNavId) {
+      defaults[agent.id] = agent.defaultSecondaryNavId
+    }
+  }
+  return defaults
+}
 
 // --- Type Definitions ---
 
@@ -33,10 +55,20 @@ export const useAgentStore = defineStore('agent', () => {
   const selectedAgentId = ref<string | null>(null) // null = "All Agents"
   const loading = ref(false)
   const error = ref<string | null>(null)
+  const fixedIframeQueryParams = ref<Partial<Record<FixedIframeAgentId, Record<string, string>>>>(
+    {}
+  )
+  const fixedIframeUrlOverrides = ref<Partial<Record<FixedIframeAgentId, string>>>({})
+  const fixedIframeSecondaryNavIds = ref<Partial<Record<FixedIframeAgentId, string>>>(
+    createDefaultSecondaryNavIds()
+  )
+  const fixedIframeReloadNonce = ref<Partial<Record<FixedIframeAgentId, number>>>({})
 
   // --- Getters ---
   const enabledAgents = computed(() => agents.value.filter((a) => a.enabled))
+  const sidebarAgents = computed(() => partitionSidebarAgents(enabledAgents.value))
   const selectedAgent = computed(() => agents.value.find((a) => a.id === selectedAgentId.value))
+  const isFixedIframeAgentSelected = computed(() => isFixedIframeAgentId(selectedAgentId.value))
 
   // --- Actions ---
 
@@ -62,7 +94,7 @@ export const useAgentStore = defineStore('agent', () => {
   }
 
   function syncSelectedAgent(): void {
-    if (selectedAgentId.value === null) {
+    if (selectedAgentId.value === null || isFixedIframeAgentId(selectedAgentId.value)) {
       return
     }
 
@@ -189,6 +221,124 @@ export const useAgentStore = defineStore('agent', () => {
     selectedAgentId.value = id
   }
 
+  function setFixedIframeQueryParams(
+    agentId: FixedIframeAgentId,
+    params: Record<string, string>
+  ): void {
+    fixedIframeQueryParams.value = {
+      ...fixedIframeQueryParams.value,
+      [agentId]: params
+    }
+  }
+
+  function clearFixedIframeQueryParams(agentId?: FixedIframeAgentId): void {
+    if (!agentId) {
+      fixedIframeQueryParams.value = {}
+      return
+    }
+
+    const nextParams = { ...fixedIframeQueryParams.value }
+    delete nextParams[agentId]
+    fixedIframeQueryParams.value = nextParams
+  }
+
+  function clearFixedIframeUrlOverride(agentId?: FixedIframeAgentId): void {
+    if (!agentId) {
+      fixedIframeUrlOverrides.value = {}
+      return
+    }
+
+    const nextOverrides = { ...fixedIframeUrlOverrides.value }
+    delete nextOverrides[agentId]
+    fixedIframeUrlOverrides.value = nextOverrides
+  }
+
+  function setFixedIframeUrlOverride(agentId: FixedIframeAgentId, url: string): void {
+    fixedIframeUrlOverrides.value = {
+      ...fixedIframeUrlOverrides.value,
+      [agentId]: url
+    }
+  }
+
+  function getFixedIframeReloadNonce(agentId: FixedIframeAgentId): number {
+    return fixedIframeReloadNonce.value[agentId] ?? 0
+  }
+
+  function getFixedIframeSecondaryNavId(agentId: FixedIframeAgentId): string | undefined {
+    return (
+      fixedIframeSecondaryNavIds.value[agentId] ??
+      getFixedIframeAgent(agentId)?.defaultSecondaryNavId
+    )
+  }
+
+  function setFixedIframeSecondaryNav(agentId: FixedIframeAgentId, navId: string): void {
+    fixedIframeSecondaryNavIds.value = {
+      ...fixedIframeSecondaryNavIds.value,
+      [agentId]: navId
+    }
+    clearFixedIframeQueryParams(agentId)
+    clearFixedIframeUrlOverride(agentId)
+    fixedIframeReloadNonce.value = {
+      ...fixedIframeReloadNonce.value,
+      [agentId]: getFixedIframeReloadNonce(agentId) + 1
+    }
+  }
+
+  function resetFixedIframeNavigation(agentId: FixedIframeAgentId): void {
+    clearFixedIframeQueryParams(agentId)
+    clearFixedIframeUrlOverride(agentId)
+    const defaultNavId = getFixedIframeAgent(agentId)?.defaultSecondaryNavId
+    if (defaultNavId) {
+      fixedIframeSecondaryNavIds.value = {
+        ...fixedIframeSecondaryNavIds.value,
+        [agentId]: defaultNavId
+      }
+    }
+  }
+
+  function resolveFixedIframeUrl(agentId: FixedIframeAgentId): string {
+    const override = fixedIframeUrlOverrides.value[agentId]?.trim()
+    const baseUrl =
+      override || resolveFixedIframeBaseUrl(agentId, getFixedIframeSecondaryNavId(agentId))
+    if (!baseUrl) {
+      return ''
+    }
+
+    const queryParams = mergeFixedIframeQueryParams(fixedIframeQueryParams.value[agentId], {
+      authToken: getToken()
+    })
+    return buildFixedIframeUrl(baseUrl, queryParams)
+  }
+
+  function openFixedIframe(agentId: FixedIframeAgentId, options?: OpenFixedIframeOptions): void {
+    setSelectedAgent(agentId)
+
+    if (options?.iframeUrl?.trim()) {
+      setFixedIframeUrlOverride(agentId, options.iframeUrl.trim())
+    } else {
+      clearFixedIframeUrlOverride(agentId)
+    }
+
+    const params: Record<string, string> = { ...(options?.queryParams ?? {}) }
+    if (options?.sessionId?.trim()) {
+      params.id = options.sessionId.trim()
+    }
+
+    if (Object.keys(params).length > 0) {
+      setFixedIframeQueryParams(agentId, params)
+    } else {
+      clearFixedIframeQueryParams(agentId)
+    }
+  }
+
+  function openFixedIframeFromSession(
+    agentId: FixedIframeAgentId,
+    sessionId: string,
+    options?: Omit<OpenFixedIframeOptions, 'sessionId'>
+  ): void {
+    openFixedIframe(agentId, { ...options, sessionId })
+  }
+
   function selectAgent(id: string | null): void {
     selectedAgentId.value = selectedAgentId.value === id ? null : id
   }
@@ -221,9 +371,26 @@ export const useAgentStore = defineStore('agent', () => {
     loading,
     error,
     enabledAgents,
+    sidebarAgents,
+    fixedIframeAgents: FIXED_IFRAME_AGENTS,
+    fixedIframeQueryParams,
+    fixedIframeUrlOverrides,
+    fixedIframeSecondaryNavIds,
+    isFixedIframeAgentSelected,
     selectedAgent,
     applyBootstrapAgents,
     setSelectedAgent,
+    setFixedIframeQueryParams,
+    clearFixedIframeQueryParams,
+    clearFixedIframeUrlOverride,
+    setFixedIframeUrlOverride,
+    getFixedIframeSecondaryNavId,
+    getFixedIframeReloadNonce,
+    setFixedIframeSecondaryNav,
+    resetFixedIframeNavigation,
+    resolveFixedIframeUrl,
+    openFixedIframe,
+    openFixedIframeFromSession,
     fetchAgents,
     refreshAgentsByType,
     refreshAgentsByIds,
