@@ -19,50 +19,50 @@ export interface RuntimeCapabilitiesPromptOptions {
   hasProcess?: boolean
 }
 
-function resolveModelDisplayName(
-  providerId: string,
-  modelId: string,
-  modelLookup?: Pick<ProviderCatalogPort, 'getProviderModels' | 'getCustomModels'>
-): string | undefined {
-  try {
-    const models = modelLookup?.getProviderModels(providerId) || []
-    const match = models.find((model) => model.id === modelId)
-    if (match?.name) {
-      return match.name
-    }
+// function resolveModelDisplayName(
+//   providerId: string,
+//   modelId: string,
+//   modelLookup?: Pick<ProviderCatalogPort, 'getProviderModels' | 'getCustomModels'>
+// ): string | undefined {
+//   try {
+//     const models = modelLookup?.getProviderModels(providerId) || []
+//     const match = models.find((model) => model.id === modelId)
+//     if (match?.name) {
+//       return match.name
+//     }
 
-    const customModels = modelLookup?.getCustomModels(providerId) || []
-    const customMatch = customModels.find((model) => model.id === modelId)
-    if (customMatch?.name) {
-      return customMatch.name
-    }
-  } catch (error) {
-    console.warn(
-      `[SystemEnvPromptBuilder] Failed to resolve model display name for ${providerId}/${modelId}:`,
-      error
-    )
-  }
+//     const customModels = modelLookup?.getCustomModels(providerId) || []
+//     const customMatch = customModels.find((model) => model.id === modelId)
+//     if (customMatch?.name) {
+//       return customMatch.name
+//     }
+//   } catch (error) {
+//     console.warn(
+//       `[SystemEnvPromptBuilder] Failed to resolve model display name for ${providerId}/${modelId}:`,
+//       error
+//     )
+//   }
 
-  return undefined
-}
+//   return undefined
+// }
 
-function resolveModelIdentity(
-  providerId?: string,
-  modelId?: string,
-  modelLookup?: Pick<ProviderCatalogPort, 'getProviderModels' | 'getCustomModels'>
-): {
-  modelName: string
-  exactModelId: string
-} {
-  const trimmedProviderId = providerId?.trim() || 'unknown-provider'
-  const trimmedModelId = modelId?.trim() || 'unknown-model'
-  const displayName = resolveModelDisplayName(trimmedProviderId, trimmedModelId, modelLookup)
+// function resolveModelIdentity(
+//   providerId?: string,
+//   modelId?: string,
+//   modelLookup?: Pick<ProviderCatalogPort, 'getProviderModels' | 'getCustomModels'>
+// ): {
+//   modelName: string
+//   exactModelId: string
+// } {
+//   const trimmedProviderId = providerId?.trim() || 'unknown-provider'
+//   const trimmedModelId = modelId?.trim() || 'unknown-model'
+//   const displayName = resolveModelDisplayName(trimmedProviderId, trimmedModelId, modelLookup)
 
-  return {
-    modelName: displayName || trimmedModelId,
-    exactModelId: `${trimmedProviderId}/${trimmedModelId}`
-  }
-}
+//   return {
+//     modelName: displayName || trimmedModelId,
+//     exactModelId: `${trimmedProviderId}/${trimmedModelId}`
+//   }
+// }
 
 function resolveWorkdir(workdir?: string | null): string {
   const normalized = workdir?.trim()
@@ -139,15 +139,15 @@ export async function buildSystemEnvPrompt(
     ? path.resolve(options.agentsFilePath)
     : path.join(workdir, 'AGENTS.md')
   const agentsContent = await readAgentsInstructions(agentsFilePath)
-  const { modelName, exactModelId } = resolveModelIdentity(
-    options.providerId,
-    options.modelId,
-    options.modelLookup
-  )
+  // const { modelName, exactModelId } = resolveModelIdentity(
+  //   options.providerId,
+  //   options.modelId,
+  //   options.modelLookup
+  // )
 
   const promptLines = [
-    `You are powered by the model named ${modelName}.`,
-    `The exact model ID is ${exactModelId}`,
+    `You are powered by the model named Jiaorong-Ai.`,
+    `The exact model ID is Jiaorong-Ai`,
     `Here is some useful information about the environment you are running in:`,
     '<env>',
     `Working directory: ${workdir}`,
