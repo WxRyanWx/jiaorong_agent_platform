@@ -10,13 +10,15 @@ defineOptions({
 
 interface DragState {
   isDragging: boolean
-  isMouseDown: boolean
+  isPointerDown: boolean
   startX: number
   startY: number
   startScreenX: number
   startScreenY: number
   dragTimer: number | null
   lastMoveTime: number
+  pointerId: number | null
+  captureTarget: Element | null
 }
 
 const props = defineProps<{
@@ -42,13 +44,15 @@ let closingTimer: number | null = null
 
 const dragState = ref<DragState>({
   isDragging: false,
-  isMouseDown: false,
+  isPointerDown: false,
   startX: 0,
   startY: 0,
   startScreenX: 0,
   startScreenY: 0,
   dragTimer: null,
-  lastMoveTime: 0
+  lastMoveTime: 0,
+  pointerId: null,
+  captureTarget: null
 })
 
 const hasActiveTasks = computed(() => snapshot.value.activeCount > 0)
@@ -137,7 +141,37 @@ const handleMouseLeave = () => {
   setHovering(false)
 }
 
-const handleMouseDown = (event: MouseEvent) => {
+const clearPointerCapture = () => {
+  const { pointerId, captureTarget } = dragState.value
+  if (pointerId === null || !captureTarget) {
+    dragState.value.pointerId = null
+    dragState.value.captureTarget = null
+    return
+  }
+
+  try {
+    captureTarget.releasePointerCapture(pointerId)
+  } catch {
+    // Ignore stale pointer ids after the drag session ends.
+  }
+
+  dragState.value.pointerId = null
+  dragState.value.captureTarget = null
+}
+
+const removeDragListeners = () => {
+  window.removeEventListener('pointermove', handlePointerMove)
+  window.removeEventListener('pointerup', handlePointerUp)
+  window.removeEventListener('pointercancel', handlePointerUp)
+}
+
+const addDragListeners = () => {
+  window.addEventListener('pointermove', handlePointerMove)
+  window.addEventListener('pointerup', handlePointerUp)
+  window.addEventListener('pointercancel', handlePointerUp)
+}
+
+const handlePointerDown = (event: PointerEvent) => {
   if (event.button !== 0) {
     return
   }
@@ -149,25 +183,32 @@ const handleMouseDown = (event: MouseEvent) => {
 
   event.preventDefault()
 
-  dragState.value.isMouseDown = true
+  dragState.value.isPointerDown = true
   dragState.value.startX = event.clientX
   dragState.value.startY = event.clientY
   dragState.value.startScreenX = event.screenX
   dragState.value.startScreenY = event.screenY
   dragState.value.lastMoveTime = Date.now()
+  dragState.value.pointerId = event.pointerId
+  dragState.value.captureTarget = event.currentTarget instanceof Element ? event.currentTarget : null
+
+  try {
+    dragState.value.captureTarget?.setPointerCapture(event.pointerId)
+  } catch {
+    // Pointer capture is best-effort; window listeners still handle drag.
+  }
 
   dragState.value.dragTimer = window.setTimeout(() => {
-    if (dragState.value.isMouseDown) {
+    if (dragState.value.isPointerDown) {
       startDragging()
     }
   }, DRAG_DELAY)
 
-  document.addEventListener('mousemove', handleMouseMove)
-  document.addEventListener('mouseup', handleMouseUp)
+  addDragListeners()
 }
 
-const handleMouseMove = (event: MouseEvent) => {
-  if (!dragState.value.isMouseDown) return
+const handlePointerMove = (event: PointerEvent) => {
+  if (!dragState.value.isPointerDown) return
 
   const deltaX = Math.abs(event.clientX - dragState.value.startX)
   const deltaY = Math.abs(event.clientY - dragState.value.startY)
@@ -186,14 +227,16 @@ const handleMouseMove = (event: MouseEvent) => {
   }
 }
 
-const handleMouseUp = (event: MouseEvent) => {
+const handlePointerUp = (event: PointerEvent) => {
   if (event.button !== 0) {
     return
   }
 
   const wasDragging = dragState.value.isDragging
   clearDragTimer()
-  dragState.value.isMouseDown = false
+  dragState.value.isPointerDown = false
+  clearPointerCapture()
+  removeDragListeners()
 
   if (wasDragging) {
     dragState.value.isDragging = false
@@ -202,19 +245,16 @@ const handleMouseUp = (event: MouseEvent) => {
   } else if (!snapshot.value.expanded) {
     toggleExpanded()
   }
-
-  document.removeEventListener('mousemove', handleMouseMove)
-  document.removeEventListener('mouseup', handleMouseUp)
 }
 
 const handleRightClick = (event: MouseEvent) => {
   event.preventDefault()
   clearDragTimer()
-  dragState.value.isMouseDown = false
+  dragState.value.isPointerDown = false
   dragState.value.isDragging = false
   isDragging.value = false
-  document.removeEventListener('mousemove', handleMouseMove)
-  document.removeEventListener('mouseup', handleMouseUp)
+  clearPointerCapture()
+  removeDragListeners()
   window.floatingButtonAPI.onRightClick()
 }
 
@@ -243,8 +283,8 @@ onUnmounted(() => {
   clearDragTimer()
   clearClosingTimer()
   setHovering(false)
-  document.removeEventListener('mousemove', handleMouseMove)
-  document.removeEventListener('mouseup', handleMouseUp)
+  clearPointerCapture()
+  removeDragListeners()
   window.removeEventListener('blur', handleWindowBlur)
   window.floatingButtonAPI.removeAllListeners()
 })
@@ -265,7 +305,7 @@ onUnmounted(() => {
       ]"
       @mouseenter="handleMouseEnter"
       @mouseleave="handleMouseLeave"
-      @mousedown="handleMouseDown"
+      @pointerdown="handlePointerDown"
       @contextmenu="handleRightClick"
     >
       <div class="relative h-full w-full overflow-hidden">
@@ -406,6 +446,8 @@ onUnmounted(() => {
   --widget-radius: 16px;
   --widget-ease-smooth: cubic-bezier(0.16, 1, 0.3, 1);
   --widget-ease-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  /* Linux transparent windows ignore fully transparent hit regions. */
+  background-color: rgba(0, 0, 0, 0.004);
   --transition-collapsed-layer:
     opacity 260ms ease, transform 620ms var(--widget-ease-smooth),
     filter 520ms var(--widget-ease-smooth);

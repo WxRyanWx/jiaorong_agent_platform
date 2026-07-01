@@ -39,6 +39,19 @@ type DragRuntimeState = {
   windowHeight: number
 }
 
+const resolveDragPointer = (fallback?: { x: number; y: number }) => {
+  try {
+    const point = screen.getCursorScreenPoint()
+    if (Number.isFinite(point.x) && Number.isFinite(point.y)) {
+      return point
+    }
+  } catch (error) {
+    logger.debug('Failed to resolve drag pointer from screen cursor:', error)
+  }
+
+  return fallback ?? { x: 0, y: 0 }
+}
+
 export class FloatingButtonPresenter {
   private floatingWindow: FloatingButtonWindow | null = null
   private config: FloatingButtonConfig
@@ -302,9 +315,10 @@ export class FloatingButtonPresenter {
       this.floatingWindow.setBounds(stableBounds)
       this.floatingWindow.setOpacity(this.resolveWindowOpacity())
 
+      const pointer = resolveDragPointer({ x, y })
       dragState = {
-        startX: x,
-        startY: y,
+        startX: pointer.x,
+        startY: pointer.y,
         windowX: stableBounds.x,
         windowY: stableBounds.y,
         windowWidth: stableBounds.width,
@@ -317,15 +331,11 @@ export class FloatingButtonPresenter {
         return
       }
 
-      const deltaX = x - dragState.startX
-      const deltaY = y - dragState.startY
+      const pointer = resolveDragPointer({ x, y })
+      const deltaX = pointer.x - dragState.startX
+      const deltaY = pointer.y - dragState.startY
 
-      this.floatingWindow.setBounds({
-        x: dragState.windowX + deltaX,
-        y: dragState.windowY + deltaY,
-        width: dragState.windowWidth,
-        height: dragState.windowHeight
-      })
+      this.floatingWindow.setPosition(dragState.windowX + deltaX, dragState.windowY + deltaY)
     })
 
     ipcMain.on(FLOATING_BUTTON_EVENTS.DRAG_END, () => {

@@ -30,7 +30,7 @@
         </div>
       </button>
     </div>
-    <div v-else class="px-3 py-2 text-sm text-muted-foreground">No result</div>
+    <div v-else class="px-3 py-2 text-sm text-muted-foreground">没有结果</div>
   </div>
 </template>
 
