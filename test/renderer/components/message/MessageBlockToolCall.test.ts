@@ -8,6 +8,18 @@ const { selectSessionMock } = vi.hoisted(() => ({
   selectSessionMock: vi.fn()
 }))
 
+vi.mock('@/composables/useToolDisplayLabelOptions', () => ({
+  useToolDisplayLabelOptions: () => ({
+    displayLabelOptions: {
+      value: {
+        skills: [],
+        tools: []
+      }
+    },
+    refreshToolDisplayCatalog: vi.fn()
+  })
+}))
+
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
     t: (key: string, params?: { count?: number; mode?: string }) => {

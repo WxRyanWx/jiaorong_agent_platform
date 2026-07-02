@@ -5,13 +5,14 @@ import tippy from 'tippy.js'
 import { createSessionClient } from '@api/SessionClient'
 import { createSkillClient } from '@api/SkillClient'
 import { createWorkspaceClient } from '@api/WorkspaceClient'
-import type { PromptListEntry, WorkspaceFileNode } from '@shared/presenter'
+import type { MCPToolDefinition, PromptListEntry, WorkspaceFileNode } from '@shared/presenter'
 import { useMcpStore } from '@/stores/mcp'
 import { useSkillsStore } from '@/stores/skillsStore'
 import {
   buildChatInputWorkspaceReferenceText,
   resolveChatInputWorkspaceReferencePath
 } from '@/lib/chatInputWorkspaceReference'
+import { resolveSkillDisplay, resolveToolDisplay } from '@/lib/slashMenuDisplayText'
 import SuggestionList from '../mentions/SuggestionList.vue'
 import {
   buildCommandText,
@@ -208,11 +209,12 @@ export function useChatInputMentions(options: UseChatInputMentionsOptions) {
     }
 
     for (const skill of skillsStore.skills) {
+      const display = resolveSkillDisplay(skill)
       items.push({
         id: `skill:${skill.name}`,
         category: 'skill',
-        label: skill.name,
-        description: skill.description,
+        label: display.label,
+        description: display.description,
         payload: { name: skill.name }
       })
     }
@@ -227,24 +229,28 @@ export function useChatInputMentions(options: UseChatInputMentionsOptions) {
       })
     }
 
-    for (const tool of mcpStore.visibleTools) {
+    const pushToolSlashItem = (tool: MCPToolDefinition, idPrefix: 'tool' | 'plugin-tool') => {
+      const toolName = tool.function.name ?? ''
+      const display = resolveToolDisplay({
+        name: toolName,
+        displayName: tool.function.displayName,
+        description: tool.function.description || ''
+      })
       items.push({
-        id: `tool:${tool.server.name}:${tool.function.name ?? ''}`,
+        id: `${idPrefix}:${tool.server.name}:${toolName}`,
         category: 'tool',
-        label: tool.function.name ?? '',
-        description: tool.function.description || '',
+        label: display.label,
+        description: display.description,
         payload: tool
       })
     }
 
+    for (const tool of mcpStore.visibleTools) {
+      pushToolSlashItem(tool, 'tool')
+    }
+
     for (const tool of mcpStore.pluginTools) {
-      items.push({
-        id: `plugin-tool:${tool.server.name}:${tool.function.name ?? ''}`,
-        category: 'tool',
-        label: tool.function.name ?? '',
-        description: tool.function.description || '',
-        payload: tool
-      })
+      pushToolSlashItem(tool, 'plugin-tool')
     }
 
     return sortSlashSuggestionItems(items)

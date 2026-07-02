@@ -1772,6 +1772,7 @@ export interface MCPToolDefinition {
   source?: 'mcp' | 'agent'
   function: {
     name: string
+    displayName?: string
     description: string
     parameters: {
       type: string

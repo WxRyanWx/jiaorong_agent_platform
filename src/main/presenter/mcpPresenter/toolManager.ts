@@ -186,10 +186,16 @@ export class ToolManager {
             }
           }
 
+          const displayName =
+            typeof tool.annotations?.title === 'string' && tool.annotations.title.trim()
+              ? tool.annotations.title.trim()
+              : undefined
+
           results.push({
             type: 'function',
             function: {
               name: finalName,
+              ...(displayName ? { displayName } : {}),
               description: finalDescription,
               parameters: {
                 type: 'object',

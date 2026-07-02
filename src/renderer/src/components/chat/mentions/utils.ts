@@ -181,7 +181,8 @@ export const resolveSlashSelectionAction = (item: SlashSuggestionItem): SlashAct
   if (item.category === 'tool') {
     const tool = item.payload as MCPToolDefinition
     const toolName = tool.function.name?.trim() || item.label.trim()
-    return { kind: 'insert-tool', text: `@${toolName} ` }
+    const displayLabel = item.label.trim() || toolName
+    return { kind: 'insert-tool', text: `@${displayLabel} ` }
   }
 
   const prompt = item.payload as PromptListEntry

@@ -272,7 +272,7 @@ import {
   syncPullFromCloudRoute
 } from './routes/sync.routes'
 import { systemOpenSettingsRoute } from './routes/system.routes'
-import { toolsListDefinitionsRoute } from './routes/tools.routes'
+import { toolsDisplayCatalogRoute, toolsListDefinitionsRoute } from './routes/tools.routes'
 import {
   tabCaptureCurrentAreaRoute,
   tabNotifyRendererActivatedRoute,
@@ -606,6 +606,7 @@ export const DEEPCHAT_ROUTE_CATALOG = {
   [dialogRespondRoute.name]: dialogRespondRoute,
   [dialogErrorRoute.name]: dialogErrorRoute,
   [toolsListDefinitionsRoute.name]: toolsListDefinitionsRoute,
+  [toolsDisplayCatalogRoute.name]: toolsDisplayCatalogRoute,
   [systemOpenSettingsRoute.name]: systemOpenSettingsRoute
 } satisfies Record<string, RouteContract>
 
