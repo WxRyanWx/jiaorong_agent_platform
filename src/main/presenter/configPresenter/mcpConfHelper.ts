@@ -67,7 +67,7 @@ const PLATFORM_SPECIFIC_SERVERS: Record<string, Omit<MCPServerConfig, 'enabled'>
     ? {
         'deepchat/apple-server': {
           args: [],
-          descriptions: 'DeepChat内置Apple系统集成服务 (仅macOS)',
+          descriptions: '交融超级智能体内置 Apple 系统集成服务（仅 macOS）',
           icons: '🍎',
           autoApprove: ['all'],
           type: 'inmemory' as MCPServerType,
@@ -116,7 +116,7 @@ const DEFAULT_INMEMORY_SERVERS: Record<string, Omit<MCPServerConfig, 'enabled'>>
   // buildInFileSystem has been removed - filesystem capabilities are now provided via Agent tools
   Artifacts: {
     args: [],
-    descriptions: 'DeepChat内置 artifacts mcp服务',
+    descriptions: '交融超级智能体内置 Artifacts MCP 服务',
     icons: '🎨',
     autoApprove: ['all'],
     type: 'inmemory' as MCPServerType,
@@ -126,7 +126,7 @@ const DEFAULT_INMEMORY_SERVERS: Record<string, Omit<MCPServerConfig, 'enabled'>>
   },
   bochaSearch: {
     args: [],
-    descriptions: 'DeepChat内置博查搜索服务',
+    descriptions: '交融超级智能体内置博查搜索服务',
     icons: '🔍',
     autoApprove: ['all'],
     type: 'inmemory' as MCPServerType,
@@ -138,7 +138,7 @@ const DEFAULT_INMEMORY_SERVERS: Record<string, Omit<MCPServerConfig, 'enabled'>>
   },
   braveSearch: {
     args: [],
-    descriptions: 'DeepChat内置Brave搜索服务',
+    descriptions: '交融超级智能体内置 Brave 搜索服务',
     icons: '🦁',
     autoApprove: ['all'],
     type: 'inmemory' as MCPServerType,
@@ -150,7 +150,7 @@ const DEFAULT_INMEMORY_SERVERS: Record<string, Omit<MCPServerConfig, 'enabled'>>
   },
   difyKnowledge: {
     args: [],
-    descriptions: 'DeepChat内置Dify知识库检索服务',
+    descriptions: '交融超级智能体内置 Dify 知识库检索服务',
     icons: '📚',
     autoApprove: ['all'],
     type: 'inmemory' as MCPServerType,
@@ -169,7 +169,7 @@ const DEFAULT_INMEMORY_SERVERS: Record<string, Omit<MCPServerConfig, 'enabled'>>
   },
   ragflowKnowledge: {
     args: [],
-    descriptions: 'DeepChat内置RAGFlow知识库检索服务',
+    descriptions: '交融超级智能体内置 RAGFlow 知识库检索服务',
     icons: '📚',
     autoApprove: ['all'],
     type: 'inmemory' as MCPServerType,
@@ -188,7 +188,7 @@ const DEFAULT_INMEMORY_SERVERS: Record<string, Omit<MCPServerConfig, 'enabled'>>
   },
   fastGptKnowledge: {
     args: [],
-    descriptions: 'DeepChat内置FastGPT知识库检索服务',
+    descriptions: '交融超级智能体内置 FastGPT 知识库检索服务',
     icons: '📚',
     autoApprove: ['all'],
     type: 'inmemory' as MCPServerType,
@@ -207,7 +207,7 @@ const DEFAULT_INMEMORY_SERVERS: Record<string, Omit<MCPServerConfig, 'enabled'>>
   },
   builtinKnowledge: {
     args: [],
-    descriptions: 'DeepChat内置知识库检索服务',
+    descriptions: '交融超级智能体内置知识库检索服务',
     icons: '📚',
     autoApprove: ['all'],
     type: 'inmemory' as MCPServerType,
@@ -218,7 +218,7 @@ const DEFAULT_INMEMORY_SERVERS: Record<string, Omit<MCPServerConfig, 'enabled'>>
   'deepchat-inmemory/deep-research-server': {
     args: [],
     descriptions:
-      'DeepChat内置深度研究服务，使用博查搜索(注意该服务需要较长的上下文模型，请勿在短上下文的模型中使用)',
+      '交融超级智能体内置深度研究服务，使用博查搜索（注意该服务需要较长的上下文模型，请勿在短上下文的模型中使用）',
     icons: '🔬',
     autoApprove: ['all'],
     type: 'inmemory' as MCPServerType,
@@ -230,7 +230,7 @@ const DEFAULT_INMEMORY_SERVERS: Record<string, Omit<MCPServerConfig, 'enabled'>>
   },
   'deepchat-inmemory/auto-prompting-server': {
     args: [],
-    descriptions: 'DeepChat内置自动模板提示词服务',
+    descriptions: '交融超级智能体内置自动模板提示词服务',
     icons: '📜',
     autoApprove: ['all'],
     type: 'inmemory' as MCPServerType,
