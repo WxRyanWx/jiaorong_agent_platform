@@ -1,5 +1,5 @@
 import type { DeepchatBridge } from '@shared/contracts/bridge'
-import { toolsListDefinitionsRoute } from '@shared/contracts/routes'
+import { toolsDisplayCatalogRoute, toolsListDefinitionsRoute } from '@shared/contracts/routes'
 import { getDeepchatBridge } from './core'
 
 export function createToolClient(bridge: DeepchatBridge = getDeepchatBridge()) {
@@ -15,8 +15,14 @@ export function createToolClient(bridge: DeepchatBridge = getDeepchatBridge()) {
     return result.tools
   }
 
+  async function getToolDisplayCatalog() {
+    const result = await bridge.invoke(toolsDisplayCatalogRoute.name, {})
+    return result.tools
+  }
+
   return {
-    getAllToolDefinitions
+    getAllToolDefinitions,
+    getToolDisplayCatalog
   }
 }
 

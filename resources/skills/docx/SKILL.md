@@ -1,6 +1,8 @@
 ---
 name: docx
-description: "Comprehensive document creation, editing, and analysis with support for tracked changes, comments, formatting preservation, and text extraction. When Claude needs to work with professional documents (.docx files) for: (1) Creating new documents, (2) Modifying or editing content, (3) Working with tracked changes, (4) Adding comments, or any other document tasks"
+description: 全面的文档创建、编辑和分析，支持跟踪更改、注释、格式保存和文本提取。当Claude需要使用专业文档（.docx文件）进行以下操作时：（1）创建新文档，（2）修改或编辑内容，（3）处理跟踪的更改，（4）添加注释或任何其他文档任务
+metadata:
+  displayName: 文档
 license: Proprietary. LICENSE.txt has complete terms
 ---
 

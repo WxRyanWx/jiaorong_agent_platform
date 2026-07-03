@@ -1,8 +1,10 @@
 import { z } from 'zod'
 import type { MCPToolDefinition } from '@shared/presenter'
+import type { ToolDisplayMetadata } from '@shared/types/core/mcp'
 import { defineRouteContract } from '../common'
 
 const MCPToolDefinitionSchema = z.custom<MCPToolDefinition>()
+const ToolDisplayMetadataSchema = z.custom<ToolDisplayMetadata>()
 
 export const toolsListDefinitionsRoute = defineRouteContract({
   name: 'tools.listDefinitions',
@@ -16,5 +18,13 @@ export const toolsListDefinitionsRoute = defineRouteContract({
   }),
   output: z.object({
     tools: z.array(MCPToolDefinitionSchema)
+  })
+})
+
+export const toolsDisplayCatalogRoute = defineRouteContract({
+  name: 'tools.displayCatalog',
+  input: z.object({}),
+  output: z.object({
+    tools: z.array(ToolDisplayMetadataSchema)
   })
 })

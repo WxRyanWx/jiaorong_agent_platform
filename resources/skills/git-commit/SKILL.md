@@ -1,6 +1,8 @@
 ---
 name: git-commit
-description: Generate well-formatted git commit messages following conventional commit standards
+description: 按照常规提交标准生成格式良好的git提交消息
+metadata:
+  displayName: git提交
 allowedTools:
   - run_terminal_cmd
 ---

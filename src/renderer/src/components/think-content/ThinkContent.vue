@@ -28,10 +28,10 @@
 
     <div v-show="expanded" class="w-full relative">
       <NodeRenderer
-        v-if="sanitizedContent"
+        v-if="localizedThinkingContent"
         class="think-prose w-full max-w-full"
         :isDark="themeStore.isDark"
-        :content="sanitizedContent"
+        :content="localizedThinkingContent"
         :deferNodesUntilVisible="true"
         :maxLiveNodes="120"
         :liveNodeBuffer="30"
@@ -52,6 +52,8 @@ import { useThemeStore } from '@/stores/theme'
 import { Icon } from '@iconify/vue'
 import { h, computed, watch } from 'vue'
 import NodeRenderer, { setCustomComponents, CodeBlockNode, PreCodeNode } from 'markstream-vue'
+import { localizeThinkingContent } from '@/lib/slashMenuDisplayText'
+import { useToolDisplayLabelOptions } from '@/composables/useToolDisplayLabelOptions'
 
 const props = defineProps<{
   label: string
@@ -60,17 +62,20 @@ const props = defineProps<{
   content?: string
 }>()
 
-// Strip <style> tags to prevent global style pollution
-const sanitizedContent = computed(() => {
-  if (!props.content) return ''
-  return props.content.replace(/<style[\s\S]*?<\/style>/gi, '')
-})
-
 defineEmits<{
   (e: 'toggle'): void
 }>()
 const customId = 'thinking-content'
 const themeStore = useThemeStore()
+const { displayLabelOptions } = useToolDisplayLabelOptions()
+
+const localizedThinkingContent = computed(() => {
+  if (!props.content) return ''
+  const withoutStyles = props.content.replace(/<style[\s\S]*?<\/style>/gi, '')
+  const { skills, tools } = displayLabelOptions.value
+  return localizeThinkingContent(withoutStyles, skills, tools)
+})
+
 const propsWatchSource = () => [props.label, props.expanded, props.thinking, props.content] as const
 
 watch(propsWatchSource, () => {}, { immediate: true })
