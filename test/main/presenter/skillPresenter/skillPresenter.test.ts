@@ -3,7 +3,7 @@ import type { IConfigPresenter } from '../../../../src/shared/presenter'
 import type { SkillMetadata } from '../../../../src/shared/types/skill'
 import { app } from 'electron'
 
-const DEFAULT_SKILLS_DIR = '/mock/home/.deepchat/skills'
+const DEFAULT_SKILLS_DIR = '/mock/home/.jiaorongchat/skills'
 
 const { newSessionActiveSkillsStore, skillSessionStatePort } = vi.hoisted(() => ({
   newSessionActiveSkillsStore: new Map<string, string[]>(),
@@ -331,7 +331,7 @@ describe('SkillPresenter', () => {
       presenter.destroy()
     })
 
-    it('should repair malformed .deepchat path segments', async () => {
+    it('should repair malformed legacy brand path segments', async () => {
       ;(mockConfigPresenter.getSkillsPath as Mock).mockReturnValue('/mock/home.deepchat/skills')
       ;(app.getPath as Mock).mockImplementation((name: string) => {
         if (name === 'home') return '/mock/home'
@@ -340,7 +340,7 @@ describe('SkillPresenter', () => {
       })
 
       const presenter = new SkillPresenter(mockConfigPresenter, skillSessionStatePort as any)
-      await expect(presenter.getSkillsDir()).resolves.toBe('/mock/home/.deepchat/skills')
+      await expect(presenter.getSkillsDir()).resolves.toBe('/mock/home/.jiaorongchat/skills')
       presenter.destroy()
     })
 
@@ -355,7 +355,7 @@ describe('SkillPresenter', () => {
       })
 
       const presenter = new SkillPresenter(mockConfigPresenter, skillSessionStatePort as any)
-      await expect(presenter.getSkillsDir()).resolves.toBe('/mock/home/.deepchat/skills')
+      await expect(presenter.getSkillsDir()).resolves.toBe('/mock/home/.jiaorongchat/skills')
       presenter.destroy()
     })
 
@@ -370,7 +370,22 @@ describe('SkillPresenter', () => {
       })
 
       const presenter = new SkillPresenter(mockConfigPresenter, skillSessionStatePort as any)
-      await expect(presenter.getSkillsDir()).resolves.toBe('/mock/home/.deepchat/skills/nested')
+      await expect(presenter.getSkillsDir()).resolves.toBe('/mock/home/.jiaorongchat/skills/nested')
+      presenter.destroy()
+    })
+
+    it('should repair stale jiaorongchat default skills paths from another user profile', async () => {
+      ;(mockConfigPresenter.getSkillsPath as Mock).mockReturnValue(
+        '/Users/legacy-user/.jiaorongchat/skills/custom'
+      )
+      ;(app.getPath as Mock).mockImplementation((name: string) => {
+        if (name === 'home') return '/mock/home'
+        if (name === 'temp') return '/mock/temp'
+        return '/mock/' + name
+      })
+
+      const presenter = new SkillPresenter(mockConfigPresenter, skillSessionStatePort as any)
+      await expect(presenter.getSkillsDir()).resolves.toBe('/mock/home/.jiaorongchat/skills/custom')
       presenter.destroy()
     })
   })
@@ -722,7 +737,7 @@ describe('SkillPresenter', () => {
       expect(content?.name).toBe('test-skill')
       expect(content?.content).toContain('Skill content')
       expect(content?.content).toContain('Skill root: `')
-      expect(content?.content).toContain('/.deepchat/skills/test-skill`.')
+      expect(content?.content).toContain('/.jiaorongchat/skills/test-skill`.')
       expect(content?.content).toContain(
         'Relative paths mentioned by this skill are relative to the skill root unless stated otherwise.'
       )
@@ -1406,7 +1421,7 @@ describe('SkillPresenter', () => {
         // Source folder and SKILL.md exist
         if (p === '/source/new-skill' || p === '/source/new-skill/SKILL.md') return true
         // Target folder doesn't exist yet
-        if (p.includes('/.deepchat/skills/new-skill')) return false
+        if (p.includes('/.jiaorongchat/skills/new-skill')) return false
         // Skills dir exists
         return true
       })

@@ -28,6 +28,14 @@ import { SKILL_EVENTS } from '@/events'
 import { publishDeepchatEvent } from '@/routes/publishDeepchatEvent'
 import logger from '@shared/logger'
 import { normalizeSkillAllowedTools } from './toolNameMapping'
+import {
+  APP_HOME_DIR_NAME,
+  getAppHomeDir,
+  getDefaultSkillsPath,
+  LEGACY_APP_HOME_DIR_NAME,
+  repairLegacySkillsPath,
+  repairPortableDefaultSkillsPath as repairPortableDefaultSkillsPathFromIdentity
+} from '@shared/appIdentity'
 import { discoverSkillMetadataInWorker, logSkillDiscoveryWorkerWarnings } from './discoveryWorker'
 
 /**
@@ -189,7 +197,7 @@ function sanitizeSkillExtensionConfig(input: unknown): SkillExtensionConfig {
  * SkillPresenter - Manages the skills system
  *
  * Responsibilities:
- * - Discover and parse SKILL.md files from ~/.deepchat/skills/
+ * - Discover and parse SKILL.md files from ~/.jiaorongchat/skills/
  * - Progressive loading: metadata always in memory, full content on demand
  * - Hot-reload skill files when they change
  * - Manage skill activation state per conversation
@@ -215,7 +223,7 @@ export class SkillPresenter implements ISkillPresenter {
     private readonly configPresenter: IConfigPresenter,
     private readonly sessionStatePort: SkillSessionStatePort
   ) {
-    // Skills directory: ~/.deepchat/skills/
+    // Skills directory: ~/.jiaorongchat/skills/
     this.skillsDir = this.resolveSkillsDir()
     this.sidecarDir = path.join(this.skillsDir, SKILL_CONFIG.SIDECAR_DIR)
     this.draftsRoot = path.join(app.getPath('temp'), SKILL_CONFIG.DRAFT_ROOT_DIR)
@@ -227,10 +235,16 @@ export class SkillPresenter implements ISkillPresenter {
     const normalized = configuredPath?.trim()
     const homePath = app.getPath('home')
     const homeDir = homePath ? path.resolve(homePath) : path.resolve('.')
-    const fallbackDir = path.join(homeDir, '.deepchat', 'skills')
+    const fallbackDir = getDefaultSkillsPath(homeDir)
     const resolved = normalized ? path.resolve(normalized) : fallbackDir
+    const repairedLegacyPath = normalized ? repairLegacySkillsPath(normalized, homeDir) : null
+
+    if (repairedLegacyPath) {
+      return repairedLegacyPath
+    }
+
     const repairedDefaultPath = normalized
-      ? this.repairPortableDefaultSkillsPath(normalized, homeDir)
+      ? repairPortableDefaultSkillsPathFromIdentity(normalized, homeDir)
       : null
 
     if (repairedDefaultPath) {
@@ -238,34 +252,27 @@ export class SkillPresenter implements ISkillPresenter {
     }
 
     // Repair malformed paths like: C:\Users\name.deepchat\skills
-    const brokenPrefix = `${homeDir}.deepchat`
-    const compareResolved = process.platform === 'win32' ? resolved.toLowerCase() : resolved
-    const compareBrokenPrefix =
-      process.platform === 'win32' ? brokenPrefix.toLowerCase() : brokenPrefix
-    const hasBrokenPrefix = compareResolved.startsWith(compareBrokenPrefix)
-    const nextChar = compareResolved.charAt(compareBrokenPrefix.length)
-    const hasBoundaryAfterPrefix =
-      compareResolved.length === compareBrokenPrefix.length || nextChar === '/' || nextChar === '\\'
-    if (hasBrokenPrefix && hasBoundaryAfterPrefix) {
-      const suffix = resolved.slice(brokenPrefix.length).replace(/^[\\/]+/, '')
-      return path.join(homeDir, '.deepchat', suffix)
+    const brokenPrefixes = [
+      `${homeDir}${LEGACY_APP_HOME_DIR_NAME}`,
+      `${homeDir}${APP_HOME_DIR_NAME}`
+    ]
+    for (const brokenPrefix of brokenPrefixes) {
+      const compareResolved = process.platform === 'win32' ? resolved.toLowerCase() : resolved
+      const compareBrokenPrefix =
+        process.platform === 'win32' ? brokenPrefix.toLowerCase() : brokenPrefix
+      const hasBrokenPrefix = compareResolved.startsWith(compareBrokenPrefix)
+      const nextChar = compareResolved.charAt(compareBrokenPrefix.length)
+      const hasBoundaryAfterPrefix =
+        compareResolved.length === compareBrokenPrefix.length ||
+        nextChar === '/' ||
+        nextChar === '\\'
+      if (hasBrokenPrefix && hasBoundaryAfterPrefix) {
+        const suffix = resolved.slice(brokenPrefix.length).replace(/^[\\/]+/, '')
+        return path.join(getAppHomeDir(homeDir), suffix)
+      }
     }
 
     return resolved
-  }
-
-  private repairPortableDefaultSkillsPath(configuredPath: string, homeDir: string): string | null {
-    const slashPath = configuredPath.replace(/\\/g, '/')
-    const match =
-      slashPath.match(/^\/Users\/[^/]+\/\.deepchat\/skills(?:\/(.*))?$/i) ??
-      slashPath.match(/^[A-Za-z]:\/Users\/[^/]+\/\.deepchat\/skills(?:\/(.*))?$/i)
-
-    if (!match) {
-      return null
-    }
-
-    const suffixParts = (match[1] ?? '').split('/').filter(Boolean)
-    return path.join(homeDir, '.deepchat', 'skills', ...suffixParts)
   }
 
   /**

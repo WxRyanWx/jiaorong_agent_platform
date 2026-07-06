@@ -1,5 +1,9 @@
 appId: com.wefonk.jiaorong
 productName: JiaorongAI
+protocols:
+  - name: JiaorongChat
+    schemes:
+      - jiaorongchat
 directories:
   buildResources: build
 files:
@@ -107,7 +111,7 @@ linux:
   category: Utility
   artifactName: ${name}-linux-${arch}.${ext}
   mimeTypes:
-    - x-scheme-handler/deepchat
+    - x-scheme-handler/jiaorongchat
   executableName: jiaorongsuperintelligentagent
 npmRebuild: true
 publish:

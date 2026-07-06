@@ -13,6 +13,12 @@ import {
 import { eventBus, SendTarget } from '@/eventbus'
 import { consumeStartupDeepLink } from '@/lib/startupDeepLink'
 import {
+  DEEPLINK_SCHEME,
+  isSupportedDeeplinkProtocol,
+  LEGACY_DEEPLINK_SCHEME,
+  normalizeDeeplinkUrl
+} from '@shared/appIdentity'
+import {
   PROVIDER_INSTALL_VERSION,
   isProviderInstallCustomType,
   maskApiKey,
@@ -39,12 +45,12 @@ interface MCPInstallConfig {
 
 /**
  * DeepLink 处理器类
- * 负责处理 deepchat:// 协议的链接
- * deepchat://start 唤起应用，进入到默认的新会话界面
- * deepchat://start?msg=你好 唤起应用，进入新会话界面，并且带上默认消息
- * deepchat://start?msg=你好&model=deepseek-chat 唤起应用，进入新会话界面，并且带上默认消息，model先进行完全匹配，选中第一个命中的。没有命中的就进行模糊匹配，只要包含这个字段的第一个返回，如果都没有就忽略用默认
- * deepchat://mcp/install?json=base64JSONData 通过json数据直接安装mcp
- * deepchat://chat?token=xxx 交建通扫码登录回调，将 token 交给渲染进程写入本地存储
+ * 负责处理 jiaorongchat:// 协议的链接
+ * jiaorongchat://start 唤起应用，进入到默认的新会话界面
+ * jiaorongchat://start?msg=你好 唤起应用，进入新会话界面，并且带上默认消息
+ * jiaorongchat://start?msg=你好&model=deepseek-chat 唤起应用，进入新会话界面，并且带上默认消息，model先进行完全匹配，选中第一个命中的。没有命中的就进行模糊匹配，只要包含这个字段的第一个返回，如果都没有就忽略用默认
+ * jiaorongchat://mcp/install?json=base64JSONData 通过json数据直接安装mcp
+ * jiaorongchat://chat?token=xxx 交建通扫码登录回调，将 token 交给渲染进程写入本地存储
  */
 export class DeeplinkPresenter implements IDeeplinkPresenter {
   private startupUrl: string | null = null
@@ -60,13 +66,14 @@ export class DeeplinkPresenter implements IDeeplinkPresenter {
     // 注册协议处理器
     if (process.defaultApp) {
       if (process.argv.length >= 2) {
-        app.setAsDefaultProtocolClient('deepchat', process.execPath, [
+        app.setAsDefaultProtocolClient(DEEPLINK_SCHEME, process.execPath, [
           path.resolve(process.argv[1])
         ])
       }
     } else {
-      app.setAsDefaultProtocolClient('deepchat')
+      app.setAsDefaultProtocolClient(DEEPLINK_SCHEME)
     }
+    app.removeAsDefaultProtocolClient(LEGACY_DEEPLINK_SCHEME)
 
     // 监听窗口内容加载完成事件
     eventBus.once(WINDOW_EVENTS.FIRST_CONTENT_LOADED, () => {
@@ -94,10 +101,10 @@ export class DeeplinkPresenter implements IDeeplinkPresenter {
 
   async handleDeepLink(url: string): Promise<void> {
     try {
-      const urlObj = new URL(url)
+      const urlObj = new URL(normalizeDeeplinkUrl(url))
       logger.info('Received DeepLink:', this.redactDeepLinkUrlForLog(url))
 
-      if (urlObj.protocol !== 'deepchat:') {
+      if (!isSupportedDeeplinkProtocol(urlObj.protocol)) {
         console.error('Unsupported protocol:', urlObj.protocol)
         return
       }

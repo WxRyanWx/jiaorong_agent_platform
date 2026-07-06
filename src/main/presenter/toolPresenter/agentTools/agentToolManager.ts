@@ -1,4 +1,5 @@
 import type { IConfigPresenter, MCPToolDefinition } from '@shared/presenter'
+import { getAppHomeDir } from '@shared/appIdentity'
 import type { AgentToolProgressUpdate } from '@shared/types/presenters/tool.presenter'
 import { zodToJsonSchema } from 'zod-to-json-schema'
 import { z } from 'zod'
@@ -1287,7 +1288,7 @@ export class AgentToolManager {
     }
 
     if (includeRuntimeRoots) {
-      addPath(path.join(app.getPath('home'), '.deepchat'))
+      addPath(getAppHomeDir(app.getPath('home')))
       addPath(app.getPath('temp'))
       addPath(path.join(app.getPath('userData'), 'temp'))
     }

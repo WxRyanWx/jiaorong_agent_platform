@@ -1,12 +1,12 @@
+import { getSessionsRoot as resolveSessionsRoot } from '@shared/appIdentity'
 import { createHash } from 'crypto'
-import os from 'os'
 import path from 'path'
 
 const INVALID_WINDOWS_SEGMENT_CHARS = new Set(['<', '>', ':', '"', '/', '\\', '|', '?', '*'])
 const TRAILING_WINDOWS_SEGMENT_CHARS = /[. ]+$/g
 
 export function getSessionsRoot(): string {
-  return path.resolve(os.homedir(), '.deepchat', 'sessions')
+  return resolveSessionsRoot()
 }
 
 export function resolveSessionDir(conversationId: string): string | null {

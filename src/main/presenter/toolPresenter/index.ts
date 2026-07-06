@@ -7,6 +7,7 @@ import type {
 } from '@shared/presenter'
 import type { AgentToolProgressUpdate } from '@shared/types/presenters/tool.presenter'
 import type { PermissionMode } from '@shared/types/agent-interface'
+import { APP_HOME_DIR_NAME } from '@shared/appIdentity'
 import { resolveToolOffloadTemplatePath } from '@/lib/agentRuntime/sessionPaths'
 import { mergeToolDisplayMetadata, toToolDisplayMetadata } from '@shared/lib/toolDisplayMetadata'
 import type { ToolDisplayMetadata } from '@shared/types/core/mcp'
@@ -460,7 +461,7 @@ export class ToolPresenter implements IToolPresenter {
     const conversationId = context.conversationId || '<conversationId>'
     const offloadPath =
       resolveToolOffloadTemplatePath(conversationId) ??
-      '~/.deepchat/sessions/<conversationId>/tool_<toolCallId>.offload'
+      `~/${APP_HOME_DIR_NAME}/sessions/<conversationId>/tool_<toolCallId>.offload`
     const toolDefinitions =
       context.toolDefinitions?.filter((tool) => tool.source === 'agent') ?? this.getFallbackTools()
     const toolNames = new Set(toolDefinitions.map((tool) => tool.function.name))

@@ -4,7 +4,8 @@ import logger from '@shared/logger'
 
 const browserWindowFromIdMock = vi.hoisted(() => vi.fn())
 const electronAppMock = vi.hoisted(() => ({
-  setAsDefaultProtocolClient: vi.fn()
+  setAsDefaultProtocolClient: vi.fn(),
+  removeAsDefaultProtocolClient: vi.fn()
 }))
 
 const presenterMock = vi.hoisted(() => ({
@@ -106,7 +107,7 @@ describe('DeeplinkPresenter', () => {
     browserWindowFromIdMock.mockReturnValue(chatWindow)
 
     await deeplinkPresenter.handleDeepLink(
-      'deepchat://start?msg=%E4%BD%A0%E5%A5%BD&model=deepseek-chat&system=Be%20concise&mentions=README.md,docs%2Fspec.md'
+      'jiaorongchat://start?msg=%E4%BD%A0%E5%A5%BD&model=deepseek-chat&system=Be%20concise&mentions=README.md,docs%2Fspec.md'
     )
 
     expect(chatWindow.show).toHaveBeenCalledTimes(1)
@@ -172,13 +173,42 @@ describe('DeeplinkPresenter', () => {
     presenterMock.windowPresenter.getAllWindows.mockReturnValue([chatWindow as any])
     browserWindowFromIdMock.mockReturnValue(chatWindow)
 
-    await deeplinkPresenter.handleDeepLink('deepchat://chat?token=test-auth-token')
+    await deeplinkPresenter.handleDeepLink('jiaorongchat://chat?token=test-auth-token')
 
     expect(presenterMock.windowPresenter.sendToWindow).toHaveBeenCalledWith(
       1,
       DEEPLINK_EVENTS.AUTH_LOGIN,
       {
         token: 'test-auth-token'
+      }
+    )
+  })
+
+  it('accepts legacy deepchat auth deeplinks during rollout', async () => {
+    const { DeeplinkPresenter } = await import('@/presenter/deeplinkPresenter')
+    const deeplinkPresenter = new DeeplinkPresenter()
+    const chatWindow = {
+      id: 1,
+      isDestroyed: () => false,
+      isMinimized: () => false,
+      show: vi.fn(),
+      focus: vi.fn(),
+      webContents: {
+        isLoadingMainFrame: () => false,
+        once: vi.fn()
+      }
+    }
+
+    presenterMock.windowPresenter.getAllWindows.mockReturnValue([chatWindow as any])
+    browserWindowFromIdMock.mockReturnValue(chatWindow)
+
+    await deeplinkPresenter.handleDeepLink('deepchat://chat?token=legacy-auth-token')
+
+    expect(presenterMock.windowPresenter.sendToWindow).toHaveBeenCalledWith(
+      1,
+      DEEPLINK_EVENTS.AUTH_LOGIN,
+      {
+        token: 'legacy-auth-token'
       }
     )
   })
@@ -194,7 +224,7 @@ describe('DeeplinkPresenter', () => {
         }
       }
     }
-    const url = `deepchat://mcp/install?code=${Buffer.from(JSON.stringify(payload)).toString('base64')}`
+    const url = `jiaorongchat://mcp/install?code=${Buffer.from(JSON.stringify(payload)).toString('base64')}`
 
     await deeplinkPresenter.handleDeepLink(url)
 
@@ -251,7 +281,7 @@ describe('DeeplinkPresenter', () => {
       baseUrl: 'https://proxy.example.com/v1',
       apiKey: 'sk-import-1234'
     }
-    const url = `deepchat://provider/install?v=1&data=${Buffer.from(JSON.stringify(payload)).toString('base64')}`
+    const url = `jiaorongchat://provider/install?v=1&data=${Buffer.from(JSON.stringify(payload)).toString('base64')}`
 
     await deeplinkPresenter.handleDeepLink(url)
 
@@ -290,7 +320,7 @@ describe('DeeplinkPresenter', () => {
       baseUrl: 'https://custom.example.com/v1',
       apiKey: 'sk-custom-5678'
     }
-    const url = `deepchat://provider/install?v=1&data=${Buffer.from(JSON.stringify(payload)).toString('base64')}`
+    const url = `jiaorongchat://provider/install?v=1&data=${Buffer.from(JSON.stringify(payload)).toString('base64')}`
 
     await deeplinkPresenter.handleDeepLink(url)
 
@@ -348,7 +378,7 @@ describe('DeeplinkPresenter', () => {
       baseUrl: 'https://invalid.example.com/v1',
       apiKey: 'sk-invalid'
     }
-    const url = `deepchat://provider/install?v=1&data=${Buffer.from(JSON.stringify(payload)).toString('base64')}`
+    const url = `jiaorongchat://provider/install?v=1&data=${Buffer.from(JSON.stringify(payload)).toString('base64')}`
 
     await deeplinkPresenter.handleDeepLink(url)
 
@@ -440,5 +470,15 @@ describe('DeeplinkPresenter', () => {
       .join(' ')
     expect(serializedLogs).not.toContain(rawData)
     expect(serializedLogs).not.toContain('sk-secret-value')
+  })
+
+  it('registers jiaorongchat protocol and removes legacy deepchat registration on init', async () => {
+    const { DeeplinkPresenter } = await import('@/presenter/deeplinkPresenter')
+    const deeplinkPresenter = new DeeplinkPresenter()
+
+    deeplinkPresenter.init()
+
+    expect(electronAppMock.setAsDefaultProtocolClient).toHaveBeenCalledWith('jiaorongchat')
+    expect(electronAppMock.removeAsDefaultProtocolClient).toHaveBeenCalledWith('deepchat')
   })
 })
