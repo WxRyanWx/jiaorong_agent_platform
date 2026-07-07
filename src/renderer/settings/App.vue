@@ -139,39 +139,17 @@ import {
   getSettingsRouteItems,
   resolveSettingsNavigationPath,
 } from "@shared/settingsNavigation";
-import type {
-  SettingsNavigationItem,
-  SettingsNavigationPayload,
-} from "@shared/settingsNavigation";
+import type { SettingsNavigationPayload } from "@shared/settingsNavigation";
+import { isSettingsSidebarItemVisuallyHidden } from "@shared/settingsSidebarAdmin";
 import { useStartupWorkloadStore } from "@/stores/startupWorkloadStore";
 
 const DATABASE_REPAIR_SECTION = "database-repair";
 const SETTINGS_SECTION_EVENT = "deepchat:settings-section";
 const SETTINGS_STARTUP_LOG_PREFIX = "[Startup][Settings][Renderer]";
 
-/** Sidebar routes kept in DOM but visually hidden via CSS */
-const SETTINGS_SIDEBAR_HIDDEN_ROUTES: SettingsNavigationItem["routeName"][] = [
-  "settings-overview",
-  "settings-provider",
-  "settings-acp",
-  "settings-dashboard",
-  "settings-mcp",
-  "settings-remote",
-  "settings-notifications-hooks",
-  "settings-scheduled-tasks",
-  "settings-plugins",
-  "settings-skills",
-  "settings-prompt",
-  "settings-knowledge-base",
-  "settings-database",
-];
+// 隐藏名单与白名单见 @shared/settingsSidebarAdmin
 
-const SETTINGS_SIDEBAR_HIDDEN_ROUTE_SET = new Set(SETTINGS_SIDEBAR_HIDDEN_ROUTES);
-
-const isSidebarItemVisuallyHidden = (routeName: string) =>
-  SETTINGS_SIDEBAR_HIDDEN_ROUTE_SET.has(
-    routeName as SettingsNavigationItem["routeName"],
-  );
+const isSidebarItemVisuallyHidden = isSettingsSidebarItemVisuallyHidden;
 
 const isSidebarGroupVisuallyHidden = (group: { items: { name: string }[] }) =>
   group.items.every((item) => isSidebarItemVisuallyHidden(item.name));

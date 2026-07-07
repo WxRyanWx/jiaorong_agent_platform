@@ -83,7 +83,7 @@ export const SETTINGS_NAVIGATION_GROUPS: Array<Omit<SettingsNavigationGroup, 'it
   }
 ]
 
-// Previously hidden in sidebar (now enabled; visually hidden via SETTINGS_SIDEBAR_HIDDEN_ROUTES in App.vue):
+// Previously hidden in sidebar (now enabled; visually hidden via @shared/settingsSidebarAdmin):
 // settings-overview, settings-provider, settings-acp, settings-dashboard, settings-mcp,
 // settings-remote, settings-notifications-hooks, settings-scheduled-tasks, settings-plugins,
 // settings-skills, settings-prompt, settings-knowledge-base, settings-database

@@ -592,8 +592,16 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div v-if="isLoginRoute" data-testid="app-login-root" class="h-screen w-screen overflow-auto">
-    <RouterView v-if="isStartupRouteReady" />
+  <div
+    v-if="isLoginRoute"
+    data-testid="app-login-root"
+    class="flex h-screen w-screen flex-col overflow-hidden"
+    :class="isWinMacOS ? 'bg-window-background' : 'bg-background'"
+  >
+    <AppBar />
+    <div class="min-h-0 flex-1 overflow-auto">
+      <RouterView v-if="isStartupRouteReady" />
+    </div>
   </div>
   <div
     v-else
