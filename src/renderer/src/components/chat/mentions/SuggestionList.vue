@@ -11,7 +11,7 @@
       >
         <div class="flex items-start gap-2">
           <span
-            class="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center text-xs text-muted-foreground"
+            class="mt-0.5 flex h-4 w-8 shrink-0 items-center justify-center text-xs text-muted-foreground"
           >
             <Icon
               v-if="item.category === 'command'"
@@ -30,7 +30,7 @@
         </div>
       </button>
     </div>
-    <div v-else class="px-3 py-2 text-sm text-muted-foreground">No result</div>
+    <div v-else class="px-3 py-2 text-sm text-muted-foreground">没有结果</div>
   </div>
 </template>
 
@@ -82,13 +82,13 @@ const categoryTag = (category: SuggestionCategory) => {
     case 'command':
       return '/'
     case 'skill':
-      return 'SK'
+      return '技能'
     case 'prompt':
-      return 'PR'
+      return '提示词'
     case 'tool':
-      return 'TL'
+      return '工具'
     case 'file':
-      return '@'
+      return '文件'
     default:
       return ''
   }

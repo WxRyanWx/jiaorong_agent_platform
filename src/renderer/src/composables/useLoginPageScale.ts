@@ -19,6 +19,9 @@ export const LOGIN_MARGIN_Y_RATIO = 0.1
 export const LOGIN_MARGIN_MIN_X = 20
 export const LOGIN_MARGIN_MIN_Y = 16
 
+/** 与 AppBar `h-9` 保持一致，登录页在 AppBar 下方渲染 */
+export const LOGIN_APP_BAR_HEIGHT = 36
+
 /** 最小缩放比 */
 export const LOGIN_PAGE_MIN_SCALE = 0.7
 
@@ -27,9 +30,11 @@ const clampMargin = (ratioValue: number, minValue: number) => Math.max(ratioValu
 export function useLoginPageScale() {
   const { width, height } = useWindowSize()
 
+  const viewportHeight = computed(() => Math.max(height.value - LOGIN_APP_BAR_HEIGHT, 0))
+
   const margins = computed(() => {
     const w = width.value
-    const h = height.value
+    const h = viewportHeight.value
 
     return {
       left: clampMargin(w * LOGIN_MARGIN_LEFT_RATIO, LOGIN_MARGIN_MIN_X),
@@ -40,13 +45,13 @@ export function useLoginPageScale() {
   })
 
   const scale = computed(() => {
-    if (width.value <= 0 || height.value <= 0) {
+    if (width.value <= 0 || viewportHeight.value <= 0) {
       return 1
     }
 
     const { left, right, top, bottom } = margins.value
     const availableWidth = Math.max(width.value - left - right, 0)
-    const availableHeight = Math.max(height.value - top - bottom, 0)
+    const availableHeight = Math.max(viewportHeight.value - top - bottom, 0)
 
     const raw = Math.min(availableWidth / LOGIN_CARD_WIDTH, availableHeight / LOGIN_CARD_HEIGHT, 1)
     return Math.max(raw, LOGIN_PAGE_MIN_SCALE)

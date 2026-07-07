@@ -1,65 +1,67 @@
 <template>
   <TooltipProvider :delay-duration="200">
-    <div
-      ref="scrollContainer"
-      data-testid="chat-page"
-      :data-generating="String(isGenerating)"
-      class="message-list-container h-full w-full min-w-0 overflow-y-auto"
-      @scroll.passive="onScroll"
-    >
-      <ChatTopBar
-        class="chat-capture-hide"
-        :session-id="props.sessionId"
-        :title="sessionTitle"
-        :project="sessionProject"
-        :is-read-only="isReadOnlySession"
-      />
-      <div v-if="isChatSearchOpen" class="pointer-events-none sticky top-14 z-20 px-6">
-        <div class="mx-auto flex w-full max-w-5xl justify-end">
-          <ChatSearchBar
-            ref="chatSearchBarRef"
-            v-model="chatSearchQuery"
-            class="pointer-events-auto"
-            :active-match="activeChatSearchIndex"
-            :total-matches="chatSearchMatches.length"
-            @previous="goToPreviousChatSearchMatch"
-            @next="goToNextChatSearchMatch"
-            @close="closeChatSearch"
-          />
-        </div>
-      </div>
-      <div ref="messageSearchRoot" class="min-h-[calc(100%-242px)]" :style="messageSearchRootStyle">
-        <div
-          v-if="messageStore.isLoadingHistory"
-          class="pointer-events-none px-6 py-2 text-center text-xs text-muted-foreground"
-        >
-          {{ t('common.loading') }}
-        </div>
-        <MessageList
-          ref="messageListRef"
-          :messages="displayMessages"
-          :conversation-id="props.sessionId"
-          :ephemeral-rate-limit-block="ephemeralRateLimitBlock"
-          :ephemeral-rate-limit-message-id="ephemeralRateLimitMessageId"
-          :is-generating="isGenerating"
-          :trace-message-ids="traceMessageIds"
+    <div class="flex h-full w-full min-h-0 min-w-0 flex-col">
+      <div
+        ref="scrollContainer"
+        data-testid="chat-page"
+        :data-generating="String(isGenerating)"
+        class="message-list-container min-h-0 w-full min-w-0 flex-1 overflow-y-auto"
+        @scroll.passive="onScroll"
+      >
+        <ChatTopBar
+          class="chat-capture-hide"
+          :session-id="props.sessionId"
+          :title="sessionTitle"
+          :project="sessionProject"
           :is-read-only="isReadOnlySession"
-          @retry="onMessageRetry"
-          @delete="onMessageDelete"
-          @fork="onMessageFork"
-          @continue="onMessageContinue"
-          @trace="onMessageTrace"
-          @edit-save="onMessageEditSave"
-          @measure="onMessageMeasure"
         />
-        <div ref="bottomScrollAnchor" class="h-px w-full" aria-hidden="true" />
+        <div v-if="isChatSearchOpen" class="pointer-events-none sticky top-14 z-20 px-6">
+          <div class="mx-auto flex w-full max-w-5xl justify-end">
+            <ChatSearchBar
+              ref="chatSearchBarRef"
+              v-model="chatSearchQuery"
+              class="pointer-events-auto"
+              :active-match="activeChatSearchIndex"
+              :total-matches="chatSearchMatches.length"
+              @previous="goToPreviousChatSearchMatch"
+              @next="goToNextChatSearchMatch"
+              @close="closeChatSearch"
+            />
+          </div>
+        </div>
+        <div ref="messageSearchRoot" :style="messageSearchRootStyle">
+          <div
+            v-if="messageStore.isLoadingHistory"
+            class="pointer-events-none px-6 py-2 text-center text-xs text-muted-foreground"
+          >
+            {{ t('common.loading') }}
+          </div>
+          <MessageList
+            ref="messageListRef"
+            :messages="displayMessages"
+            :conversation-id="props.sessionId"
+            :ephemeral-rate-limit-block="ephemeralRateLimitBlock"
+            :ephemeral-rate-limit-message-id="ephemeralRateLimitMessageId"
+            :is-generating="isGenerating"
+            :trace-message-ids="traceMessageIds"
+            :is-read-only="isReadOnlySession"
+            @retry="onMessageRetry"
+            @delete="onMessageDelete"
+            @fork="onMessageFork"
+            @continue="onMessageContinue"
+            @trace="onMessageTrace"
+            @edit-save="onMessageEditSave"
+            @measure="onMessageMeasure"
+          />
+          <div ref="bottomScrollAnchor" class="h-px w-full" aria-hidden="true" />
+        </div>
+        <TraceDialog :message-id="traceMessageId" @close="traceMessageId = null" />
       </div>
-      <TraceDialog :message-id="traceMessageId" @close="traceMessageId = null" />
 
-      <!-- Input area (sticky bottom, messages scroll under) -->
+      <!-- Input area fixed below the scroll region -->
       <div
         v-if="!isReadOnlySession"
-        class="chat-capture-hide sticky bottom-0 z-10 w-full px-6 pb-3 pt-3"
+        class="chat-capture-hide shrink-0 w-full bg-background px-6 pb-3 pt-3"
       >
         <div class="mx-auto flex w-full max-w-5xl min-w-0 flex-col items-center">
           <div class="relative w-full">
@@ -511,9 +513,7 @@ function isAtBottom(): boolean {
 function scrollDomToBottom(): void {
   const el = scrollContainer.value
   if (!el) return
-  // Use the container's max scrollTop rather than `bottomScrollAnchor.scrollIntoView`:
-  // the anchor sits before the sticky input area in flow, so scrollIntoView stops
-  // short by the input's height and never reaches the true bottom during generation.
+  // Scroll the message region to its true bottom (input sits outside this container).
   el.scrollTop = Math.max(el.scrollHeight - el.clientHeight, 0)
 }
 

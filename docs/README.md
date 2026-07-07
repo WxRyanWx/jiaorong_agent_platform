@@ -33,6 +33,7 @@ Renderer
 | [guides/code-navigation.md](./guides/code-navigation.md)                   | 当前代码导航入口                                       |
 | [guides/getting-started.md](./guides/getting-started.md)                   | 新开发者快速上手                                       |
 | [guides/plugin-packaging.md](./guides/plugin-packaging.md)                 | `.dcplugin` 打包、内置分发和 release 规则              |
+| [guides/skill-tool-display-localization.md](./guides/skill-tool-display-localization.md) | 技能 / MCP / Agent 工具中文展示名维护                  |
 | [spec-driven-dev.md](./spec-driven-dev.md)                                 | SDD 目录规则、保留期限与清理规则                       |
 
 ## 仍有运行时用途的基线
@@ -69,7 +70,8 @@ docs/
 │   ├── getting-started.md
 │   ├── code-navigation.md
 │   ├── debugging.md
-│   └── plugin-packaging.md
+│   ├── plugin-packaging.md
+│   └── skill-tool-display-localization.md
 └── spec-driven-dev.md
 ```
 

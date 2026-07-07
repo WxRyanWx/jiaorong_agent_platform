@@ -194,6 +194,8 @@ import { useThemeStore } from '@/stores/theme'
 import { useSessionStore } from '@/stores/ui/session'
 import { getLanguageFromFilename } from '@shared/utils/codeLanguage'
 import type { DisplayAssistantMessageBlock } from '@/components/chat/messageListItems'
+import { getDisplayLabel } from '@/lib/slashMenuDisplayText'
+import { useToolDisplayLabelOptions } from '@/composables/useToolDisplayLabelOptions'
 import { createDeviceClient } from '@api/DeviceClient'
 import MessageBlockToolCallImagePreview from './MessageBlockToolCallImagePreview.vue'
 
@@ -201,6 +203,7 @@ const { t } = useI18n()
 
 const themeStore = useThemeStore()
 const sessionStore = useSessionStore()
+const { displayLabelOptions } = useToolDisplayLabelOptions()
 const deviceClient = createDeviceClient()
 
 const props = defineProps<{
@@ -241,24 +244,29 @@ const functionLabel = computed(() => {
   return toolCall?.name ?? ''
 })
 
-const displayFunctionName = computed(() => functionLabel.value || t('toolCall.title'))
+const displayFunctionName = computed(() => {
+  if (!functionLabel.value) return t('toolCall.title')
+  return getDisplayLabel(functionLabel.value, displayLabelOptions.value)
+})
 
 const expandedToolTitle = computed(() => {
   if (!isExpanded.value || !props.block.tool_call) {
     return ''
   }
 
-  const toolName = functionLabel.value || t('toolCall.title')
+  const toolName = displayFunctionName.value
   let serverName = props.block.tool_call.server_name?.trim() ?? ''
   if (serverName.includes('/')) {
     serverName = serverName.split('/').pop() ?? ''
   }
 
-  if (!serverName || serverName === toolName) {
+  const displayServerName = serverName ? getDisplayLabel(serverName, displayLabelOptions.value) : ''
+
+  if (!displayServerName || displayServerName === toolName) {
     return toolName
   }
 
-  return `${serverName}.${toolName}`
+  return `${displayServerName}.${toolName}`
 })
 
 const paramsText = computed(() => props.block.tool_call?.params ?? '')

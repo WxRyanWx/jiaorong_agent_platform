@@ -118,3 +118,9 @@ src/main/presenter/llmProviderPresenter/acp/
 5. `src/main/presenter/mcpPresenter/toolManager.ts`
 
 如果看到旧路径 `src/main/presenter/agentPresenter/acp/*`，那属于已经归档的历史实现。
+
+## 展示名与中文 UI
+
+工具 **调用** 始终使用英文 `name`；中文展示名（`displayName` / MCP `annotations.title` / 技能 `metadata.displayName`）仅影响 UI。
+
+维护方式见 [skill-tool-display-localization.md](../guides/skill-tool-display-localization.md)。

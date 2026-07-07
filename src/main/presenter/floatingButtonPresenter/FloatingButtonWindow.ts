@@ -1,6 +1,6 @@
 import { BrowserWindow, screen } from 'electron'
 import path from 'path'
-import { is } from '@electron-toolkit/utils'
+import { is, platform } from '@electron-toolkit/utils'
 import { FloatingButtonConfig, FloatingButtonState } from './types'
 import logger from '../../../shared/logger'
 import {
@@ -65,7 +65,8 @@ export class FloatingButtonWindow {
         movable: true,
         hasShadow: false,
         autoHideMenuBar: true,
-        roundedCorners: true,
+        roundedCorners: !platform.isLinux,
+        ...(platform.isLinux ? { type: 'toolbar' as const } : {}),
         webPreferences: {
           nodeIntegration: false,
           contextIsolation: true,
@@ -169,6 +170,21 @@ export class FloatingButtonWindow {
 
     this.window.setBounds(bounds)
     this.state.bounds = { ...bounds }
+  }
+
+  public setPosition(x: number, y: number): void {
+    if (!this.window || this.window.isDestroyed()) {
+      return
+    }
+
+    const nextX = Math.round(x)
+    const nextY = Math.round(y)
+    this.window.setPosition(nextX, nextY)
+    this.state.bounds = {
+      ...this.state.bounds,
+      x: nextX,
+      y: nextY
+    }
   }
 
   public setOpacity(opacity: number): void {

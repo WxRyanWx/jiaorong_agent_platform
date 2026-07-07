@@ -3,7 +3,12 @@
  * Types for the unified tool routing presenter
  */
 
-import type { MCPToolDefinition, MCPToolCall, MCPToolResponse } from '../core/mcp'
+import type {
+  MCPToolDefinition,
+  MCPToolCall,
+  MCPToolResponse,
+  ToolDisplayMetadata
+} from '../core/mcp'
 import type { PermissionMode } from '../agent-interface'
 import type { AgentPlanSnapshot } from '../agent-plan'
 
@@ -37,6 +42,12 @@ export interface IToolPresenter {
     agentWorkspacePath?: string | null
     conversationId?: string
   }): Promise<MCPToolDefinition[]>
+
+  /**
+   * UI-only catalog of tool display metadata from all sources.
+   * Not filtered by session availability; MCP entries take precedence on name conflicts.
+   */
+  getToolDisplayCatalog(): Promise<ToolDisplayMetadata[]>
 
   /**
    * Synchronize agent-tool runtime state without rebuilding tool schemas.

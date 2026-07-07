@@ -1,6 +1,8 @@
 ---
 name: code-review
-description: Comprehensive code review assistant that analyzes code quality, security, and best practices
+description: 全面的代码审查助手，分析代码质量、安全性和最佳实践
+metadata:
+  displayName: 代码审查
 allowedTools:
   - read_file
   - list_files

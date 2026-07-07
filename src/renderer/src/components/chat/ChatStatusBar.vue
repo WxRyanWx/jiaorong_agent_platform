@@ -1,7 +1,10 @@
 <template>
   <div :class="['w-full', props.maxWidthClass]">
     <div class="flex w-full items-center justify-between px-1 py-2">
-      <div class="flex min-w-0 items-center gap-1 speLabel">
+      <div
+        class="flex min-w-0 items-center gap-1"
+        :class="{ speLabel: !isSettingsSidebarAdminUser }"
+      >
         <template v-if="isAcpAgent">
           <div
             class="acp-agent-badge flex h-6 min-w-0 items-center gap-1 rounded-full px-2 text-xs text-muted-foreground backdrop-blur-lg"
@@ -1170,6 +1173,7 @@ import type {
   SessionGenerationSettings,
 } from "@shared/types/agent-interface";
 import { normalizeDeepChatSubagentConfig } from "@shared/lib/deepchatSubagents";
+import { isSettingsSidebarAdmin } from "@shared/settingsSidebarAdmin";
 import {
   isNewApiEndpointType,
   resolveProviderCapabilityProviderId,
@@ -1306,6 +1310,8 @@ const onboardingClient = createOnboardingClient();
 const providerClient = createProviderClient();
 const sessionClient = createSessionClient();
 const { t } = useI18n();
+
+const isSettingsSidebarAdminUser = computed(() => isSettingsSidebarAdmin());
 
 const draftModelSelection = ref<ModelSelection | null>(null);
 const permissionMode = ref<PermissionMode>("full_access");

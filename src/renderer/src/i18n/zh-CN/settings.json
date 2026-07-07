@@ -64,8 +64,8 @@
     },
     "contentProtection": "投屏保护",
     "contentProtectionDialogTitle": "投屏保护切换确认",
-    "contentProtectionEnableDesc": "开启投屏保护可以防止投屏软件捕获DeepChat主窗口，用来保护您的内容隐私。请注意，此功能不会彻底隐藏所有界面，请合理合规使用。并且，并不是所有投屏软件都遵守用户隐私设定，该功能可能会在一些不遵守隐私设定的投屏软件上失效，且部分环境中可能会残留一个黑色窗体。",
-    "contentProtectionDisableDesc": "关闭投屏保护将允许投屏软件捕获DeepChat窗口。",
+    "contentProtectionEnableDesc": "开启投屏保护可以防止投屏软件捕获交融超级智能体主窗口，用来保护您的内容隐私。请注意，此功能不会彻底隐藏所有界面，请合理合规使用。并且，并不是所有投屏软件都遵守用户隐私设定，该功能可能会在一些不遵守隐私设定的投屏软件上失效，且部分环境中可能会残留一个黑色窗体。",
+    "contentProtectionDisableDesc": "关闭投屏保护将允许投屏软件捕获交融超级智能体窗口。",
     "contentProtectionRestartNotice": "切换此设置将导致程序重启，请确认是否继续？",
     "copyWithCotEnabled": "复制COT信息",
     "traceDebugEnabled": "追踪调用",
@@ -678,7 +678,7 @@
       },
       "functionCall": {
         "label": "函数调用",
-        "description": "模型是否原生支持函数调用(关闭这个选项后DeepChat会自动模拟函数调用)"
+        "description": "模型是否原生支持函数调用(关闭这个选项后交融超级智能体会自动模拟函数调用)"
       },
       "reasoning": {
         "label": "推理能力",
@@ -1481,7 +1481,7 @@
       "redetectFailed": "重新检测失败",
       "redetectFailedDesc": "无法重新检测最优源，将使用默认配置"
     },
-    "managedServerReadOnly": "DeepChat托管服务",
+    "managedServerReadOnly": "交融超级智能体托管服务",
     "managedServerReadOnlyDesc": "请在对应插件设置中管理启用和权限",
     "center": {
       "title": "MCP Center",
@@ -1535,7 +1535,7 @@
       "body": "通知内容",
       "message": "消息内容",
       "agentId": "Agent",
-      "agentIdPlaceholder": "默认 deepchat",
+      "agentIdPlaceholder": "默认 交融超级智能体",
       "modelId": "模型",
       "modelIdPlaceholder": "留空使用默认",
       "systemPrompt": "系统提示词",

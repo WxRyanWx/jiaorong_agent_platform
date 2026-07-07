@@ -1,6 +1,8 @@
 ---
 name: deepchat-settings
-description: JiaorongAI app settings modification (JiaorongAI 设置/偏好) skill. Activate ONLY when the user explicitly asks to change JiaorongAI's own settings/preferences (e.g., theme, language, font size...). Do NOT activate for OS/system settings, editor settings, or other apps.
+description: 交融AI应用程序设置修改（交融AI设置/偏好) 技能。仅当用户明确要求更改交融AI自己的设置/首选项（例如主题、语言、字体大小等）时才激活。请勿激活操作系统/系统设置、编辑器设置或其他应用程序。
+metadata:
+  displayName: 设置
 allowedTools:
   - deepchat_settings_toggle
   - deepchat_settings_set_language

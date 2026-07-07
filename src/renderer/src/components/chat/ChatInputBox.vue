@@ -17,7 +17,7 @@
         class="inline-flex items-center gap-1.5 rounded-md border border-primary/30 bg-primary/10 px-2 py-1 text-xs text-primary"
       >
         <Icon icon="lucide:sparkles" class="h-3 w-3 shrink-0" />
-        <span class="truncate max-w-[160px]">{{ skillName }}</span>
+        <span class="truncate max-w-[160px]">{{ resolveActiveSkillLabel(skillName) }}</span>
         <button
           type="button"
           class="inline-flex h-4 w-4 items-center justify-center rounded-sm hover:bg-primary/20"
@@ -93,6 +93,8 @@ import { extractPlainUrlFromClipboard } from '@/lib/clipboardUrlPaste'
 import { useChatInputMentions } from './composables/useChatInputMentions'
 import { useChatInputFiles } from './composables/useChatInputFiles'
 import { useSkillsData } from '@/components/chat-input/composables/useSkillsData'
+import { useSkillsStore } from '@/stores/skillsStore'
+import { getSkillDisplayLabel } from '@/lib/slashMenuDisplayText'
 import CommandInputDialog from './mentions/CommandInputDialog.vue'
 import ChatAttachmentItem from './ChatAttachmentItem.vue'
 
@@ -147,7 +149,13 @@ let editorInstance: Editor | null = null
 const getEditor = () => editorInstance
 const conversationId = computed(() => props.sessionId)
 const skillsData = useSkillsData(conversationId)
+const skillsStore = useSkillsStore()
 const activeSkillNames = computed(() => skillsData.activeSkills.value)
+
+const resolveActiveSkillLabel = (skillName: string) => {
+  const skill = skillsStore.skills.find((item) => item.name === skillName)
+  return getSkillDisplayLabel(skillName, skill?.metadata)
+}
 
 const mentions = useChatInputMentions({
   getEditor,

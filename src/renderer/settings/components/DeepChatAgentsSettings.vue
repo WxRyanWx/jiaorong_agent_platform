@@ -13,9 +13,7 @@
         <Button size="sm" @click="startCreate">{{ t("common.add") }}</Button>
       </div>
 
-      <div
-        class="flex-1 space-y-3 overflow-y-auto px-4 pb-4 [&>button:first-child]:sr-only"
-      >
+      <div class="flex-1 space-y-3 overflow-y-auto px-4 pb-4">
         <button
           v-for="agent in sidebarAgents"
           :key="agent.id"
@@ -785,6 +783,7 @@ import {
   createDefaultDeepChatSubagentSlots,
   normalizeDeepChatSubagentSlots,
 } from "@shared/lib/deepchatSubagents";
+import { isSettingsSidebarAdmin } from "@shared/settingsSidebarAdmin";
 
 type ModelKey =
   | "chatModel"
@@ -866,6 +865,7 @@ const GROUP_ORDER = [
   "yobrowser",
 ];
 const { t } = useI18n();
+const isSettingsSidebarAdminUser = computed(() => isSettingsSidebarAdmin());
 const configPresenter = useLegacyPresenter("configPresenter");
 const projectPresenter = useLegacyPresenter("projectPresenter", {
   safeCall: false,
@@ -882,9 +882,11 @@ const deleting = ref(false);
 const selectedAgentId = ref<string | null>(null);
 const isBuiltInAgentId = (agentId: string | null | undefined) =>
   agentId === BUILT_IN_AGENT_ID;
+const isBuiltInAgentRestricted = (agentId: string | null | undefined) =>
+  isBuiltInAgentId(agentId) && !isSettingsSidebarAdminUser.value;
 const isEditorVisible = computed(() => {
   const agentId = selectedAgentId.value;
-  if (!agentId || isBuiltInAgentId(agentId)) {
+  if (!agentId || isBuiltInAgentRestricted(agentId)) {
     return false;
   }
   return true;
@@ -1146,7 +1148,9 @@ const draftSidebarAgent = computed<SidebarAgentItem>(() => ({
   avatar: buildAvatar(),
 }));
 const sidebarAgents = computed<SidebarAgentItem[]>(() => {
-  const savedAgents = deepchatAgents.value.map((agent) => ({
+  const savedAgents = deepchatAgents.value
+    .filter((agent) => isSettingsSidebarAdminUser.value || !isBuiltInAgentId(agent.id))
+    .map((agent) => ({
     id: agent.id,
     name: agent.name,
     enabled: agent.enabled,
@@ -1509,7 +1513,7 @@ const loadAgents = async (preferredId?: string | null) => {
   allAgents.value = list;
   const nextId =
     preferredId &&
-    !isBuiltInAgentId(preferredId) &&
+    !isBuiltInAgentRestricted(preferredId) &&
     deepchatAgents.value.some((agent) => agent.id === preferredId)
       ? preferredId
       : null;
@@ -1523,7 +1527,7 @@ const loadAgents = async (preferredId?: string | null) => {
   );
 };
 const selectAgent = (agentId: string) => {
-  if (isBuiltInAgentId(agentId)) {
+  if (isBuiltInAgentRestricted(agentId)) {
     return;
   }
 
@@ -1553,7 +1557,9 @@ const resetEditor = () => {
   selectAgent(agentId);
 };
 const saveAgent = async () => {
-  if (!form.name.trim() || isBuiltInAgentId(form.id) || form.protected) return;
+  if (!form.name.trim()) return;
+  if (isBuiltInAgentRestricted(form.id)) return;
+  if (form.protected && !isBuiltInAgentId(form.id)) return;
   saving.value = true;
   try {
     const payload = {

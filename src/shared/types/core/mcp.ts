@@ -1,10 +1,18 @@
 // MCP related core types (simplified, strong-typed)
 
+/** UI-only tool label metadata. Does not affect tool invocation. */
+export interface ToolDisplayMetadata {
+  name: string
+  displayName?: string
+  description?: string
+}
+
 export interface MCPToolDefinition {
   type: string
   source?: 'mcp' | 'agent'
   function: {
     name: string
+    displayName?: string
     description: string
     parameters: {
       type: string
