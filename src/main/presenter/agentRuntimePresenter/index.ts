@@ -1,4 +1,5 @@
 import logger from '@shared/logger'
+import { resolveLegacySkillName } from '@shared/legacyBrandAliases'
 import fs from 'fs'
 import path from 'path'
 import type {
@@ -4856,7 +4857,7 @@ export class AgentRuntimePresenter implements IAgentImplementation {
       return
     }
 
-    if (serverName === 'jiaorong-settings' && toolName) {
+    if (resolveLegacySkillName(serverName) === 'jiaorong-settings' && toolName) {
       await sessionPermissionPort.approvePermission(sessionId, {
         permissionType: 'write',
         serverName,

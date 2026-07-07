@@ -29,8 +29,10 @@ import {
   ChatSettingsToolHandler,
   buildChatSettingsToolDefinitions,
   CHAT_SETTINGS_SKILL_NAME,
-  CHAT_SETTINGS_TOOL_NAMES
+  CHAT_SETTINGS_TOOL_NAMES,
+  LEGACY_CHAT_SETTINGS_SKILL_NAME
 } from './chatSettingsTools'
+import { resolveLegacyToolName } from '@shared/legacyBrandAliases'
 import type { AgentToolRuntimePort } from '../runtimePorts'
 import { YO_BROWSER_TOOL_NAMES } from '../../browser/YoBrowserToolDefinitions'
 import { resolveSessionVisionTarget } from '../../vision/sessionVisionResolver'
@@ -425,7 +427,10 @@ export class AgentToolManager {
     if (isAgentMode && this.isSkillsEnabled() && context.conversationId) {
       try {
         const activeSkills = await this.getSkillPresenter().getActiveSkills(context.conversationId)
-        if (activeSkills.includes(CHAT_SETTINGS_SKILL_NAME)) {
+        if (
+          activeSkills.includes(CHAT_SETTINGS_SKILL_NAME) ||
+          activeSkills.includes(LEGACY_CHAT_SETTINGS_SKILL_NAME)
+        ) {
           const allowedTools = await this.getSkillPresenter().getActiveSkillsAllowedTools(
             context.conversationId
           )
@@ -532,6 +537,8 @@ export class AgentToolManager {
     conversationId?: string,
     options?: AgentToolExecutionOptions
   ): Promise<AgentToolCallResult | string> {
+    toolName = resolveLegacyToolName(toolName)
+
     if (toolName === UPDATE_PLAN_TOOL_NAME) {
       if (!this.planTool) {
         throw new Error('Progress tool is not available.')
@@ -1824,7 +1831,10 @@ export class AgentToolManager {
       return false
     }
     const activeSkills = await this.getSkillPresenter().getActiveSkills(conversationId)
-    return activeSkills.includes(CHAT_SETTINGS_SKILL_NAME)
+    return (
+      activeSkills.includes(CHAT_SETTINGS_SKILL_NAME) ||
+      activeSkills.includes(LEGACY_CHAT_SETTINGS_SKILL_NAME)
+    )
   }
 
   private getSkillTools(): SkillTools {

@@ -1916,10 +1916,20 @@ export class ConfigPresenter implements IConfigPresenter {
 
   // Get sync folder path
   getSyncFolderPath(): string {
-    return (
-      this.getSetting<string>('syncFolderPath') ||
-      path.join(app.getPath('home'), 'JiaorongchatSync')
-    )
+    const home = app.getPath('home')
+    const configured = this.getSetting<string>('syncFolderPath')
+    if (!configured) {
+      return path.join(home, 'JiaorongchatSync')
+    }
+
+    const legacyDefault = path.join(home, 'DeepchatSync')
+    if (path.resolve(configured) === path.resolve(legacyDefault)) {
+      const repaired = path.join(home, 'JiaorongchatSync')
+      this.setSetting('syncFolderPath', repaired)
+      return repaired
+    }
+
+    return configured
   }
 
   // Set sync folder path

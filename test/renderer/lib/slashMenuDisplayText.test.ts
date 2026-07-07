@@ -67,7 +67,30 @@ describe('slashMenuDisplayText', () => {
     expect(getDisplayLabel('jiaorong_settings_set_theme', options)).toBe('设置主题')
   })
 
-  it('localizes skill and tool identifiers in thinking prose', () => {
+  it('localizes legacy skill and tool identifiers in thinking prose', () => {
+    const input =
+      'Let me view the deepchat-settings skill and call deepchat_settings_set_theme with light.'
+    const output = localizeThinkingContent(
+      input,
+      [sampleSkill],
+      [{ name: 'jiaorong_settings_set_theme', displayName: '设置主题' }]
+    )
+
+    expect(output).toContain('设置')
+    expect(output).toContain('设置主题')
+    expect(output).not.toContain('deepchat-settings')
+    expect(output).not.toContain('deepchat_settings_set_theme')
+  })
+
+  it('resolves legacy tool labels from canonical tool metadata', () => {
+    expect(
+      getDisplayLabel('deepchat_settings_set_theme', {
+        tools: [{ name: 'jiaorong_settings_set_theme', displayName: '设置主题' }]
+      })
+    ).toBe('设置主题')
+  })
+
+  it('localizes jiaorong skill and tool identifiers in thinking prose', () => {
     const input =
       'Let me view the jiaorong-settings skill and call jiaorong_settings_set_theme with light.'
     const output = localizeThinkingContent(

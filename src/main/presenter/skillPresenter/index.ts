@@ -36,6 +36,10 @@ import {
   repairLegacySkillsPath,
   repairPortableDefaultSkillsPath as repairPortableDefaultSkillsPathFromIdentity
 } from '@shared/appIdentity'
+import {
+  CHAT_SETTINGS_SKILL_NAME,
+  LEGACY_CHAT_SETTINGS_SKILL_NAME
+} from '@shared/legacyBrandAliases'
 import { discoverSkillMetadataInWorker, logSkillDiscoveryWorkerWarnings } from './discoveryWorker'
 
 /**
@@ -280,7 +284,16 @@ export class SkillPresenter implements ISkillPresenter {
     const legacySidecarDir = path.join(this.skillsDir, '.deepchat-meta')
     const newSidecarDir = path.join(this.skillsDir, SKILL_CONFIG.SIDECAR_DIR)
 
-    if (!fs.existsSync(legacySidecarDir) || fs.existsSync(newSidecarDir)) {
+    if (!fs.existsSync(legacySidecarDir)) {
+      return
+    }
+
+    if (fs.existsSync(newSidecarDir)) {
+      try {
+        fs.rmSync(legacySidecarDir, { recursive: true, force: true })
+      } catch (error) {
+        logger.warn('[SkillPresenter] Failed to remove legacy sidecar dir:', error)
+      }
       return
     }
 
@@ -289,6 +302,42 @@ export class SkillPresenter implements ISkillPresenter {
     } catch (error) {
       logger.warn('[SkillPresenter] Failed to migrate legacy sidecar dir:', error)
     }
+  }
+
+  private migrateLegacySettingsSkill(): void {
+    const legacySkillDir = path.join(this.skillsDir, LEGACY_CHAT_SETTINGS_SKILL_NAME)
+    const newSkillDir = path.join(this.skillsDir, CHAT_SETTINGS_SKILL_NAME)
+
+    if (!fs.existsSync(legacySkillDir)) {
+      return
+    }
+
+    if (fs.existsSync(newSkillDir)) {
+      try {
+        fs.rmSync(legacySkillDir, { recursive: true, force: true })
+        logger.info('[SkillPresenter] Removed legacy settings skill after jiaorong-settings exists')
+      } catch (error) {
+        logger.warn('[SkillPresenter] Failed to remove legacy settings skill:', error)
+      }
+      return
+    }
+
+    try {
+      fs.renameSync(legacySkillDir, newSkillDir)
+      logger.info('[SkillPresenter] Migrated legacy settings skill directory')
+    } catch (error) {
+      logger.warn('[SkillPresenter] Failed to migrate legacy settings skill:', error)
+    }
+  }
+
+  private repairLegacySkillNames(skills: string[]): string[] {
+    return Array.from(
+      new Set(
+        skills.map((skill) =>
+          skill === LEGACY_CHAT_SETTINGS_SKILL_NAME ? CHAT_SETTINGS_SKILL_NAME : skill
+        )
+      )
+    )
   }
 
   /**
@@ -316,6 +365,7 @@ export class SkillPresenter implements ISkillPresenter {
   async initialize(): Promise<void> {
     if (this.initialized) return
 
+    this.migrateLegacySettingsSkill()
     await this.installBuiltinSkills()
     this.cleanupExpiredDrafts()
     await this.discoverSkills()
@@ -2002,11 +2052,17 @@ export class SkillPresenter implements ISkillPresenter {
    */
   async getActiveSkills(conversationId: string): Promise<string[]> {
     if (await this.isNewAgentSession(conversationId)) {
-      const skills = await this.loadNewSessionSkills(conversationId)
-      const validSkills = await this.validateSkillNames(skills)
-      if (validSkills.length !== skills.length) {
+      const rawSkills = await this.loadNewSessionSkills(conversationId)
+      const repairedSkills = this.repairLegacySkillNames(rawSkills)
+      const validSkills = await this.validateSkillNames(repairedSkills)
+
+      if (
+        JSON.stringify(rawSkills) !== JSON.stringify(validSkills) ||
+        JSON.stringify(repairedSkills) !== JSON.stringify(validSkills)
+      ) {
         this.setPersistedNewSessionSkills(conversationId, validSkills)
       }
+
       return validSkills
     }
 

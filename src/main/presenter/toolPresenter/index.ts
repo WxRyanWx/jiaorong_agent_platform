@@ -8,6 +8,7 @@ import type {
 import type { AgentToolProgressUpdate } from '@shared/types/presenters/tool.presenter'
 import type { PermissionMode } from '@shared/types/agent-interface'
 import { APP_HOME_DIR_NAME } from '@shared/appIdentity'
+import { resolveLegacyToolName, LEGACY_CHAT_SETTINGS_SKILL_NAME } from '@shared/legacyBrandAliases'
 import { resolveToolOffloadTemplatePath } from '@/lib/agentRuntime/sessionPaths'
 import { mergeToolDisplayMetadata, toToolDisplayMetadata } from '@shared/lib/toolDisplayMetadata'
 import type { ToolDisplayMetadata } from '@shared/types/core/mcp'
@@ -266,7 +267,8 @@ export class ToolPresenter implements IToolPresenter {
       permissionMode?: PermissionMode
     }
   ): Promise<{ content: unknown; rawData: MCPToolResponse }> {
-    const toolName = request.function.name
+    const rawToolName = request.function.name
+    const toolName = resolveLegacyToolName(rawToolName)
     const source = this.getToolSource(toolName, request.conversationId)
 
     if (!source) {
@@ -348,7 +350,7 @@ export class ToolPresenter implements IToolPresenter {
     request: MCPToolCall,
     options?: { permissionMode?: PermissionMode }
   ): Promise<PreCheckedPermissionResult | null> {
-    const toolName = request.function.name
+    const toolName = resolveLegacyToolName(request.function.name)
     const source = this.getToolSource(toolName, request.conversationId)
 
     if (!source) {
@@ -480,7 +482,10 @@ export class ToolPresenter implements IToolPresenter {
       this.buildProgressPrompt(toolNames),
       this.buildTapePrompt(groupedTools.get(AGENT_TAPE_TOOL_SERVER_NAME) ?? []),
       this.buildSkillsPrompt(toolNames),
-      this.buildSettingsPrompt(groupedTools.get('jiaorong-settings') ?? []),
+      this.buildSettingsPrompt([
+        ...(groupedTools.get('jiaorong-settings') ?? []),
+        ...(groupedTools.get(LEGACY_CHAT_SETTINGS_SKILL_NAME) ?? [])
+      ]),
       this.buildYoBrowserPrompt(groupedTools.get('yobrowser') ?? [])
     ]
 

@@ -13,7 +13,13 @@ import type {
 import { SETTINGS_EVENTS } from '@/events'
 import type { AgentToolRuntimePort } from '../runtimePorts'
 
-export const CHAT_SETTINGS_SKILL_NAME = 'jiaorong-settings'
+import {
+  CURRENT_CHAT_SETTINGS_SKILL_NAME,
+  LEGACY_CHAT_SETTINGS_SKILL_NAME
+} from '@shared/legacyBrandAliases'
+
+export const CHAT_SETTINGS_SKILL_NAME = CURRENT_CHAT_SETTINGS_SKILL_NAME
+export { LEGACY_CHAT_SETTINGS_SKILL_NAME }
 export const CHAT_SETTINGS_TOOL_NAMES = {
   toggle: 'jiaorong_settings_toggle',
   setLanguage: 'jiaorong_settings_set_language',
@@ -189,7 +195,10 @@ export class ChatSettingsToolHandler {
       return buildError('skill_inactive', 'Skills are disabled.')
     }
     const activeSkills = await this.options.skillPresenter.getActiveSkills(conversationId)
-    if (!activeSkills.includes(CHAT_SETTINGS_SKILL_NAME)) {
+    if (
+      !activeSkills.includes(CHAT_SETTINGS_SKILL_NAME) &&
+      !activeSkills.includes(LEGACY_CHAT_SETTINGS_SKILL_NAME)
+    ) {
       return buildError('skill_inactive', 'jiaorong-settings skill is not active.')
     }
     return null

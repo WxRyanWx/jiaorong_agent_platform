@@ -14,6 +14,7 @@ import type { AgentToolProgressUpdate } from '@shared/types/presenters/tool.pres
 import type { AssistantMessageBlock, PermissionMode } from '@shared/types/agent-interface'
 import type { AgentPlanSnapshot } from '@shared/types/agent-plan'
 import { parseQuestionToolArgs, QUESTION_TOOL_NAME } from '../../lib/agentRuntime/questionTool'
+import { resolveLegacyToolName } from '@shared/legacyBrandAliases'
 import { UPDATE_PLAN_TOOL_NAME } from '../toolPresenter/agentTools/agentPlanTool'
 import type {
   InterleavedReasoningConfig,
@@ -1282,7 +1283,7 @@ export async function executeTools(
     const { toolCall, toolContext } = execution
 
     try {
-      if (toolCall.function.name === QUESTION_TOOL_NAME) {
+      if (resolveLegacyToolName(toolCall.function.name) === QUESTION_TOOL_NAME) {
         const parsedQuestion = parseQuestionToolArgs(tc.arguments)
         if (!parsedQuestion.success) {
           const errorText = `Error: ${parsedQuestion.error}`
