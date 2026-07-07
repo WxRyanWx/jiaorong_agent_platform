@@ -76,7 +76,10 @@ const isMacOS = ref(false)
 const isMaximized = ref(false)
 const isFullscreened = ref(false)
 const showUpdateButton = computed(
-  () => route.name !== 'welcome' && upgrade.shouldShowTopbarInstallButton
+  () =>
+    route.name !== 'welcome' &&
+    route.name !== 'login' &&
+    upgrade.shouldShowTopbarInstallButton
 )
 
 const minimizeWindow = () => {
