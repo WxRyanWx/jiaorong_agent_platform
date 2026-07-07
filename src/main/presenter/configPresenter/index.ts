@@ -1917,7 +1917,8 @@ export class ConfigPresenter implements IConfigPresenter {
   // Get sync folder path
   getSyncFolderPath(): string {
     return (
-      this.getSetting<string>('syncFolderPath') || path.join(app.getPath('home'), 'DeepchatSync')
+      this.getSetting<string>('syncFolderPath') ||
+      path.join(app.getPath('home'), 'JiaorongchatSync')
     )
   }
 

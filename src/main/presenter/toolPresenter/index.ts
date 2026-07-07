@@ -480,7 +480,7 @@ export class ToolPresenter implements IToolPresenter {
       this.buildProgressPrompt(toolNames),
       this.buildTapePrompt(groupedTools.get(AGENT_TAPE_TOOL_SERVER_NAME) ?? []),
       this.buildSkillsPrompt(toolNames),
-      this.buildSettingsPrompt(groupedTools.get('deepchat-settings') ?? []),
+      this.buildSettingsPrompt(groupedTools.get('jiaorong-settings') ?? []),
       this.buildYoBrowserPrompt(groupedTools.get('yobrowser') ?? [])
     ]
 

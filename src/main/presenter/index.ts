@@ -542,7 +542,7 @@ export class Presenter implements IPresenter {
           return
         }
 
-        if (serverName === 'deepchat-settings' && toolName) {
+        if (serverName === 'jiaorong-settings' && toolName) {
           this.settingsPermissionService.approve(sessionId, toolName, false)
           return
         }

@@ -59,7 +59,7 @@ export const SKILL_CONFIG = {
   WATCHER_POLL_INTERVAL: 100, // ms
 
   /** Sidecar configuration directory name */
-  SIDECAR_DIR: '.deepchat-meta',
+  SIDECAR_DIR: '.jiaorongchat-meta',
 
   /** Draft skill configuration */
   DRAFT_ROOT_DIR: 'deepchat-skill-drafts',
@@ -225,6 +225,7 @@ export class SkillPresenter implements ISkillPresenter {
   ) {
     // Skills directory: ~/.jiaorongchat/skills/
     this.skillsDir = this.resolveSkillsDir()
+    this.migrateLegacySidecarDir()
     this.sidecarDir = path.join(this.skillsDir, SKILL_CONFIG.SIDECAR_DIR)
     this.draftsRoot = path.join(app.getPath('temp'), SKILL_CONFIG.DRAFT_ROOT_DIR)
     this.ensureSkillsDir()
@@ -273,6 +274,21 @@ export class SkillPresenter implements ISkillPresenter {
     }
 
     return resolved
+  }
+
+  private migrateLegacySidecarDir(): void {
+    const legacySidecarDir = path.join(this.skillsDir, '.deepchat-meta')
+    const newSidecarDir = path.join(this.skillsDir, SKILL_CONFIG.SIDECAR_DIR)
+
+    if (!fs.existsSync(legacySidecarDir) || fs.existsSync(newSidecarDir)) {
+      return
+    }
+
+    try {
+      fs.renameSync(legacySidecarDir, newSidecarDir)
+    } catch (error) {
+      logger.warn('[SkillPresenter] Failed to migrate legacy sidecar dir:', error)
+    }
   }
 
   /**

@@ -151,19 +151,19 @@ const SETTINGS_STARTUP_LOG_PREFIX = "[Startup][Settings][Renderer]";
 
 /** Sidebar routes kept in DOM but visually hidden via CSS */
 const SETTINGS_SIDEBAR_HIDDEN_ROUTES: SettingsNavigationItem["routeName"][] = [
-  "settings-overview",
-  "settings-provider",
-  "settings-acp",
-  "settings-dashboard",
-  "settings-mcp",
-  "settings-remote",
-  "settings-notifications-hooks",
-  "settings-scheduled-tasks",
-  "settings-plugins",
-  "settings-skills",
-  "settings-prompt",
-  "settings-knowledge-base",
-  "settings-database",
+  // "settings-overview",
+  // "settings-provider",
+  // "settings-acp",
+  // "settings-dashboard",
+  // "settings-mcp",
+  // "settings-remote",
+  // "settings-notifications-hooks",
+  // "settings-scheduled-tasks",
+  // "settings-plugins",
+  // "settings-skills",
+  // "settings-prompt",
+  // "settings-knowledge-base",
+  // "settings-database",
 ];
 
 const SETTINGS_SIDEBAR_HIDDEN_ROUTE_SET = new Set(SETTINGS_SIDEBAR_HIDDEN_ROUTES);

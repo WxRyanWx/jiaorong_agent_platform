@@ -87,7 +87,9 @@ export const repairPortableDefaultSkillsPath = (
     slashPath.match(/^\/Users\/[^/]+\/\.jiaorongchat\/skills(?:\/(.*))?$/i) ??
     slashPath.match(/^[A-Za-z]:\/Users\/[^/]+\/\.jiaorongchat\/skills(?:\/(.*))?$/i) ??
     slashPath.match(/^\/Users\/[^/]+\/\.deepchat\/skills(?:\/(.*))?$/i) ??
-    slashPath.match(/^[A-Za-z]:\/Users\/[^/]+\/\.deepchat\/skills(?:\/(.*))?$/i)
+    slashPath.match(/^[A-Za-z]:\/Users\/[^/]+\/\.deepchat\/skills(?:\/(.*))?$/i) ??
+    slashPath.match(/^\/home\/[^/]+\/\.jiaorongchat\/skills(?:\/(.*))?$/i) ??
+    slashPath.match(/^\/home\/[^/]+\/\.deepchat\/skills(?:\/(.*))?$/i)
 
   if (!match) {
     return null
@@ -97,7 +99,17 @@ export const repairPortableDefaultSkillsPath = (
   return path.join(homeDir, APP_HOME_DIR_NAME, 'skills', ...suffixParts)
 }
 
+let migrationDone = false
+
+/** @internal Exposed for testing only */
+export const _resetMigrationState = (): void => {
+  migrationDone = false
+}
+
 export const migrateLegacyAppHomeDir = (homeDir: string): void => {
+  if (migrationDone) return
+  migrationDone = true
+
   const legacyRoot = path.join(homeDir, LEGACY_APP_HOME_DIR_NAME)
   const newRoot = path.join(homeDir, APP_HOME_DIR_NAME)
 
@@ -111,6 +123,7 @@ export const migrateLegacyAppHomeDir = (homeDir: string): void => {
   } catch (renameError) {
     try {
       fs.cpSync(legacyRoot, newRoot, { recursive: true })
+      fs.rmSync(legacyRoot, { recursive: true, force: true })
     } catch (copyError) {
       console.warn('[appIdentity] Failed to migrate legacy app home dir:', renameError, copyError)
     }

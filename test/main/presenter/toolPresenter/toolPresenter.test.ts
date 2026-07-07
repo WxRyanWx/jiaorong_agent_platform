@@ -329,7 +329,7 @@ describe('ToolPresenter', () => {
     )
   })
 
-  it('includes question guidance only when deepchat_question is enabled', () => {
+  it('includes question guidance only when jiaorong_question is enabled', () => {
     const mcpPresenter = {
       getAllToolDefinitions: vi.fn().mockResolvedValue([]),
       callTool: vi.fn()
@@ -360,7 +360,7 @@ describe('ToolPresenter', () => {
       conversationId: 'conv-1',
       toolDefinitions: [
         {
-          ...buildToolDefinition('deepchat_question', 'agent-core'),
+          ...buildToolDefinition('jiaorong_question', 'agent-core'),
           source: 'agent'
         }
       ]
@@ -369,13 +369,13 @@ describe('ToolPresenter', () => {
     expect(withoutQuestion).not.toContain('## User Interaction')
     expect(withQuestion).toContain('## User Interaction')
     expect(withQuestion).toContain(
-      'Use `deepchat_question` when missing user preferences, implementation direction, output shape, or risk decisions would materially change the result.'
+      'Use `jiaorong_question` when missing user preferences, implementation direction, output shape, or risk decisions would materially change the result.'
     )
     expect(withQuestion).toContain(
       'Do not ask for facts you can discover from the repo, tools, or existing conversation context.'
     )
     expect(withQuestion).toContain(
-      'Ask exactly one question per `deepchat_question` call. If multiple clarifications are needed, split them into multiple tool calls.'
+      'Ask exactly one question per `jiaorong_question` call. If multiple clarifications are needed, split them into multiple tool calls.'
     )
     expect(withQuestion).toContain(
       'Do not send `questions`, `allowOther`, or stringified `options` JSON.'
@@ -488,7 +488,7 @@ describe('ToolPresenter', () => {
       supportsVision: false,
       agentWorkspacePath: 'C:\\\\workspace'
     })
-    const questionDef = defs.find((def) => def.function.name === 'deepchat_question')
+    const questionDef = defs.find((def) => def.function.name === 'jiaorong_question')
 
     expect(questionDef?.function.description).toContain('one structured clarification question')
     expect(questionDef?.function.description).toContain(
@@ -509,7 +509,7 @@ describe('ToolPresenter', () => {
         id: 'tool-1',
         type: 'function',
         function: {
-          name: 'deepchat_question',
+          name: 'jiaorong_question',
           arguments: JSON.stringify({
             questions: [
               {

@@ -1046,7 +1046,7 @@ describe('buildResumeContext', () => {
             timestamp: Date.now(),
             tool_call: {
               id: 'tc-question',
-              name: 'deepchat_question',
+              name: 'jiaorong_question',
               params: '{"question":"Pick one"}',
               response: oversizedAnswer
             }
@@ -1059,7 +1059,7 @@ describe('buildResumeContext', () => {
             content: '',
             tool_call: {
               id: 'tc-question',
-              name: 'deepchat_question',
+              name: 'jiaorong_question',
               params: '{"question":"Pick one"}'
             },
             extra: { needsUserAction: false, answerText: 'selected option' }
@@ -1087,7 +1087,7 @@ describe('buildResumeContext', () => {
           {
             id: 'tc-question',
             type: 'function',
-            function: { name: 'deepchat_question', arguments: '{"question":"Pick one"}' }
+            function: { name: 'jiaorong_question', arguments: '{"question":"Pick one"}' }
           }
         ]
       },
