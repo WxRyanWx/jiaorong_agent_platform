@@ -3,7 +3,7 @@ import type { IConfigPresenter } from '../../../../src/shared/presenter'
 import type { SkillMetadata } from '../../../../src/shared/types/skill'
 import { app } from 'electron'
 
-const DEFAULT_SKILLS_DIR = '/mock/home/.deepchat/skills'
+const DEFAULT_SKILLS_DIR = '/mock/home/.jiaorongchat/skills'
 
 const { newSessionActiveSkillsStore, skillSessionStatePort } = vi.hoisted(() => ({
   newSessionActiveSkillsStore: new Map<string, string[]>(),
@@ -302,7 +302,7 @@ describe('SkillPresenter', () => {
 
     skillPresenter = new SkillPresenter(mockConfigPresenter, skillSessionStatePort as any)
     ;(skillPresenter as any).skillsDir = DEFAULT_SKILLS_DIR
-    ;(skillPresenter as any).sidecarDir = `${DEFAULT_SKILLS_DIR}/.deepchat-meta`
+    ;(skillPresenter as any).sidecarDir = `${DEFAULT_SKILLS_DIR}/.jiaorongchat-meta`
   })
 
   afterEach(() => {
@@ -331,7 +331,7 @@ describe('SkillPresenter', () => {
       presenter.destroy()
     })
 
-    it('should repair malformed .deepchat path segments', async () => {
+    it('should repair malformed legacy brand path segments', async () => {
       ;(mockConfigPresenter.getSkillsPath as Mock).mockReturnValue('/mock/home.deepchat/skills')
       ;(app.getPath as Mock).mockImplementation((name: string) => {
         if (name === 'home') return '/mock/home'
@@ -340,7 +340,7 @@ describe('SkillPresenter', () => {
       })
 
       const presenter = new SkillPresenter(mockConfigPresenter, skillSessionStatePort as any)
-      await expect(presenter.getSkillsDir()).resolves.toBe('/mock/home/.deepchat/skills')
+      await expect(presenter.getSkillsDir()).resolves.toBe('/mock/home/.jiaorongchat/skills')
       presenter.destroy()
     })
 
@@ -355,7 +355,7 @@ describe('SkillPresenter', () => {
       })
 
       const presenter = new SkillPresenter(mockConfigPresenter, skillSessionStatePort as any)
-      await expect(presenter.getSkillsDir()).resolves.toBe('/mock/home/.deepchat/skills')
+      await expect(presenter.getSkillsDir()).resolves.toBe('/mock/home/.jiaorongchat/skills')
       presenter.destroy()
     })
 
@@ -370,7 +370,22 @@ describe('SkillPresenter', () => {
       })
 
       const presenter = new SkillPresenter(mockConfigPresenter, skillSessionStatePort as any)
-      await expect(presenter.getSkillsDir()).resolves.toBe('/mock/home/.deepchat/skills/nested')
+      await expect(presenter.getSkillsDir()).resolves.toBe('/mock/home/.jiaorongchat/skills/nested')
+      presenter.destroy()
+    })
+
+    it('should repair stale jiaorongchat default skills paths from another user profile', async () => {
+      ;(mockConfigPresenter.getSkillsPath as Mock).mockReturnValue(
+        '/Users/legacy-user/.jiaorongchat/skills/custom'
+      )
+      ;(app.getPath as Mock).mockImplementation((name: string) => {
+        if (name === 'home') return '/mock/home'
+        if (name === 'temp') return '/mock/temp'
+        return '/mock/' + name
+      })
+
+      const presenter = new SkillPresenter(mockConfigPresenter, skillSessionStatePort as any)
+      await expect(presenter.getSkillsDir()).resolves.toBe('/mock/home/.jiaorongchat/skills/custom')
       presenter.destroy()
     })
   })
@@ -722,7 +737,7 @@ describe('SkillPresenter', () => {
       expect(content?.name).toBe('test-skill')
       expect(content?.content).toContain('Skill content')
       expect(content?.content).toContain('Skill root: `')
-      expect(content?.content).toContain('/.deepchat/skills/test-skill`.')
+      expect(content?.content).toContain('/.jiaorongchat/skills/test-skill`.')
       expect(content?.content).toContain(
         'Relative paths mentioned by this skill are relative to the skill root unless stated otherwise.'
       )
@@ -1406,7 +1421,7 @@ describe('SkillPresenter', () => {
         // Source folder and SKILL.md exist
         if (p === '/source/new-skill' || p === '/source/new-skill/SKILL.md') return true
         // Target folder doesn't exist yet
-        if (p.includes('/.deepchat/skills/new-skill')) return false
+        if (p.includes('/.jiaorongchat/skills/new-skill')) return false
         // Skills dir exists
         return true
       })
@@ -1528,13 +1543,13 @@ describe('SkillPresenter', () => {
     beforeEach(async () => {
       mockSkillTree(['test-skill'])
       ;(fs.existsSync as Mock).mockImplementation((target: string) => {
-        if (target.endsWith('/.deepchat-meta/test-skill.json')) {
+        if (target.endsWith('/.jiaorongchat-meta/test-skill.json')) {
           return true
         }
         return true
       })
       ;(fs.readFileSync as Mock).mockImplementation((target: string) => {
-        if (target.endsWith('/.deepchat-meta/test-skill.json')) {
+        if (target.endsWith('/.jiaorongchat-meta/test-skill.json')) {
           return JSON.stringify({
             version: 1,
             env: { API_KEY: 'old-secret' },
@@ -1575,7 +1590,7 @@ describe('SkillPresenter', () => {
         'utf-8'
       )
       expect(fs.writeFileSync).toHaveBeenCalledWith(
-        expect.stringContaining('/.deepchat-meta/test-skill.json'),
+        expect.stringContaining('/.jiaorongchat-meta/test-skill.json'),
         JSON.stringify(extension, null, 2),
         'utf-8'
       )
@@ -1590,7 +1605,7 @@ describe('SkillPresenter', () => {
       }
       ;(fs.writeFileSync as Mock).mockImplementation((target: string, content: string) => {
         if (
-          target.endsWith('/.deepchat-meta/test-skill.json') &&
+          target.endsWith('/.jiaorongchat-meta/test-skill.json') &&
           content === JSON.stringify(extension, null, 2)
         ) {
           throw new Error('sidecar write failed')
@@ -1611,7 +1626,7 @@ describe('SkillPresenter', () => {
         'utf-8'
       )
       expect(fs.writeFileSync).toHaveBeenCalledWith(
-        expect.stringContaining('/.deepchat-meta/test-skill.json'),
+        expect.stringContaining('/.jiaorongchat-meta/test-skill.json'),
         JSON.stringify({
           version: 1,
           env: { API_KEY: 'old-secret' },
@@ -1688,10 +1703,10 @@ describe('SkillPresenter', () => {
       await skillPresenter.saveSkillExtension('test-skill', extension)
       ;(fs.existsSync as Mock).mockImplementation(
         (target: string) =>
-          !target.includes('/scripts') || target.endsWith('/.deepchat-meta/test-skill.json')
+          !target.includes('/scripts') || target.endsWith('/.jiaorongchat-meta/test-skill.json')
       )
       ;(fs.readFileSync as Mock).mockImplementation((target: string) => {
-        if (target.endsWith('/.deepchat-meta/test-skill.json')) {
+        if (target.endsWith('/.jiaorongchat-meta/test-skill.json')) {
           return JSON.stringify(extension)
         }
         return 'test'
@@ -1700,7 +1715,7 @@ describe('SkillPresenter', () => {
       const loaded = await skillPresenter.getSkillExtension('test-skill')
 
       expect(fs.writeFileSync).toHaveBeenCalledWith(
-        expect.stringContaining('/.deepchat-meta/test-skill.json'),
+        expect.stringContaining('/.jiaorongchat-meta/test-skill.json'),
         JSON.stringify(extension, null, 2),
         'utf-8'
       )
@@ -1742,7 +1757,7 @@ describe('SkillPresenter', () => {
     it('should discover runnable scripts under scripts directory', async () => {
       ;(fs.existsSync as Mock).mockImplementation(
         (target: string) =>
-          !target.endsWith('/.deepchat-meta/test-skill.json') || target.includes('/scripts')
+          !target.endsWith('/.jiaorongchat-meta/test-skill.json') || target.includes('/scripts')
       )
       ;(fs.readdirSync as Mock).mockImplementation((target: string) => {
         if (target.endsWith('/skills')) {
@@ -1778,7 +1793,7 @@ describe('SkillPresenter', () => {
       await skillPresenter.uninstallSkill('test-skill')
 
       expect(fs.rmSync).toHaveBeenCalledWith(
-        expect.stringContaining('/.deepchat-meta/test-skill.json'),
+        expect.stringContaining('/.jiaorongchat-meta/test-skill.json'),
         { force: true }
       )
     })
@@ -1982,7 +1997,7 @@ describe('SkillPresenter', () => {
         skillSessionStatePort as any
       )
       ;(rehydratedPresenter as any).skillsDir = DEFAULT_SKILLS_DIR
-      ;(rehydratedPresenter as any).sidecarDir = `${DEFAULT_SKILLS_DIR}/.deepchat-meta`
+      ;(rehydratedPresenter as any).sidecarDir = `${DEFAULT_SKILLS_DIR}/.jiaorongchat-meta`
       const active = await rehydratedPresenter.getActiveSkills('new-session-4a')
 
       expect(active).toEqual(['skill-1'])

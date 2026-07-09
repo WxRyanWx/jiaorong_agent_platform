@@ -981,15 +981,15 @@ describe('dispatch', () => {
       const toolPresenter = {
         ...createMockToolPresenter(),
         callTool: vi.fn().mockResolvedValue({
-          content: '{"success":true,"name":"deepchat-settings","isPinned":true}',
+          content: '{"success":true,"name":"jiaorong-settings","isPinned":true}',
           rawData: {
             toolCallId: 'tc1',
-            content: '{"success":true,"name":"deepchat-settings","isPinned":true}',
+            content: '{"success":true,"name":"jiaorong-settings","isPinned":true}',
             isError: false,
             toolResult: {
               activationApplied: true,
               activationSource: 'skill_md',
-              activatedSkill: 'deepchat-settings'
+              activatedSkill: 'jiaorong-settings'
             }
           }
         })
@@ -1003,12 +1003,12 @@ describe('dispatch', () => {
         tool_call: {
           id: 'tc1',
           name: 'skill_view',
-          params: '{"name":"deepchat-settings"}',
+          params: '{"name":"jiaorong-settings"}',
           response: ''
         }
       })
       state.completedToolCalls = [
-        { id: 'tc1', name: 'skill_view', arguments: '{"name":"deepchat-settings"}' }
+        { id: 'tc1', name: 'skill_view', arguments: '{"name":"jiaorong-settings"}' }
       ]
 
       const result = await executeTools(

@@ -406,15 +406,15 @@ describe('processStream', () => {
       callTool: vi
         .fn()
         .mockResolvedValueOnce({
-          content: '{"success":true,"name":"deepchat-settings","isPinned":true}',
+          content: '{"success":true,"name":"jiaorong-settings","isPinned":true}',
           rawData: {
             toolCallId: 'tc1',
-            content: '{"success":true,"name":"deepchat-settings","isPinned":true}',
+            content: '{"success":true,"name":"jiaorong-settings","isPinned":true}',
             isError: false,
             toolResult: {
               activationApplied: true,
               activationSource: 'skill_md',
-              activatedSkill: 'deepchat-settings'
+              activatedSkill: 'jiaorong-settings'
             }
           }
         })
@@ -429,7 +429,7 @@ describe('processStream', () => {
     } as unknown as IToolPresenter
     const refreshTools = vi
       .fn()
-      .mockResolvedValue([makeTool('skill_view'), makeTool('deepchat_settings_set_theme')])
+      .mockResolvedValue([makeTool('skill_view'), makeTool('jiaorong_settings_set_theme')])
 
     const coreStream = vi.fn(
       function (_messages, _modelId, _modelConfig, _temperature, _maxTokens, tools) {
@@ -445,7 +445,7 @@ describe('processStream', () => {
             yield {
               type: 'tool_call_end',
               tool_call_id: 'tc1',
-              tool_call_arguments_complete: '{"name":"deepchat-settings"}'
+              tool_call_arguments_complete: '{"name":"jiaorong-settings"}'
             } as LLMCoreStreamEvent
             yield { type: 'stop', stop_reason: 'tool_use' } as LLMCoreStreamEvent
           })()
@@ -453,13 +453,13 @@ describe('processStream', () => {
         if (callCount === 2) {
           expect(tools.map((tool) => tool.function.name)).toEqual([
             'skill_view',
-            'deepchat_settings_set_theme'
+            'jiaorong_settings_set_theme'
           ])
           return (async function* () {
             yield {
               type: 'tool_call_start',
               tool_call_id: 'tc2',
-              tool_call_name: 'deepchat_settings_set_theme'
+              tool_call_name: 'jiaorong_settings_set_theme'
             } as LLMCoreStreamEvent
             yield {
               type: 'tool_call_end',
@@ -498,11 +498,11 @@ describe('processStream', () => {
       ...createMockToolPresenter(),
       callTool: vi.fn().mockResolvedValue({
         content:
-          '{"success":true,"name":"deepchat-settings","filePath":"references/guide.md","isPinned":false}',
+          '{"success":true,"name":"jiaorong-settings","filePath":"references/guide.md","isPinned":false}',
         rawData: {
           toolCallId: 'tc1',
           content:
-            '{"success":true,"name":"deepchat-settings","filePath":"references/guide.md","isPinned":false}',
+            '{"success":true,"name":"jiaorong-settings","filePath":"references/guide.md","isPinned":false}',
           isError: false,
           toolResult: {
             activationApplied: false,
@@ -511,7 +511,7 @@ describe('processStream', () => {
         }
       })
     } as unknown as IToolPresenter
-    const refreshTools = vi.fn().mockResolvedValue([makeTool('deepchat_settings_set_theme')])
+    const refreshTools = vi.fn().mockResolvedValue([makeTool('jiaorong_settings_set_theme')])
 
     const coreStream = vi.fn(
       function (_messages, _modelId, _modelConfig, _temperature, _maxTokens, tools) {
@@ -528,7 +528,7 @@ describe('processStream', () => {
               type: 'tool_call_end',
               tool_call_id: 'tc1',
               tool_call_arguments_complete:
-                '{"name":"deepchat-settings","file_path":"references/guide.md"}'
+                '{"name":"jiaorong-settings","file_path":"references/guide.md"}'
             } as LLMCoreStreamEvent
             yield { type: 'stop', stop_reason: 'tool_use' } as LLMCoreStreamEvent
           })()

@@ -322,7 +322,7 @@ const GROUP_ORDER = [
   'agent-filesystem',
   'agent-core',
   'agent-skills',
-  'deepchat-settings',
+  'jiaorong-settings',
   'yobrowser'
 ]
 
@@ -460,7 +460,7 @@ const getGroupLabel = (serverName: string) => {
       return t('chat.input.tools.groups.agentCore')
     case 'agent-skills':
       return t('chat.input.tools.groups.agentSkills')
-    case 'deepchat-settings':
+    case 'jiaorong-settings':
       return t('chat.input.tools.groups.deepchatSettings')
     case 'yobrowser':
       return t('chat.input.tools.groups.yobrowser')

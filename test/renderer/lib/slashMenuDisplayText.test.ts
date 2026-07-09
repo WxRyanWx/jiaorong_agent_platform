@@ -11,10 +11,10 @@ import {
 } from '@/lib/slashMenuDisplayText'
 
 const sampleSkill: SkillMetadata = {
-  name: 'deepchat-settings',
+  name: 'jiaorong-settings',
   description: '交融AI应用程序设置修改技能',
-  path: '/tmp/deepchat-settings/SKILL.md',
-  skillRoot: '/tmp/deepchat-settings',
+  path: '/tmp/jiaorong-settings/SKILL.md',
+  skillRoot: '/tmp/jiaorong-settings',
   metadata: {
     displayName: '设置'
   }
@@ -26,7 +26,7 @@ describe('slashMenuDisplayText', () => {
       label: '设置',
       description: '交融AI应用程序设置修改技能'
     })
-    expect(getSkillDisplayLabel('deepchat-settings', sampleSkill.metadata)).toBe('设置')
+    expect(getSkillDisplayLabel('jiaorong-settings', sampleSkill.metadata)).toBe('设置')
   })
 
   it('reads MCP and agent tool labels from tool definitions', () => {
@@ -39,8 +39,8 @@ describe('slashMenuDisplayText', () => {
     ).toBe('提醒')
 
     expect(
-      getDisplayLabel('deepchat_settings_set_theme', {
-        tools: [{ name: 'deepchat_settings_set_theme', displayName: '设置主题' }]
+      getDisplayLabel('jiaorong_settings_set_theme', {
+        tools: [{ name: 'jiaorong_settings_set_theme', displayName: '设置主题' }]
       })
     ).toBe('设置主题')
   })
@@ -62,18 +62,18 @@ describe('slashMenuDisplayText', () => {
     const options = buildDisplayLabelOptions(
       [],
       [{ function: { name: 'reminders', displayName: '提醒', description: '' } }],
-      [{ name: 'deepchat_settings_set_theme', displayName: '设置主题' }]
+      [{ name: 'jiaorong_settings_set_theme', displayName: '设置主题' }]
     )
-    expect(getDisplayLabel('deepchat_settings_set_theme', options)).toBe('设置主题')
+    expect(getDisplayLabel('jiaorong_settings_set_theme', options)).toBe('设置主题')
   })
 
-  it('localizes skill and tool identifiers in thinking prose', () => {
+  it('localizes legacy skill and tool identifiers in thinking prose', () => {
     const input =
       'Let me view the deepchat-settings skill and call deepchat_settings_set_theme with light.'
     const output = localizeThinkingContent(
       input,
       [sampleSkill],
-      [{ name: 'deepchat_settings_set_theme', displayName: '设置主题' }]
+      [{ name: 'jiaorong_settings_set_theme', displayName: '设置主题' }]
     )
 
     expect(output).toContain('设置')
@@ -82,11 +82,34 @@ describe('slashMenuDisplayText', () => {
     expect(output).not.toContain('deepchat_settings_set_theme')
   })
 
+  it('resolves legacy tool labels from canonical tool metadata', () => {
+    expect(
+      getDisplayLabel('deepchat_settings_set_theme', {
+        tools: [{ name: 'jiaorong_settings_set_theme', displayName: '设置主题' }]
+      })
+    ).toBe('设置主题')
+  })
+
+  it('localizes jiaorong skill and tool identifiers in thinking prose', () => {
+    const input =
+      'Let me view the jiaorong-settings skill and call jiaorong_settings_set_theme with light.'
+    const output = localizeThinkingContent(
+      input,
+      [sampleSkill],
+      [{ name: 'jiaorong_settings_set_theme', displayName: '设置主题' }]
+    )
+
+    expect(output).toContain('设置')
+    expect(output).toContain('设置主题')
+    expect(output).not.toContain('jiaorong-settings')
+    expect(output).not.toContain('jiaorong_settings_set_theme')
+  })
+
   it('skips fenced code blocks in thinking content', () => {
-    const input = 'Use `deepchat-settings` then:\n```ts\nconst x = "deepchat-settings"\n```\nDone.'
+    const input = 'Use `jiaorong-settings` then:\n```ts\nconst x = "jiaorong-settings"\n```\nDone.'
     const output = localizeThinkingContent(input, [sampleSkill])
 
     expect(output).toContain('`设置`')
-    expect(output).toContain('const x = "deepchat-settings"')
+    expect(output).toContain('const x = "jiaorong-settings"')
   })
 })

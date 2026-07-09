@@ -28,6 +28,18 @@ import { SKILL_EVENTS } from '@/events'
 import { publishDeepchatEvent } from '@/routes/publishDeepchatEvent'
 import logger from '@shared/logger'
 import { normalizeSkillAllowedTools } from './toolNameMapping'
+import {
+  APP_HOME_DIR_NAME,
+  getAppHomeDir,
+  getDefaultSkillsPath,
+  LEGACY_APP_HOME_DIR_NAME,
+  repairLegacySkillsPath,
+  repairPortableDefaultSkillsPath as repairPortableDefaultSkillsPathFromIdentity
+} from '@shared/appIdentity'
+import {
+  CHAT_SETTINGS_SKILL_NAME,
+  LEGACY_CHAT_SETTINGS_SKILL_NAME
+} from '@shared/legacyBrandAliases'
 import { discoverSkillMetadataInWorker, logSkillDiscoveryWorkerWarnings } from './discoveryWorker'
 
 /**
@@ -51,7 +63,7 @@ export const SKILL_CONFIG = {
   WATCHER_POLL_INTERVAL: 100, // ms
 
   /** Sidecar configuration directory name */
-  SIDECAR_DIR: '.deepchat-meta',
+  SIDECAR_DIR: '.jiaorongchat-meta',
 
   /** Draft skill configuration */
   DRAFT_ROOT_DIR: 'deepchat-skill-drafts',
@@ -189,7 +201,7 @@ function sanitizeSkillExtensionConfig(input: unknown): SkillExtensionConfig {
  * SkillPresenter - Manages the skills system
  *
  * Responsibilities:
- * - Discover and parse SKILL.md files from ~/.deepchat/skills/
+ * - Discover and parse SKILL.md files from ~/.jiaorongchat/skills/
  * - Progressive loading: metadata always in memory, full content on demand
  * - Hot-reload skill files when they change
  * - Manage skill activation state per conversation
@@ -215,8 +227,9 @@ export class SkillPresenter implements ISkillPresenter {
     private readonly configPresenter: IConfigPresenter,
     private readonly sessionStatePort: SkillSessionStatePort
   ) {
-    // Skills directory: ~/.deepchat/skills/
+    // Skills directory: ~/.jiaorongchat/skills/
     this.skillsDir = this.resolveSkillsDir()
+    this.migrateLegacySidecarDir()
     this.sidecarDir = path.join(this.skillsDir, SKILL_CONFIG.SIDECAR_DIR)
     this.draftsRoot = path.join(app.getPath('temp'), SKILL_CONFIG.DRAFT_ROOT_DIR)
     this.ensureSkillsDir()
@@ -227,10 +240,16 @@ export class SkillPresenter implements ISkillPresenter {
     const normalized = configuredPath?.trim()
     const homePath = app.getPath('home')
     const homeDir = homePath ? path.resolve(homePath) : path.resolve('.')
-    const fallbackDir = path.join(homeDir, '.deepchat', 'skills')
+    const fallbackDir = getDefaultSkillsPath(homeDir)
     const resolved = normalized ? path.resolve(normalized) : fallbackDir
+    const repairedLegacyPath = normalized ? repairLegacySkillsPath(normalized, homeDir) : null
+
+    if (repairedLegacyPath) {
+      return repairedLegacyPath
+    }
+
     const repairedDefaultPath = normalized
-      ? this.repairPortableDefaultSkillsPath(normalized, homeDir)
+      ? repairPortableDefaultSkillsPathFromIdentity(normalized, homeDir)
       : null
 
     if (repairedDefaultPath) {
@@ -238,34 +257,87 @@ export class SkillPresenter implements ISkillPresenter {
     }
 
     // Repair malformed paths like: C:\Users\name.deepchat\skills
-    const brokenPrefix = `${homeDir}.deepchat`
-    const compareResolved = process.platform === 'win32' ? resolved.toLowerCase() : resolved
-    const compareBrokenPrefix =
-      process.platform === 'win32' ? brokenPrefix.toLowerCase() : brokenPrefix
-    const hasBrokenPrefix = compareResolved.startsWith(compareBrokenPrefix)
-    const nextChar = compareResolved.charAt(compareBrokenPrefix.length)
-    const hasBoundaryAfterPrefix =
-      compareResolved.length === compareBrokenPrefix.length || nextChar === '/' || nextChar === '\\'
-    if (hasBrokenPrefix && hasBoundaryAfterPrefix) {
-      const suffix = resolved.slice(brokenPrefix.length).replace(/^[\\/]+/, '')
-      return path.join(homeDir, '.deepchat', suffix)
+    const brokenPrefixes = [
+      `${homeDir}${LEGACY_APP_HOME_DIR_NAME}`,
+      `${homeDir}${APP_HOME_DIR_NAME}`
+    ]
+    for (const brokenPrefix of brokenPrefixes) {
+      const compareResolved = process.platform === 'win32' ? resolved.toLowerCase() : resolved
+      const compareBrokenPrefix =
+        process.platform === 'win32' ? brokenPrefix.toLowerCase() : brokenPrefix
+      const hasBrokenPrefix = compareResolved.startsWith(compareBrokenPrefix)
+      const nextChar = compareResolved.charAt(compareBrokenPrefix.length)
+      const hasBoundaryAfterPrefix =
+        compareResolved.length === compareBrokenPrefix.length ||
+        nextChar === '/' ||
+        nextChar === '\\'
+      if (hasBrokenPrefix && hasBoundaryAfterPrefix) {
+        const suffix = resolved.slice(brokenPrefix.length).replace(/^[\\/]+/, '')
+        return path.join(getAppHomeDir(homeDir), suffix)
+      }
     }
 
     return resolved
   }
 
-  private repairPortableDefaultSkillsPath(configuredPath: string, homeDir: string): string | null {
-    const slashPath = configuredPath.replace(/\\/g, '/')
-    const match =
-      slashPath.match(/^\/Users\/[^/]+\/\.deepchat\/skills(?:\/(.*))?$/i) ??
-      slashPath.match(/^[A-Za-z]:\/Users\/[^/]+\/\.deepchat\/skills(?:\/(.*))?$/i)
+  private migrateLegacySidecarDir(): void {
+    const legacySidecarDir = path.join(this.skillsDir, '.deepchat-meta')
+    const newSidecarDir = path.join(this.skillsDir, SKILL_CONFIG.SIDECAR_DIR)
 
-    if (!match) {
-      return null
+    if (!fs.existsSync(legacySidecarDir)) {
+      return
     }
 
-    const suffixParts = (match[1] ?? '').split('/').filter(Boolean)
-    return path.join(homeDir, '.deepchat', 'skills', ...suffixParts)
+    if (fs.existsSync(newSidecarDir)) {
+      try {
+        fs.rmSync(legacySidecarDir, { recursive: true, force: true })
+      } catch (error) {
+        logger.warn('[SkillPresenter] Failed to remove legacy sidecar dir:', error)
+      }
+      return
+    }
+
+    try {
+      fs.renameSync(legacySidecarDir, newSidecarDir)
+    } catch (error) {
+      logger.warn('[SkillPresenter] Failed to migrate legacy sidecar dir:', error)
+    }
+  }
+
+  private migrateLegacySettingsSkill(): void {
+    const legacySkillDir = path.join(this.skillsDir, LEGACY_CHAT_SETTINGS_SKILL_NAME)
+    const newSkillDir = path.join(this.skillsDir, CHAT_SETTINGS_SKILL_NAME)
+
+    if (!fs.existsSync(legacySkillDir)) {
+      return
+    }
+
+    if (fs.existsSync(newSkillDir)) {
+      try {
+        fs.rmSync(legacySkillDir, { recursive: true, force: true })
+        logger.info('[SkillPresenter] Removed legacy settings skill after jiaorong-settings exists')
+      } catch (error) {
+        logger.warn('[SkillPresenter] Failed to remove legacy settings skill:', error)
+      }
+      return
+    }
+
+    try {
+      fs.renameSync(legacySkillDir, newSkillDir)
+      logger.info('[SkillPresenter] Migrated legacy settings skill directory')
+    } catch (error) {
+      logger.warn('[SkillPresenter] Failed to migrate legacy settings skill:', error)
+    }
+  }
+
+  private repairLegacySkillNames(skills: string[]): string[] {
+    return Array.from(
+      new Set(
+        skills.map((skill) =>
+          skill === LEGACY_CHAT_SETTINGS_SKILL_NAME ? CHAT_SETTINGS_SKILL_NAME : skill
+        )
+      )
+    )
   }
 
   /**
@@ -293,6 +365,7 @@ export class SkillPresenter implements ISkillPresenter {
   async initialize(): Promise<void> {
     if (this.initialized) return
 
+    this.migrateLegacySettingsSkill()
     await this.installBuiltinSkills()
     this.cleanupExpiredDrafts()
     await this.discoverSkills()
@@ -1979,11 +2052,17 @@ export class SkillPresenter implements ISkillPresenter {
    */
   async getActiveSkills(conversationId: string): Promise<string[]> {
     if (await this.isNewAgentSession(conversationId)) {
-      const skills = await this.loadNewSessionSkills(conversationId)
-      const validSkills = await this.validateSkillNames(skills)
-      if (validSkills.length !== skills.length) {
+      const rawSkills = await this.loadNewSessionSkills(conversationId)
+      const repairedSkills = this.repairLegacySkillNames(rawSkills)
+      const validSkills = await this.validateSkillNames(repairedSkills)
+
+      if (
+        JSON.stringify(rawSkills) !== JSON.stringify(validSkills) ||
+        JSON.stringify(repairedSkills) !== JSON.stringify(validSkills)
+      ) {
         this.setPersistedNewSessionSkills(conversationId, validSkills)
       }
+
       return validSkills
     }
 

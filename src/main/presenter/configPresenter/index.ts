@@ -44,6 +44,7 @@ import {
 import ElectronStore from 'electron-store'
 import { DEFAULT_PROVIDERS } from './providers'
 import path from 'path'
+import { getDefaultSkillsPath, repairLegacySkillsPath } from '@shared/appIdentity'
 import { app, nativeTheme, shell, safeStorage } from 'electron'
 import fs from 'fs'
 import {
@@ -449,7 +450,7 @@ export class ConfigPresenter implements IConfigPresenter {
         fontFamily: '',
         codeFontFamily: '',
         default_system_prompt: '',
-        skillsPath: path.join(app.getPath('home'), '.deepchat', 'skills'),
+        skillsPath: getDefaultSkillsPath(app.getPath('home')),
         enableSkills: true,
         skillDraftSuggestionsEnabled: false,
         // updateChannel 不预填，首次由 getUpdateChannel() 根据当前应用版本号推断（避免 beta 安装包被默认推入 stable 渠道）
@@ -1915,9 +1916,20 @@ export class ConfigPresenter implements IConfigPresenter {
 
   // Get sync folder path
   getSyncFolderPath(): string {
-    return (
-      this.getSetting<string>('syncFolderPath') || path.join(app.getPath('home'), 'DeepchatSync')
-    )
+    const home = app.getPath('home')
+    const configured = this.getSetting<string>('syncFolderPath')
+    if (!configured) {
+      return path.join(home, 'JiaorongchatSync')
+    }
+
+    const legacyDefault = path.join(home, 'DeepchatSync')
+    if (path.resolve(configured) === path.resolve(legacyDefault)) {
+      const repaired = path.join(home, 'JiaorongchatSync')
+      this.setSetting('syncFolderPath', repaired)
+      return repaired
+    }
+
+    return configured
   }
 
   // Set sync folder path
@@ -2091,9 +2103,19 @@ export class ConfigPresenter implements IConfigPresenter {
   }
 
   getSkillsPath(): string {
-    return (
-      this.getSetting<string>('skillsPath') || path.join(app.getPath('home'), '.deepchat', 'skills')
-    )
+    const home = app.getPath('home')
+    const configured = this.getSetting<string>('skillsPath')
+    if (!configured) {
+      return getDefaultSkillsPath(home)
+    }
+
+    const repaired = repairLegacySkillsPath(configured, home)
+    if (repaired && repaired !== configured) {
+      this.setSetting('skillsPath', repaired)
+      return repaired
+    }
+
+    return configured
   }
 
   setSkillsPath(skillsPath: string): void {

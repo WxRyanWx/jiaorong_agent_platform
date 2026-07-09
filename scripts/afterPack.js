@@ -166,7 +166,7 @@ DESKTOP_FILE="\${HOME}/.local/share/applications/jiaorong-ai.desktop"
 DESKTOP_DIR="\${HOME}/.local/share/applications"
 ICON="\${APP_DIR}/resources/app.ico"
 
-register_deepchat_protocol() {
+register_jiaorongchat_protocol() {
   if [ -z "\${XDG_CURRENT_DESKTOP:-}" ] && [ -z "\${DISPLAY:-}" ] && [ -z "\${WAYLAND_DISPLAY:-}" ]; then
     return 0
   fi
@@ -182,7 +182,7 @@ Icon=\${ICON}
 Type=Application
 Categories=Utility;
 StartupWMClass=${executableName}
-MimeType=x-scheme-handler/deepchat;
+MimeType=x-scheme-handler/jiaorongchat;
 EOF
 
   if command -v update-desktop-database >/dev/null 2>&1; then
@@ -190,11 +190,11 @@ EOF
   fi
 
   if command -v xdg-mime >/dev/null 2>&1; then
-    xdg-mime default jiaorong-ai.desktop x-scheme-handler/deepchat >/dev/null 2>&1 || true
+    xdg-mime default jiaorong-ai.desktop x-scheme-handler/jiaorongchat >/dev/null 2>&1 || true
   fi
 }
 
-register_deepchat_protocol
+register_jiaorongchat_protocol
 
 exec "\${APP_DIR}/${executableName}.bin" --no-sandbox "$@"
 `;

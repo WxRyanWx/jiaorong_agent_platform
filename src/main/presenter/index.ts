@@ -1,4 +1,5 @@
 import logger from '@shared/logger'
+import { resolveLegacySkillName } from '@shared/legacyBrandAliases'
 import { autoCompleteGuidedOnboardingIfPreconfigured } from '@/routes/onboarding/autoCompletePreconfiguredOnboarding'
 import path from 'path'
 import { DialogPresenter } from './dialogPresenter/index'
@@ -542,7 +543,7 @@ export class Presenter implements IPresenter {
           return
         }
 
-        if (serverName === 'deepchat-settings' && toolName) {
+        if (resolveLegacySkillName(serverName) === 'jiaorong-settings' && toolName) {
           this.settingsPermissionService.approve(sessionId, toolName, false)
           return
         }

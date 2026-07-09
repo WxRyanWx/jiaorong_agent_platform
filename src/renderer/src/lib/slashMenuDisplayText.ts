@@ -1,4 +1,10 @@
 import type { SkillMetadata } from '@shared/types/skill'
+import {
+  getLegacySkillAliasNames,
+  getLegacyToolAliasNames,
+  resolveLegacySkillName,
+  resolveLegacyToolName
+} from '@shared/legacyBrandAliases'
 
 export type ToolDisplaySource = {
   name: string
@@ -42,12 +48,18 @@ export function getDisplayLabel(
   const normalized = identifier.trim()
   if (!normalized) return identifier
 
-  const skill = options?.skills?.find((item) => item.name === normalized)
+  const resolvedSkillName = resolveLegacySkillName(normalized)
+  const skill = options?.skills?.find(
+    (item) => item.name === normalized || item.name === resolvedSkillName
+  )
   if (skill) {
     return resolveSkillDisplayName(skill.name, skill.metadata)
   }
 
-  const tool = options?.tools?.find((item) => item.name === normalized)
+  const resolvedToolName = resolveLegacyToolName(normalized)
+  const tool = options?.tools?.find(
+    (item) => item.name === normalized || item.name === resolvedToolName
+  )
   if (tool) {
     return resolveToolDisplay(tool).label
   }
@@ -68,12 +80,22 @@ const collectThinkingReplacements = (
     if (label && label !== skill.name) {
       items.push({ id: skill.name, label })
     }
+    for (const legacyName of getLegacySkillAliasNames(skill.name)) {
+      if (legacyName !== skill.name) {
+        items.push({ id: legacyName, label: label || skill.name })
+      }
+    }
   }
 
   for (const tool of tools) {
     const label = resolveToolDisplay(tool).label
     if (label && label !== tool.name) {
       items.push({ id: tool.name, label })
+    }
+    for (const legacyName of getLegacyToolAliasNames(tool.name)) {
+      if (legacyName !== tool.name) {
+        items.push({ id: legacyName, label: label || tool.name })
+      }
     }
   }
 

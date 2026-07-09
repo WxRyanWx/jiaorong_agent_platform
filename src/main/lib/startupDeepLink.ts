@@ -1,17 +1,16 @@
+import { matchesAnyDeeplinkUrl, normalizeDeeplinkUrl } from '@shared/appIdentity'
+
 const STARTUP_DEEPLINK_ENV_KEY = 'STARTUP_DEEPLINK'
-const SECONDARY_STARTUP_ENV_KEYS = ['DEEPLINK_URL', 'deepchat_deeplink'] as const
+const SECONDARY_STARTUP_ENV_KEYS = [
+  'DEEPLINK_URL',
+  'deepchat_deeplink',
+  'jiaorongchat_deeplink'
+] as const
 let pendingStartupDeepLink: string | null = null
 
-export const isDeepLinkUrl = (value: string | null | undefined): value is string => {
-  if (typeof value !== 'string') {
-    return false
-  }
+export const isDeepLinkUrl = matchesAnyDeeplinkUrl
 
-  const normalized = value.trim()
-  return normalized.startsWith('deepchat://') || normalized.startsWith('deepchat:')
-}
-
-export const normalizeDeepLinkUrl = (value: string): string => value.trim()
+export const normalizeDeepLinkUrl = normalizeDeeplinkUrl
 
 export const findDeepLinkArg = (argv: readonly string[]): string | null => {
   const matched = argv.find((arg) => isDeepLinkUrl(arg))
@@ -24,7 +23,7 @@ export const readStartupDeepLinkFromEnv = (env: NodeJS.ProcessEnv = process.env)
   }
 
   const stored = env[STARTUP_DEEPLINK_ENV_KEY]
-  return isDeepLinkUrl(stored) ? normalizeDeepLinkUrl(stored) : null
+  return matchesAnyDeeplinkUrl(stored) ? normalizeDeeplinkUrl(stored) : null
 }
 
 export const findStartupDeepLink = (
@@ -43,8 +42,8 @@ export const findStartupDeepLink = (
 
   for (const key of SECONDARY_STARTUP_ENV_KEYS) {
     const value = env[key]
-    if (isDeepLinkUrl(value)) {
-      return normalizeDeepLinkUrl(value)
+    if (matchesAnyDeeplinkUrl(value)) {
+      return normalizeDeeplinkUrl(value)
     }
   }
 
@@ -55,11 +54,11 @@ export const storeStartupDeepLink = (
   url: string,
   _env: NodeJS.ProcessEnv = process.env
 ): string | null => {
-  if (!isDeepLinkUrl(url)) {
+  if (!matchesAnyDeeplinkUrl(url)) {
     return null
   }
 
-  const normalized = normalizeDeepLinkUrl(url)
+  const normalized = normalizeDeeplinkUrl(url)
   pendingStartupDeepLink = normalized
   return normalized
 }

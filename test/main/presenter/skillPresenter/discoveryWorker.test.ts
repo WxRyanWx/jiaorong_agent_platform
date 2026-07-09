@@ -39,7 +39,7 @@ describe('discoverSkillMetadataInWorker', () => {
 
     const result = await discoverSkillMetadataInWorker({
       skillsDir: rootDir,
-      sidecarDirName: '.deepchat-meta',
+      sidecarDirName: '.jiaorongchat-meta',
       maxDepth: 10
     })
 

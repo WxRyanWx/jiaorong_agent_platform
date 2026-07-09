@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { jsonrepair } from 'jsonrepair'
 import type { QuestionInfo } from '@shared/types/core/question'
 
-export const QUESTION_TOOL_NAME = 'deepchat_question'
+export const QUESTION_TOOL_NAME = 'jiaorong_question'
 export const QUESTION_TOOL_CONTRACT_HINT =
   'Use a single object with fields `header?`, `question`, `options`, `multiple?`, and `custom?`. Ask exactly one question per tool call. Use `custom`, not `allowOther`, and pass `options` as an array of option objects, not a stringified JSON array.'
 
@@ -61,7 +61,7 @@ export const questionToolSchema = z
   })
   .strict()
   .describe(
-    'Ask exactly one blocking clarification question. For multiple clarifications, use multiple deepchat_question tool calls instead of sending a `questions` array.'
+    'Ask exactly one blocking clarification question. For multiple clarifications, use multiple jiaorong_question tool calls instead of sending a `questions` array.'
   )
 
 export type QuestionToolInput = z.infer<typeof questionToolSchema>

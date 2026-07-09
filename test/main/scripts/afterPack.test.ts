@@ -67,8 +67,8 @@ describe("afterPack", () => {
       stat(path.join(tmpDir, "jiaorongsuperintelligentagent.bin")),
     ).resolves.toBeTruthy();
     expect(launcherScript).toContain("--no-sandbox");
-    expect(launcherScript).toContain("register_deepchat_protocol");
-    expect(launcherScript).toContain("x-scheme-handler/deepchat");
+    expect(launcherScript).toContain("register_jiaorongchat_protocol");
+    expect(launcherScript).toContain("x-scheme-handler/jiaorongchat");
     expect(launcherScript).toContain('Exec="${EXECUTABLE}" %u');
   });
 

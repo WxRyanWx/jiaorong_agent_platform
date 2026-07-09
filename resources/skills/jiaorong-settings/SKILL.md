@@ -1,14 +1,14 @@
 ---
-name: deepchat-settings
+name: jiaorong-settings
 description: 交融AI应用程序设置修改（交融AI设置/偏好) 技能。仅当用户明确要求更改交融AI自己的设置/首选项（例如主题、语言、字体大小等）时才激活。请勿激活操作系统/系统设置、编辑器设置或其他应用程序。
 metadata:
   displayName: 设置
 allowedTools:
-  - deepchat_settings_toggle
-  - deepchat_settings_set_language
-  - deepchat_settings_set_theme
-  - deepchat_settings_set_font_size
-  - deepchat_settings_open
+  - jiaorong_settings_toggle
+  - jiaorong_settings_set_language
+  - jiaorong_settings_set_theme
+  - jiaorong_settings_set_font_size
+  - jiaorong_settings_open
 ---
 
 # JiaorongAI Settings Modification Skill
@@ -20,7 +20,7 @@ Use this skill to safely change JiaorongAI _application_ settings during a conve
 - Only change settings when the user is asking to change **JiaorongAI** settings.
 - Use the dedicated settings tools; never attempt arbitrary key/value writes.
 - These tools are intended to be available only when this skill is active.
-- Viewing the main `deepchat-settings` `SKILL.md` activates this skill for the current conversation and exposes the `deepchat_settings_*` tools in the next tool loop iteration.
+- Viewing the main `jiaorong-settings` `SKILL.md` activates this skill for the current conversation and exposes the `jiaorong_settings_*` tools in the next tool loop iteration.
 - Viewing linked files under this skill does **not** activate the skill.
 - If the request is ambiguous, ask a clarifying question before applying.
 - For unsupported or high-risk settings (MCP, prompts, providers, API keys, paths): do **not** apply changes; instead explain where to change it and open Settings.
@@ -40,21 +40,21 @@ Enums:
 
 Settings navigation (open-only):
 
-- Use `deepchat_settings_open` only when the request cannot be fulfilled by the settings tools, and avoid calling it if the change is already applied.
+- Use `jiaorong_settings_open` only when the request cannot be fulfilled by the settings tools, and avoid calling it if the change is already applied.
 - `section` hints: `common`, `display`, `provider`, `mcp`, `prompt`, `acp`, `skills`, `knowledge-base`, `database`, `shortcut`, `about`.
 
 ## Workflow
 
 1. Confirm the user is requesting a JiaorongAI settings change.
-2. If the settings tools are not yet present, inspect the main `deepchat-settings` skill document first so the skill becomes active for this conversation.
+2. If the settings tools are not yet present, inspect the main `jiaorong-settings` skill document first so the skill becomes active for this conversation.
 3. Determine the target setting and the intended value.
 4. If the setting is supported, call the matching tool:
-   - toggles: `deepchat_settings_toggle`
-   - language: `deepchat_settings_set_language`
-   - theme: `deepchat_settings_set_theme`
-   - font size: `deepchat_settings_set_font_size`
+   - toggles: `jiaorong_settings_toggle`
+   - language: `jiaorong_settings_set_language`
+   - theme: `jiaorong_settings_set_theme`
+   - font size: `jiaorong_settings_set_font_size`
 5. Confirm back to the user what changed (include the final value).
-6. If the setting is unsupported, call `deepchat_settings_open` (with `section`) and provide a short pointer to the correct Settings section. Do not call it if the requested change has already been applied.
+6. If the setting is unsupported, call `jiaorong_settings_open` (with `section`) and provide a short pointer to the correct Settings section. Do not call it if the requested change has already been applied.
 
 ## Examples (activate this skill)
 

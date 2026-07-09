@@ -13,13 +13,19 @@ import type {
 import { SETTINGS_EVENTS } from '@/events'
 import type { AgentToolRuntimePort } from '../runtimePorts'
 
-export const CHAT_SETTINGS_SKILL_NAME = 'deepchat-settings'
+import {
+  CURRENT_CHAT_SETTINGS_SKILL_NAME,
+  LEGACY_CHAT_SETTINGS_SKILL_NAME
+} from '@shared/legacyBrandAliases'
+
+export const CHAT_SETTINGS_SKILL_NAME = CURRENT_CHAT_SETTINGS_SKILL_NAME
+export { LEGACY_CHAT_SETTINGS_SKILL_NAME }
 export const CHAT_SETTINGS_TOOL_NAMES = {
-  toggle: 'deepchat_settings_toggle',
-  setLanguage: 'deepchat_settings_set_language',
-  setTheme: 'deepchat_settings_set_theme',
-  setFontSize: 'deepchat_settings_set_font_size',
-  open: 'deepchat_settings_open'
+  toggle: 'jiaorong_settings_toggle',
+  setLanguage: 'jiaorong_settings_set_language',
+  setTheme: 'jiaorong_settings_set_theme',
+  setFontSize: 'jiaorong_settings_set_font_size',
+  open: 'jiaorong_settings_open'
 } as const
 
 const SUPPORTED_LANGUAGES = [
@@ -189,8 +195,11 @@ export class ChatSettingsToolHandler {
       return buildError('skill_inactive', 'Skills are disabled.')
     }
     const activeSkills = await this.options.skillPresenter.getActiveSkills(conversationId)
-    if (!activeSkills.includes(CHAT_SETTINGS_SKILL_NAME)) {
-      return buildError('skill_inactive', 'deepchat-settings skill is not active.')
+    if (
+      !activeSkills.includes(CHAT_SETTINGS_SKILL_NAME) &&
+      !activeSkills.includes(LEGACY_CHAT_SETTINGS_SKILL_NAME)
+    ) {
+      return buildError('skill_inactive', 'jiaorong-settings skill is not active.')
     }
     return null
   }
@@ -419,7 +428,7 @@ export const buildChatSettingsToolDefinitions = (allowedTools: string[]): MCPToo
         }
       },
       server: {
-        name: 'deepchat-settings',
+        name: 'jiaorong-settings',
         icons: 'settings',
         description: 'JiaorongAI settings control'
       }
@@ -440,7 +449,7 @@ export const buildChatSettingsToolDefinitions = (allowedTools: string[]): MCPToo
         }
       },
       server: {
-        name: 'deepchat-settings',
+        name: 'jiaorong-settings',
         icons: 'settings',
         description: 'JiaorongAI settings control'
       }
@@ -461,7 +470,7 @@ export const buildChatSettingsToolDefinitions = (allowedTools: string[]): MCPToo
         }
       },
       server: {
-        name: 'deepchat-settings',
+        name: 'jiaorong-settings',
         icons: 'settings',
         description: 'JiaorongAI settings control'
       }
@@ -482,7 +491,7 @@ export const buildChatSettingsToolDefinitions = (allowedTools: string[]): MCPToo
         }
       },
       server: {
-        name: 'deepchat-settings',
+        name: 'jiaorong-settings',
         icons: 'settings',
         description: 'JiaorongAI settings control'
       }
@@ -503,7 +512,7 @@ export const buildChatSettingsToolDefinitions = (allowedTools: string[]): MCPToo
         }
       },
       server: {
-        name: 'deepchat-settings',
+        name: 'jiaorong-settings',
         icons: 'settings',
         description: 'JiaorongAI settings control'
       }
