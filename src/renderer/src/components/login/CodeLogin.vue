@@ -6,7 +6,7 @@
           v-show="!isLoading"
           id="scanderLoading"
           class="iframe-codelogin"
-          src="https://jjt.ccccltd.cn/wwopen/sso/qrConnect?state=jrdeepchatclientv1&appid=wl2c5e89d5c4&agentid=1002969&redirect_uri=https%3a%2f%2fc4ai.ccccltd.cn%2fapi%2fauth%2flogin%2fjjt"
+          src="https://jjt.ccccltd.cn/wwopen/sso/qrConnect?state=jrDCClientV1&appid=wl2c5e89d5c4&agentid=1002969&redirect_uri=https%3a%2f%2fc4ai.ccccltd.cn%2fapi%2fauth%2flogin%2fjjt"
         >
         </iframe>
 
