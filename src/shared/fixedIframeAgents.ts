@@ -110,7 +110,7 @@ export const FIXED_IFRAME_AGENTS: FixedIframeAgentDefinition[] = [
         id: 'cccc-headlines',
         nameKey: 'welcome.fixedAgents.headlinesAgentNav.ccccHeadlines',
         // chat-web: learn-ai/comp/toutiao.vue（非 iframe，对应 /learnai/index 路由）
-        iframeUrl: 'https://c4ai.ccccltd.cn/learnai/index'
+        iframeUrl: 'https://c4ai.ccccltd.cn/learnai/index?hideTabs=1'
       },
       {
         id: 'ai-trends',
