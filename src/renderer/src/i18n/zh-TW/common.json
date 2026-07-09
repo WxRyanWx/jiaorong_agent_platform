@@ -18,7 +18,7 @@
   "close": "關閉",
   "open": "開啟",
   "error": {
-    "requestFailed": "請求失敗...",
+    "requestFailed": "請求失敗...請稍後重試，或打開新對話。",
     "createChatFailed": "建立對話失敗",
     "selectChatFailed": "選擇對話失敗",
     "renameChatFailed": "重新命名對話失敗",

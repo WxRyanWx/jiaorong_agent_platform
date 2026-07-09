@@ -22,7 +22,7 @@
   "next": "Next",
   "back": "Back",
   "error": {
-    "requestFailed": "Request failed...",
+    "requestFailed": "Request failed... Please try again later, or open a new conversation.",
     "createChatFailed": "Failed to create chat",
     "selectChatFailed": "Failed to select chat",
     "renameChatFailed": "Failed to rename chat",
