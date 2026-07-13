@@ -95,6 +95,25 @@ const api = Object.freeze({
 
     // Fallback: no spaces but contains single quotes
     return `'${filePath.replace(/'/g, `'\\''`)}'`
+  },
+  getAuthToken: () => ipcRenderer.invoke('highlighted-text:get-token') as Promise<string | null>,
+  // CardPopup 首次加载可能错过文本推送，允许 renderer 主动读取主进程缓存。
+  getCurrentCardPopupText: () =>
+    ipcRenderer.invoke('highlighted-text:get-current-card-popup-text') as Promise<string>,
+  // 翻译弹窗首次加载可能错过文本推送，允许 renderer 主动读取主进程缓存。
+  getCurrentTranslatePopupText: () =>
+    ipcRenderer.invoke('highlighted-text:get-current-translate-popup-text') as Promise<string>,
+  // 翻译接口放在主进程执行，便于统一携带 token 和规避跨域问题。
+  translateSelectedText: (text: string, locale?: string) =>
+    ipcRenderer.invoke('highlighted-text:translate', text, locale) as Promise<string>,
+  startWindowDrag: (screenX: number, screenY: number) => {
+    ipcRenderer.send('drag-window:start', screenX, screenY)
+  },
+  moveWindowDrag: (screenX: number, screenY: number) => {
+    ipcRenderer.send('drag-window:move', screenX, screenY)
+  },
+  endWindowDrag: () => {
+    ipcRenderer.send('drag-window:end')
   }
 })
 

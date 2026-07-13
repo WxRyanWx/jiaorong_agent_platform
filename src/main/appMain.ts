@@ -15,6 +15,7 @@ import {
 } from './lib/startupDeepLink'
 import { isInsecureTlsAllowed } from './lib/insecureTls'
 import { activateAppOnMac, ensureRegularAppOnMac } from './lib/activateApp'
+import { initHighlightedTextFeature } from './highlightedText'
 
 let appStarted = false
 const APP_NAME = 'JiaorongAI'
@@ -181,6 +182,9 @@ export function startApp(): void {
       logger.info('main: Application lifecycle startup')
       await lifecycleManager.start()
       presenter = getInstance(lifecycleManager)
+      void initHighlightedTextFeature(presenter.windowPresenter.mainWindow).catch((error) => {
+        console.warn('main: highlighted text feature initialization failed:', error)
+      })
       logger.info('main: Application lifecycle startup completed successfully')
     } catch (error) {
       console.error('main: Application lifecycle startup failed:', error)

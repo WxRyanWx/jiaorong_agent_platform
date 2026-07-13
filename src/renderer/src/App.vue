@@ -196,6 +196,9 @@ const router = useRouter()
 const activeTab = ref('chat')
 const isStartupRouteReady = ref(false)
 const isLoginRoute = computed(() => route.name === 'login')
+const isHighlightedTextPopupRoute = computed(
+  () => route.name === 'card-popup' || route.name === 'selection-translate'
+)
 const processingStartDeeplinkToken = ref<number | null>(null)
 const processedStartDeeplinkToken = ref<number | null>(null)
 
@@ -592,8 +595,9 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
+  <RouterView v-if="isHighlightedTextPopupRoute && isStartupRouteReady" />
   <div
-    v-if="isLoginRoute"
+    v-else-if="isLoginRoute"
     data-testid="app-login-root"
     class="flex h-screen w-screen flex-col overflow-hidden"
     :class="isWinMacOS ? 'bg-window-background' : 'bg-background'"

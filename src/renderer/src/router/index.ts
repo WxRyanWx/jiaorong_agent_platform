@@ -19,6 +19,22 @@ const router = createRouter({
         requiresAuth: false
       }
     },
+    {
+      path: '/card-popup',
+      name: 'card-popup',
+      component: () => import('@/components/highlighted-text/CardPopup.vue'),
+      meta: {
+        requiresAuth: false
+      }
+    },
+    {
+      path: '/selection-translate',
+      name: 'selection-translate',
+      component: () => import('@/components/highlighted-text/SelectionTranslatePopup.vue'),
+      meta: {
+        requiresAuth: false
+      }
+    },
     // {
     //   path: '/',
     //   redirect: '/chat'

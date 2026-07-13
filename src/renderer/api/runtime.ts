@@ -48,3 +48,34 @@ export function toRuntimeRelativePath(filePath: string, baseDir?: string): strin
 export function formatRuntimePathForInput(filePath: string): string {
   return getRendererRuntimeApi().formatPathForInput?.(filePath) ?? filePath
 }
+
+export function getRuntimeAuthToken(): Promise<string | null> {
+  return getRendererRuntimeApi().getAuthToken?.() ?? Promise.resolve(null)
+}
+
+// CardPopup 文本兜底读取：首次 IPC 推送丢失时从主进程缓存读取。
+export function getRuntimeCurrentCardPopupText(): Promise<string> {
+  return getRendererRuntimeApi().getCurrentCardPopupText?.() ?? Promise.resolve('')
+}
+
+// 翻译弹窗原文兜底读取：首次 update-translation-text 丢失时从主进程缓存读取。
+export function getRuntimeCurrentTranslatePopupText(): Promise<string> {
+  return getRendererRuntimeApi().getCurrentTranslatePopupText?.() ?? Promise.resolve('')
+}
+
+// 真实翻译请求统一走主进程，避免 renderer CORS 和 token 暴露面扩大。
+export function translateRuntimeSelectedText(text: string, locale?: string): Promise<string> {
+  return getRendererRuntimeApi().translateSelectedText?.(text, locale) ?? Promise.resolve('')
+}
+
+export function startRuntimeWindowDrag(screenX: number, screenY: number): void {
+  getRendererRuntimeApi().startWindowDrag?.(screenX, screenY)
+}
+
+export function moveRuntimeWindowDrag(screenX: number, screenY: number): void {
+  getRendererRuntimeApi().moveWindowDrag?.(screenX, screenY)
+}
+
+export function endRuntimeWindowDrag(): void {
+  getRendererRuntimeApi().endWindowDrag?.()
+}
