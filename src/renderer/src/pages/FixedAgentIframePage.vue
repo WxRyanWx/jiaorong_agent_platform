@@ -5,6 +5,7 @@
       :key="iframeRenderKey"
       :src="iframeUrl"
       :title="pageTitle"
+      :style="iframeStyle"
       class="h-full w-full border-0"
       sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
     />
@@ -16,7 +17,8 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   getFixedIframeAgent,
-  isFixedIframeAgentId
+  isFixedIframeAgentId,
+  resolveFixedIframeStyle
 } from '@shared/fixedIframeAgents'
 import { useAgentStore } from '@/stores/ui/agent'
 
@@ -34,6 +36,16 @@ const iframeUrl = computed(() => {
   }
 
   return agentStore.resolveFixedIframeUrl(props.agentId)
+})
+const iframeStyle = computed(() => {
+  if (!isFixedIframeAgentId(props.agentId)) {
+    return undefined
+  }
+
+  return resolveFixedIframeStyle(
+    props.agentId,
+    agentStore.getFixedIframeSecondaryNavId(props.agentId)
+  )
 })
 const iframeRenderKey = computed(() => {
   if (!isFixedIframeAgentId(props.agentId)) {
