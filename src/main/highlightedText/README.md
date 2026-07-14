@@ -36,11 +36,33 @@ highlightedText/
 
 ### 1. 初始化
 
-1. `appMain.ts` 调用 `initHighlightedTextFeature(mainWindow)`。
-2. `registerIpcHandlers()` 注册工具条、翻译、复制和拖动窗口 IPC。
-3. `loadUiohookRuntime()` 延迟加载 `uiohook-napi`。
-4. `checkAccessibilityPermission()` 在 macOS 检查辅助功能权限。
-5. `registerSelectionListeners()` 注册 `mousedown`、`mouseup`、`wheel`、`keydown`、`keyup`。
+1. `appMain.ts` 读取持久化设置 `highlightedTextEnabled`；该值默认是 `true`。
+2. 设置开启时调用 `initHighlightedTextFeature(mainWindow)`；关闭时不加载 uiohook。
+3. `registerIpcHandlers()` 注册工具条、翻译、复制和拖动窗口 IPC。
+4. `loadUiohookRuntime()` 延迟加载 `uiohook-napi`。
+5. `checkAccessibilityPermission()` 在 macOS 检查辅助功能权限。
+6. `registerSelectionListeners()` 注册 `mousedown`、`mouseup`、`wheel`、`keydown`、`keyup`。
+
+### 运行时启用与关闭
+
+“设置 → 通用设置 → 启用划词组件”通过 typed settings route 持久化
+`highlightedTextEnabled`。主进程监听 `CONFIG_EVENTS.SETTING_CHANGED`，因此切换后无需重启：
+
+```text
+开启
+  -> initHighlightedTextFeature
+  -> 加载/启动 uiohook
+  -> 重新注册全局鼠标键盘监听
+
+关闭
+  -> destroyHighlightedTextFeature
+  -> 关闭 CardPopup 和翻译窗口
+  -> stop uiohook
+  -> removeAllListeners
+```
+
+关闭后不会继续读取选中文本或模拟复制。再次开启时会重新初始化原生 hook。设置缺失时按
+`true` 处理，以保持旧版本升级后的既有行为。
 
 ### 2. 鼠标选择文本
 

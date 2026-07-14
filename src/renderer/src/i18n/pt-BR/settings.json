@@ -10,6 +10,7 @@
     "searchPreview": "Pré-visualização de Busca",
     "launchAtLoginEnabled": "Iniciar o JiaorongAI ao entrar no sistema",
     "autoScrollEnabled": "Rolagem automática durante a geração",
+    "highlightedTextEnabled": "Ativar componente de seleção de texto",
     "privacyMode": "Modo de Privacidade",
     "privacyModeDescription": "Interrompe as solicitações automáticas de saída feitas pelo JiaorongAI:",
     "privacyModeAutoUpdate": "Verificação de atualizações do aplicativo",

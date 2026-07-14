@@ -10,6 +10,7 @@
     "searchPreview": "Suchvorschau",
     "launchAtLoginEnabled": "JiaorongAI beim Anmelden starten",
     "autoScrollEnabled": "Beim Generieren automatisch scrollen",
+    "highlightedTextEnabled": "Textauswahl-Komponente aktivieren",
     "privacyMode": "Privatsphärenmodus",
     "privacyModeDescription": "Nach dem Aktivieren des Privatsphärenmodus startet JiaorongAI die folgenden Anfragen nicht automatisch:",
     "privacyModeAutoUpdate": "Updateprüfung der App",

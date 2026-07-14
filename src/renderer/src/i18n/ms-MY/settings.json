@@ -10,6 +10,7 @@
     "searchPreview": "Pratonton carian",
     "launchAtLoginEnabled": "Lancarkan JiaorongAI semasa but",
     "autoScrollEnabled": "Tatal secara automatik apabila dijana",
+    "highlightedTextEnabled": "Dayakan komponen pemilihan teks",
     "privacyMode": "mod privasi",
     "privacyModeDescription": "Selepas mengaktifkan mod privasi, JiaorongAI tidak akan memulakan permintaan berikut secara automatik:",
     "privacyModeAutoUpdate": "Semakan kemas kini apl",

@@ -10,6 +10,7 @@
     "searchPreview": "پیش‌نمایش جستجو",
     "launchAtLoginEnabled": "اجرای JiaorongAI هنگام ورود به سیستم",
     "autoScrollEnabled": "پیمایش خودکار هنگام تولید",
+    "highlightedTextEnabled": "فعال‌سازی مؤلفه انتخاب متن",
     "privacyMode": "حالت حریم خصوصی",
     "privacyModeDescription": "درخواست‌های خروجی خودکار متعلق به JiaorongAI را متوقف می‌کند:",
     "privacyModeAutoUpdate": "بررسی به‌روزرسانی برنامه",

@@ -140,6 +140,7 @@ interface IAppSettings {
   autoCompactionRetainRecentPairs?: number
   loggingEnabled?: boolean // Whether logging is enabled
   floatingButtonEnabled?: boolean // Whether floating button is enabled
+  highlightedTextEnabled?: boolean // Whether global highlighted-text actions are enabled
   default_system_prompt?: string // Default system prompt
   updateChannel?: string // Update channel: 'stable' | 'beta'
   fontFamily?: string // Custom UI font
@@ -325,6 +326,11 @@ const toTrackedSettingsChangePayload = (
         changedKey: 'notificationsEnabled',
         value: Boolean(value)
       }
+    case 'highlightedTextEnabled':
+      return {
+        changedKey: 'highlightedTextEnabled',
+        value: Boolean(value)
+      }
     case 'traceDebugEnabled':
       return {
         changedKey: 'traceDebugEnabled',
@@ -447,6 +453,7 @@ export class ConfigPresenter implements IConfigPresenter {
         autoCompactionRetainRecentPairs: 2,
         loggingEnabled: false,
         floatingButtonEnabled: false,
+        highlightedTextEnabled: true,
         fontFamily: '',
         codeFontFamily: '',
         default_system_prompt: '',

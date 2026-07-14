@@ -10,6 +10,7 @@
     "searchPreview": "תצוגה מקדימה של חיפוש",
     "launchAtLoginEnabled": "הפעלת JiaorongAI בעת הכניסה למערכת",
     "autoScrollEnabled": "גלילה אוטומטית בזמן יצירה",
+    "highlightedTextEnabled": "הפעלת רכיב בחירת טקסט",
     "privacyMode": "מצב פרטיות",
     "privacyModeDescription": "עצירת בקשות יוצאות אוטומטיות שמנוהלות על ידי JiaorongAI:",
     "privacyModeAutoUpdate": "בדיקת עדכוני יישום",

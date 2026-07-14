@@ -26,6 +26,11 @@ screenShot/
 └── session/
     ├── captureCache.ts              # 当前截图会话缓存
     └── exportSelection.ts           # 从缓存导出选区
+
+resources/screen-shot/
+├── index.html                       # 截图选区主页面构建产物入口
+├── pin.html                         # 轻量钉图页面
+└── ocr.html                         # 轻量 OCR loading/结果页面
 ```
 
 ## 分层约定
@@ -129,31 +134,38 @@ Renderer 将选区图片字节、宽高、`selectionRect` 和 `anchorRect` 组�
 
 | 顺序 | 方法 | 代码位置 | 作用 |
 | --- | --- | --- | --- |
-| 1 | `runOcrAction` | [ocr.ts:129](./features/ocr.ts#L129) | 将图片转为 Base64，创建结果窗口并启动识别。 |
-| 2 | `createOcrResultWindow` | [ocr.ts:28](./features/ocr.ts#L28) | 创建隐藏的 `/ocr-result` 窗口并缓存 loading payload。 |
-| 3 | `ocrImage` | [ocr.ts:110](./features/ocr.ts#L110) | 使用 Tesseract `chi_sim+eng` 模型识别图片，并在 finally 中释放 worker。 |
-| 4 | OCR payload handler | [registerScreenshotIpc.ts:144](./ipc/registerScreenshotIpc.ts#L144) | OCR 页面通过 `screenshot:get-ocr-result-data` 获取原图和当前状态。 |
-| 5 | `revealWindowAfterPayloadApply` | [windowUtils.ts:37](./features/windowUtils.ts#L37) | 页面拿到初始 payload 后再显示，避免空白窗口闪烁。 |
-| 6 | `sendOcrResultWindowData` | [ocr.ts:79](./features/ocr.ts#L79) | 识别完成后发送 `ocr-result-data` 更新文字或错误信息。 |
+| 1 | `warmOcrWorker` | `features/ocr.ts` | 截图会话打开时后台预热 `chi_sim+eng` 模型。 |
+| 2 | `runOcrAction` | `features/ocr.ts` | 将图片转为 Base64，创建结果窗口并启动识别。 |
+| 3 | `createOcrResultWindow` | `features/ocr.ts` | 加载 `resources/screen-shot/ocr.html`，先展示原图和“识别中”，不加载主 Vue Renderer。 |
+| 4 | `ocrImage` | `features/ocr.ts` | 复用已初始化的 Tesseract worker；并发请求通过队列串行识别。 |
+| 5 | OCR payload handler | `ipc/registerScreenshotIpc.ts` | OCR 页面通过 `screenshot:get-ocr-result-data` 获取原图和 loading 状态。 |
+| 6 | `sendOcrResultWindowData` | `features/ocr.ts` | 识别完成后发送 `ocr-result-data` 更新文字或错误信息。 |
 
 OCR 调用链：
 
-`ocrRec -> screenshot:ocr-rec -> handleScreenshotAction -> runPostScreenshotAction -> runOcrAction -> createOcrResultWindow -> ocrImage -> sendOcrResultWindowData`
+`openScreenShotWindow -> warmOcrWorker`（后台预热）
+
+`ocrRec -> screenshot:ocr-rec -> handleScreenshotAction -> runPostScreenshotAction -> runOcrAction -> loadFile(ocr.html) -> ocrImage -> sendOcrResultWindowData`
+
+OCR worker 正常情况下会跨请求复用，应用退出时统一释放；如果识别异常，会丢弃当前 worker，下一次请求重新初始化。
 
 ### 阶段 4B：钉图功能链路
 
 | 顺序 | 方法 | 代码位置 | 作用 |
 | --- | --- | --- | --- |
 | 1 | `runPinAction` | [pin.ts:232](./features/pin.ts#L232) | 记录动作并创建钉图窗口。 |
-| 2 | `createPinByPicWindow` | [pin.ts:124](./features/pin.ts#L124) | 计算窗口尺寸和位置，创建隐藏的 `/pin-by-pic` 窗口。 |
+| 2 | `createPinByPicWindow` | `features/pin.ts` | 计算窗口尺寸和位置，并加载 `resources/screen-shot/pin.html`，不加载主 Vue Renderer。 |
 | 3 | `normalizePinRect` | [pin.ts:38](./features/pin.ts#L38) | 将高分屏原生像素选区换算成 Electron DIP 坐标。 |
-| 4 | 钉图 payload handler | [registerScreenshotIpc.ts:159](./ipc/registerScreenshotIpc.ts#L159) | 钉图页面通过 `screenshot:get-pin-by-pic-image` 获取图片 Base64。 |
-| 5 | `revealWindowAfterPayloadApply` | [windowUtils.ts:37](./features/windowUtils.ts#L37) | 图片应用后再显示窗口。 |
-| 6 | `raisePinByPicWindows` | [pin.ts:113](./features/pin.ts#L113) | 降低旧钉图层级，并将最新钉图提升到最高层。 |
+| 4 | `applyPinImage` | `resources/screen-shot/pin.html` | 页面加载完成后由主进程注入 Base64，并等待图片 decode。 |
+| 5 | `raisePinByPicWindows` | `features/pin.ts` | 图片 decode 后显示窗口；降低旧钉图层级，并将最新钉图提升到最高层。 |
 
 钉图调用链：
 
-`pinByPic -> screenshot:pin-by-pic -> handleScreenshotAction -> runPostScreenshotAction -> runPinAction -> createPinByPicWindow -> get-pin-by-pic-image -> raisePinByPicWindows`
+`pinByPic -> screenshot:pin-by-pic -> handleScreenshotAction -> runPostScreenshotAction -> runPinAction -> loadFile(pin.html) -> applyPinImage -> raisePinByPicWindows`
+
+轻量页面在开发环境从 `resources/screen-shot` 加载；安装包通过 `electron-builder.yml` 的
+`extraResources` 复制到 `app.asar.unpacked/resources/screen-shot`。
+`getScreenshotFeatureHtmlPath()` 统一处理两种路径。
 
 ### 阶段 5：关闭、缓存与选区导出
 

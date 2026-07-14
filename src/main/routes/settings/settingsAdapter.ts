@@ -29,6 +29,7 @@ export const readSettingsSnapshot = (
   privacyModeEnabled: configPresenter.getPrivacyModeEnabled(),
   notificationsEnabled: configPresenter.getNotificationsEnabled(),
   launchAtLoginEnabled: configPresenter.getLaunchAtLoginEnabled(),
+  highlightedTextEnabled: configPresenter.getSetting<boolean>('highlightedTextEnabled') ?? true,
   traceDebugEnabled: configPresenter.getSetting<boolean>('traceDebugEnabled') ?? false,
   copyWithCotEnabled: configPresenter.getCopyWithCotEnabled(),
   loggingEnabled: configPresenter.getLoggingEnabled()
@@ -89,6 +90,9 @@ export const applySettingChange = (
       return
     case 'launchAtLoginEnabled':
       configPresenter.setLaunchAtLoginEnabled(change.value)
+      return
+    case 'highlightedTextEnabled':
+      configPresenter.setSetting('highlightedTextEnabled', change.value)
       return
     case 'traceDebugEnabled':
       configPresenter.setTraceDebugEnabled(change.value)

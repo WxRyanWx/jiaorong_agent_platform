@@ -10,6 +10,7 @@
     "searchPreview": "搜索預覽",
     "launchAtLoginEnabled": "開機時啟動 JiaorongAI",
     "autoScrollEnabled": "生成時自動滾動",
+    "highlightedTextEnabled": "啟用劃詞元件",
     "privacyMode": "隱私模式",
     "privacyModeDescription": "啟動隱私模式後，JiaorongAI 將不會自動發起如下請求：",
     "privacyModeAutoUpdate": "應用程式更新檢查",

@@ -16,6 +16,7 @@ describe('SettingsRouteHandler', () => {
       privacyModeEnabled: false,
       notificationsEnabled: true,
       launchAtLoginEnabled: false,
+      highlightedTextEnabled: true,
       traceDebugEnabled: false,
       copyWithCotEnabled: true,
       loggingEnabled: false
@@ -56,7 +57,8 @@ describe('SettingsRouteHandler', () => {
       changes: [
         { key: 'fontSizeLevel', value: 4 },
         { key: 'privacyModeEnabled', value: true },
-        { key: 'launchAtLoginEnabled', value: true }
+        { key: 'launchAtLoginEnabled', value: true },
+        { key: 'highlightedTextEnabled', value: false }
       ]
     })
 
@@ -72,13 +74,23 @@ describe('SettingsRouteHandler', () => {
       key: 'launchAtLoginEnabled',
       value: true
     })
+    expect(adapter.applyChange).toHaveBeenNthCalledWith(4, {
+      key: 'highlightedTextEnabled',
+      value: false
+    })
     expect(result).toEqual({
       version: expect.any(Number),
-      changedKeys: ['fontSizeLevel', 'privacyModeEnabled', 'launchAtLoginEnabled'],
+      changedKeys: [
+        'fontSizeLevel',
+        'privacyModeEnabled',
+        'launchAtLoginEnabled',
+        'highlightedTextEnabled'
+      ],
       values: {
         fontSizeLevel: 4,
         privacyModeEnabled: true,
-        launchAtLoginEnabled: true
+        launchAtLoginEnabled: true,
+        highlightedTextEnabled: false
       }
     })
   })

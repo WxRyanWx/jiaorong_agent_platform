@@ -53,7 +53,8 @@ describe('uiSettingsStore', () => {
             autoScrollEnabled: false,
             privacyModeEnabled: true,
             notificationsEnabled: false,
-            launchAtLoginEnabled: true
+            launchAtLoginEnabled: true,
+            highlightedTextEnabled: false
           }
         }
       }
@@ -110,6 +111,7 @@ describe('uiSettingsStore', () => {
     expect(store.privacyModeEnabled).toBe(true)
     expect(store.notificationsEnabled).toBe(false)
     expect(store.launchAtLoginEnabled).toBe(true)
+    expect(store.highlightedTextEnabled).toBe(false)
 
     const listener = on.mock.calls[0]?.[1] as
       | ((payload: {
@@ -124,14 +126,16 @@ describe('uiSettingsStore', () => {
         'fontSizeLevel',
         'notificationsEnabled',
         'privacyModeEnabled',
-        'launchAtLoginEnabled'
+        'launchAtLoginEnabled',
+        'highlightedTextEnabled'
       ],
       version: 3,
       values: {
         fontSizeLevel: 4,
         notificationsEnabled: true,
         privacyModeEnabled: false,
-        launchAtLoginEnabled: false
+        launchAtLoginEnabled: false,
+        highlightedTextEnabled: true
       }
     })
 
@@ -139,6 +143,7 @@ describe('uiSettingsStore', () => {
     expect(store.notificationsEnabled).toBe(true)
     expect(store.privacyModeEnabled).toBe(false)
     expect(store.launchAtLoginEnabled).toBe(false)
+    expect(store.highlightedTextEnabled).toBe(true)
     mountedWrappers = mountedWrappers.filter((candidate) => candidate !== wrapper)
     wrapper.unmount()
 
@@ -154,6 +159,7 @@ describe('uiSettingsStore', () => {
     await store.updateFontSizeLevel(10)
     await store.setPrivacyModeEnabled(true)
     await store.setLaunchAtLoginEnabled(false)
+    await store.setHighlightedTextEnabled(false)
 
     expect(invoke).toHaveBeenNthCalledWith(2, 'settings.listSystemFonts', {})
     expect(invoke).toHaveBeenNthCalledWith(3, 'settings.update', {
@@ -165,9 +171,13 @@ describe('uiSettingsStore', () => {
     expect(invoke).toHaveBeenNthCalledWith(5, 'settings.update', {
       changes: [{ key: 'launchAtLoginEnabled', value: false }]
     })
+    expect(invoke).toHaveBeenNthCalledWith(6, 'settings.update', {
+      changes: [{ key: 'highlightedTextEnabled', value: false }]
+    })
     expect(store.systemFonts).toEqual(['Inter', 'JetBrains Mono'])
     expect(store.fontSizeLevel).toBe(4)
     expect(store.privacyModeEnabled).toBe(true)
+    expect(store.highlightedTextEnabled).toBe(false)
   })
 
   it('keeps privacy mode unchanged when the typed settings update fails', async () => {

@@ -10,6 +10,7 @@
     "searchPreview": "Предпросмотр поиска",
     "launchAtLoginEnabled": "Запускать JiaorongAI при входе в систему",
     "autoScrollEnabled": "Автопрокрутка во время генерации",
+    "highlightedTextEnabled": "Включить компонент выделения текста",
     "privacyMode": "Режим конфиденциальности",
     "privacyModeDescription": "Останавливает автоматические исходящие запросы, которыми управляет JiaorongAI:",
     "privacyModeAutoUpdate": "Проверка обновлений приложения",

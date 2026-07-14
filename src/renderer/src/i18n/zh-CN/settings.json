@@ -10,6 +10,7 @@
     "searchPreview": "搜索预览",
     "launchAtLoginEnabled": "开机时启动 交融超级智能体",
     "autoScrollEnabled": "生成时自动滚动",
+    "highlightedTextEnabled": "启用划词组件",
     "privacyMode": "隐私模式",
     "privacyModeDescription": "启动隐私模式后，JiaorongAI 将不会自动发起如下请求：",
     "privacyModeAutoUpdate": "应用更新检查",

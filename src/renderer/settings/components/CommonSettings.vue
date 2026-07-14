@@ -22,6 +22,13 @@
         @update:model-value="handleAutoScrollChange"
       />
       <SettingToggleRow
+        id="highlighted-text-switch"
+        icon="lucide:text-select"
+        :label="t('settings.common.highlightedTextEnabled')"
+        :model-value="highlightedTextEnabled"
+        @update:model-value="handleHighlightedTextChange"
+      />
+      <SettingToggleRow
         id="copy-with-cot-switch"
         icon="lucide:file-text"
         :label="t('settings.common.copyWithCotEnabled')"
@@ -57,6 +64,7 @@ const autoScrollEnabled = computed(() => uiSettingsStore.autoScrollEnabled)
 const copyWithCotEnabled = computed(() => uiSettingsStore.copyWithCotEnabled)
 const traceDebugEnabled = computed(() => uiSettingsStore.traceDebugEnabled)
 const launchAtLoginEnabled = computed(() => uiSettingsStore.launchAtLoginEnabled)
+const highlightedTextEnabled = computed(() => uiSettingsStore.highlightedTextEnabled)
 
 const handleAutoScrollChange = (value: boolean) => {
   uiSettingsStore.setAutoScrollEnabled(value)
@@ -64,6 +72,10 @@ const handleAutoScrollChange = (value: boolean) => {
 
 const handleLaunchAtLoginChange = (value: boolean) => {
   uiSettingsStore.setLaunchAtLoginEnabled(value)
+}
+
+const handleHighlightedTextChange = (value: boolean) => {
+  uiSettingsStore.setHighlightedTextEnabled(value)
 }
 
 const handleCopyWithCotChange = (value: boolean) => {

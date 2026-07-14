@@ -10,6 +10,7 @@
     "searchPreview": "検索プレビュー",
     "launchAtLoginEnabled": "ログイン時に JiaorongAI を起動",
     "autoScrollEnabled": "生成中に自動スクロール",
+    "highlightedTextEnabled": "テキスト選択コンポーネントを有効にする",
     "privacyMode": "プライバシーモード",
     "privacyModeDescription": "JiaorongAI が管理する自動外部通信を停止します:",
     "privacyModeAutoUpdate": "アプリ更新チェック",

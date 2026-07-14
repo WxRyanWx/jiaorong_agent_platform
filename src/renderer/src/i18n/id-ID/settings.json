@@ -10,6 +10,7 @@
     "searchPreview": "Pratinjau pencarian",
     "launchAtLoginEnabled": "Mulai saat boot JiaorongAI",
     "autoScrollEnabled": "Gulir secara otomatis saat dibuat",
+    "highlightedTextEnabled": "Aktifkan komponen pemilihan teks",
     "privacyMode": "modus privasi",
     "privacyModeDescription": "Setelah mode privasi diaktifkan, JiaorongAI tidak akan secara otomatis memulai permintaan berikut:",
     "privacyModeAutoUpdate": "Pemeriksaan pembaruan aplikasi",

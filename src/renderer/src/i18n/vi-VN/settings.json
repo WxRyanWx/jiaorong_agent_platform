@@ -10,6 +10,7 @@
     "searchPreview": "Xem trước tìm kiếm",
     "launchAtLoginEnabled": "Bắt đầu JiaorongAI khi đăng nhập",
     "autoScrollEnabled": "Tự động cuộn trong khi tạo",
+    "highlightedTextEnabled": "Bật thành phần chọn văn bản",
     "privacyMode": "Chế độ riêng tư",
     "privacyModeDescription": "Dừng các yêu cầu gửi đi tự động thuộc sở hữu của JiaorongAI:",
     "privacyModeAutoUpdate": "Kiểm tra cập nhật ứng dụng",

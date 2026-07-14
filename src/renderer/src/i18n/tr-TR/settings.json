@@ -10,6 +10,7 @@
     "searchPreview": "Arama Önizlemesi",
     "launchAtLoginEnabled": "Giriş sırasında JiaorongAI'ı başlatın",
     "autoScrollEnabled": "Oluştururken otomatik kaydırma",
+    "highlightedTextEnabled": "Metin seçimi bileşenini etkinleştir",
     "privacyMode": "Gizlilik Modu",
     "privacyModeDescription": "JiaorongAI'a ait otomatik giden istekleri durdurun:",
     "privacyModeAutoUpdate": "Uygulama güncelleme kontrolleri",

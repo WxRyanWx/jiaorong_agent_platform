@@ -42,7 +42,9 @@ let highlightInputSuspendDepth = 0
 
 // 应用退出或辅助功能权限变化时强制释放 uiohook，降低系统卡死风险。
 export function destroyHighlightedTextFeature(): void {
-  hideCardPopup(true)
+  if (cardPopup && !cardPopup.isDestroyed()) {
+    cardPopup.close()
+  }
   if (translatePopup && !translatePopup.isDestroyed()) {
     translatePopup.close()
   }

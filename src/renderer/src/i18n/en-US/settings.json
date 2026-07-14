@@ -10,6 +10,7 @@
     "searchPreview": "Search Preview",
     "launchAtLoginEnabled": "Start JiaorongAI at login",
     "autoScrollEnabled": "Auto-scroll while generating",
+    "highlightedTextEnabled": "Enable highlighted-text component",
     "privacyMode": "Privacy Mode",
     "privacyModeDescription": "Stop automatic outbound requests owned by JiaorongAI:",
     "privacyModeAutoUpdate": "App update checks",

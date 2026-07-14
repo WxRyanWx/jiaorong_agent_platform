@@ -5,7 +5,7 @@ import { getInstance, Presenter } from './presenter'
 import { electronApp } from '@electron-toolkit/utils'
 import log from 'electron-log'
 import { eventBus, SendTarget } from './eventbus'
-import { NOTIFICATION_EVENTS } from './events'
+import { CONFIG_EVENTS, NOTIFICATION_EVENTS } from './events'
 import { registerWorkspacePreviewSchemes } from './presenter/workspacePresenter/workspacePreviewProtocol'
 import {
   findDeepLinkArg,
@@ -15,7 +15,7 @@ import {
 } from './lib/startupDeepLink'
 import { isInsecureTlsAllowed } from './lib/insecureTls'
 import { activateAppOnMac, ensureRegularAppOnMac } from './lib/activateApp'
-import { initHighlightedTextFeature } from './highlightedText'
+import { destroyHighlightedTextFeature, initHighlightedTextFeature } from './highlightedText'
 import { initScreenShotFeature } from './screenShot'
 
 let appStarted = false
@@ -183,8 +183,23 @@ export function startApp(): void {
       logger.info('main: Application lifecycle startup')
       await lifecycleManager.start()
       presenter = getInstance(lifecycleManager)
-      void initHighlightedTextFeature(presenter.windowPresenter.mainWindow).catch((error) => {
-        console.warn('main: highlighted text feature initialization failed:', error)
+      const activePresenter = presenter
+      const applyHighlightedTextEnabled = (enabled: boolean): void => {
+        if (!enabled) {
+          destroyHighlightedTextFeature()
+          return
+        }
+        void initHighlightedTextFeature(activePresenter.windowPresenter.mainWindow).catch(
+          (error) => {
+            console.warn('main: highlighted text feature initialization failed:', error)
+          }
+        )
+      }
+      applyHighlightedTextEnabled(
+        activePresenter.configPresenter.getSetting<boolean>('highlightedTextEnabled') ?? true
+      )
+      eventBus.on(CONFIG_EVENTS.SETTING_CHANGED, (key, value) => {
+        if (key === 'highlightedTextEnabled') applyHighlightedTextEnabled(Boolean(value))
       })
       initScreenShotFeature(
         async () => {
