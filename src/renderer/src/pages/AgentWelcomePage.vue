@@ -6,7 +6,7 @@
       </div>
 
       <h1 class="mb-10 text-3xl font-semibold text-foreground">
-        {{ t("welcome.agentPage.title") }}
+        {{ t('welcome.agentPage.title') }}
       </h1>
 
       <div class="flex w-full max-w-3xl flex-col items-center gap-6">
@@ -40,10 +40,7 @@
                 {{ card.subtitle }}
               </div>
             </div>
-            <Icon
-              icon="lucide:chevron-right"
-              class="h-4 w-4 text-muted-foreground/50"
-            />
+            <Icon icon="lucide:chevron-right" class="h-4 w-4 text-muted-foreground/50" />
           </button>
         </div>
 
@@ -51,7 +48,7 @@
           class="text-xs text-muted-foreground transition-colors hover:text-foreground"
           @click="openAgentSettings"
         >
-          {{ t("welcome.agentPage.manageAgents") }}
+          {{ t('welcome.agentPage.manageAgents') }}
         </button>
       </div>
     </div>
@@ -59,92 +56,101 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
-import { Icon } from "@iconify/vue";
-import { useI18n } from "vue-i18n";
-import { createSettingsClient } from "@api/SettingsClient";
-import { useAgentStore, type UIAgent } from "@/stores/ui/agent";
-import { isFixedIframeAgentId } from "@shared/fixedIframeAgents";
-import AgentAvatar from "@/components/icons/AgentAvatar.vue";
-import FixedIframeAgentIcon from "@/components/icons/FixedIframeAgentIcon.vue";
+import { computed } from 'vue'
+import { useRouter } from 'vue-router'
+import { Icon } from '@iconify/vue'
+import { useI18n } from 'vue-i18n'
+import { createSettingsClient } from '@api/SettingsClient'
+import { useAgentStore, type UIAgent } from '@/stores/ui/agent'
+import { forceRevalidateAuthSession } from '@/lib/auth/session'
+import { isFixedIframeAgentId } from '@shared/fixedIframeAgents'
+import AgentAvatar from '@/components/icons/AgentAvatar.vue'
+import FixedIframeAgentIcon from '@/components/icons/FixedIframeAgentIcon.vue'
 
 type AgentWelcomeCard =
   | {
-      id: string;
-      kind: "store";
-      agent: UIAgent;
-      name: string;
-      subtitle: string;
+      id: string
+      kind: 'store'
+      agent: UIAgent
+      name: string
+      subtitle: string
     }
   | {
-      id: string;
-      kind: "fixed-iframe";
-      iconClass: string;
-      name: string;
-      subtitle: string;
-    };
+      id: string
+      kind: 'fixed-iframe'
+      iconClass: string
+      name: string
+      subtitle: string
+    }
 
-const MAX_USER_AGENT_CARDS = 4;
+const MAX_USER_AGENT_CARDS = 4
 
-const { t } = useI18n();
-const settingsClient = createSettingsClient();
-const agentStore = useAgentStore();
+const { t } = useI18n()
+const router = useRouter()
+const settingsClient = createSettingsClient()
+const agentStore = useAgentStore()
 
 const displayedAgentCards = computed<AgentWelcomeCard[]>(() => {
-  const cards: AgentWelcomeCard[] = [];
+  const cards: AgentWelcomeCard[] = []
 
   if (agentStore.sidebarAgents.deepchat) {
-    const agent = agentStore.sidebarAgents.deepchat;
+    const agent = agentStore.sidebarAgents.deepchat
     cards.push({
       id: agent.id,
-      kind: "store",
+      kind: 'store',
       agent,
       name: agent.name,
-      subtitle: t("welcome.agentPage.deepchatType"),
-    });
+      subtitle: t('welcome.agentPage.deepchatType')
+    })
   }
 
   for (const fixedAgent of agentStore.fixedIframeAgents) {
     cards.push({
       id: fixedAgent.id,
-      kind: "fixed-iframe",
+      kind: 'fixed-iframe',
       iconClass: fixedAgent.iconClass,
       name: t(fixedAgent.nameKey),
-      subtitle: t(fixedAgent.typeKey),
-    });
+      subtitle: t(fixedAgent.typeKey)
+    })
   }
 
-  for (const agent of agentStore.sidebarAgents.userAgents.slice(
-    0,
-    MAX_USER_AGENT_CARDS,
-  )) {
+  for (const agent of agentStore.sidebarAgents.userAgents.slice(0, MAX_USER_AGENT_CARDS)) {
     cards.push({
       id: agent.id,
-      kind: "store",
+      kind: 'store',
       agent,
       name: agent.name,
       subtitle:
-        agent.type === "deepchat"
-          ? t("welcome.agentPage.deepchatType")
-          : t("welcome.agentPage.acpType"),
-    });
+        agent.type === 'deepchat'
+          ? t('welcome.agentPage.deepchatType')
+          : t('welcome.agentPage.acpType')
+    })
   }
 
-  return cards;
-});
+  return cards
+})
 
-const selectAgentCard = (card: AgentWelcomeCard) => {
-  if (card.kind === "fixed-iframe" && isFixedIframeAgentId(card.id)) {
-    agentStore.resetFixedIframeNavigation(card.id);
+const selectAgentCard = async (card: AgentWelcomeCard) => {
+  if (card.kind === 'fixed-iframe' && isFixedIframeAgentId(card.id)) {
+    // 固定 iframe 入口不静默校验（与左侧栏一致）
+    agentStore.resetFixedIframeNavigation(card.id)
+    agentStore.setSelectedAgent(card.id)
+    return
   }
-  agentStore.setSelectedAgent(card.id);
-};
+
+  const valid = await forceRevalidateAuthSession()
+  if (!valid) {
+    void router.push({ name: 'login' })
+    return
+  }
+  agentStore.setSelectedAgent(card.id)
+}
 
 const openAgentSettings = async () => {
   await settingsClient.openSettings({
-    routeName: "settings-deepchat-agents",
-  });
-};
+    routeName: 'settings-deepchat-agents'
+  })
+}
 </script>
 
 <style scoped>
@@ -153,7 +159,7 @@ const openAgentSettings = async () => {
 }
 
 button,
-[role="button"] {
+[role='button'] {
   -webkit-app-region: no-drag;
 }
 </style>
