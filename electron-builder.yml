@@ -32,12 +32,11 @@ files:
   - '!*.md'
 
 asarUnpack:
-  - '**/node_modules/sharp/**/*'
-  - '**/node_modules/@img/**/*'
   - '**/node_modules/@ff-labs/fff-node/**/*'
   - '**/node_modules/@ff-labs/fff-bin-*/**/*'
   - '**/node_modules/uiohook-napi/**/*.node'
   - '**/node_modules/uiohook-napi/prebuilds/**'
+  - '**/node_modules/node-screenshots/**/*'
   - '**/node_modules/opendal/**/*'
   - '**/node_modules/@opendal/**/*'
   - '**/node_modules/ffi-rs/**/*'
@@ -52,6 +51,13 @@ extraResources:
   - from: ./resources/skills/
     to: app.asar.unpacked/resources/skills
     filter: ['**/*']
+  - from: ./resources/screen-shot/
+    to: app.asar.unpacked/resources/screen-shot
+    filter: ['**/*']
+  - from: ./resources/chi_sim.traineddata
+    to: app.asar.unpacked/resources/chi_sim.traineddata
+  - from: ./resources/eng.traineddata
+    to: app.asar.unpacked/resources/eng.traineddata
   - from: ./build/bundled-plugins/
     to: app.asar.unpacked/plugins
     filter: ['**/*.dcplugin']

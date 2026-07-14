@@ -1607,6 +1607,7 @@
     "toggleWorkspace": "切换工作区",
     "newWindow": "打开新窗口",
     "showHideWindow": "显示/隐藏窗口",
+    "screenshot": "截图",
     "newConversation": "新会话",
     "quickSearch": "聚焦搜索",
     "closeWindow": "关闭当前窗口"

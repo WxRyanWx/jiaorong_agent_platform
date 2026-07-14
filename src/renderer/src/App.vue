@@ -196,8 +196,13 @@ const router = useRouter()
 const activeTab = ref('chat')
 const isStartupRouteReady = ref(false)
 const isLoginRoute = computed(() => route.name === 'login')
+// 划词、OCR、钉图都是独立 BrowserWindow，不能套主窗口 AppBar/侧边栏。
 const isHighlightedTextPopupRoute = computed(
-  () => route.name === 'card-popup' || route.name === 'selection-translate'
+  () =>
+    route.name === 'card-popup' ||
+    route.name === 'selection-translate' ||
+    route.name === 'ocr-result' ||
+    route.name === 'pin-by-pic'
 )
 const processingStartDeeplinkToken = ref<number | null>(null)
 const processedStartDeeplinkToken = ref<number | null>(null)

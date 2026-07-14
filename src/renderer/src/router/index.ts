@@ -35,6 +35,23 @@ const router = createRouter({
         requiresAuth: false
       }
     },
+    // 截图迁移弹窗路由：由独立 BrowserWindow 打开，App.vue 会跳过主应用壳。
+    {
+      path: '/ocr-result',
+      name: 'ocr-result',
+      component: () => import('@/components/ocrResult.vue'),
+      meta: {
+        requiresAuth: false
+      }
+    },
+    {
+      path: '/pin-by-pic',
+      name: 'pin-by-pic',
+      component: () => import('@/components/pinByPic.vue'),
+      meta: {
+        requiresAuth: false
+      }
+    },
     // {
     //   path: '/',
     //   redirect: '/chat'

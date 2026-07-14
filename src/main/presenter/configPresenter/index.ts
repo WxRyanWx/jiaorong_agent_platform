@@ -3275,11 +3275,15 @@ export class ConfigPresenter implements IConfigPresenter {
 
   // 获取快捷键
   getShortcutKey(): ShortcutKeySetting {
-    return (
-      this.getSetting<ShortcutKeySetting>('shortcutKey') || {
-        ...defaultShortcutKey
-      }
-    )
+    const persistedShortcutKey = this.getSetting<Partial<ShortcutKeySetting>>('shortcutKey') || {}
+    return {
+      ...defaultShortcutKey,
+      ...persistedShortcutKey,
+      Screenshot:
+        persistedShortcutKey.Screenshot === 'CommandOrControl+Shift+A'
+          ? defaultShortcutKey.Screenshot
+          : persistedShortcutKey.Screenshot || defaultShortcutKey.Screenshot
+    }
   }
 
   // 设置快捷键

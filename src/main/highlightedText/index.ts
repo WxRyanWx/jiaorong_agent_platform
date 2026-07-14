@@ -1,4 +1,4 @@
-import { app, BrowserWindow, clipboard, dialog, ipcMain, screen } from 'electron'
+import { app, BrowserWindow, clipboard, dialog, ipcMain, screen, systemPreferences } from 'electron'
 import { is } from '@electron-toolkit/utils'
 import { join } from 'path'
 import { platform } from 'os'
@@ -47,6 +47,7 @@ let lastCardPopupPosition = { x: 0, y: 0, height: CARD_POPUP_HEIGHT }
 let tokenIpcRegistered = false
 let quitCleanupRegistered = false
 let uiohookDestroyed = false
+let accessibilityPermissionPromptScheduled = false
 
 const filteredApps = new Set([
   'wps.exe',
@@ -141,16 +142,14 @@ async function shouldShowForActiveApp(): Promise<boolean> {
 }
 
 // macOS 下全局鼠标键盘监听依赖辅助功能权限，初始化前先提醒用户授权。
-async function macAccessibilityPermissionCheck(mainWindow: BrowserWindow | null): Promise<boolean> {
-  if (process.platform !== 'darwin') return true
-  try {
-    const macPermissions = require('node-mac-permissions') as {
-      getAuthStatus: (name: string) => string
-      askForAccessibilityAccess: () => void
-    }
-    const permissionStatus = macPermissions.getAuthStatus('accessibility')
-    if (permissionStatus === 'authorized') return true
+function scheduleMacAccessibilityPermissionPrompt(
+  mainWindow: BrowserWindow | null,
+  permissionStatus: string
+): void {
+  if (accessibilityPermissionPromptScheduled) return
+  accessibilityPermissionPromptScheduled = true
 
+  setTimeout(() => {
     const options: Electron.MessageBoxOptions = {
       type: 'warning',
       title: '需要辅助功能权限',
@@ -159,10 +158,33 @@ async function macAccessibilityPermissionCheck(mainWindow: BrowserWindow | null)
       defaultId: 0,
       cancelId: 1
     }
-    const { response } = mainWindow
-      ? await dialog.showMessageBox(mainWindow, options)
-      : await dialog.showMessageBox(options)
-    if (response === 0) macPermissions.askForAccessibilityAccess()
+
+    const owner = mainWindow && !mainWindow.isDestroyed() ? mainWindow : null
+    const dialogPromise = owner
+      ? dialog.showMessageBox(owner, options)
+      : dialog.showMessageBox(options)
+    dialogPromise
+      .then(({ response }) => {
+        if (response === 0) {
+          systemPreferences.isTrustedAccessibilityClient(true)
+        }
+      })
+      .catch((error) => {
+        console.warn('[highlightedText] macOS accessibility permission prompt failed:', error)
+      })
+  }, 1200)
+
+  console.warn(
+    `[highlightedText] macOS accessibility permission is ${permissionStatus}; scheduled permission prompt and skip highlighted text initialization`
+  )
+}
+
+async function macAccessibilityPermissionCheck(mainWindow: BrowserWindow | null): Promise<boolean> {
+  if (process.platform !== 'darwin') return true
+  try {
+    if (systemPreferences.isTrustedAccessibilityClient(false)) return true
+
+    scheduleMacAccessibilityPermissionPrompt(mainWindow, 'denied')
     return false
   } catch (error) {
     console.warn('[highlightedText] macOS accessibility permission check failed:', error)

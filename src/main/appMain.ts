@@ -16,6 +16,7 @@ import {
 import { isInsecureTlsAllowed } from './lib/insecureTls'
 import { activateAppOnMac, ensureRegularAppOnMac } from './lib/activateApp'
 import { initHighlightedTextFeature } from './highlightedText'
+import { initScreenShotFeature } from './screenShot'
 
 let appStarted = false
 const APP_NAME = 'JiaorongAI'
@@ -185,6 +186,23 @@ export function startApp(): void {
       void initHighlightedTextFeature(presenter.windowPresenter.mainWindow).catch((error) => {
         console.warn('main: highlighted text feature initialization failed:', error)
       })
+      initScreenShotFeature(
+        async () => {
+          const mainWindow = presenter?.windowPresenter?.mainWindow
+          if (!mainWindow || mainWindow.isDestroyed()) return null
+          try {
+            const token = await mainWindow.webContents.executeJavaScript(
+              `localStorage.getItem('xkaitoken')`,
+              true
+            )
+            return typeof token === 'string' && token ? token : null
+          } catch (error) {
+            console.warn('main: screenshot token read failed:', error)
+            return null
+          }
+        },
+        () => presenter?.configPresenter.getShortcutKey().Screenshot
+      )
       logger.info('main: Application lifecycle startup completed successfully')
     } catch (error) {
       console.error('main: Application lifecycle startup failed:', error)

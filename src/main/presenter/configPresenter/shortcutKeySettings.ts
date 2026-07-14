@@ -1,6 +1,7 @@
 export const CommandKey = 'CommandOrControl'
 
 const ShiftKey = 'Shift'
+const AltKey = 'Alt'
 
 // Register tab number shortcut keys (1-8) -> Fixed CommandKey+1 ~ CommandKey+8 to switch tabs
 // Below are regular shortcut key definitions
@@ -22,6 +23,8 @@ export const rendererShortcutKey = {
 // System-level shortcut keys
 export const systemShortcutKey = {
   ShowHideWindow: `${CommandKey}+O`,
+  // Electron accelerator 用 Alt 表示 macOS Option，对应 CommandOrControl+Option+A。
+  Screenshot: `${CommandKey}+${AltKey}+A`,
   Quit: `${CommandKey}+Q`
 }
 
