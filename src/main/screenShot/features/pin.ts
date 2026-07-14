@@ -2,15 +2,10 @@ import { BrowserWindow, nativeImage, screen } from 'electron'
 import { getPayloadBytes, imageBase64FromPayload } from '../capture/imageUtils'
 import type { PinByPicImagePayload, ScreenshotPayload, ScreenshotRect } from '../contracts/types'
 import { writeScreenshotLog } from '../logging/runtimeLogger'
+import { getScreenshotFeatureHtmlPath } from './windowUtils'
 
 export const pinByPicPayloads = new Map<number, PinByPicImagePayload>()
 const pinByPicWindows = new Set<BrowserWindow>()
-
-/** 生成只包含可信 PNG data URL 的轻量钉图页面，避免加载完整 Vue renderer。 */
-const createPinImageDocument = (imageBase64: string): string => {
-  const imageUrl = `data:image/png;base64,${imageBase64}`
-  return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'"><style>html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#1a1a1a}body{display:flex;align-items:center;justify-content:center}img{display:block;width:100%;height:100%;object-fit:contain;object-position:center;user-select:none;-webkit-user-drag:none}</style></head><body><img src="${imageUrl}" alt=""></body></html>`
-}
 
 /** 判断两个坐标值在像素误差范围内是否相等。 */
 const rectApproxEquals = (a: number, b: number): boolean => Math.abs(a - b) <= 2
@@ -229,16 +224,21 @@ const createPinByPicWindow = (payload: ScreenshotPayload): void => {
   pinByPicPayloads.set(win.webContents.id, { imageBase64 })
   win.webContents.once('did-finish-load', () => {
     if (win.isDestroyed()) return
-    writeScreenshotLog('log', 'pin-window', 'lightweight pin document loaded', {
-      duration: `${Date.now() - startedAt}ms`,
-      webContentsId: win.webContents.id
-    })
-    showPinByPicOnTop(win)
+    void win.webContents
+      .executeJavaScript(`window.applyPinImage(${JSON.stringify(imageBase64)})`, true)
+      .then(() => {
+        if (win.isDestroyed()) return
+        writeScreenshotLog('log', 'pin-window', 'lightweight pin document loaded', {
+          duration: `${Date.now() - startedAt}ms`,
+          webContentsId: win.webContents.id
+        })
+        showPinByPicOnTop(win)
+      })
+      .catch((error) => {
+        writeScreenshotLog('error', 'pin-window', 'apply pin image failed', error)
+      })
   })
-  const documentUrl = `data:text/html;charset=utf-8,${encodeURIComponent(
-    createPinImageDocument(imageBase64)
-  )}`
-  win.loadURL(documentUrl).catch((error) => {
+  win.loadFile(getScreenshotFeatureHtmlPath('pin.html')).catch((error) => {
     writeScreenshotLog('error', 'pin-window', 'load lightweight pin document failed', error)
   })
   win.on('closed', () => {

@@ -1,4 +1,4 @@
-import { BrowserWindow } from 'electron'
+import { app, BrowserWindow } from 'electron'
 import { is } from '@electron-toolkit/utils'
 import { join } from 'node:path'
 import { writeScreenshotLog } from '../logging/runtimeLogger'
@@ -8,6 +8,12 @@ import { writeScreenshotLog } from '../logging/runtimeLogger'
  * 主进程源码会统一打包到 out/main，因此这里按构建产物目录计算，而不是按源码层级计算。
  */
 export const getFeaturePreloadPath = (): string => join(__dirname, '../preload/index.mjs')
+
+/** 获取随截图资源一起打包的轻量功能页面路径。 */
+export const getScreenshotFeatureHtmlPath = (filename: string): string =>
+  is.dev
+    ? join(app.getAppPath(), 'resources/screen-shot', filename)
+    : join(process.resourcesPath, 'app.asar.unpacked/resources/screen-shot', filename)
 
 /** 在指定窗口中加载主 Renderer 的 hash 路由。 */
 export const loadFeatureRoute = (win: BrowserWindow, hash: string): void => {
