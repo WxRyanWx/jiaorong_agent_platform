@@ -1,5 +1,5 @@
 import { nativeImage } from 'electron'
-import type { SessionCaptureCachePayload, SessionCaptureTile } from './sessionCaptureCache'
+import type { SessionCaptureCachePayload, SessionCaptureTile } from './captureCache'
 
 export type ExportSelectionBaseRequest = {
   imgX: number

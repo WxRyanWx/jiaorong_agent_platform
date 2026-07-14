@@ -16,7 +16,7 @@ import {
   SCREENSHOT_IPC,
   type ScreenshotDebugLogPayload,
   type ScreenshotStartupMarkPayload
-} from '../main/screenShot/screenshot-ipc'
+} from '../main/screenShot/contracts/ipc'
 
 const isDevHiddenApiEnabled =
   process.env.NODE_ENV === 'development' || Boolean(process.env.ELECTRON_RENDERER_URL)
