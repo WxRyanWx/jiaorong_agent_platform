@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { getPayloadBytes, imageBase64FromPayload } from '../capture/imageUtils'
 import type { OcrResultWindowPayload, ScreenshotPayload } from '../contracts/types'
 import { writeScreenshotLog } from '../logging/runtimeLogger'
-import { getFeaturePreloadPath, loadFeatureRoute } from './windowUtils'
+import { getFeaturePreloadPath, showAlwaysOnTop } from './windowUtils'
 
 const require = createRequire(import.meta.url)
 const { createWorker } = require('tesseract.js') as {
@@ -26,6 +26,12 @@ const getTessdataPath = (): string =>
   is.dev
     ? join(app.getAppPath(), 'resources')
     : join(process.resourcesPath, 'app.asar.unpacked/resources')
+
+/** 生成独立 OCR 结果页，避免为简单结果窗口加载完整主应用 renderer。 */
+const createOcrResultDocument = (imageBase64: string): string => {
+  const imageUrl = `data:image/png;base64,${imageBase64}`
+  return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'"><style>*{box-sizing:border-box}html,body{width:100%;height:100%;margin:0;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;color:#1f2329}.panel{width:100%;height:100%;display:flex;flex-direction:column;background:#fff}.header{-webkit-app-region:drag;height:48px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;border-bottom:1px solid #e5e6eb}.title{font-size:16px;font-weight:600}.close{-webkit-app-region:no-drag;width:28px;height:28px;border:0;border-radius:6px;background:transparent;color:#646a73;font-size:20px;cursor:pointer}.close:hover{background:#f2f3f5}.body{display:flex;flex:1;min-height:0}.image-column{width:393px;padding:16px}.image-box{width:100%;height:100%;border:0;padding:0;background:#f7f8fa;cursor:pointer;overflow:hidden}.image-box img{display:block;width:100%;height:100%;object-fit:contain}.text-column{flex:1;border-left:1px solid #ddd;padding:16px;min-width:0}.preview{height:100%;display:flex;flex-direction:column}.label{font-size:14px;font-weight:600;margin-bottom:12px}.status{color:#86909c;font-size:14px}.text{flex:1;margin:0;white-space:pre-wrap;word-break:break-word;overflow:auto;font:14px/1.6 inherit}.footer{height:64px;display:flex;align-items:center;justify-content:flex-end;padding:0 16px;border-top:1px solid #e5e6eb}.copy{height:32px;padding:0 16px;border:0;border-radius:6px;background:#165dff;color:#fff;cursor:pointer}.copy:disabled{background:#c9cdd4;cursor:not-allowed}.lightbox{display:none;position:fixed;inset:0;z-index:2;background:rgba(0,0,0,.8);align-items:center;justify-content:center}.lightbox.open{display:flex}.lightbox img{max-width:94vw;max-height:92vh;object-fit:contain}.lightbox-close{position:absolute;right:18px;top:14px;border:0;background:transparent;color:#fff;font-size:30px;cursor:pointer}</style></head><body><div class="panel"><div class="header"><div class="title">文字识别</div><button id="close" class="close" aria-label="关闭">×</button></div><div class="body"><div class="image-column"><button id="imageBox" class="image-box" aria-label="点击预览大图"><img id="image" src="${imageUrl}" alt="原始截图"></button></div><div class="text-column"><div class="preview"><div class="label">识别预览</div><div id="status" class="status">识别中...</div><pre id="text" class="text"></pre></div></div></div><div class="footer"><button id="copy" class="copy" disabled>复制全文</button></div></div><div id="lightbox" class="lightbox"><button id="lightboxClose" class="lightbox-close" aria-label="关闭预览">×</button><img src="${imageUrl}" alt="截图大图预览"></div><script>(()=>{const byId=(id)=>document.getElementById(id);const status=byId('status');const text=byId('text');const copy=byId('copy');const lightbox=byId('lightbox');let currentText='';const apply=(payload)=>{const data=payload||{};currentText=String(data.text||'').trim();text.textContent=currentText;const loading=Boolean(data.loading);const empty=Boolean(data.empty);status.hidden=!loading&&!empty;status.textContent=loading?'识别中...':empty?String(data.message||'未识别到文字，当前仅支持中文或英文内容。'):'';copy.disabled=loading||empty||!currentText};window.api?.onMessage?.('ocr-result-data',apply);window.api?.getOcrResultData?.().then(apply).catch(()=>{});byId('close').onclick=()=>window.close();byId('imageBox').onclick=()=>lightbox.classList.add('open');byId('lightboxClose').onclick=()=>lightbox.classList.remove('open');lightbox.onclick=(event)=>{if(event.target===lightbox)lightbox.classList.remove('open')};copy.onclick=async()=>{if(!currentText)return;try{await window.api?.copyTextByMain?.(currentText);copy.textContent='已复制';setTimeout(()=>copy.textContent='复制全文',1200)}catch{}};addEventListener('keydown',(event)=>{if(event.key!=='Escape')return;if(lightbox.classList.contains('open'))lightbox.classList.remove('open');else window.close()})})()</script></body></html>`
+}
 
 /** 延迟创建并复用 OCR worker，避免每次识别都重新加载语言模型。 */
 const getOcrWorker = (): Promise<OcrWorker> => {
@@ -75,6 +81,7 @@ app.once('will-quit', () => {
 
 /** 创建位于当前屏幕中央的 OCR 结果窗口。 */
 const createOcrResultWindow = (imageBase64: string): BrowserWindow => {
+  const startedAt = Date.now()
   const point = screen.getCursorScreenPoint()
   const display = screen.getDisplayNearestPoint(point)
   const width = OCR_RESULT_WINDOW_WIDTH
@@ -104,7 +111,6 @@ const createOcrResultWindow = (imageBase64: string): BrowserWindow => {
       devTools: is.dev
     }
   })
-  loadFeatureRoute(win, '/ocr-result')
   ocrResultWindows.add(win)
   ocrResultPayloads.set(win.webContents.id, {
     imageBase64,
@@ -116,6 +122,20 @@ const createOcrResultWindow = (imageBase64: string): BrowserWindow => {
   win.on('closed', () => {
     ocrResultWindows.delete(win)
     ocrResultPayloads.delete(win.webContents.id)
+  })
+  win.webContents.once('did-finish-load', () => {
+    if (win.isDestroyed()) return
+    writeScreenshotLog('log', 'ocr-window', 'lightweight OCR document loaded', {
+      duration: `${Date.now() - startedAt}ms`,
+      webContentsId: win.webContents.id
+    })
+    showAlwaysOnTop(win)
+  })
+  const documentUrl = `data:text/html;charset=utf-8,${encodeURIComponent(
+    createOcrResultDocument(imageBase64)
+  )}`
+  win.loadURL(documentUrl).catch((error) => {
+    writeScreenshotLog('error', 'ocr-window', 'load lightweight OCR document failed', error)
   })
   writeScreenshotLog('log', 'ocr-window', 'created renderer OCR result window', {
     imageBase64Length: imageBase64.length,

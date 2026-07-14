@@ -7,6 +7,8 @@ As a Windows user, I want pin and OCR actions to respond promptly after selectin
 ## Acceptance criteria
 
 - Pin images no longer load the full application renderer bundle.
+- The OCR result window no longer loads the full application renderer bundle.
+- The OCR loading state becomes visible as soon as its lightweight document is ready.
 - A pin window remains hidden until its image document is ready, then appears in the selected location.
 - OCR reuses the initialized Chinese/English Tesseract worker across sequential requests.
 - OCR initialization begins in the background when a screenshot session opens.
