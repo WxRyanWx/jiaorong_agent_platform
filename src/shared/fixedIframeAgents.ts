@@ -61,7 +61,7 @@ export const FIXED_IFRAME_AGENTS: FixedIframeAgentDefinition[] = [
         nameKey: 'welcome.fixedAgents.intelligenceCenterNav.agentSquare',
         iconDefaultSymbolId: 'icon-zhinengtiguangchang-moren',
         iconSelectedSymbolId: 'icon-a-Group409',
-        iframeUrl: 'https://c4ai.ccccltd.cn/xkpro/agent/m_smart_agent?source=jiaorongchat'
+        iframeUrl: 'https://c4ai.ccccltd.cn/agent/m_smart_agent?source=jiaorongchat'
       },
       {
         id: 'knowledge-base',
