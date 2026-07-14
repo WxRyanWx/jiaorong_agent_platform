@@ -9,20 +9,69 @@ import { getFeaturePreloadPath, loadFeatureRoute } from './windowUtils'
 
 const require = createRequire(import.meta.url)
 const { createWorker } = require('tesseract.js') as {
-  createWorker: (...args: unknown[]) => Promise<{
-    recognize: (image: Buffer | Uint8Array | string) => Promise<{ data?: { text?: string } }>
-    terminate: () => Promise<void>
-  }>
+  createWorker: (...args: unknown[]) => Promise<OcrWorker>
+}
+type OcrWorker = {
+  recognize: (image: Buffer | Uint8Array | string) => Promise<{ data?: { text?: string } }>
+  terminate: () => Promise<void>
 }
 export const ocrResultPayloads = new Map<number, OcrResultWindowPayload>()
 const ocrResultWindows = new Set<BrowserWindow>()
 const OCR_RESULT_WINDOW_WIDTH = 665
 const OCR_RESULT_WINDOW_HEIGHT = 520
 const OCR_EMPTY_MESSAGE = '未识别到文字，当前仅支持中文或英文内容。'
+let ocrWorkerPromise: Promise<OcrWorker> | null = null
+let ocrQueue: Promise<void> = Promise.resolve()
 const getTessdataPath = (): string =>
   is.dev
     ? join(app.getAppPath(), 'resources')
     : join(process.resourcesPath, 'app.asar.unpacked/resources')
+
+/** 延迟创建并复用 OCR worker，避免每次识别都重新加载语言模型。 */
+const getOcrWorker = (): Promise<OcrWorker> => {
+  if (!ocrWorkerPromise) {
+    const startedAt = Date.now()
+    ocrWorkerPromise = createWorker('chi_sim+eng', undefined, {
+      langPath: getTessdataPath(),
+      gzip: false
+    })
+      .then((worker) => {
+        writeScreenshotLog('log', 'ocr', 'OCR worker ready', {
+          duration: `${Date.now() - startedAt}ms`
+        })
+        return worker
+      })
+      .catch((error) => {
+        ocrWorkerPromise = null
+        throw error
+      })
+  }
+  return ocrWorkerPromise
+}
+
+/** 在用户选择截图区域期间后台加载 OCR 模型，缩短首次识别等待。 */
+export const warmOcrWorker = (): void => {
+  void getOcrWorker().catch((error) => {
+    writeScreenshotLog('warn', 'ocr', 'OCR worker warm-up failed', error)
+  })
+}
+
+/** 丢弃异常 worker，让下一次 OCR 可以重新初始化恢复。 */
+const resetOcrWorker = async (): Promise<void> => {
+  const workerPromise = ocrWorkerPromise
+  ocrWorkerPromise = null
+  if (!workerPromise) return
+  try {
+    const worker = await workerPromise
+    await worker.terminate()
+  } catch {
+    // 初始化或终止失败时已无可复用实例。
+  }
+}
+
+app.once('will-quit', () => {
+  void resetOcrWorker()
+})
 
 /** 创建位于当前屏幕中央的 OCR 结果窗口。 */
 const createOcrResultWindow = (imageBase64: string): BrowserWindow => {
@@ -106,23 +155,34 @@ const sendOcrResultWindowData = (
   sendPayload()
 }
 
-/** 使用中英文 Tesseract 模型识别图片文字并确保释放 worker。 */
+/** 使用复用的中英文 Tesseract worker 识别图片，并串行处理并发请求。 */
 const ocrImage = async (
   bytes: Uint8Array
 ): Promise<{ text: string; empty: boolean; message: string }> => {
-  const worker = await createWorker('chi_sim+eng', undefined, {
-    langPath: getTessdataPath(),
-    gzip: false
-  })
-  try {
-    const { data } = await worker.recognize(Buffer.from(bytes))
-    const text = String(data?.text || '').trim()
-    return text
-      ? { text, empty: false, message: '' }
-      : { text: '', empty: true, message: OCR_EMPTY_MESSAGE }
-  } finally {
-    await worker.terminate()
+  const recognize = async (): Promise<{ text: string; empty: boolean; message: string }> => {
+    const worker = await getOcrWorker()
+    const startedAt = Date.now()
+    try {
+      const { data } = await worker.recognize(Buffer.from(bytes))
+      const text = String(data?.text || '').trim()
+      writeScreenshotLog('log', 'ocr', 'OCR recognition finished', {
+        duration: `${Date.now() - startedAt}ms`,
+        textLength: text.length
+      })
+      return text
+        ? { text, empty: false, message: '' }
+        : { text: '', empty: true, message: OCR_EMPTY_MESSAGE }
+    } catch (error) {
+      await resetOcrWorker()
+      throw error
+    }
   }
+  const result = ocrQueue.then(recognize)
+  ocrQueue = result.then(
+    () => undefined,
+    () => undefined
+  )
+  return result
 }
 
 /** 执行 OCR 识别并更新结果窗口。 */

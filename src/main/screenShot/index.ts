@@ -31,7 +31,7 @@ import {
   sortDisplaysByPosition
 } from './capture/displayMetrics'
 import { registerIpcHandlers } from './ipc/registerScreenshotIpc'
-import { runPostScreenshotAction } from './features'
+import { runPostScreenshotAction, warmOcrWorker } from './features'
 import {
   formatTimestamp,
   getScreenshotInitLogPath,
@@ -206,6 +206,7 @@ export const revealScreenshotWindow = (): void => {
 /** 创建或复用截图窗口，并启动一次新的截图会话。 */
 export const openScreenShotWindow = (source: ScreenshotStartupSource = 'ipc'): void => {
   startScreenshotLogSession(source)
+  warmOcrWorker()
   writeScreenshotLog('log', 'trigger', 'openScreenShotWindow called', {
     source,
     hasWindow: !!screenshotWindow && !screenshotWindow.isDestroyed(),

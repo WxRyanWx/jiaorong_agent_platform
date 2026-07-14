@@ -1,5 +1,6 @@
 import type { ScreenshotAction, ScreenshotPayload } from '../contracts/types'
 import { runOcrAction } from './ocr'
+export { warmOcrWorker } from './ocr'
 import { runPinAction } from './pin'
 
 /** 将截图动作分发到独立的 OCR 或钉图功能模块。 */
