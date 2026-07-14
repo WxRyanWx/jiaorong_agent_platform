@@ -36,12 +36,16 @@ asarUnpack:
   - '**/node_modules/@ff-labs/fff-bin-*/**/*'
   - '**/node_modules/uiohook-napi/**/*.node'
   - '**/node_modules/uiohook-napi/prebuilds/**'
+  - '**/node_modules/electron-clipboard-ex/**/*'
   - '**/node_modules/node-screenshots/**/*'
   - '**/node_modules/opendal/**/*'
   - '**/node_modules/@opendal/**/*'
   - '**/node_modules/ffi-rs/**/*'
   - '**/node_modules/@yuuang/ffi-rs-*/**/*'
 extraResources:
+  - from: ./bin/
+    to: bin
+    filter: ['**/*']
   - from: ./runtime/
     to: app.asar.unpacked/runtime
     filter: ['**/*']

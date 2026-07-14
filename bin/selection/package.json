@@ -1,0 +1,13 @@
+{
+  "name": "selection-local",
+  "version": "0.0.0",
+  "private": true,
+  "main": "index.js",
+  "files": [
+    "selection.win32.node",
+    "selection.node",
+    "manifest.json",
+    "index.js",
+    "package.json"
+  ]
+}

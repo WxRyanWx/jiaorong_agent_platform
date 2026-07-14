@@ -1,0 +1,13 @@
+{
+  "generatedAt": "2026-04-27T08:38:23.259Z",
+  "sourceDir": "lib\\selection",
+  "outputDir": "bin\\selection",
+  "platform": "win32",
+  "arch": "x64",
+  "builtLibrary": "lib\\selection\\target\\release\\selection_native.dll",
+  "files": [
+    "index.js",
+    "package.json",
+    "selection.win32.node"
+  ]
+}

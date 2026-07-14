@@ -1,29 +1,22 @@
-import { app, BrowserWindow, clipboard, dialog, ipcMain, screen, systemPreferences } from 'electron'
+import { app, BrowserWindow, clipboard, ipcMain, screen } from 'electron'
 import { is } from '@electron-toolkit/utils'
 import { join } from 'path'
-import { platform } from 'os'
-import { createRequire } from 'module'
 import { presenter } from '@/presenter'
+import type { UiohookApi } from './contracts/types'
+import { checkAccessibilityPermission } from './input/accessibility'
+import { registerSelectionListeners } from './input/registerSelectionListeners'
+import { loadUiohookRuntime } from './input/uiohookRuntime'
+import { toDipPoint } from './windows/windowUtils'
 
-const require = createRequire(import.meta.url)
 const CARD_POPUP_SESSION_PARTITION = 'card-popup-fixed'
-const CTRL_KEYCODE = platform() === 'darwin' ? 3675 : 29
 const CARD_POPUP_WIDTH = 242
 const CARD_POPUP_HEIGHT = 32
 const TRANSLATE_POPUP_WIDTH = 320
 const TRANSLATE_POPUP_HEIGHT = 360
 const CHAT_PC_TRANSLATE_BASE_URL = 'https://c4ai.ccccltd.cn'
-const CHAT_PC_TRANSLATE_APP_TOKEN = 'app-1r0huW0p1XuzPhTX7uC8xTTJ'
-
-type UiohookApi = {
-  start: () => void
-  stop?: () => void
-  removeAllListeners?: () => void
-  on: (event: string, listener: (payload: any) => void) => void
-  keyTap: (key: number, modifiers?: number[]) => void
-}
-
-type SelectionRect = { x: number; y: number; width: number; height: number }
+const TRANSLATE_AGENT_ID = 'ctzvuyfju16txq4iie9e'
+const TRANSLATE_PRODUCT_ID = 'f5831af6faf190db5f9818a1ab71d68c'
+// const CHAT_PC_TRANSLATE_APP_TOKEN = 'app-1r0huW0p1XuzPhTX7uC8xTTJ'
 
 // uiohook 是运行时加载的原生模块，避免在不可用环境下直接 import 导致启动失败。
 let uIOhook: UiohookApi | null = null
@@ -39,49 +32,13 @@ let pendingTranslateText: string | null = null
 let currentCardPopupText = ''
 let currentTranslatePopupText = ''
 // 模拟复制期间需要避开用户真实按键，避免误判或覆盖用户剪贴板。
-let ctrlDownLock = false
-let copyFlag = false
 let dragStartCursorPos: { x: number; y: number } | null = null
 let dragStartWindowPos: { x: number; y: number } | null = null
 let lastCardPopupPosition = { x: 0, y: 0, height: CARD_POPUP_HEIGHT }
 let tokenIpcRegistered = false
 let quitCleanupRegistered = false
 let uiohookDestroyed = false
-let accessibilityPermissionPromptScheduled = false
-
-const filteredApps = new Set([
-  'wps.exe',
-  'et.exe',
-  'wpspdf.exe',
-  'wpp.exe',
-  'explorer',
-  '文件资源管理器',
-  'finder',
-  '访达',
-  'wps office',
-  'wpsoffice',
-  'notepad++.exe'
-])
-
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
-const hasValidContent = (text: string) => /\S/.test(text)
-
-// 延迟加载 uiohook，兼容本地依赖未安装或原生模块加载失败的场景。
-function loadUiohook(): boolean {
-  if (uIOhook && UiohookKey) return true
-  try {
-    const mod = require('uiohook-napi') as {
-      uIOhook: UiohookApi
-      UiohookKey: Record<string, number>
-    }
-    uIOhook = mod.uIOhook
-    UiohookKey = mod.UiohookKey
-    return true
-  } catch (error) {
-    console.warn('[highlightedText] uiohook-napi not available, selection popup disabled:', error)
-    return false
-  }
-}
+let highlightInputSuspendDepth = 0
 
 // 应用退出或辅助功能权限变化时强制释放 uiohook，降低系统卡死风险。
 export function destroyHighlightedTextFeature(): void {
@@ -115,138 +72,27 @@ function registerQuitCleanup(): void {
   app.on('will-quit', destroyHighlightedTextFeature)
 }
 
-// macOS 用系统脚本读取前台应用名称，用于过滤不适合展示划词条的窗口。
-async function getActiveAppName(): Promise<string | null> {
+/** Windows 系统模态对话框打开期间暂停划词监听。 */
+export const setHighlightInputSuspended = (suspended: boolean): void => {
+  if (process.platform !== 'win32') return
+  highlightInputSuspendDepth = suspended
+    ? highlightInputSuspendDepth + 1
+    : Math.max(0, highlightInputSuspendDepth - 1)
+}
+
+/** 在 Windows 系统模态操作期间临时暂停划词，支持嵌套调用。 */
+export const withHighlightInputSuspended = async <T>(fn: () => Promise<T>): Promise<T> => {
+  if (process.platform !== 'win32') return fn()
+  setHighlightInputSuspended(true)
   try {
-    if (process.platform === 'darwin') {
-      const script =
-        'tell application "System Events" to get name of first application process whose frontmost is true'
-      const { execFile } = await import('child_process')
-      return await new Promise((resolve) => {
-        execFile('osascript', ['-e', script], (_err, stdout) =>
-          resolve(stdout.trim().toLowerCase() || null)
-        )
-      })
-    }
-  } catch {
-    return null
-  }
-  return null
-}
-
-// 部分系统窗口或文件管理器里展示划词条容易干扰原生操作，这里统一过滤。
-async function shouldShowForActiveApp(): Promise<boolean> {
-  const appName = await getActiveAppName()
-  if (!appName) return true
-  return !filteredApps.has(appName)
-}
-
-// macOS 下全局鼠标键盘监听依赖辅助功能权限，初始化前先提醒用户授权。
-function scheduleMacAccessibilityPermissionPrompt(
-  mainWindow: BrowserWindow | null,
-  permissionStatus: string
-): void {
-  if (accessibilityPermissionPromptScheduled) return
-  accessibilityPermissionPromptScheduled = true
-
-  setTimeout(() => {
-    const options: Electron.MessageBoxOptions = {
-      type: 'warning',
-      title: '需要辅助功能权限',
-      message: '本应用需要开启「系统设置-隐私与安全性-辅助功能」权限，才能正常使用划词功能',
-      buttons: ['立即去设置', '取消'],
-      defaultId: 0,
-      cancelId: 1
-    }
-
-    const owner = mainWindow && !mainWindow.isDestroyed() ? mainWindow : null
-    const dialogPromise = owner
-      ? dialog.showMessageBox(owner, options)
-      : dialog.showMessageBox(options)
-    dialogPromise
-      .then(({ response }) => {
-        if (response === 0) {
-          systemPreferences.isTrustedAccessibilityClient(true)
-        }
-      })
-      .catch((error) => {
-        console.warn('[highlightedText] macOS accessibility permission prompt failed:', error)
-      })
-  }, 1200)
-
-  console.warn(
-    `[highlightedText] macOS accessibility permission is ${permissionStatus}; scheduled permission prompt and skip highlighted text initialization`
-  )
-}
-
-async function macAccessibilityPermissionCheck(mainWindow: BrowserWindow | null): Promise<boolean> {
-  if (process.platform !== 'darwin') return true
-  try {
-    if (systemPreferences.isTrustedAccessibilityClient(false)) return true
-
-    scheduleMacAccessibilityPermissionPrompt(mainWindow, 'denied')
-    return false
-  } catch (error) {
-    console.warn('[highlightedText] macOS accessibility permission check failed:', error)
-    return true
-  }
-}
-
-// uiohook 返回的是屏幕物理坐标，Electron 窗口使用 DIP 坐标，需要按屏幕缩放转换。
-function toDipPoint(point: { x: number; y: number }): { x: number; y: number } {
-  const display = screen.getDisplayNearestPoint(point)
-  const scaleFactor = display.scaleFactor || 1
-  return {
-    x: Math.round(display.bounds.x + (point.x - display.bounds.x) / scaleFactor),
-    y: Math.round(display.bounds.y + (point.y - display.bounds.y) / scaleFactor)
-  }
-}
-
-// 通过模拟 Cmd/Ctrl+C 读取当前选中文本，并在完成后恢复用户原剪贴板内容。
-async function getSelected(): Promise<{ text: string }> {
-  if (!uIOhook || !UiohookKey) return { text: '' }
-  if (ctrlDownLock) return { text: '' }
-
-  const previousText = clipboard.readText('clipboard') || ''
-  const tempEmptyMarker = `__JIAORONG_EMPTY_${Date.now()}__`
-  let userCopyFlag = false
-  // 先写入临时标记，后续如果还读到标记，说明目标应用没有成功复制选区文本。
-  clipboard.writeText(tempEmptyMarker)
-
-  try {
-    if (ctrlDownLock) {
-      if (copyFlag) {
-        userCopyFlag = true
-        copyFlag = false
-      }
-      return { text: '' }
-    }
-
-    // uiohook 的 keyTap 用于不聚焦应用窗口的情况下触发当前前台应用复制选区。
-    uIOhook.keyTap(UiohookKey.C, [process.platform === 'win32' ? UiohookKey.Ctrl : UiohookKey.Meta])
-    await delay(120)
-
-    if (ctrlDownLock) {
-      if (copyFlag) {
-        userCopyFlag = true
-        copyFlag = false
-      }
-      return { text: '' }
-    }
-
-    let copiedText = clipboard.readText('clipboard') || ''
-    if (copiedText === tempEmptyMarker) {
-      // 某些应用更新剪贴板较慢，第一次没读到时补读一次。
-      await delay(120)
-      copiedText = clipboard.readText('clipboard') || ''
-    }
-    return { text: copiedText === tempEmptyMarker ? '' : copiedText }
+    return await fn()
   } finally {
-    if (!userCopyFlag) {
-      clipboard.writeText(previousText)
-    }
+    setHighlightInputSuspended(false)
   }
 }
+
+const isHighlightInputSuspended = (): boolean =>
+  process.platform === 'win32' && highlightInputSuspendDepth > 0
 
 // 开发环境走 Vite dev server，生产环境走打包后的 renderer 文件。
 function buildRendererUrl(hash: string): string {
@@ -278,8 +124,8 @@ function normalizeTranslateTargetLang(locale?: string): string {
   return locale
 }
 
-// 迁移 chat-pc 固定翻译应用调用，不走当前会话 agent。
-async function translateWithChatPcApp(text: string, locale?: string): Promise<string> {
+/* 旧版 Dify 翻译接口暂时停用，保留代码方便需要时快速回退。
+async function translateWithChatPcAppLegacy(text: string, locale?: string): Promise<string> {
   const query = text.trim()
   if (!query) return ''
 
@@ -321,6 +167,133 @@ async function translateWithChatPcApp(text: string, locale?: string): Promise<st
   }
   return answer.trim()
 }
+*/
+
+/** 从创建会话接口的兼容响应结构中读取会话 ID。 */
+function getCreatedSessionId(payload: any): string {
+  const data = payload?.data ?? payload
+  const sessionId =
+    data?.chatSessionId ?? data?.conversation_id ?? data?.conversationId ?? data?.sessionId
+  return typeof sessionId === 'string' ? sessionId : ''
+}
+
+/** 解析 streamChat 返回的 SSE 数据，并拼接模型的 cmpl 增量内容。 */
+async function readTranslationStream(response: Response): Promise<string> {
+  if (!response.body) throw new Error('翻译服务未返回数据流')
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+  let answer = ''
+
+  const consumeEvent = (rawEvent: string): void => {
+    const data = rawEvent
+      .split(/\r?\n/)
+      .filter((line) => line.startsWith('data:'))
+      .map((line) => line.slice(5).trimStart())
+      .join('\n')
+    if (!data || data === '[DONE]') return
+
+    let message: any
+    try {
+      message = JSON.parse(data)
+    } catch {
+      return
+    }
+    if (message?.event === 'cmpl' && message?.service !== 'recommend_question') {
+      answer += message?.choices?.[0]?.delta?.content || ''
+    } else if (message?.event === 'stop' && !answer) {
+      answer = message?.message || ''
+    } else if (message?.event === 'error') {
+      throw new Error(message?.message || message?.text || '翻译流返回错误')
+    }
+  }
+
+  while (true) {
+    const { done, value } = await reader.read()
+    buffer += decoder.decode(value, { stream: !done })
+    const events = buffer.split(/\r?\n\r?\n/)
+    buffer = events.pop() || ''
+    events.forEach(consumeEvent)
+    if (done) break
+  }
+  if (buffer.trim()) consumeEvent(buffer)
+  if (!answer.trim()) throw new Error('翻译服务未返回结果')
+  return answer.trim()
+}
+
+/** 创建翻译智能体会话，再通过 streamChat 获取完整译文。 */
+async function translateWithChatPcApp(text: string, locale?: string): Promise<string> {
+  const query = text.trim()
+  if (!query) return ''
+  const fusionAuth = await getMainWindowToken()
+  if (!fusionAuth) throw new Error('登录状态已失效，请重新登录')
+
+  const commonHeaders: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'Fusion-Auth': fusionAuth
+  }
+  const prompt = `请将以下内容翻译成 ${normalizeTranslateTargetLang(locale)}，只返回译文：\n${query}`
+  const createResponse = await fetch(
+    `${CHAT_PC_TRANSLATE_BASE_URL}/api/fusion-ai/chatSession/create`,
+    {
+      method: 'POST',
+      headers: {
+        ...commonHeaders,
+        Accept: 'application/json, text/plain, */*',
+        'Product-Id': TRANSLATE_PRODUCT_ID
+      },
+      body: JSON.stringify({
+        chatSessionName: query.slice(0, 25) || '翻译一段文字',
+        agentId: TRANSLATE_AGENT_ID
+      })
+    }
+  )
+  const createData = await createResponse.json().catch(() => null)
+  if (!createResponse.ok) {
+    throw new Error(
+      createData?.message || createData?.msg || `创建翻译会话失败 [${createResponse.status}]`
+    )
+  }
+  const conversationId = getCreatedSessionId(createData)
+  if (!conversationId) throw new Error('创建翻译会话后未返回会话 ID')
+
+  const streamResponse = await fetch(
+    `${CHAT_PC_TRANSLATE_BASE_URL}/api/fusion-ai/chat/streamChat`,
+    {
+      method: 'POST',
+      headers: { ...commonHeaders, Accept: 'application/json, text/event-stream' },
+      body: JSON.stringify({
+        conversation_id: conversationId,
+        messages: [{ content: prompt, role: 'user' }],
+        services: {
+          use_filechat: false,
+          use_recommend: false,
+          use_cot: false,
+          use_search: false,
+          use_stream: true
+        },
+        userInfo: {
+          status: 0,
+          career: null,
+          businessArea: null,
+          age: null,
+          flats: null,
+          sex: null,
+          position: null,
+          degree: null,
+          hobby: null,
+          description: null
+        },
+        agentId: TRANSLATE_AGENT_ID
+      })
+    }
+  )
+  if (!streamResponse.ok) {
+    const message = await streamResponse.text().catch(() => '')
+    throw new Error(message || `翻译请求失败 [${streamResponse.status}]`)
+  }
+  return readTranslationStream(streamResponse)
+}
 
 // CardPopup 单独使用固定 partition，需要同步主窗口 token 供弹窗内逻辑读取。
 async function syncCardPopupTokenFromMain(): Promise<void> {
@@ -351,20 +324,48 @@ function hideCardPopup(force = false): void {
 
 // 根据当前屏幕工作区限制 CardPopup 位置，防止弹窗出屏。
 function clampCardPopupPosition(x: number, y: number): { x: number; y: number } {
-  const display = screen.getDisplayNearestPoint({ x, y })
+  const dipPoint = toDipPoint({ x, y })
+  const display = screen.getDisplayNearestPoint(dipPoint)
   const { workArea } = display
+  const right = workArea.x + workArea.width
+  const bottom = workArea.y + workArea.height
+  const gapAbove = 20
+  const gapBelowWhenNoRoomAbove = 10
+  let popupX = dipPoint.x
+  let popupY = dipPoint.y - CARD_POPUP_HEIGHT - gapAbove
+  if (popupY < workArea.y) popupY = dipPoint.y + gapBelowWhenNoRoomAbove
   return {
-    x: Math.max(workArea.x, Math.min(x, workArea.x + workArea.width - CARD_POPUP_WIDTH)),
-    y: Math.max(
-      workArea.y,
-      Math.min(y - CARD_POPUP_HEIGHT - 8, workArea.y + workArea.height - CARD_POPUP_HEIGHT)
-    )
+    x: Math.round(Math.max(workArea.x, Math.min(popupX, right - CARD_POPUP_WIDTH))),
+    y: Math.round(Math.max(workArea.y, Math.min(popupY, bottom - CARD_POPUP_HEIGHT)))
   }
+}
+
+/** 固定划词工具条 zoom，避免与同源主窗口共享缩放状态。 */
+function lockCardPopupRender(): void {
+  if (!cardPopup || cardPopup.isDestroyed()) return
+  try {
+    cardPopup.webContents.setVisualZoomLevelLimits(1, 1)
+  } catch {
+    // ignore unsupported zoom limit errors
+  }
+  cardPopup.webContents.setZoomFactor(1)
+}
+
+/** 延迟重设尺寸，抵消窗口显示后由系统 DPI 引起的边界变化。 */
+function scheduleCardPopupBoundsSync(bounds: Electron.Rectangle): void {
+  const sync = (): void => {
+    if (!cardPopup || cardPopup.isDestroyed()) return
+    cardPopup.setBounds(bounds, false)
+    lockCardPopupRender()
+  }
+  setImmediate(sync)
+  setTimeout(sync, 50)
 }
 
 // CardPopup 页面加载完成后，如果之前已有待显示文本，就立即补一次显示。
 function onCardPopupContentReady(): void {
   cardPopupContentReady = true
+  lockCardPopupRender()
   void syncCardPopupTokenFromMain()
   const pending = pendingCardPopupShow
   if (pending) {
@@ -386,14 +387,22 @@ function createCardPopup(): BrowserWindow {
   cardPopupContentReady = false
   cardPopup = new BrowserWindow({
     type: process.platform === 'darwin' ? 'panel' : 'toolbar',
+    useContentSize: true,
     width: CARD_POPUP_WIDTH,
     height: CARD_POPUP_HEIGHT,
+    x: -1000,
+    y: -1000,
+    minWidth: CARD_POPUP_WIDTH,
+    maxWidth: CARD_POPUP_WIDTH,
+    minHeight: CARD_POPUP_HEIGHT,
+    maxHeight: CARD_POPUP_HEIGHT,
     frame: false,
-    transparent: false,
+    transparent: process.platform !== 'win32',
     resizable: false,
     movable: true,
     alwaysOnTop: true,
     skipTaskbar: true,
+    fullscreenable: false,
     show: false,
     focusable: true,
     webPreferences: {
@@ -401,7 +410,8 @@ function createCardPopup(): BrowserWindow {
       sandbox: false,
       devTools: is.dev,
       webviewTag: false,
-      partition: CARD_POPUP_SESSION_PARTITION
+      partition: CARD_POPUP_SESSION_PARTITION,
+      zoomFactor: 1
     }
   })
 
@@ -415,7 +425,7 @@ function createCardPopup(): BrowserWindow {
 
   if (process.platform === 'darwin') {
     cardPopup.setVisibleOnAllWorkspaces(true)
-    cardPopup.setAlwaysOnTop(true, 'floating')
+    cardPopup.setAlwaysOnTop(true, 'pop-up-menu')
   } else {
     cardPopup.setAlwaysOnTop(true)
     cardPopup.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
@@ -449,13 +459,23 @@ function showCardPopup(x: number, y: number, selectedText: string): void {
 
   const pos = clampCardPopupPosition(x, y)
   lastCardPopupPosition = { x: pos.x, y: pos.y, height: CARD_POPUP_HEIGHT }
-  popup.setBounds({ x: pos.x, y: pos.y, width: CARD_POPUP_WIDTH, height: CARD_POPUP_HEIGHT }, false)
+  const bounds = { x: pos.x, y: pos.y, width: CARD_POPUP_WIDTH, height: CARD_POPUP_HEIGHT }
+  popup.setBounds(bounds, false)
+  lockCardPopupRender()
   if (process.platform === 'darwin') {
     popup.setOpacity(1)
   }
   sendCardPopupText(selectedText)
   void syncCardPopupTokenFromMain()
   popup.showInactive()
+  if (process.platform === 'win32') {
+    popup.setOpacity(0)
+    setTimeout(() => {
+      if (!popup.isDestroyed()) popup.moveTop()
+    }, 50)
+    popup.setOpacity(1)
+  }
+  scheduleCardPopupBoundsSync(bounds)
 }
 
 // 翻译弹窗默认跟随 CardPopup 下方展示，空间不足时放到上方。
@@ -624,120 +644,45 @@ function registerIpcHandlers(): void {
   })
 }
 
+/** 点击其它位置时关闭未聚焦的关联翻译窗口。 */
+const handleAssociatedWindowClose = (): void => {
+  if (
+    translatePopup &&
+    !translatePopup.isDestroyed() &&
+    translatePopup.isVisible() &&
+    !translatePopup.isFocused()
+  ) {
+    translatePopup.hide()
+  }
+}
+
 // 初始化全局划词功能：权限检查、uiohook 启动、鼠标键盘事件绑定。
 export async function initHighlightedTextFeature(
   mainWindow: BrowserWindow | undefined
 ): Promise<boolean> {
   registerIpcHandlers()
-  if (!loadUiohook() || !uIOhook || !UiohookKey) return false
+  const runtime = loadUiohookRuntime()
+  if (!runtime) return false
+  uIOhook = runtime.hook
+  UiohookKey = runtime.keys
+  const hook = uIOhook
+  const keys = UiohookKey
   if (hookStarted) return true
-  if (!(await macAccessibilityPermissionCheck(mainWindow ?? null))) return false
+  if (!(await checkAccessibilityPermission(mainWindow ?? null))) return false
 
   registerQuitCleanup()
   uiohookDestroyed = false
   hookStarted = true
   uIOhook.start()
 
-  const distanceThreshold = 5
-  let mouseDownPos = { x: 0, y: 0 }
-
-  // mousedown 记录拖选起点，同时处理双击取词。
-  uIOhook.on('mousedown', async (event) => {
-    setTimeout(() => {
-      hideCardPopup()
-      if (
-        translatePopup &&
-        !translatePopup.isDestroyed() &&
-        translatePopup.isVisible() &&
-        !translatePopup.isFocused()
-      ) {
-        translatePopup.hide()
-      }
-    }, 30)
-
-    if (event.button !== 1 || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey)
-      return
-    mouseDownPos = { x: event.x, y: event.y }
-
-    if (event.clicks >= 2 && (await shouldShowForActiveApp())) {
-      const text = await getSelected()
-      if (hasValidContent(text.text)) {
-        const dip = toDipPoint({ x: event.x, y: event.y })
-        ;(globalThis as any).selectionAnchorRect = {
-          x: dip.x,
-          y: dip.y,
-          width: 1,
-          height: 24
-        } satisfies SelectionRect
-        showCardPopup(event.x, event.y, text.text)
-      }
-    }
-  })
-
-  // mouseup 根据拖动距离判断是否为划词选择，再尝试读取选中文本。
-  uIOhook.on('mouseup', async (event) => {
-    if (cardPopup?.isVisible()) return
-    if (
-      event.button !== 1 ||
-      event.clicks >= 2 ||
-      event.ctrlKey ||
-      event.metaKey ||
-      event.altKey ||
-      event.shiftKey
-    )
-      return
-
-    const dx = event.x - mouseDownPos.x
-    const dy = event.y - mouseDownPos.y
-    if (Math.sqrt(dx * dx + dy * dy) <= distanceThreshold) return
-    if (!(await shouldShowForActiveApp())) return
-
-    const text = await getSelected()
-    if (!hasValidContent(text.text)) return
-
-    const selLeft = Math.min(mouseDownPos.x, event.x)
-    const selTop = Math.min(mouseDownPos.y, event.y)
-    const selRight = Math.max(mouseDownPos.x, event.x)
-    const selBottom = Math.max(mouseDownPos.y, event.y)
-    const tl = toDipPoint({ x: selLeft, y: selTop })
-    const br = toDipPoint({ x: selRight, y: selBottom })
-    ;(globalThis as any).selectionAnchorRect = {
-      x: tl.x,
-      y: tl.y,
-      width: Math.max(1, br.x - tl.x),
-      height: Math.max(1, br.y - tl.y)
-    } satisfies SelectionRect
-    showCardPopup(selLeft, selTop, text.text)
-  })
-
-  uIOhook.on('wheel', () => hideCardPopup())
-
-  let downTime = 0
-  // 用户真实键盘操作时关闭划词条，避免模拟复制与用户复制/快捷键互相干扰。
-  uIOhook.on('keydown', (event) => {
-    if (event.keycode === CTRL_KEYCODE) {
-      downTime = Date.now()
-      ctrlDownLock = true
-    }
-
-    const commandFlag = platform() === 'darwin' ? event.metaKey : event.ctrlKey
-    if (commandFlag && event.keycode !== CTRL_KEYCODE) {
-      if (Date.now() - downTime <= 50) return
-      if (event.keycode === 46 || event.keycode === 45) copyFlag = true
-      ctrlDownLock = true
-      hideCardPopup()
-      return
-    }
-
-    if (event.keycode !== CTRL_KEYCODE) hideCardPopup()
-  })
-
-  // 释放 Ctrl/Command 后允许下一次模拟复制继续执行。
-  uIOhook.on('keyup', (event) => {
-    if (event.keycode === CTRL_KEYCODE) {
-      ctrlDownLock = false
-      downTime = 0
-    }
+  registerSelectionListeners({
+    hook,
+    keys,
+    isInputSuspended: isHighlightInputSuspended,
+    isCardPopupVisible: () => Boolean(cardPopup?.isVisible()),
+    hideCardPopup,
+    closeAssociatedWindows: handleAssociatedWindowClose,
+    showCardPopup
   })
 
   return true
