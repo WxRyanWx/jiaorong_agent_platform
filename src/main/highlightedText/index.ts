@@ -31,9 +31,11 @@ let pendingTranslateText: string | null = null
 // 首次创建弹窗时 renderer 监听可能尚未挂载，主进程缓存文本供 renderer 主动拉取。
 let currentCardPopupText = ''
 let currentTranslatePopupText = ''
-// 模拟复制期间需要避开用户真实按键，避免误判或覆盖用户剪贴板。
-let dragStartCursorPos: { x: number; y: number } | null = null
-let dragStartWindowPos: { x: number; y: number } | null = null
+// 每个弹窗独立保存拖拽起点和完整边界；移动时固定宽高，避免 Windows DPI 校正导致尺寸漂移。
+const windowDragStates = new Map<
+  number,
+  { startCursor: { x: number; y: number }; startBounds: Electron.Rectangle }
+>()
 let lastCardPopupPosition = { x: 0, y: 0, height: CARD_POPUP_HEIGHT }
 let tokenIpcRegistered = false
 let quitCleanupRegistered = false
@@ -628,21 +630,30 @@ function registerIpcHandlers(): void {
   ipcMain.on('drag-window:start', (event, screenX: number, screenY: number) => {
     const win = BrowserWindow.fromWebContents(event.sender)
     if (!win || win.isDestroyed()) return
-    dragStartCursorPos = { x: screenX, y: screenY }
-    const [x, y] = win.getPosition()
-    dragStartWindowPos = { x, y }
+    windowDragStates.set(win.id, {
+      startCursor: { x: screenX, y: screenY },
+      startBounds: win.getBounds()
+    })
   })
   ipcMain.on('drag-window:move', (event, screenX: number, screenY: number) => {
     const win = BrowserWindow.fromWebContents(event.sender)
-    if (!win || win.isDestroyed() || !dragStartCursorPos || !dragStartWindowPos) return
-    win.setPosition(
-      dragStartWindowPos.x + screenX - dragStartCursorPos.x,
-      dragStartWindowPos.y + screenY - dragStartCursorPos.y
+    if (!win || win.isDestroyed()) return
+    const state = windowDragStates.get(win.id)
+    if (!state) return
+    win.setBounds(
+      {
+        x: Math.round(state.startBounds.x + screenX - state.startCursor.x),
+        y: Math.round(state.startBounds.y + screenY - state.startCursor.y),
+        width: state.startBounds.width,
+        height: state.startBounds.height
+      },
+      false
     )
   })
-  ipcMain.on('drag-window:end', () => {
-    dragStartCursorPos = null
-    dragStartWindowPos = null
+  ipcMain.on('drag-window:end', (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender)
+    if (!win) return
+    windowDragStates.delete(win.id)
   })
 }
 
