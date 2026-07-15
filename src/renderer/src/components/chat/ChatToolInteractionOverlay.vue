@@ -118,7 +118,7 @@ const emit = defineEmits<{
   respond: [response: ToolInteractionResponse]
 }>()
 
-const { t } = useI18n()
+const { t, te } = useI18n()
 
 const isQuestion = computed(() => props.interaction.actionType === 'question_request')
 const isPermission = computed(() => props.interaction.actionType === 'tool_call_permission')
@@ -221,6 +221,18 @@ const parsedPermissionRequest = computed(() => {
   }
 })
 
+const resolvePermissionServerLabel = (serverName: string) => {
+  const normalized = serverName.trim()
+  if (!normalized) {
+    return ''
+  }
+  const localizedNameKey = `mcp.inmemory.${normalized}.name`
+  if (te(localizedNameKey)) {
+    return t(localizedNameKey)
+  }
+  return normalized
+}
+
 const permissionText = computed(() => {
   const content = props.interaction.block.content || ''
   if (!content.startsWith('components.messageBlockPermissionRequest.description.')) {
@@ -230,7 +242,7 @@ const permissionText = computed(() => {
   const permissionType = parsedPermissionRequest.value?.permissionType || 'write'
   const command = parsedPermissionRequest.value?.command || ''
   const toolName = parsedPermissionRequest.value?.toolName || props.interaction.toolName || ''
-  const serverName = parsedPermissionRequest.value?.serverName || ''
+  const serverName = resolvePermissionServerLabel(parsedPermissionRequest.value?.serverName || '')
 
   if (permissionType === 'command') {
     return t('components.messageBlockPermissionRequest.description.command', { command })

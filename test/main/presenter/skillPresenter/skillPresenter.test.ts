@@ -57,7 +57,7 @@ vi.mock('fs', () => {
       size: 1024,
       mtimeMs: Date.now()
     }),
-    mkdtempSync: vi.fn().mockReturnValue('/mock/temp/deepchat-skill-123')
+    mkdtempSync: vi.fn().mockReturnValue('/mock/temp/jiaorong-skill-123')
   }
   // fs.promises delegates to the sync mocks so per-test sync stubs drive both code paths
   const promises = {
@@ -1143,12 +1143,12 @@ describe('SkillPresenter', () => {
         content: '# Draft body'
       })
       const draftPath =
-        '/mock/temp/deepchat-skill-drafts/conv-draft/draft-12345678-1234-1234-1234-123456789abc'
+        '/mock/temp/jiaorong-skill-drafts/conv-draft/draft-12345678-1234-1234-1234-123456789abc'
       ;(fs.existsSync as Mock).mockImplementation((target: string) => {
         return (
           target === draftPath ||
           target === `${draftPath}/SKILL.md` ||
-          target === '/mock/temp/deepchat-skill-drafts'
+          target === '/mock/temp/jiaorong-skill-drafts'
         )
       })
       ;(fs.readFileSync as Mock).mockImplementation((target: string) => {
@@ -1184,13 +1184,13 @@ describe('SkillPresenter', () => {
         content: '# Draft body'
       })
       const draftPath =
-        '/mock/temp/deepchat-skill-drafts/conv-draft/draft-12345678-1234-1234-1234-123456789abc'
+        '/mock/temp/jiaorong-skill-drafts/conv-draft/draft-12345678-1234-1234-1234-123456789abc'
       ;(fs.existsSync as Mock).mockImplementation((target: string) => {
         if (target === `${DEFAULT_SKILLS_DIR}/draft-skill`) return false
         return (
           target === draftPath ||
           target === `${draftPath}/SKILL.md` ||
-          target === '/mock/temp/deepchat-skill-drafts' ||
+          target === '/mock/temp/jiaorong-skill-drafts' ||
           target === `${DEFAULT_SKILLS_DIR}`
         )
       })
@@ -1226,8 +1226,8 @@ describe('SkillPresenter', () => {
 
     it('discards draft content and removes empty conversation draft folder', async () => {
       const draftPath =
-        '/mock/temp/deepchat-skill-drafts/conv-draft/draft-12345678-1234-1234-1234-123456789abc'
-      const conversationPath = '/mock/temp/deepchat-skill-drafts/conv-draft'
+        '/mock/temp/jiaorong-skill-drafts/conv-draft/draft-12345678-1234-1234-1234-123456789abc'
+      const conversationPath = '/mock/temp/jiaorong-skill-drafts/conv-draft'
       ;(fs.existsSync as Mock).mockImplementation((target: string) => {
         return target === draftPath || target === conversationPath
       })
@@ -1265,22 +1265,22 @@ describe('SkillPresenter', () => {
   describe('cleanupExpiredDrafts', () => {
     it('uses the last activity marker instead of the draft directory mtime', () => {
       const now = 1_000_000
-      const conversationDir = '/mock/temp/deepchat-skill-drafts/conv-clean'
+      const conversationDir = '/mock/temp/jiaorong-skill-drafts/conv-clean'
       const staleDraftDir = `${conversationDir}/draft-stale`
       const freshDraftDir = `${conversationDir}/draft-fresh`
       const staleMarker = `${staleDraftDir}/.lastActivity`
       const freshMarker = `${freshDraftDir}/.lastActivity`
-      ;(skillPresenter as any).draftsRoot = '/mock/temp/deepchat-skill-drafts'
+      ;(skillPresenter as any).draftsRoot = '/mock/temp/jiaorong-skill-drafts'
       ;(fs.existsSync as Mock).mockImplementation((target: string) => {
         return (
-          target === '/mock/temp/deepchat-skill-drafts' ||
+          target === '/mock/temp/jiaorong-skill-drafts' ||
           target === conversationDir ||
           target === staleMarker ||
           target === freshMarker
         )
       })
       ;(fs.readdirSync as Mock).mockImplementation((target: string) => {
-        if (target === '/mock/temp/deepchat-skill-drafts') {
+        if (target === '/mock/temp/jiaorong-skill-drafts') {
           return [createDirEntry('conv-clean')]
         }
         if (target === conversationDir) {

@@ -391,7 +391,7 @@ export class AcpLaunchSpecService {
 
   private async downloadArchive(url: string, agent: AcpRegistryAgent): Promise<string> {
     const safeAgentId = sanitizeInstallSegment(agent.id, 'agent id')
-    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), `deepchat-acp-${safeAgentId}-`))
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), `jiaorong-acp-${safeAgentId}-`))
     const archivePath = path.join(tempDir, path.basename(new URL(url).pathname))
     const response = await fetch(url)
     if (!response.ok) {
