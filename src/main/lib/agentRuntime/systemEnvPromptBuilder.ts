@@ -108,7 +108,9 @@ export function buildRuntimeCapabilitiesPrompt(
   const lines = ['## Runtime Capabilities']
 
   if (options.hasYoBrowser) {
-    lines.push('- YoBrowser tools are available for browser automation when needed.')
+    lines.push(
+      '- YoBrowser tools are available for browser automation when needed. For web search, prefer China-accessible engines (Baidu, Bing China, Sogou); do not default to Google unless the user explicitly asks or the target page is on a Google domain.'
+    )
   }
   if (options.hasExec) {
     lines.push(
