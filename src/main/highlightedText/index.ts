@@ -438,7 +438,7 @@ function createCardPopup(): BrowserWindow {
   return cardPopup
 }
 
-// 给 CardPopup 推送当前文本，并延迟补发一次，覆盖首次监听注册较晚的情况。
+// 给已就绪的 CardPopup 推送当前文本；首次加载由 pending/query/cache 三层机制兜底。
 function sendCardPopupText(selectedText: string): void {
   if (!cardPopup || cardPopup.isDestroyed()) return
   const payload = {
@@ -446,10 +446,6 @@ function sendCardPopupText(selectedText: string): void {
     isWin: process.platform === 'win32' ? 'win' : process.platform
   }
   cardPopup.webContents.send('card-popup-text', payload)
-  setTimeout(() => {
-    if (!cardPopup || cardPopup.isDestroyed() || !cardPopup.isVisible()) return
-    cardPopup.webContents.send('card-popup-text', payload)
-  }, 80)
 }
 
 // 展示划词操作条，并保存当前文本供 renderer 主动兜底读取。
@@ -673,21 +669,48 @@ const handleAssociatedWindowClose = (): void => {
 export async function initHighlightedTextFeature(
   mainWindow: BrowserWindow | undefined
 ): Promise<boolean> {
+  const initStartedAt = Date.now()
+  console.info(`[highlightedText] initialization begin platform=${process.platform}`)
   registerIpcHandlers()
+
+  const runtimeStartedAt = Date.now()
+  console.info('[highlightedText] runtime load begin')
   const runtime = loadUiohookRuntime()
-  if (!runtime) return false
+  console.info(`[highlightedText] runtime load done elapsed=${Date.now() - runtimeStartedAt}ms`)
+  if (!runtime) {
+    console.warn('[highlightedText] initialization skipped: runtime unavailable')
+    return false
+  }
   uIOhook = runtime.hook
   UiohookKey = runtime.keys
   const hook = uIOhook
   const keys = UiohookKey
-  if (hookStarted) return true
-  if (!(await checkAccessibilityPermission(mainWindow ?? null))) return false
+  if (hookStarted) {
+    console.info('[highlightedText] initialization skipped: hook already started')
+    return true
+  }
+
+  const permissionStartedAt = Date.now()
+  console.info('[highlightedText] accessibility permission check begin')
+  const hasPermission = await checkAccessibilityPermission(mainWindow ?? null)
+  console.info(
+    `[highlightedText] accessibility permission check done allowed=${hasPermission} elapsed=${Date.now() - permissionStartedAt}ms`
+  )
+  if (!hasPermission) {
+    console.warn('[highlightedText] initialization skipped: accessibility permission denied')
+    return false
+  }
 
   registerQuitCleanup()
   uiohookDestroyed = false
   hookStarted = true
-  uIOhook.start()
 
+  const hookStartedAt = Date.now()
+  console.info('[highlightedText] uiohook start begin')
+  uIOhook.start()
+  console.info(`[highlightedText] uiohook start done elapsed=${Date.now() - hookStartedAt}ms`)
+
+  console.info('[highlightedText] selection listener registration begin')
   registerSelectionListeners({
     hook,
     keys,
@@ -697,6 +720,8 @@ export async function initHighlightedTextFeature(
     closeAssociatedWindows: handleAssociatedWindowClose,
     showCardPopup
   })
+  console.info('[highlightedText] selection listener registration done')
+  console.info(`[highlightedText] initialization done elapsed=${Date.now() - initStartedAt}ms`)
 
   return true
 }

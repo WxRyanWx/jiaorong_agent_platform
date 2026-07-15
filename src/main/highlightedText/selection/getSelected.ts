@@ -55,10 +55,16 @@ export const getSelected = async (
       }
       return { text: '' }
     }
-
+    // 全局 hook 收到 mouseup 时，目标应用未必已经完成最终选区更新
+    // 拖动过程中，应用内部选区更新到 3 字
+    // → 全局 hook 先收到 mouseup
+    // → 程序立即发送 Command+C
+    // → 复制到当时内部记录的 3 字
+    // → 目标应用稍后处理 mouseup
+    // → 屏幕最终显示完整的 10 字选区
+    await delay(50)
     uIOhook.keyTap(keys.C, [process.platform === 'win32' ? keys.Ctrl : keys.Meta])
     await delay(80)
-
     if (ctrlDownLock) {
       if (copyFlag) {
         userCopyFlag = true
@@ -68,6 +74,7 @@ export const getSelected = async (
     }
 
     const copiedText = clipboard.readText('clipboard') || ''
+    console.log('copiedText', copiedText)
     if (ctrlDownLock) {
       if (copyFlag) {
         userCopyFlag = true
