@@ -1793,7 +1793,7 @@ export class AgentToolManager {
   }
 
   private getDefaultAgentWorkspacePath(): string {
-    const tempDir = path.join(app.getPath('temp'), 'deepchat-agent', 'workspaces')
+    const tempDir = path.join(app.getPath('temp'), 'jiaorong-agent', 'workspaces')
     try {
       fs.mkdirSync(tempDir, { recursive: true })
     } catch (error) {
