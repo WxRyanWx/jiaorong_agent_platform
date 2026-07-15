@@ -109,7 +109,7 @@ export function buildRuntimeCapabilitiesPrompt(
 
   if (options.hasYoBrowser) {
     lines.push(
-      '- YoBrowser tools are available for browser automation when needed. For web search, prefer China-accessible engines (Baidu, Bing China, Sogou); do not default to Google unless the user explicitly asks or the target page is on a Google domain.'
+      '- YoBrowser tools are available for browser automation when needed. For web search, prefer China-accessible engines (Baidu, 360 Search, Sogou); do not default to Google unless the user explicitly asks or the target page is on a Google domain.'
     )
   }
   if (options.hasExec) {
