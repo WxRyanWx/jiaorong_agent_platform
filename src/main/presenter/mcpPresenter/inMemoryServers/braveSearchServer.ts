@@ -169,7 +169,7 @@ export class BraveSearchServer {
           type: 'resource',
           resource: {
             uri: r.url,
-            mimeType: 'application/deepchat-webpage',
+            mimeType: 'application/jiaorong-webpage',
             text: JSON.stringify(blobContent)
           }
         }
@@ -245,7 +245,7 @@ export class BraveSearchServer {
           type: 'resource',
           resource: {
             uri: `brave-local://${poi.id}`,
-            mimeType: 'application/deepchat-local-business',
+            mimeType: 'application/jiaorong-local-business',
             text: JSON.stringify(blobContent)
           }
         }
