@@ -1,5 +1,4 @@
 import './assets/main.css'
-import '@/assets/fixed-agent-iconfont/iconfont-init'
 import '@arco-design/web-vue/dist/arco.css'
 import { createPinia } from 'pinia'
 import { PiniaColada } from '@pinia/colada'

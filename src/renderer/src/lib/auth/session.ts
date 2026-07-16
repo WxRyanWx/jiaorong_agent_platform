@@ -80,7 +80,7 @@ export function markAuthSessionValidated() {
 
 /**
  * 忽略会话内缓存，强制重新请求 userInfo 判断 xkaitoken 是否仍有效。
- * 供左侧非固定 iframe 菜单切换时静默校验使用。
+ * 供左侧菜单切换时静默校验使用。
  */
 export async function forceRevalidateAuthSession(): Promise<boolean> {
   // 等进行中的校验结束，避免 reset 把 validating 置空后并发打两次 userInfo

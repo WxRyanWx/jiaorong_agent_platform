@@ -20,13 +20,7 @@
             <div
               class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted/50 text-foreground"
             >
-              <FixedIframeAgentIcon
-                v-if="card.kind === 'fixed-iframe'"
-                :icon-class="card.iconClass"
-                size-class="text-[24px]"
-              />
               <AgentAvatar
-                v-else
                 :agent="card.agent"
                 class-name="h-6 w-6"
                 fallback-class-name="rounded-lg"
@@ -63,27 +57,16 @@ import { useI18n } from 'vue-i18n'
 import { createSettingsClient } from '@api/SettingsClient'
 import { useAgentStore, type UIAgent } from '@/stores/ui/agent'
 import { forceRevalidateAuthSession } from '@/lib/auth/session'
-import { isFixedIframeAgentId } from '@shared/fixedIframeAgents'
 import AgentAvatar from '@/components/icons/AgentAvatar.vue'
-import FixedIframeAgentIcon from '@/components/icons/FixedIframeAgentIcon.vue'
 
-type AgentWelcomeCard =
-  | {
-      id: string
-      kind: 'store'
-      agent: UIAgent
-      name: string
-      subtitle: string
-    }
-  | {
-      id: string
-      kind: 'fixed-iframe'
-      iconClass: string
-      name: string
-      subtitle: string
-    }
+type AgentWelcomeCard = {
+  id: string
+  agent: UIAgent
+  name: string
+  subtitle: string
+}
 
-const MAX_USER_AGENT_CARDS = 4
+const MAX_USER_AGENT_CARDS = 8
 
 const { t } = useI18n()
 const router = useRouter()
@@ -97,27 +80,15 @@ const displayedAgentCards = computed<AgentWelcomeCard[]>(() => {
     const agent = agentStore.sidebarAgents.deepchat
     cards.push({
       id: agent.id,
-      kind: 'store',
       agent,
       name: agent.name,
       subtitle: t('welcome.agentPage.deepchatType')
     })
   }
 
-  for (const fixedAgent of agentStore.fixedIframeAgents) {
-    cards.push({
-      id: fixedAgent.id,
-      kind: 'fixed-iframe',
-      iconClass: fixedAgent.iconClass,
-      name: t(fixedAgent.nameKey),
-      subtitle: t(fixedAgent.typeKey)
-    })
-  }
-
   for (const agent of agentStore.sidebarAgents.userAgents.slice(0, MAX_USER_AGENT_CARDS)) {
     cards.push({
       id: agent.id,
-      kind: 'store',
       agent,
       name: agent.name,
       subtitle:
@@ -131,13 +102,6 @@ const displayedAgentCards = computed<AgentWelcomeCard[]>(() => {
 })
 
 const selectAgentCard = async (card: AgentWelcomeCard) => {
-  if (card.kind === 'fixed-iframe' && isFixedIframeAgentId(card.id)) {
-    // 固定 iframe 入口不静默校验（与左侧栏一致）
-    agentStore.resetFixedIframeNavigation(card.id)
-    agentStore.setSelectedAgent(card.id)
-    return
-  }
-
   const valid = await forceRevalidateAuthSession()
   if (!valid) {
     void router.push({ name: 'login' })

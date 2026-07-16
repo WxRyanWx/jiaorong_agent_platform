@@ -35,38 +35,7 @@ describe('AgentWelcomePage', () => {
           enabled: true
         }))
       },
-      fixedIframeAgents: [
-        {
-          id: 'intelligence-center',
-          nameKey: 'welcome.fixedAgents.intelligenceCenter.name',
-          typeKey: 'welcome.fixedAgents.intelligenceCenter.type',
-          iconClass: 'icon-zhinengti-weixuanzhong',
-          iframeUrl: 'https://www.baidu.com'
-        },
-        {
-          id: 'ppt-agent',
-          nameKey: 'welcome.fixedAgents.pptAgent.name',
-          typeKey: 'welcome.fixedAgents.pptAgent.type',
-          iconClass: 'icon-ppt',
-          iframeUrl: 'https://www.baidu.com'
-        },
-        {
-          id: 'writing-agent',
-          nameKey: 'welcome.fixedAgents.writingAgent.name',
-          typeKey: 'welcome.fixedAgents.writingAgent.type',
-          iconClass: 'icon-wendangzhuanxie',
-          iframeUrl: 'https://www.baidu.com'
-        },
-        {
-          id: 'headlines-agent',
-          nameKey: 'welcome.fixedAgents.headlinesAgent.name',
-          typeKey: 'welcome.fixedAgents.headlinesAgent.type',
-          iconClass: 'icon-ririxin',
-          iframeUrl: 'https://www.baidu.com'
-        }
-      ],
-      setSelectedAgent: vi.fn(),
-      resetFixedIframeNavigation: vi.fn()
+      setSelectedAgent: vi.fn()
     }
 
     vi.doMock('@api/SettingsClient', () => ({
@@ -83,15 +52,7 @@ describe('AgentWelcomePage', () => {
               'welcome.agentPage.title': '选择 Agent 开始创作',
               'welcome.agentPage.manageAgents': '管理 JiaorongAI Agent',
               'welcome.agentPage.deepchatType': 'JiaorongAI Agent',
-              'welcome.agentPage.acpType': 'ACP Agent Localized',
-              'welcome.fixedAgents.intelligenceCenter.name': '智能中心',
-              'welcome.fixedAgents.intelligenceCenter.type': 'Intelligence Center',
-              'welcome.fixedAgents.pptAgent.name': 'PPT生成',
-              'welcome.fixedAgents.pptAgent.type': 'PPT Agent',
-              'welcome.fixedAgents.writingAgent.name': '公文写作',
-              'welcome.fixedAgents.writingAgent.type': 'Writing Agent',
-              'welcome.fixedAgents.headlinesAgent.name': 'AI日日新',
-              'welcome.fixedAgents.headlinesAgent.type': 'Headlines Agent'
+              'welcome.agentPage.acpType': 'ACP Agent Localized'
             }) as Record<string, string>
           )[key] ?? key
       })
@@ -102,17 +63,14 @@ describe('AgentWelcomePage', () => {
         template: '<span />'
       }
     }))
-    vi.doMock('@/components/icons/FixedIframeAgentIcon.vue', () => ({
-      default: {
-        name: 'FixedIframeAgentIcon',
-        template: '<span />'
-      }
-    }))
     vi.doMock('@/components/icons/AgentAvatar.vue', () => ({
       default: {
         name: 'AgentAvatar',
         template: '<span />'
       }
+    }))
+    vi.doMock('@/lib/auth/session', () => ({
+      forceRevalidateAuthSession: vi.fn(async () => true)
     }))
 
     const AgentWelcomePage = (await import('@/pages/AgentWelcomePage.vue')).default
@@ -120,8 +78,7 @@ describe('AgentWelcomePage', () => {
       global: {
         stubs: {
           Icon: true,
-          AgentAvatar: true,
-          FixedIframeAgentIcon: true
+          AgentAvatar: true
         }
       }
     })
@@ -132,29 +89,15 @@ describe('AgentWelcomePage', () => {
 
     const agentButtons = wrapper.findAll('button').filter((button) => {
       const text = button.text()
-      return (
-        text.includes('Universal Agent') ||
-        text.includes('Agent ') ||
-        text.includes('智能中心') ||
-        text.includes('PPT生成') ||
-        text.includes('公文写作') ||
-        text.includes('AI日日新')
-      )
+      return text.includes('Universal Agent') || text.includes('Agent ')
     })
 
     expect(agentButtons).toHaveLength(9)
-    expect(wrapper.text()).not.toContain('Agent 6')
+    expect(wrapper.text()).not.toContain('Agent 10')
     expect(wrapper.text()).toContain('ACP Agent Localized')
-    expect(wrapper.text()).toContain('智能中心')
 
     await agentButtons[0].trigger('click')
     expect(agentStore.setSelectedAgent).toHaveBeenCalledWith('deepchat')
-
-    const fixedAgentButton = agentButtons.find((button) => button.text().includes('智能中心'))
-    expect(fixedAgentButton).toBeDefined()
-    await fixedAgentButton!.trigger('click')
-    expect(agentStore.resetFixedIframeNavigation).toHaveBeenCalledWith('intelligence-center')
-    expect(agentStore.setSelectedAgent).toHaveBeenCalledWith('intelligence-center')
 
     const manageButton = wrapper
       .findAll('button')

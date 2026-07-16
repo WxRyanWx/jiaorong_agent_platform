@@ -58,31 +58,6 @@
           <TooltipContent side="right">{{ agentStore.sidebarAgents.deepchat.name }}</TooltipContent>
         </Tooltip>
 
-        <Tooltip v-for="fixedAgent in agentStore.fixedIframeAgents" :key="fixedAgent.id">
-          <TooltipTrigger as-child>
-            <Button
-              data-testid="sidebar-fixed-agent-button"
-              :data-agent-id="fixedAgent.id"
-              data-agent-type="fixed-iframe"
-              :data-selected="String(sidebarSelectedAgentId === fixedAgent.id)"
-              size="icon"
-              class="flex items-center justify-center w-9 h-9 rounded-xl border transition-all duration-150"
-              :class="
-                sidebarSelectedAgentId === fixedAgent.id
-                  ? 'bg-card/50 border-white/80 dark:border-white/20 ring-1 ring-black/10 hover:bg-white/30 dark:hover:bg-white/10'
-                  : 'bg-transparent border-none hover:bg-white/30 dark:hover:bg-white/10 shadow-none'
-              "
-              @click="handleAgentSelect(fixedAgent.id)"
-            >
-              <FixedIframeAgentIcon
-                :icon-class="fixedAgent.iconClass"
-                :selected="sidebarSelectedAgentId === fixedAgent.id"
-              />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="right">{{ t(fixedAgent.nameKey) }}</TooltipContent>
-        </Tooltip>
-
         <Tooltip v-for="agent in agentStore.sidebarAgents.userAgents" :key="agent.id">
           <TooltipTrigger as-child>
             <Button
@@ -204,7 +179,6 @@
 
       <!-- Right Column: Session List (240px) -->
       <div
-        v-if="!hideMiddleColumnForSelectedAgent"
         data-testid="window-sidebar-session-column"
         class="window-sidebar-session-column window-no-drag-region flex flex-col w-0 flex-1 min-w-0 transition-[opacity,transform] duration-[var(--dc-motion-default)] ease-[var(--dc-ease-out-express)]"
         :class="
@@ -218,7 +192,7 @@
           <span class="text-sm font-medium text-foreground truncate">
             {{ selectedAgentName }}
           </span>
-          <div v-if="!showFixedAgentSecondaryNav" class="flex items-center gap-0.5">
+          <div class="flex items-center gap-0.5">
             <Tooltip>
               <TooltipTrigger as-child>
                 <button
@@ -255,197 +229,165 @@
         </div>
 
         <div
-          v-if="showFixedAgentSecondaryNav"
-          data-testid="fixed-agent-secondary-nav"
-          class="flex flex-1 flex-col gap-0.5 px-2 py-2"
+          v-if="!collapsed"
+          data-testid="window-sidebar-search"
+          class="window-no-drag-region px-3 pb-2"
         >
-          <button
-            v-for="navItem in currentSecondaryNavItems"
-            :key="navItem.id"
-            type="button"
-            class="flex w-full items-center rounded-lg px-2.5 py-2 text-left text-sm transition-colors duration-150"
-            :class="[
-              navItem.iconDefaultSymbolId && navItem.iconSelectedSymbolId ? 'gap-2' : 'gap-0',
-              isSecondaryNavItemSelected(navItem.id)
-                ? 'bg-[#e7ecf3] text-[#1d2129] font-semibold dark:bg-primary/10 dark:text-primary'
-                : 'text-[#86909C] hover:bg-accent/50 hover:text-foreground dark:text-muted-foreground'
-            ]"
-            @click="handleFixedAgentSecondaryNavSelect(navItem.id)"
-          >
-            <IntelligenceCenterNavIcon
-              v-if="navItem.iconDefaultSymbolId && navItem.iconSelectedSymbolId"
-              :default-symbol-id="navItem.iconDefaultSymbolId"
-              :selected-symbol-id="navItem.iconSelectedSymbolId"
-              :selected="isSecondaryNavItemSelected(navItem.id)"
+          <div class="relative">
+            <Icon
+              icon="lucide:search"
+              class="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/70"
             />
-            <span class="truncate">{{ t(navItem.nameKey) }}</span>
-          </button>
+            <Input
+              v-model="sessionSearchQuery"
+              class="h-8 rounded-xl border-0 bg-muted/60 pl-8 pr-8 text-xs shadow-none focus-visible:ring-1 focus-visible:ring-primary/30"
+              :placeholder="t('chat.sidebar.searchPlaceholder')"
+              :aria-label="t('chat.sidebar.searchAriaLabel')"
+              autocapitalize="off"
+              autocomplete="off"
+              spellcheck="false"
+            />
+            <button
+              v-if="sessionSearchQuery"
+              type="button"
+              class="absolute right-1.5 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground"
+              :title="t('common.close')"
+              :aria-label="t('common.close')"
+              @click="sessionSearchQuery = ''"
+            >
+              <Icon icon="lucide:x" class="h-3.5 w-3.5" />
+            </button>
+          </div>
         </div>
 
-        <template v-else>
+        <div
+          v-if="!sessionStore.hasLoadedInitialPage && sessionStore.loading"
+          class="flex flex-col gap-2 px-3 pb-3"
+          data-testid="window-sidebar-loading-first-page"
+        >
           <div
-            v-if="!collapsed"
-            data-testid="window-sidebar-search"
-            class="window-no-drag-region px-3 pb-2"
-          >
-            <div class="relative">
-              <Icon
-                icon="lucide:search"
-                class="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/70"
-              />
-              <Input
-                v-model="sessionSearchQuery"
-                class="h-8 rounded-xl border-0 bg-muted/60 pl-8 pr-8 text-xs shadow-none focus-visible:ring-1 focus-visible:ring-primary/30"
-                :placeholder="t('chat.sidebar.searchPlaceholder')"
-                :aria-label="t('chat.sidebar.searchAriaLabel')"
-                autocapitalize="off"
-                autocomplete="off"
-                spellcheck="false"
-              />
-              <button
-                v-if="sessionSearchQuery"
-                type="button"
-                class="absolute right-1.5 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground"
-                :title="t('common.close')"
-                :aria-label="t('common.close')"
-                @click="sessionSearchQuery = ''"
-              >
-                <Icon icon="lucide:x" class="h-3.5 w-3.5" />
-              </button>
-            </div>
-          </div>
+            v-for="row in 6"
+            :key="`session-skeleton-${row}`"
+            class="h-10 rounded-lg bg-muted/50 animate-pulse"
+          ></div>
+        </div>
 
-          <div
-            v-if="!sessionStore.hasLoadedInitialPage && sessionStore.loading"
-            class="flex flex-col gap-2 px-3 pb-3"
-            data-testid="window-sidebar-loading-first-page"
-          >
-            <div
-              v-for="row in 6"
-              :key="`session-skeleton-${row}`"
-              class="h-10 rounded-lg bg-muted/50 animate-pulse"
-            ></div>
-          </div>
+        <!-- Empty state -->
+        <div
+          v-if="
+            sessionStore.hasLoadedInitialPage &&
+            pinnedSessions.length === 0 &&
+            filteredGroups.length === 0
+          "
+          class="flex flex-col items-center justify-center h-full px-4 text-center"
+        >
+          <Icon icon="lucide:message-square-plus" class="w-8 h-8 text-muted-foreground/40 mb-3" />
+          <p class="text-sm text-muted-foreground/60">
+            {{
+              sessionSearchQuery ? t('chat.sidebar.searchEmptyTitle') : t('chat.sidebar.emptyTitle')
+            }}
+          </p>
+          <p class="text-xs text-muted-foreground/40 mt-1">
+            {{
+              sessionSearchQuery
+                ? t('chat.sidebar.searchEmptyDescription')
+                : t('chat.sidebar.emptyDescription')
+            }}
+          </p>
+        </div>
 
-          <!-- Empty state -->
-          <div
-            v-if="
-              sessionStore.hasLoadedInitialPage &&
-              pinnedSessions.length === 0 &&
-              filteredGroups.length === 0
-            "
-            class="flex flex-col items-center justify-center h-full px-4 text-center"
-          >
-            <Icon icon="lucide:message-square-plus" class="w-8 h-8 text-muted-foreground/40 mb-3" />
-            <p class="text-sm text-muted-foreground/60">
-              {{
-                sessionSearchQuery
-                  ? t('chat.sidebar.searchEmptyTitle')
-                  : t('chat.sidebar.emptyTitle')
-              }}
-            </p>
-            <p class="text-xs text-muted-foreground/40 mt-1">
-              {{
-                sessionSearchQuery
-                  ? t('chat.sidebar.searchEmptyDescription')
-                  : t('chat.sidebar.emptyDescription')
-              }}
-            </p>
-          </div>
-
-          <!-- Session list -->
-          <div
-            ref="sessionListRef"
-            class="session-list flex-1 overflow-y-auto px-1.5"
-            @scroll.passive="handleSessionListScroll"
-          >
-            <div v-if="pinnedSessions.length > 0" class="pt-2">
-              <button
-                type="button"
-                class="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs font-medium text-muted-foreground transition-colors duration-150 hover:bg-accent/40 hover:text-foreground"
-                data-group-id="__pinned__"
-                :aria-expanded="!isPinnedSectionCollapsed"
-                @click="togglePinnedSection"
-              >
-                <span class="shrink-0 size-6 flex items-center justify-center">
-                  <Icon
-                    :icon="isPinnedSectionCollapsed ? 'lucide:folder-closed' : 'lucide:folder-open'"
-                    class="size-4"
-                  />
-                </span>
-                <span class="truncate">
-                  {{ t('chat.sidebar.pinned') }}
-                </span>
-              </button>
-
-              <div v-show="!isPinnedSectionCollapsed" class="space-y-0.5">
-                <WindowSideBarSessionItem
-                  v-for="session in pinnedSessions"
-                  :key="`pinned-${session.id}`"
-                  :session="session"
-                  :active="sessionStore.activeSessionId === session.id"
-                  region="pinned"
-                  :hero-hidden="pinFlightSessionId === session.id"
-                  :hero-placeholder="pinFlightSessionId === session.id"
-                  :force-pin-docked="pinDockedSessionId === session.id"
-                  :pin-feedback-mode="pinFeedbackSessionId === session.id ? pinFeedbackMode : null"
-                  :search-query="sessionSearchQuery"
-                  :shortcut-badge-label="getShortcutBadgeLabelForSession(session.id)"
-                  :shortcut-badge-visible="hasShortcutBadgeForSession(session.id)"
-                  @select="handleSessionClick"
-                  @toggle-pin="handleTogglePin"
-                  @delete="openDeleteDialog"
-                />
-              </div>
-            </div>
-
-            <template v-for="group in filteredGroups" :key="getGroupIdentifier(group)">
-              <button
-                type="button"
-                class="mt-2 flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs font-medium text-muted-foreground transition-colors duration-150 hover:bg-accent/40 hover:text-foreground"
-                :data-group-id="getGroupIdentifier(group)"
-                :aria-expanded="!isGroupCollapsed(group)"
-                @click="toggleGroup(group)"
-              >
-                <span class="shrink-0 size-6 flex items-center justify-center">
-                  <Icon
-                    :icon="isGroupCollapsed(group) ? 'lucide:folder-closed' : 'lucide:folder-open'"
-                    class="size-4"
-                  />
-                </span>
-                <span class="truncate">
-                  {{ getGroupLabel(group) }}
-                </span>
-              </button>
-              <div v-show="!isGroupCollapsed(group)" class="space-y-0.5">
-                <WindowSideBarSessionItem
-                  v-for="session in group.sessions"
-                  :key="session.id"
-                  :session="session"
-                  :active="sessionStore.activeSessionId === session.id"
-                  region="grouped"
-                  :hero-hidden="pinFlightSessionId === session.id"
-                  :hero-placeholder="pinFlightSessionId === session.id"
-                  :force-pin-docked="pinDockedSessionId === session.id"
-                  :pin-feedback-mode="pinFeedbackSessionId === session.id ? pinFeedbackMode : null"
-                  :search-query="sessionSearchQuery"
-                  :shortcut-badge-label="getShortcutBadgeLabelForSession(session.id)"
-                  :shortcut-badge-visible="hasShortcutBadgeForSession(session.id)"
-                  @select="handleSessionClick"
-                  @toggle-pin="handleTogglePin"
-                  @delete="openDeleteDialog"
-                />
-              </div>
-            </template>
-
-            <div
-              v-if="sessionStore.loadingMore"
-              class="px-2 py-3 text-center text-xs text-muted-foreground/70"
+        <!-- Session list -->
+        <div
+          ref="sessionListRef"
+          class="session-list flex-1 overflow-y-auto px-1.5"
+          @scroll.passive="handleSessionListScroll"
+        >
+          <div v-if="pinnedSessions.length > 0" class="pt-2">
+            <button
+              type="button"
+              class="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs font-medium text-muted-foreground transition-colors duration-150 hover:bg-accent/40 hover:text-foreground"
+              data-group-id="__pinned__"
+              :aria-expanded="!isPinnedSectionCollapsed"
+              @click="togglePinnedSection"
             >
-              {{ t('common.loading') }}
+              <span class="shrink-0 size-6 flex items-center justify-center">
+                <Icon
+                  :icon="isPinnedSectionCollapsed ? 'lucide:folder-closed' : 'lucide:folder-open'"
+                  class="size-4"
+                />
+              </span>
+              <span class="truncate">
+                {{ t('chat.sidebar.pinned') }}
+              </span>
+            </button>
+
+            <div v-show="!isPinnedSectionCollapsed" class="space-y-0.5">
+              <WindowSideBarSessionItem
+                v-for="session in pinnedSessions"
+                :key="`pinned-${session.id}`"
+                :session="session"
+                :active="sessionStore.activeSessionId === session.id"
+                region="pinned"
+                :hero-hidden="pinFlightSessionId === session.id"
+                :hero-placeholder="pinFlightSessionId === session.id"
+                :force-pin-docked="pinDockedSessionId === session.id"
+                :pin-feedback-mode="pinFeedbackSessionId === session.id ? pinFeedbackMode : null"
+                :search-query="sessionSearchQuery"
+                :shortcut-badge-label="getShortcutBadgeLabelForSession(session.id)"
+                :shortcut-badge-visible="hasShortcutBadgeForSession(session.id)"
+                @select="handleSessionClick"
+                @toggle-pin="handleTogglePin"
+                @delete="openDeleteDialog"
+              />
             </div>
           </div>
-        </template>
+
+          <template v-for="group in filteredGroups" :key="getGroupIdentifier(group)">
+            <button
+              type="button"
+              class="mt-2 flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs font-medium text-muted-foreground transition-colors duration-150 hover:bg-accent/40 hover:text-foreground"
+              :data-group-id="getGroupIdentifier(group)"
+              :aria-expanded="!isGroupCollapsed(group)"
+              @click="toggleGroup(group)"
+            >
+              <span class="shrink-0 size-6 flex items-center justify-center">
+                <Icon
+                  :icon="isGroupCollapsed(group) ? 'lucide:folder-closed' : 'lucide:folder-open'"
+                  class="size-4"
+                />
+              </span>
+              <span class="truncate">
+                {{ getGroupLabel(group) }}
+              </span>
+            </button>
+            <div v-show="!isGroupCollapsed(group)" class="space-y-0.5">
+              <WindowSideBarSessionItem
+                v-for="session in group.sessions"
+                :key="session.id"
+                :session="session"
+                :active="sessionStore.activeSessionId === session.id"
+                region="grouped"
+                :hero-hidden="pinFlightSessionId === session.id"
+                :hero-placeholder="pinFlightSessionId === session.id"
+                :force-pin-docked="pinDockedSessionId === session.id"
+                :pin-feedback-mode="pinFeedbackSessionId === session.id ? pinFeedbackMode : null"
+                :search-query="sessionSearchQuery"
+                :shortcut-badge-label="getShortcutBadgeLabelForSession(session.id)"
+                :shortcut-badge-visible="hasShortcutBadgeForSession(session.id)"
+                @select="handleSessionClick"
+                @toggle-pin="handleTogglePin"
+                @delete="openDeleteDialog"
+              />
+            </div>
+          </template>
+
+          <div
+            v-if="sessionStore.loadingMore"
+            class="px-2 py-3 text-center text-xs text-muted-foreground/70"
+          >
+            {{ t('common.loading') }}
+          </div>
+        </div>
       </div>
     </div>
   </TooltipProvider>
@@ -501,19 +443,11 @@ import type {
   RemoteRuntimeState
 } from '@shared/presenter'
 import AgentAvatar from './icons/AgentAvatar.vue'
-import FixedIframeAgentIcon from './icons/FixedIframeAgentIcon.vue'
-import IntelligenceCenterNavIcon from './icons/IntelligenceCenterNavIcon.vue'
 import WindowSideBarSessionItem from './WindowSideBarSessionItem.vue'
 import { useI18n } from 'vue-i18n'
 import { useSidebarStore } from '@/stores/ui/sidebar'
 import { useThemeStore } from '@/stores/theme'
 import { forceRevalidateAuthSession } from '@/lib/auth/session'
-import {
-  getFixedIframeAgent,
-  hasFixedIframeSecondaryNav,
-  isFixedIframeAgentId,
-  type FixedIframeAgentId
-} from '@shared/fixedIframeAgents'
 
 type PinFeedbackMode = 'pinning' | 'unpinning'
 
@@ -657,40 +591,8 @@ const sidebarSelectedAgentId = computed(() => {
   return selectedAgentId || null
 })
 
-const hideMiddleColumnForSelectedAgent = computed(() => {
-  const agentId = sidebarSelectedAgentId.value
-  if (!agentId || !isFixedIframeAgentId(agentId)) {
-    return false
-  }
-
-  return getFixedIframeAgent(agentId)?.hideSessionColumn === true
-})
-const selectedFixedIframeAgent = computed(() => {
-  const agentId = sidebarSelectedAgentId.value
-  if (!agentId || !isFixedIframeAgentId(agentId)) {
-    return undefined
-  }
-
-  return getFixedIframeAgent(agentId)
-})
-const showFixedAgentSecondaryNav = computed(
-  () =>
-    sidebarSelectedAgentId.value !== null &&
-    hasFixedIframeSecondaryNav(sidebarSelectedAgentId.value)
-)
-const currentSecondaryNavItems = computed(
-  () => selectedFixedIframeAgent.value?.secondaryNavItems ?? []
-)
-const isSecondaryNavItemSelected = (navId: string) => {
-  const agentId = sidebarSelectedAgentId.value
-  if (!agentId || !isFixedIframeAgentId(agentId)) {
-    return false
-  }
-
-  return agentStore.getFixedIframeSecondaryNavId(agentId) === navId
-}
 const sidebarShellWidthClass = computed(() => {
-  if (collapsed.value || hideMiddleColumnForSelectedAgent.value) {
+  if (collapsed.value) {
     return 'w-12'
   }
 
@@ -700,11 +602,6 @@ const sidebarShellWidthClass = computed(() => {
 const selectedAgentName = computed(() => {
   if (sidebarSelectedAgentId.value === null) {
     return t('chat.sidebar.allAgents')
-  }
-
-  const fixedAgent = getFixedIframeAgent(sidebarSelectedAgentId.value)
-  if (fixedAgent) {
-    return t(fixedAgent.nameKey)
   }
 
   if (agentStore.selectedAgent?.id === sidebarSelectedAgentId.value) {
@@ -994,7 +891,7 @@ const redirectToLogin = () => {
   void router.push({ name: 'login' })
 }
 
-/** 左侧非 iframe 菜单切换时静默强制校验。401 时拦截器会跳登录；此处 false 时再兜底跳转（含无 token） */
+/** 左侧菜单切换时静默强制校验。401 时拦截器会跳登录；此处 false 时再兜底跳转（含无 token） */
 const ensureAuthOnMenuSwitch = async (): Promise<boolean> => {
   const valid = await forceRevalidateAuthSession()
   if (!valid) {
@@ -1019,12 +916,9 @@ const handleAgentSelect = async (id: string | null) => {
         return
       }
 
-      // 固定 iframe 菜单不走静默校验（产品要求过滤这 4 个入口）
-      if (!(nextAgentId && isFixedIframeAgentId(nextAgentId))) {
-        const allowed = await ensureAuthOnMenuSwitch()
-        if (!allowed || requestSeq !== agentSwitchSeq) {
-          return
-        }
+      const allowed = await ensureAuthOnMenuSwitch()
+      if (!allowed || requestSeq !== agentSwitchSeq) {
+        return
       }
 
       if (sessionStore.hasActiveSession) {
@@ -1043,10 +937,6 @@ const handleAgentSelect = async (id: string | null) => {
         return
       }
 
-      if (nextAgentId && isFixedIframeAgentId(nextAgentId)) {
-        agentStore.resetFixedIframeNavigation(nextAgentId)
-      }
-
       agentStore.setSelectedAgent(nextAgentId)
     })
     .catch((error) => {
@@ -1056,46 +946,7 @@ const handleAgentSelect = async (id: string | null) => {
   await agentSwitchQueue
 }
 
-const handleFixedAgentSecondaryNavSelect = (navId: string) => {
-  const agentId = sidebarSelectedAgentId.value
-  if (agentId && isFixedIframeAgentId(agentId)) {
-    agentStore.setFixedIframeSecondaryNav(agentId, navId)
-  }
-}
-
-const openFixedIframeSession = async (
-  agentId: FixedIframeAgentId,
-  options: {
-    sessionId: string
-    iframeUrl?: string
-    queryParams?: Record<string, string>
-  }
-) => {
-  if (sessionStore.hasActiveSession) {
-    try {
-      await sessionStore.closeSession()
-    } catch (error) {
-      console.warn(
-        '[WindowSideBar] Failed to close active session before opening fixed iframe:',
-        error
-      )
-      return
-    }
-  }
-
-  agentStore.openFixedIframeFromSession(agentId, options.sessionId, {
-    iframeUrl: options.iframeUrl,
-    queryParams: options.queryParams
-  })
-}
-
 const handleSessionClick = (session: UISession) => {
-  const agentId = session.agentId?.trim()
-  if (agentId && isFixedIframeAgentId(agentId)) {
-    void openFixedIframeSession(agentId, { sessionId: session.id })
-    return
-  }
-
   void sessionStore.selectSession(session.id)
 }
 

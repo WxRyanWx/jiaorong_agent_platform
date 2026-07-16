@@ -139,26 +139,6 @@ const setup = async (options: SetupOptions = {}) => {
       deepchat: enabledAgentsList.find((agent) => agent.id === 'deepchat'),
       userAgents: enabledAgentsList.filter((agent) => agent.id !== 'deepchat')
     },
-    fixedIframeAgents: [] as Array<{
-      id: string
-      nameKey: string
-      typeKey: string
-      iconClass: string
-      iframeUrl: string
-    }>,
-    fixedIframeSecondaryNavIds: {
-      'intelligence-center': 'agent-square',
-      'headlines-agent': 'cccc-headlines'
-    },
-    getFixedIframeSecondaryNavId: vi.fn((agentId: string) =>
-      agentId === 'headlines-agent' ? 'cccc-headlines' : 'agent-square'
-    ),
-    setFixedIframeSecondaryNav: vi.fn(),
-    resetFixedIframeNavigation: vi.fn(),
-    openFixedIframeFromSession: vi.fn(),
-    resolveFixedIframeUrl: vi.fn(() => ''),
-    clearFixedIframeQueryParams: vi.fn(),
-    setFixedIframeQueryParams: vi.fn(),
     setSelectedAgent: vi.fn((id: string | null) => {
       operations.push(`set:${id ?? 'all'}`)
       agentStore.selectedAgentId = id
@@ -333,6 +313,14 @@ const setup = async (options: SetupOptions = {}) => {
   vi.doMock('vue-i18n', () => ({
     useI18n: () => ({
       t: (key: string) => key
+    })
+  }))
+  vi.doMock('@/lib/auth/session', () => ({
+    forceRevalidateAuthSession: vi.fn(async () => true)
+  }))
+  vi.doMock('vue-router', () => ({
+    useRouter: () => ({
+      push: vi.fn()
     })
   }))
 
@@ -1053,25 +1041,6 @@ describe('WindowSideBar agent switch', () => {
       expect(wrapper.get('[data-testid="window-sidebar-search"]').classes()).toContain(
         'window-no-drag-region'
       )
-    },
-    TEST_TIMEOUT_MS
-  )
-
-  it(
-    'toggles spotlight from the rail search button',
-    async () => {
-      const { wrapper, spotlightStore } = await setup()
-
-      const buttons = wrapper.findAll('button')
-      const spotlightButton = buttons.find((button) =>
-        button.attributes('title')?.includes('chat.spotlight.placeholder')
-      )
-
-      expect(spotlightButton).toBeTruthy()
-
-      await spotlightButton!.trigger('click')
-
-      expect(spotlightStore.toggleSpotlight).toHaveBeenCalledTimes(1)
     },
     TEST_TIMEOUT_MS
   )
