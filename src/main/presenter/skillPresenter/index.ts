@@ -66,7 +66,7 @@ export const SKILL_CONFIG = {
   SIDECAR_DIR: '.jiaorongchat-meta',
 
   /** Draft skill configuration */
-  DRAFT_ROOT_DIR: 'deepchat-skill-drafts',
+  DRAFT_ROOT_DIR: 'jiaorong-skill-drafts',
   DRAFT_MAX_CONTENT_CHARS: 100000,
   DRAFT_RETENTION_MS: 7 * 24 * 60 * 60 * 1000,
   MAX_LINKED_FILE_SIZE: 1024 * 1024
@@ -1399,7 +1399,7 @@ export class SkillPresenter implements ISkillPresenter {
       }
     }
 
-    const tempDir = fs.mkdtempSync(path.join(app.getPath('temp'), 'deepchat-skill-'))
+    const tempDir = fs.mkdtempSync(path.join(app.getPath('temp'), 'jiaorong-skill-'))
     try {
       this.extractZipToDirectory(zipPath, tempDir)
       const skillDir = this.resolveSkillDirFromExtracted(tempDir)
@@ -1419,7 +1419,7 @@ export class SkillPresenter implements ISkillPresenter {
    * Install a skill from a URL
    */
   async installFromUrl(url: string, options?: SkillInstallOptions): Promise<SkillInstallResult> {
-    const tempZipPath = path.join(app.getPath('temp'), `deepchat-skill-${Date.now()}.zip`)
+    const tempZipPath = path.join(app.getPath('temp'), `jiaorong-skill-${Date.now()}.zip`)
     try {
       await this.downloadSkillZip(url, tempZipPath)
       return await this.installFromZip(tempZipPath, options)

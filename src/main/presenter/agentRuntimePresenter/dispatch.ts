@@ -230,7 +230,10 @@ function extractSearchPayload(
 
   const resourceItems = content.filter(
     (item): item is MCPResourceContent =>
-      item.type === 'resource' && item.resource?.mimeType === 'application/deepchat-webpage'
+      item.type === 'resource' &&
+      (item.resource?.mimeType === 'application/jiaorong-webpage' ||
+        // Keep legacy DeepChat mime for historical tool results.
+        item.resource?.mimeType === 'application/deepchat-webpage')
   )
   if (resourceItems.length === 0) {
     return null

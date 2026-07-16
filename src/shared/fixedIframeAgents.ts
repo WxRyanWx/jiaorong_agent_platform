@@ -13,6 +13,8 @@ export interface FixedIframeSecondaryNavItem {
   id: string
   nameKey: string
   iframeUrl: string
+  /** Inline CSS applied to the host <iframe> element when this nav is active */
+  iframeStyle?: string
   /** SVG symbol id when nav item is not selected */
   iconDefaultSymbolId?: string
   /** SVG symbol id when nav item is selected */
@@ -27,6 +29,8 @@ export interface FixedIframeAgentDefinition {
   iconClass: string
   /** Default iframe URL when secondary nav is unavailable */
   iframeUrl: string
+  /** Inline CSS applied to the host <iframe> when no secondary-nav override exists */
+  iframeStyle?: string
   /** Middle-column nav items; when present, replaces session history */
   secondaryNavItems?: FixedIframeSecondaryNavItem[]
   defaultSecondaryNavId?: string
@@ -57,7 +61,7 @@ export const FIXED_IFRAME_AGENTS: FixedIframeAgentDefinition[] = [
         nameKey: 'welcome.fixedAgents.intelligenceCenterNav.agentSquare',
         iconDefaultSymbolId: 'icon-zhinengtiguangchang-moren',
         iconSelectedSymbolId: 'icon-a-Group409',
-        iframeUrl: 'https://c4ai.ccccltd.cn/agent/m_smart_agent'
+        iframeUrl: 'https://c4ai.ccccltd.cn/agent/m_smart_agent?source=jiaorongchat'
       },
       {
         id: 'knowledge-base',
@@ -116,7 +120,8 @@ export const FIXED_IFRAME_AGENTS: FixedIframeAgentDefinition[] = [
         id: 'ai-trends',
         nameKey: 'welcome.fixedAgents.headlinesAgentNav.aiTrends',
         // chat-web: learn-ai/comp/everyStudyAi.vue
-        iframeUrl: `https://c4ai.ccccltd.cn/tutorial/xindongxiang/?${queryString}`
+        iframeUrl: `https://c4ai.ccccltd.cn/tutorial/xindongxiang/?${queryString}`,
+        iframeStyle: 'margin-top: 30px'
       },
       {
         id: 'learn-ai',
@@ -204,6 +209,27 @@ export function resolveFixedIframeBaseUrl(
   }
 
   return agent.iframeUrl
+}
+
+export function resolveFixedIframeStyle(
+  agentId: FixedIframeAgentId,
+  secondaryNavId?: string
+): string | undefined {
+  const agent = getFixedIframeAgent(agentId)
+  if (!agent) {
+    return undefined
+  }
+
+  if (secondaryNavId && agent.secondaryNavItems?.length) {
+    const navItem = agent.secondaryNavItems.find((item) => item.id === secondaryNavId)
+    const navStyle = navItem?.iframeStyle?.trim()
+    if (navStyle) {
+      return navStyle
+    }
+  }
+
+  const agentStyle = agent.iframeStyle?.trim()
+  return agentStyle || undefined
 }
 
 export function partitionSidebarAgents<T extends { id: string }>(

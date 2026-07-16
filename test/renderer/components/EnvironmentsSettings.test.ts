@@ -118,7 +118,7 @@ async function setup(overrides?: {
         exists: true
       },
       {
-        path: '/system/temp/deepchat-agent/workspaces/tmp-1',
+        path: '/system/temp/jiaorong-agent/workspaces/tmp-1',
         name: 'tmp-1',
         sessionCount: 1,
         lastUsedAt: 1700000001000,
@@ -191,7 +191,7 @@ describe('EnvironmentsSettings', () => {
 
   it('keeps the current default visible even when it is a temp directory', async () => {
     const { wrapper } = await setup({
-      defaultProjectPath: '/system/temp/deepchat-agent/workspaces/tmp-1'
+      defaultProjectPath: '/system/temp/jiaorong-agent/workspaces/tmp-1'
     })
 
     expect(wrapper.findAll('[data-testid="environment-row"]')).toHaveLength(2)
@@ -323,7 +323,7 @@ describe('EnvironmentsSettings', () => {
       defaultProjectPath: null,
       environments: [
         {
-          path: '/system/temp/deepchat-agent/workspaces/tmp-1',
+          path: '/system/temp/jiaorong-agent/workspaces/tmp-1',
           name: 'tmp-1',
           sessionCount: 1,
           lastUsedAt: 1700000001000,

@@ -125,7 +125,7 @@ describe('ProjectPresenter', () => {
           last_used_at: 1700000000000
         },
         {
-          path: '/system/temp/deepchat-agent/workspaces/tmp-1',
+          path: '/system/temp/jiaorong-agent/workspaces/tmp-1',
           session_count: 1,
           last_used_at: 1700000001000
         },
@@ -149,7 +149,7 @@ describe('ProjectPresenter', () => {
           exists: true
         },
         {
-          path: '/system/temp/deepchat-agent/workspaces/tmp-1',
+          path: '/system/temp/jiaorong-agent/workspaces/tmp-1',
           name: 'tmp-1',
           sessionCount: 1,
           lastUsedAt: 1700000001000,

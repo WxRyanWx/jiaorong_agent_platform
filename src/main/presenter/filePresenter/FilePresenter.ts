@@ -113,7 +113,7 @@ function buildDefaultImageName(mimeType: string, suggestedName?: string): string
     return path.extname(sanitizedName) ? sanitizedName : `${sanitizedName}.${extension}`
   }
 
-  return `deepchat-image-${formatImageTimestamp(new Date())}.${extension}`
+  return `jiaorong-image-${formatImageTimestamp(new Date())}.${extension}`
 }
 
 export class FilePresenter implements IFilePresenter {
