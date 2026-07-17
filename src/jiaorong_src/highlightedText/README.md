@@ -27,7 +27,7 @@ highlightedText/
 
 - `contracts/` 只定义跨模块类型，不加载原生模块。
 - `input/` 负责权限和全局鼠标键盘事件的取词状态机。
-- `src/jiaorong_src/runtime/auxiliary-runtime/` 在独立 utility process 中加载 uiohook 并转发事件。
+- `src/jiaorong_src/highlightedText/input/uiohookRuntime.ts` 在应用进程加载 uiohook。
 - `selection/` 只负责判断是否应该取词以及获取选中文本，不创建窗口。
 - `windows/` 保存划词窗口共用的坐标和窗口辅助能力。
 - `index.ts` 是公共入口，负责组合上述能力、维护弹窗生命周期并注册 IPC。
@@ -39,7 +39,7 @@ highlightedText/
 1. `appMain.ts` 读取持久化设置 `highlightedTextEnabled`；该值默认是 `true`。
 2. 设置开启时调用 `initHighlightedTextFeature(mainWindow)`；关闭时不加载 uiohook。
 3. `registerIpcHandlers()` 注册工具条、翻译、复制和拖动窗口 IPC。
-4. `desktopAuxiliaryRuntime.startHook()` 启动独立 utility process，由它加载 `uiohook-napi`。
+4. `loadLocalUiohookRuntime()` 从交融私有目录加载并启动 `uiohook-napi`。
 5. `checkAccessibilityPermission()` 在 macOS 检查辅助功能权限。
 6. `registerSelectionListeners()` 注册 `mousedown`、`mouseup`、`wheel`、`keydown`、`keyup`。
 

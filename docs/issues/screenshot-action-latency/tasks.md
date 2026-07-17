@@ -4,4 +4,5 @@
 - [x] Replace the OCR result feature route with a lightweight result document.
 - [x] Warm, cache, and serialize the OCR worker.
 - [x] Add performance diagnostics.
+- [x] Remove screenshot process isolation while retaining source-directory isolation.
 - [x] Run repository quality checks (i18n remains blocked by pre-existing missing keys).

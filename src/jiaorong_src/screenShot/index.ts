@@ -1,8 +1,8 @@
 import { app, BrowserWindow } from 'electron'
 import { is } from '@electron-toolkit/utils'
 import { appendFileSync, mkdirSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { join } from 'node:path'
-import { desktopAuxiliaryRuntime } from '../runtime/desktopAuxiliaryRuntime'
 import { SCREENSHOT_IPC, type ScreenshotStartupSource } from './contracts/ipc'
 import { systemShortcutKey } from '../../main/presenter/configPresenter/shortcutKeySettings'
 import {
@@ -39,6 +39,29 @@ import {
   startScreenshotLogSession,
   writeScreenshotLog
 } from './logging/runtimeLogger'
+
+const require = createRequire(import.meta.url)
+
+type NativeMonitor = {
+  id: () => number
+  name: () => string
+  captureImage: () => Promise<{
+    width: number
+    height: number
+    toRaw: () => Promise<Uint8Array | Buffer>
+  }>
+}
+
+let screenshotsModule: { Monitor: { all: () => NativeMonitor[] } } | null = null
+
+/** 在交融私有截图模块中延迟加载原生采集能力，避免实现进入 src/main。 */
+const loadScreenshots = () => {
+  if (screenshotsModule) return screenshotsModule
+  screenshotsModule = require('node-screenshots') as {
+    Monitor: { all: () => NativeMonitor[] }
+  }
+  return screenshotsModule
+}
 
 let screenshotWindow: BrowserWindow | null = null
 let screenshotWindowReady = false
@@ -318,9 +341,17 @@ export const closeScreenshotWindow = (): void => {
   screenshotActivationStarted = false
 }
 
-/** 按显示器 ID、名称或位置索引匹配辅助进程采集结果。 */
+type CapturedMonitor = {
+  id: number
+  name: string
+  width: number
+  height: number
+  uint8: Uint8Array
+}
+
+/** 按显示器 ID、名称或位置索引匹配原生采集结果。 */
 const findMonitorForDisplay = (
-  monitors: Awaited<ReturnType<typeof desktopAuxiliaryRuntime.captureDisplays>>,
+  monitors: CapturedMonitor[],
   display: Electron.Display,
   displayIndex: number
 ) => {
@@ -348,11 +379,25 @@ export const captureDisplayTiles = async () => {
 
   const union = getAllDisplayBounds()
   const captureStartedAt = Date.now()
-  let monitors: Awaited<ReturnType<typeof desktopAuxiliaryRuntime.captureDisplays>>
+  let monitors: CapturedMonitor[]
   try {
-    monitors = await desktopAuxiliaryRuntime.captureDisplays()
+    monitors = await Promise.all(
+      loadScreenshots()
+        .Monitor.all()
+        .map(async (monitor) => {
+          const image = await monitor.captureImage()
+          const raw = await image.toRaw()
+          return {
+            id: monitor.id(),
+            name: monitor.name(),
+            width: image.width,
+            height: image.height,
+            uint8: new Uint8Array(raw.buffer, raw.byteOffset, raw.byteLength)
+          }
+        })
+    )
   } finally {
-    // 辅助进程异常时也要恢复原窗口，避免截图层永久隐藏。
+    // 原生采集异常时也要恢复原窗口，避免截图层永久隐藏。
     if (wasVisible) {
       screenshotWindow?.show()
       screenshotWindow?.focus()

@@ -99,8 +99,8 @@ resources/screen-shot/
 | 3 | `presentScreenshotWindow` | [index.ts:178](./index.ts#L178) | 显示仍为透明状态的截图窗口，让 Renderer 稳定布局。 |
 | 4 | `getScreenFrames` | [preload/index.ts:220](../../preload/index.ts#L220) | Renderer 通过 `screen:get-frames` 请求屏幕分片。 |
 | 5 | `screen:get-frames` handler | [registerScreenshotIpc.ts:78](./ipc/registerScreenshotIpc.ts#L78) | 调用采集方法并组装 IPC payload。 |
-| 6 | `captureDisplayTiles` | [index.ts](./index.ts) | 临时隐藏截图窗口，并请求辅助进程采集所有显示器。 |
-| 7 | `desktopAuxiliaryRuntime.captureDisplays` | [desktopAuxiliaryRuntime.ts](../runtime/desktopAuxiliaryRuntime.ts) | 在独立 utility process 中调用 `node-screenshots` 获取 RGBA 数据。 |
+| 6 | `captureDisplayTiles` | [index.ts](./index.ts) | 临时隐藏截图窗口，并在交融私有模块中调用 `node-screenshots` 采集所有显示器。 |
+| 7 | `node-screenshots` | [index.ts](./index.ts) | 在应用进程直接获取各显示器 RGBA 数据，避免首次 Helper 冷启动与跨进程传输。 |
 | 8 | `resolveFramePlacement` | [displayMetrics.ts:41](./capture/displayMetrics.ts#L41) | 计算每个显示器 tile 在联合画布中的目标坐标和大小。 |
 | 9 | `storeSessionCaptureCache` | [index.ts:60](./index.ts#L60) | 将本次采集 tiles 写入当前会话缓存。 |
 | 10 | `setSessionCaptureCache` | [captureCache.ts:31](./session/captureCache.ts#L31) | 保存缓存，供后续选区底图导出。 |

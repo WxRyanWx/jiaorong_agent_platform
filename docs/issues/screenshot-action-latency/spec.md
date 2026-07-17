@@ -14,12 +14,15 @@ As a Windows user, I want pin and OCR actions to respond promptly after selectin
 - OCR initialization begins in the background when a screenshot session opens.
 - Concurrent OCR requests are serialized safely.
 - Existing screenshot IPC payloads and visible behavior remain compatible.
+- Native screen capture runs directly from the private screenshot module so the first capture does
+  not pay a helper cold-start or full-frame cross-process transfer cost.
 
 ## Non-goals
 
 - Replacing Tesseract or changing recognition languages.
 - Redesigning the pin or OCR result UI.
 - Changing screenshot capture/export behavior.
+- Moving screenshot implementation into the public `src/main` directory.
 
 ## Constraints
 
