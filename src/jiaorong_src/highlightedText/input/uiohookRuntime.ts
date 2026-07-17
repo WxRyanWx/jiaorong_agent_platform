@@ -10,18 +10,21 @@ export type UiohookRuntime = {
 
 let runtime: UiohookRuntime | null = null
 
-/** 延迟加载 uiohook 原生模块，避免模块缺失时阻断应用启动。 */
-export const loadUiohookRuntime = (): UiohookRuntime | null => {
+/**
+ * 全局输入监听由应用进程运行，但加载器保持在交融私有目录，
+ * 避免在公开主进程目录中承载划词实现并降低上游合并冲突。
+ */
+export const loadLocalUiohookRuntime = (): UiohookRuntime | null => {
   if (runtime) return runtime
   try {
-    const mod = require('uiohook-napi') as {
+    const module = require('uiohook-napi') as {
       uIOhook: UiohookApi
       UiohookKey: SelectionKeyMap
     }
-    runtime = { hook: mod.uIOhook, keys: mod.UiohookKey }
+    runtime = { hook: module.uIOhook, keys: module.UiohookKey }
     return runtime
   } catch (error) {
-    console.warn('[highlightedText] uiohook-napi not available, selection popup disabled:', error)
+    console.warn('[highlightedText] local uiohook runtime unavailable:', error)
     return null
   }
 }

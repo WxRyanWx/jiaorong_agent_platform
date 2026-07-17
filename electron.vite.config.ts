@@ -26,7 +26,10 @@ export default defineConfig({
       rollupOptions: {
         input: {
           index: resolve('src/main/index.ts'),
-          backgroundExecUtilityHost: resolve('src/main/backgroundExecUtilityHostEntry.ts')
+          backgroundExecUtilityHost: resolve('src/main/backgroundExecUtilityHostEntry.ts'),
+          desktopAuxiliaryRuntimeHost: resolve(
+            'src/jiaorong_src/runtime/auxiliary-runtime/index.ts'
+          )
         },
         external: ['sharp', '@duckdb/node-api'],
         output: {

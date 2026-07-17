@@ -6,7 +6,7 @@ metadata:
 license: Complete terms in LICENSE.txt
 ---
 
-# Skill Creator
+# 技能创建
 
 This skill provides guidance for creating effective skills.
 
@@ -263,10 +263,29 @@ Skip this step only if the skill being developed already exists, and iteration o
 
 When creating a new skill from scratch, always run the `init_skill.py` script. The script conveniently generates a new template skill directory that automatically includes everything a skill requires, making the skill creation process much more efficient and reliable.
 
+#### Runtime installation directory
+
+Every skill created for JiaorongChat must be created directly under the active runtime skills
+directory so that the client can discover it and show it in the `/` menu.
+
+- Always use `${SKILLS_DIR}` as the output root.
+- Always use `${SKILL_ROOT}` to locate this skill's initializer script.
+- Never use `.`, the current workspace, the conversation project directory, or another relative
+  path as the output root.
+- Do not hardcode `~/.jiaorongchat/skills` or a user-specific absolute path because the client may
+  configure a different skills directory.
+
 Usage:
 
-```bash
-scripts/init_skill.py <skill-name> --path <output-directory>
+```text
+python "${SKILL_ROOT}/scripts/init_skill.py" <skill-name> --path "${SKILLS_DIR}"
+```
+
+The runtime replaces `${SKILL_ROOT}` and `${SKILLS_DIR}` with absolute paths before these
+instructions are provided. The initializer then creates:
+
+```text
+${SKILLS_DIR}/<skill-name>/SKILL.md
 ```
 
 The script:
@@ -277,6 +296,9 @@ The script:
 - Adds example files in each directory that can be customized or deleted
 
 After initialization, customize or remove the generated SKILL.md and example files as needed.
+Before finishing, replace every TODO in `SKILL.md` and keep non-empty `name` and `description`
+frontmatter. A valid skill created under `${SKILLS_DIR}` is detected automatically and becomes
+available from the `/` menu.
 
 ### Step 4: Edit the Skill
 

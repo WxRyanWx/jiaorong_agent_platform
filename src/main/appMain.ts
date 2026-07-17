@@ -5,7 +5,7 @@ import { getInstance, Presenter } from './presenter'
 import { electronApp } from '@electron-toolkit/utils'
 import log from 'electron-log'
 import { eventBus, SendTarget } from './eventbus'
-import { CONFIG_EVENTS, NOTIFICATION_EVENTS } from './events'
+import { NOTIFICATION_EVENTS } from './events'
 import { registerWorkspacePreviewSchemes } from './presenter/workspacePresenter/workspacePreviewProtocol'
 import {
   findDeepLinkArg,
@@ -15,8 +15,7 @@ import {
 } from './lib/startupDeepLink'
 import { isInsecureTlsAllowed } from './lib/insecureTls'
 import { activateAppOnMac, ensureRegularAppOnMac } from './lib/activateApp'
-import { destroyHighlightedTextFeature, initHighlightedTextFeature } from './highlightedText'
-import { initScreenShotFeature } from './screenShot'
+import { initJiaorongDesktopFeatures } from '../jiaorong_src/desktopFeatures'
 
 let appStarted = false
 const APP_NAME = 'JiaorongAI'
@@ -184,40 +183,7 @@ export function startApp(): void {
       await lifecycleManager.start()
       presenter = getInstance(lifecycleManager)
       const activePresenter = presenter
-      const applyHighlightedTextEnabled = (enabled: boolean): void => {
-        if (!enabled) {
-          destroyHighlightedTextFeature()
-          return
-        }
-        void initHighlightedTextFeature(activePresenter.windowPresenter.mainWindow).catch(
-          (error) => {
-            console.warn('main: highlighted text feature initialization failed:', error)
-          }
-        )
-      }
-      applyHighlightedTextEnabled(
-        activePresenter.configPresenter.getSetting<boolean>('highlightedTextEnabled') ?? true
-      )
-      eventBus.on(CONFIG_EVENTS.SETTING_CHANGED, (key, value) => {
-        if (key === 'highlightedTextEnabled') applyHighlightedTextEnabled(Boolean(value))
-      })
-      initScreenShotFeature(
-        async () => {
-          const mainWindow = presenter?.windowPresenter?.mainWindow
-          if (!mainWindow || mainWindow.isDestroyed()) return null
-          try {
-            const token = await mainWindow.webContents.executeJavaScript(
-              `localStorage.getItem('xkaitoken')`,
-              true
-            )
-            return typeof token === 'string' && token ? token : null
-          } catch (error) {
-            console.warn('main: screenshot token read failed:', error)
-            return null
-          }
-        },
-        () => presenter?.configPresenter.getShortcutKey().Screenshot
-      )
+      initJiaorongDesktopFeatures(activePresenter)
       logger.info('main: Application lifecycle startup completed successfully')
     } catch (error) {
       console.error('main: Application lifecycle startup failed:', error)

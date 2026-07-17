@@ -1,14 +1,3 @@
-/** node-screenshots 暴露的显示器采集接口。 */
-export type NodeScreenshotMonitor = {
-  id: () => number
-  name: () => string
-  captureImage: () => Promise<{
-    width: number
-    height: number
-    toRaw: () => Promise<Uint8Array | Buffer>
-  }>
-}
-
 /** Renderer 发起屏幕采集时携带的区域配置。 */
 export type ScreenCaptureConfig = {
   x: string

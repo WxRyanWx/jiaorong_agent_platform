@@ -2,10 +2,10 @@ import { app, BrowserWindow, clipboard, ipcMain, screen } from 'electron'
 import { is } from '@electron-toolkit/utils'
 import { join } from 'path'
 import { presenter } from '@/presenter'
+import { loadLocalUiohookRuntime } from './input/uiohookRuntime'
 import type { UiohookApi } from './contracts/types'
 import { checkAccessibilityPermission } from './input/accessibility'
 import { registerSelectionListeners } from './input/registerSelectionListeners'
-import { loadUiohookRuntime } from './input/uiohookRuntime'
 import { toDipPoint } from './windows/windowUtils'
 
 const CARD_POPUP_SESSION_PARTITION = 'card-popup-fixed'
@@ -673,18 +673,6 @@ export async function initHighlightedTextFeature(
   console.info(`[highlightedText] initialization begin platform=${process.platform}`)
   registerIpcHandlers()
 
-  const runtimeStartedAt = Date.now()
-  console.info('[highlightedText] runtime load begin')
-  const runtime = loadUiohookRuntime()
-  console.info(`[highlightedText] runtime load done elapsed=${Date.now() - runtimeStartedAt}ms`)
-  if (!runtime) {
-    console.warn('[highlightedText] initialization skipped: runtime unavailable')
-    return false
-  }
-  uIOhook = runtime.hook
-  UiohookKey = runtime.keys
-  const hook = uIOhook
-  const keys = UiohookKey
   if (hookStarted) {
     console.info('[highlightedText] initialization skipped: hook already started')
     return true
@@ -703,12 +691,20 @@ export async function initHighlightedTextFeature(
 
   registerQuitCleanup()
   uiohookDestroyed = false
-  hookStarted = true
 
   const hookStartedAt = Date.now()
-  console.info('[highlightedText] uiohook start begin')
+  console.info('[highlightedText] app-process uiohook start begin')
+  const runtime = loadLocalUiohookRuntime()
+  if (!runtime) return false
+  uIOhook = runtime.hook
+  UiohookKey = runtime.keys
   uIOhook.start()
-  console.info(`[highlightedText] uiohook start done elapsed=${Date.now() - hookStartedAt}ms`)
+  const hook = uIOhook
+  const keys = UiohookKey
+  hookStarted = true
+  console.info(
+    `[highlightedText] auxiliary uiohook start done elapsed=${Date.now() - hookStartedAt}ms`
+  )
 
   console.info('[highlightedText] selection listener registration begin')
   registerSelectionListeners({

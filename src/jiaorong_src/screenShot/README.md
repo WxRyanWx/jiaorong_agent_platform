@@ -67,7 +67,7 @@ resources/screen-shot/
 | --- | --- | --- | --- |
 | 1 | `initScreenShotFeature` | [index.ts:528](./index.ts#L528) | 注入登录令牌、快捷键读取器并初始化截图模块。 |
 | 2 | `registerIpcHandlers` | [registerScreenshotIpc.ts:34](./ipc/registerScreenshotIpc.ts#L34) | 幂等注册截图窗口、采集、缓存、OCR 和钉图 IPC。 |
-| 3 | `globalShortcut.register` | [shortcutPresenter.ts:306](../presenter/shortcutPresenter.ts#L306) | 注册全局截图快捷键，回调中调用 `openScreenShotWindow('hotkey')`。 |
+| 3 | `globalShortcut.register` | [shortcutPresenter.ts:306](../../main/presenter/shortcutPresenter.ts#L306) | 注册全局截图快捷键，回调中调用 `openScreenShotWindow('hotkey')`。 |
 
 ### 阶段 1：触发截图
 
@@ -75,7 +75,7 @@ resources/screen-shot/
 
 | 入口 | 调用链 | 代码位置 |
 | --- | --- | --- |
-| 全局快捷键 | `globalShortcut -> openScreenShotWindow('hotkey')` | [shortcutPresenter.ts:306](../presenter/shortcutPresenter.ts#L306) |
+| 全局快捷键 | `globalShortcut -> openScreenShotWindow('hotkey')` | [shortcutPresenter.ts:306](../../main/presenter/shortcutPresenter.ts#L306) |
 | Renderer 菜单/按钮 | `preload.openScreenShotWindow -> screen-shot:open -> openScreenShotWindow('ipc')` | [preload/index.ts:159](../../preload/index.ts#L159)、[registerScreenshotIpc.ts:39](./ipc/registerScreenshotIpc.ts#L39) |
 
 主进程随后执行：
@@ -99,8 +99,8 @@ resources/screen-shot/
 | 3 | `presentScreenshotWindow` | [index.ts:178](./index.ts#L178) | 显示仍为透明状态的截图窗口，让 Renderer 稳定布局。 |
 | 4 | `getScreenFrames` | [preload/index.ts:220](../../preload/index.ts#L220) | Renderer 通过 `screen:get-frames` 请求屏幕分片。 |
 | 5 | `screen:get-frames` handler | [registerScreenshotIpc.ts:78](./ipc/registerScreenshotIpc.ts#L78) | 调用采集方法并组装 IPC payload。 |
-| 6 | `captureDisplayTiles` | [index.ts:367](./index.ts#L367) | 临时隐藏截图窗口，并行采集所有显示器。 |
-| 7 | `captureMonitorFrame` | [index.ts:341](./index.ts#L341) | 调用 `node-screenshots` 获取单显示器 RGBA 数据。 |
+| 6 | `captureDisplayTiles` | [index.ts](./index.ts) | 临时隐藏截图窗口，并请求辅助进程采集所有显示器。 |
+| 7 | `desktopAuxiliaryRuntime.captureDisplays` | [desktopAuxiliaryRuntime.ts](../runtime/desktopAuxiliaryRuntime.ts) | 在独立 utility process 中调用 `node-screenshots` 获取 RGBA 数据。 |
 | 8 | `resolveFramePlacement` | [displayMetrics.ts:41](./capture/displayMetrics.ts#L41) | 计算每个显示器 tile 在联合画布中的目标坐标和大小。 |
 | 9 | `storeSessionCaptureCache` | [index.ts:60](./index.ts#L60) | 将本次采集 tiles 写入当前会话缓存。 |
 | 10 | `setSessionCaptureCache` | [captureCache.ts:31](./session/captureCache.ts#L31) | 保存缓存，供后续选区底图导出。 |

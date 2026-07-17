@@ -3,7 +3,7 @@ import type { DeepchatBridge } from '@shared/contracts/bridge'
 import type {
   ScreenshotDebugLogPayload,
   ScreenshotStartupMarkPayload
-} from '../main/screenShot/contracts/ipc'
+} from '../jiaorong_src/screenShot/contracts/ipc'
 
 type ScreenshotShotPayload = {
   uint8: Uint8Array | number[]

@@ -1,10 +1,10 @@
 import { app, BrowserWindow } from 'electron'
 import { is } from '@electron-toolkit/utils'
-import { createRequire } from 'node:module'
 import { appendFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { desktopAuxiliaryRuntime } from '../runtime/desktopAuxiliaryRuntime'
 import { SCREENSHOT_IPC, type ScreenshotStartupSource } from './contracts/ipc'
-import { systemShortcutKey } from '../presenter/configPresenter/shortcutKeySettings'
+import { systemShortcutKey } from '../../main/presenter/configPresenter/shortcutKeySettings'
 import {
   clearSessionCaptureCache,
   setSessionCaptureCache,
@@ -14,7 +14,6 @@ import { rgbaToNativeImage, writeImageToClip } from './capture/imageUtils'
 import type {
   CapturedDisplayFrame,
   MainWindowTokenReader,
-  NodeScreenshotMonitor,
   RgbaFrame,
   ScreenCaptureConfig,
   ScreenshotAction,
@@ -41,12 +40,6 @@ import {
   writeScreenshotLog
 } from './logging/runtimeLogger'
 
-const require = createRequire(import.meta.url)
-const NodeScreenshots = require('node-screenshots') as {
-  Monitor: {
-    all: () => NodeScreenshotMonitor[]
-  }
-}
 let screenshotWindow: BrowserWindow | null = null
 let screenshotWindowReady = false
 let screenshotActivationStarted = false
@@ -325,43 +318,17 @@ export const closeScreenshotWindow = (): void => {
   screenshotActivationStarted = false
 }
 
-/** 按显示器 ID、名称或位置索引匹配 node-screenshots 监视器。 */
+/** 按显示器 ID、名称或位置索引匹配辅助进程采集结果。 */
 const findMonitorForDisplay = (
-  monitors: NodeScreenshotMonitor[],
+  monitors: Awaited<ReturnType<typeof desktopAuxiliaryRuntime.captureDisplays>>,
   display: Electron.Display,
   displayIndex: number
-): NodeScreenshotMonitor | undefined => {
+) => {
   return (
-    monitors.find((monitor) => monitor.id() === display.id) ??
-    monitors.find((monitor) => monitor.name().startsWith(`screen:${display.id}:`)) ??
+    monitors.find((monitor) => monitor.id === display.id) ??
+    monitors.find((monitor) => monitor.name.startsWith(`screen:${display.id}:`)) ??
     monitors[displayIndex]
   )
-}
-
-/** 从单个监视器采集一帧 RGBA 原始像素。 */
-const captureMonitorFrame = async (monitor: NodeScreenshotMonitor): Promise<RgbaFrame> => {
-  const startedAt = Date.now()
-  writeScreenshotLog('log', 'capture', 'capture monitor start', {
-    id: monitor.id(),
-    name: monitor.name(),
-    cost: getSessionCost()
-  })
-  const image = await monitor.captureImage()
-  const raw = await image.toRaw()
-  const bytes = raw as Uint8Array
-  const frame = {
-    uint8: new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength),
-    width: image.width,
-    height: image.height
-  }
-  writeScreenshotLog('log', 'capture', 'capture monitor done', {
-    id: monitor.id(),
-    raw: `${image.width}x${image.height}`,
-    frame: `${frame.width}x${frame.height}`,
-    duration: `${Date.now() - startedAt}ms`,
-    cost: getSessionCost()
-  })
-  return frame
 }
 
 /** 并行采集所有显示器，并在采集期间临时隐藏截图蒙版。 */
@@ -380,7 +347,17 @@ export const captureDisplayTiles = async () => {
   }
 
   const union = getAllDisplayBounds()
-  const monitors = NodeScreenshots.Monitor.all()
+  const captureStartedAt = Date.now()
+  let monitors: Awaited<ReturnType<typeof desktopAuxiliaryRuntime.captureDisplays>>
+  try {
+    monitors = await desktopAuxiliaryRuntime.captureDisplays()
+  } finally {
+    // 辅助进程异常时也要恢复原窗口，避免截图层永久隐藏。
+    if (wasVisible) {
+      screenshotWindow?.show()
+      screenshotWindow?.focus()
+    }
+  }
   writeScreenshotLog('log', 'capture', 'display/monitor snapshot', {
     union: {
       x: union.x,
@@ -394,22 +371,28 @@ export const captureDisplayTiles = async () => {
       bounds: display.bounds,
       scaleFactor: display.scaleFactor
     })),
-    monitors: monitors.map((monitor) => ({ id: monitor.id(), name: monitor.name() }))
+    monitors: monitors.map((monitor) => ({
+      id: monitor.id,
+      name: monitor.name,
+      raw: `${monitor.width}x${monitor.height}`
+    })),
+    nativeCaptureDuration: `${Date.now() - captureStartedAt}ms`
   })
   const sortedDisplays = sortDisplaysByPosition(union.displays)
-  const capturedFrames = await Promise.all(
-    sortedDisplays.map(async (display, displayIndex) => {
-      const monitor = findMonitorForDisplay(monitors, display, displayIndex)
-      if (!monitor) return null
-      const frame = await captureMonitorFrame(monitor)
-      return { display, frame }
-    })
-  )
-
-  if (wasVisible) {
-    screenshotWindow?.show()
-    screenshotWindow?.focus()
-  }
+  const capturedFrames = sortedDisplays.map((display, displayIndex) => {
+    const monitor = findMonitorForDisplay(monitors, display, displayIndex)
+    if (!monitor) return null
+    const frame: RgbaFrame = {
+      uint8: new Uint8Array(
+        monitor.uint8.buffer,
+        monitor.uint8.byteOffset,
+        monitor.uint8.byteLength
+      ),
+      width: monitor.width,
+      height: monitor.height
+    }
+    return { display, frame }
+  })
 
   const frames: CapturedDisplayFrame[] = []
   for (const item of capturedFrames) {

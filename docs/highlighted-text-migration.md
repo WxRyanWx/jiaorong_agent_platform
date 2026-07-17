@@ -8,7 +8,7 @@
 
 ### 1. 接入全局划词监听
 
-- 新增 `src/main/highlightedText/index.ts`。
+- 新增 `src/jiaorong_src/highlightedText/index.ts`。
 - 使用 `uiohook-napi` 监听全局鼠标、键盘事件。
 - 支持鼠标拖选文本后弹出划词操作面板。
 - 支持双击选中文本后弹出划词操作面板。
@@ -132,7 +132,7 @@
 
 ### 新增文件
 
-- `src/main/highlightedText/index.ts`
+- `src/jiaorong_src/highlightedText/index.ts`
 - `src/renderer/api/HighlightedTextClient.ts`
 - `src/renderer/src/components/highlighted-text/CardPopup.vue`
 - `src/renderer/src/components/highlighted-text/SelectionTranslatePopup.vue`
@@ -159,7 +159,7 @@
 
 ## 已验证
 
-- `pnpm exec oxfmt src/main/highlightedText/index.ts`
+- `pnpm exec oxfmt src/jiaorong_src/highlightedText/index.ts`
 - `pnpm run typecheck`
 - `pnpm run lint`
 

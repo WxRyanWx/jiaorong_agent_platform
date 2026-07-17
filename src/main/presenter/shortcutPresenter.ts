@@ -14,7 +14,7 @@ import { defaultShortcutKey, ShortcutKeySetting } from './configPresenter/shortc
 import { IConfigPresenter, IShortcutPresenter } from '@shared/presenter'
 import { getContextMenuLabels, type TranslationMap } from '@shared/i18n'
 import { is } from '@electron-toolkit/utils'
-import { openScreenShotWindow } from '../screenShot'
+import { openScreenShotWindow } from '../../jiaorong_src/screenShot'
 
 const defaultMenuLabels: TranslationMap = {
   file: 'File',

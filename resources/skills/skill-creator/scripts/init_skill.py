@@ -6,13 +6,18 @@ Usage:
     init_skill.py <skill-name> --path <path>
 
 Examples:
-    init_skill.py my-new-skill --path skills/public
-    init_skill.py my-api-helper --path skills/private
-    init_skill.py custom-skill --path /custom/location
+    init_skill.py my-new-skill --path /Users/example/.jiaorongchat/skills
+    init_skill.py my-api-helper --path C:\\Users\\example\\.jiaorongchat\\skills
+    init_skill.py custom-skill --path /custom/absolute/location
 """
 
+import re
 import sys
 from pathlib import Path
+
+
+SKILL_NAME_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]*$")
+SKILL_NAME_MAX_LENGTH = 64
 
 
 SKILL_TEMPLATE = """---
@@ -191,6 +196,26 @@ def title_case_skill_name(skill_name):
     return ' '.join(word.capitalize() for word in skill_name.split('-'))
 
 
+def validate_skill_name(skill_name):
+    """Return an error message when a skill name is invalid."""
+    if len(skill_name) > SKILL_NAME_MAX_LENGTH:
+        return f"Skill name must be at most {SKILL_NAME_MAX_LENGTH} characters"
+    if not SKILL_NAME_PATTERN.fullmatch(skill_name):
+        return "Skill name must contain only lowercase letters, digits, and hyphens"
+    return None
+
+
+def resolve_output_root(path):
+    """Resolve an explicit absolute output root without depending on the current workspace."""
+    output_root = Path(path).expanduser()
+    if not output_root.is_absolute():
+        raise ValueError(
+            "Output path must be absolute. Use the runtime ${SKILLS_DIR} value; "
+            "do not use '.', the current workspace, or another relative path."
+        )
+    return output_root.resolve()
+
+
 def init_skill(skill_name, path):
     """
     Initialize a new skill directory with template SKILL.md.
@@ -202,8 +227,19 @@ def init_skill(skill_name, path):
     Returns:
         Path to created skill directory, or None if error
     """
-    # Determine skill directory path
-    skill_dir = Path(path).resolve() / skill_name
+    name_error = validate_skill_name(skill_name)
+    if name_error:
+        print(f"❌ Error: {name_error}: {skill_name}")
+        return None
+
+    try:
+        output_root = resolve_output_root(path)
+    except ValueError as error:
+        print(f"❌ Error: {error}")
+        return None
+
+    # Determine skill directory path from the explicit runtime skills root.
+    skill_dir = output_root / skill_name
 
     # Check if directory already exists
     if skill_dir.exists():
@@ -276,12 +312,12 @@ def main():
         print("\nSkill name requirements:")
         print("  - Hyphen-case identifier (e.g., 'data-analyzer')")
         print("  - Lowercase letters, digits, and hyphens only")
-        print("  - Max 40 characters")
+        print(f"  - Max {SKILL_NAME_MAX_LENGTH} characters")
         print("  - Must match directory name exactly")
-        print("\nExamples:")
-        print("  init_skill.py my-new-skill --path skills/public")
-        print("  init_skill.py my-api-helper --path skills/private")
-        print("  init_skill.py custom-skill --path /custom/location")
+        print("  - Output path must be absolute")
+        print("  - In JiaorongChat, always pass the runtime ${SKILLS_DIR} value")
+        print("\nExample:")
+        print("  init_skill.py my-new-skill --path /absolute/path/to/.jiaorongchat/skills")
         sys.exit(1)
 
     skill_name = sys.argv[1]
