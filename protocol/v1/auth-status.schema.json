@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.jiaorong.ai/cli/v1/auth-status.schema.json",
+  "type": "object",
+  "required": ["authenticated", "account", "credentialSource"],
+  "properties": {
+    "authenticated": { "type": "boolean" },
+    "account": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["id", "displayName"],
+          "properties": {
+            "id": { "$ref": "common.schema.json#/$defs/nonEmptyString" },
+            "displayName": { "$ref": "common.schema.json#/$defs/nonEmptyString" }
+          },
+          "additionalProperties": true
+        },
+        { "type": "null" }
+      ]
+    },
+    "credentialSource": {
+      "oneOf": [
+        { "$ref": "common.schema.json#/$defs/nonEmptyString" },
+        { "type": "null" }
+      ]
+    }
+  },
+  "additionalProperties": true
+}

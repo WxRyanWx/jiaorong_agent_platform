@@ -1,0 +1,4 @@
+{"type":"init","protocolVersion":1,"requestId":"req_reasoning","sessionId":"ses_reasoning","resumed":false,"model":{"id":"jiaorong-fixture"},"permissionMode":"plan","attachments":[]}
+{"type":"reasoning_summary","messageId":"msg_reasoning","delta":"Checking the fixture."}
+{"type":"message","messageId":"msg_reasoning","role":"assistant","delta":"Checked."}
+{"type":"result","requestId":"req_reasoning","sessionId":"ses_reasoning","status":"success","content":"Checked.","usage":null,"turns":1,"durationMs":11,"error":null}

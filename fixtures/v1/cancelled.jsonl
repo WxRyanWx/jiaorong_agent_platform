@@ -1,0 +1,3 @@
+{"type":"init","protocolVersion":1,"requestId":"req_cancelled","sessionId":"ses_cancelled","resumed":false,"model":{"id":"jiaorong-fixture"},"permissionMode":"default","attachments":[]}
+{"type":"message","messageId":"msg_cancelled","role":"assistant","delta":"Partial response"}
+{"type":"result","requestId":"req_cancelled","sessionId":"ses_cancelled","status":"cancelled","content":"Partial response","usage":null,"turns":1,"durationMs":16,"error":{"code":"CANCELLED","message":"The run was cancelled."}}

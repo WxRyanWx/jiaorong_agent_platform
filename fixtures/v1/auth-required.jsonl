@@ -1,0 +1,3 @@
+{"type":"init","protocolVersion":1,"requestId":"req_auth","sessionId":null,"resumed":false,"model":null,"permissionMode":"default","attachments":[]}
+{"type":"error","code":"AUTH_REQUIRED","message":"Sign in with jiaorong-cli auth login.","recoverable":false,"details":null}
+{"type":"result","requestId":"req_auth","sessionId":null,"status":"failed","content":"","usage":null,"turns":0,"durationMs":5,"error":{"code":"AUTH_REQUIRED","message":"Sign in with jiaorong-cli auth login."}}

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.jiaorong.ai/cli/v1/init.schema.json",
+  "type": "object",
+  "required": ["type", "protocolVersion", "requestId", "sessionId", "resumed", "model", "permissionMode", "attachments"],
+  "properties": {
+    "type": { "const": "init" },
+    "protocolVersion": { "const": 1 },
+    "requestId": { "$ref": "common.schema.json#/$defs/nonEmptyString" },
+    "sessionId": { "$ref": "common.schema.json#/$defs/nullableNonEmptyString" },
+    "resumed": { "type": "boolean" },
+    "model": { "$ref": "common.schema.json#/$defs/nullableModel" },
+    "permissionMode": { "$ref": "common.schema.json#/$defs/nullablePermissionMode" },
+    "attachments": {
+      "type": "array",
+      "items": { "$ref": "common.schema.json#/$defs/attachment" }
+    }
+  },
+  "additionalProperties": true
+}

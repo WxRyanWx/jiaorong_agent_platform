@@ -1,0 +1,3 @@
+{"type":"init","protocolVersion":1,"requestId":"req_mismatch","sessionId":"ses_mismatch","resumed":false,"model":{"id":"jiaorong-fixture"},"permissionMode":"default","attachments":[]}
+{"type":"message","messageId":"msg_mismatch","role":"assistant","delta":"Actual."}
+{"type":"result","requestId":"req_mismatch","sessionId":"ses_mismatch","status":"success","content":"Different.","usage":null,"turns":1,"durationMs":1,"error":null}

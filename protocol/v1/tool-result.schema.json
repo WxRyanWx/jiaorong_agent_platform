@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.jiaorong.ai/cli/v1/tool-result.schema.json",
+  "type": "object",
+  "required": ["type", "toolCallId", "status", "output", "error"],
+  "properties": {
+    "type": { "const": "tool_result" },
+    "toolCallId": { "$ref": "common.schema.json#/$defs/nonEmptyString" },
+    "status": { "enum": ["success", "failed", "cancelled"] },
+    "output": true,
+    "error": { "$ref": "common.schema.json#/$defs/nullableError" }
+  },
+  "additionalProperties": true
+}

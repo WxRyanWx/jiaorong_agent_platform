@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.jiaorong.ai/cli/v1/json-result.schema.json",
+  "type": "object",
+  "required": ["protocolVersion", "requestId", "sessionId", "status", "content", "model", "usage", "turns", "durationMs", "error"],
+  "properties": {
+    "protocolVersion": { "const": 1 },
+    "requestId": { "$ref": "common.schema.json#/$defs/nonEmptyString" },
+    "sessionId": { "$ref": "common.schema.json#/$defs/nullableNonEmptyString" },
+    "status": { "enum": ["success", "failed", "cancelled"] },
+    "content": { "type": "string" },
+    "model": { "$ref": "common.schema.json#/$defs/nullableModel" },
+    "usage": { "$ref": "common.schema.json#/$defs/nullableUsage" },
+    "turns": { "type": "integer", "minimum": 0 },
+    "durationMs": { "type": "integer", "minimum": 0 },
+    "error": { "$ref": "common.schema.json#/$defs/nullableError" }
+  },
+  "additionalProperties": true
+}

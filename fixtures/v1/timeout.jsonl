@@ -1,0 +1,3 @@
+{"type":"init","protocolVersion":1,"requestId":"req_timeout","sessionId":"ses_timeout","resumed":false,"model":{"id":"jiaorong-fixture"},"permissionMode":"default","attachments":[]}
+{"type":"error","code":"TIMEOUT","message":"The run timed out.","recoverable":false,"details":null}
+{"type":"result","requestId":"req_timeout","sessionId":"ses_timeout","status":"failed","content":"","usage":null,"turns":1,"durationMs":1000,"error":{"code":"TIMEOUT","message":"The run timed out."}}

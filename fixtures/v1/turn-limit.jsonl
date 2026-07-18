@@ -1,0 +1,3 @@
+{"type":"init","protocolVersion":1,"requestId":"req_turn_limit","sessionId":"ses_turn_limit","resumed":false,"model":{"id":"jiaorong-fixture"},"permissionMode":"default","attachments":[]}
+{"type":"error","code":"TURN_LIMIT","message":"The run reached its turn limit.","recoverable":false,"details":null}
+{"type":"result","requestId":"req_turn_limit","sessionId":"ses_turn_limit","status":"failed","content":"","usage":null,"turns":3,"durationMs":15,"error":{"code":"TURN_LIMIT","message":"The run reached its turn limit."}}

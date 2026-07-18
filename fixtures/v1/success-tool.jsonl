@@ -1,0 +1,5 @@
+{"type":"init","protocolVersion":1,"requestId":"req_tool","sessionId":"ses_tool","resumed":false,"model":{"id":"jiaorong-fixture"},"permissionMode":"default","attachments":[]}
+{"type":"tool_use","toolCallId":"tool_read","name":"read_file","input":{"path":"README.md"}}
+{"type":"tool_result","toolCallId":"tool_read","status":"success","output":{"summary":"Read fixture file"},"error":null}
+{"type":"message","messageId":"msg_tool","role":"assistant","delta":"Read complete."}
+{"type":"result","requestId":"req_tool","sessionId":"ses_tool","status":"success","content":"Read complete.","usage":null,"turns":2,"durationMs":12,"error":null}

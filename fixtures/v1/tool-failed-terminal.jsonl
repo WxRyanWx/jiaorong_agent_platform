@@ -1,0 +1,5 @@
+{"type":"init","protocolVersion":1,"requestId":"req_tool_failed","sessionId":"ses_tool_failed","resumed":false,"model":{"id":"jiaorong-fixture"},"permissionMode":"default","attachments":[]}
+{"type":"tool_use","toolCallId":"tool_shell","name":"shell","input":{"argv":["false"]}}
+{"type":"tool_result","toolCallId":"tool_shell","status":"failed","output":null,"error":{"code":"TOOL_FAILED","message":"Command failed."}}
+{"type":"error","code":"TOOL_FAILED","message":"The required tool failed.","recoverable":false,"details":null}
+{"type":"result","requestId":"req_tool_failed","sessionId":"ses_tool_failed","status":"failed","content":"","usage":null,"turns":1,"durationMs":14,"error":{"code":"TOOL_FAILED","message":"The required tool failed."}}

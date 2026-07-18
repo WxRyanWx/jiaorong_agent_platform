@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.jiaorong.ai/cli/v1/models-list.schema.json",
+  "type": "object",
+  "required": ["schemaVersion", "models"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "models": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "displayName", "isDefault", "available", "inputTypes"],
+        "properties": {
+          "id": { "$ref": "common.schema.json#/$defs/nonEmptyString" },
+          "displayName": { "$ref": "common.schema.json#/$defs/nonEmptyString" },
+          "isDefault": { "type": "boolean" },
+          "available": { "type": "boolean" },
+          "inputTypes": {
+            "type": "array",
+            "items": { "enum": ["text", "image"] },
+            "uniqueItems": true
+          },
+          "contextWindow": { "type": "integer", "minimum": 1 }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}

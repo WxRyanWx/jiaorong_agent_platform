@@ -1,0 +1,5 @@
+{"type":"init","protocolVersion":1,"requestId":"req_denied","sessionId":"ses_denied","resumed":false,"model":{"id":"jiaorong-fixture"},"permissionMode":"plan","attachments":[]}
+{"type":"tool_use","toolCallId":"tool_edit","name":"edit_file","input":{"path":"note.md"}}
+{"type":"tool_result","toolCallId":"tool_edit","status":"failed","output":null,"error":{"code":"PERMISSION_DENIED","message":"Edit is unavailable in plan mode."}}
+{"type":"message","messageId":"msg_denied","role":"assistant","delta":"No file was changed."}
+{"type":"result","requestId":"req_denied","sessionId":"ses_denied","status":"success","content":"No file was changed.","usage":null,"turns":2,"durationMs":13,"error":null}

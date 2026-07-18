@@ -1,0 +1,2 @@
+{"type":"init","protocolVersion":1,"requestId":"req_missing_result","sessionId":"ses_missing_result","resumed":false,"model":{"id":"jiaorong-fixture"},"permissionMode":"default","attachments":[]}
+{"type":"message","messageId":"msg_missing_result","role":"assistant","delta":"Never terminal."}

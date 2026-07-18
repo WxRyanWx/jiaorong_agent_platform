@@ -1,0 +1,3 @@
+{"type":"init","protocolVersion":1,"requestId":"req_dup_init","sessionId":"ses_dup_init","resumed":false,"model":{"id":"jiaorong-fixture"},"permissionMode":"default","attachments":[]}
+{"type":"init","protocolVersion":1,"requestId":"req_dup_init","sessionId":"ses_dup_init","resumed":false,"model":{"id":"jiaorong-fixture"},"permissionMode":"default","attachments":[]}
+{"type":"result","requestId":"req_dup_init","sessionId":"ses_dup_init","status":"success","content":"","usage":null,"turns":0,"durationMs":1,"error":null}

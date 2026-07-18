@@ -1,0 +1,4 @@
+{"type":"init","protocolVersion":1,"requestId":"req_extension","sessionId":"ses_extension","resumed":false,"model":{"id":"jiaorong-fixture"},"permissionMode":"default","attachments":[]}
+{"type":"progress","phase":"model","percent":50}
+{"type":"message","messageId":"msg_extension","role":"assistant","delta":"Compatible."}
+{"type":"result","requestId":"req_extension","sessionId":"ses_extension","status":"success","content":"Compatible.","usage":null,"turns":1,"durationMs":18,"error":null}

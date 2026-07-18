@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.jiaorong.ai/cli/v1/message.schema.json",
+  "type": "object",
+  "required": ["type", "messageId", "role", "delta"],
+  "properties": {
+    "type": { "const": "message" },
+    "messageId": { "$ref": "common.schema.json#/$defs/nonEmptyString" },
+    "role": { "const": "assistant" },
+    "delta": { "type": "string" }
+  },
+  "additionalProperties": true
+}

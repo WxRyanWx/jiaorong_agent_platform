@@ -1,0 +1,4 @@
+{"type":"init","protocolVersion":1,"requestId":"req_text","sessionId":"ses_text","resumed":false,"model":{"id":"jiaorong-fixture","displayName":"Jiaorong Fixture"},"permissionMode":"default","attachments":[]}
+{"type":"message","messageId":"msg_text","role":"assistant","delta":"Hello, "}
+{"type":"message","messageId":"msg_text","role":"assistant","delta":"fixture."}
+{"type":"result","requestId":"req_text","sessionId":"ses_text","status":"success","content":"Hello, fixture.","usage":{"inputTokens":2,"outputTokens":2,"totalTokens":4},"turns":1,"durationMs":10,"error":null}

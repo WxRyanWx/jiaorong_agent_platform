@@ -1,0 +1,23 @@
+{
+  "protocolVersion": 1,
+  "fixtures": {
+    "success-text.jsonl": { "accept": true, "exitCode": 0, "reason": "Minimal successful text stream." },
+    "success-reasoning.jsonl": { "accept": true, "exitCode": 0, "reason": "Reasoning Summary is optional and excluded from result content." },
+    "success-tool.jsonl": { "accept": true, "exitCode": 0, "reason": "Tool use has one matching successful result." },
+    "tool-denied-then-success.jsonl": { "accept": true, "exitCode": 0, "reason": "A tool denial may be recoverable before a successful run result." },
+    "tool-failed-terminal.jsonl": { "accept": true, "exitCode": 1, "reason": "A terminal tool failure has error and failed result events." },
+    "auth-required.jsonl": { "accept": true, "exitCode": 1, "reason": "Auth preflight failure establishes protocol without creating a Session." },
+    "model-unavailable.jsonl": { "accept": true, "exitCode": 1, "reason": "Model preflight failure has no selected model or Session." },
+    "timeout.jsonl": { "accept": true, "exitCode": 1, "reason": "Timeout is a failed result with the stable TIMEOUT code." },
+    "turn-limit.jsonl": { "accept": true, "exitCode": 53, "reason": "Turn limit uses its dedicated exit code." },
+    "cancelled.jsonl": { "accept": true, "exitCode": 130, "reason": "Graceful SIGINT cancellation preserves partial content." },
+    "unknown-optional-field.jsonl": { "accept": true, "exitCode": 0, "reason": "Unknown optional fields are compatible within v1." },
+    "unknown-nonterminal-event.jsonl": { "accept": true, "exitCode": 0, "reason": "Unknown non-terminal events are skipped within v1." },
+    "unsupported-major.jsonl": { "accept": false, "exitCode": 42, "reason": "Protocol major 2 is not valid under the v1 Schema." },
+    "invalid-duplicate-init.jsonl": { "accept": false, "exitCode": 0, "reason": "A stream may contain exactly one init." },
+    "invalid-missing-result.jsonl": { "accept": false, "exitCode": 0, "reason": "A protocol stream must terminate with result." },
+    "invalid-duplicate-result.jsonl": { "accept": false, "exitCode": 0, "reason": "A stream may contain exactly one result and nothing after it." },
+    "invalid-tool-order.jsonl": { "accept": false, "exitCode": 0, "reason": "tool_result cannot precede its tool_use." },
+    "invalid-content-mismatch.jsonl": { "accept": false, "exitCode": 0, "reason": "Message deltas must concatenate to result.content." }
+  }
+}

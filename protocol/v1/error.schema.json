@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.jiaorong.ai/cli/v1/error.schema.json",
+  "type": "object",
+  "required": ["type", "code", "message", "recoverable"],
+  "properties": {
+    "type": { "const": "error" },
+    "code": { "$ref": "common.schema.json#/$defs/machineErrorCode" },
+    "message": { "type": "string" },
+    "recoverable": { "type": "boolean" },
+    "details": true
+  },
+  "additionalProperties": true
+}

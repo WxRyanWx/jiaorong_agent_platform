@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.jiaorong.ai/cli/v1/common.schema.json",
+  "$defs": {
+    "nonEmptyString": { "type": "string", "minLength": 1 },
+    "nullableNonEmptyString": {
+      "oneOf": [
+        { "$ref": "#/$defs/nonEmptyString" },
+        { "type": "null" }
+      ]
+    },
+    "permissionMode": {
+      "enum": ["plan", "default", "acceptEdits", "bypassPermissions"]
+    },
+    "nullablePermissionMode": {
+      "oneOf": [
+        { "$ref": "#/$defs/permissionMode" },
+        { "type": "null" }
+      ]
+    },
+    "machineErrorCode": {
+      "enum": [
+        "AUTH_REQUIRED",
+        "INVALID_ARGUMENT",
+        "UNSUPPORTED_PROTOCOL",
+        "MODEL_UNAVAILABLE",
+        "PERMISSION_DENIED",
+        "TOOL_FAILED",
+        "UNSUPPORTED_ATTACHMENT",
+        "TIMEOUT",
+        "TURN_LIMIT",
+        "CANCELLED",
+        "INTERNAL_ERROR"
+      ]
+    },
+    "error": {
+      "type": "object",
+      "required": ["code", "message"],
+      "properties": {
+        "code": { "$ref": "#/$defs/machineErrorCode" },
+        "message": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "nullableError": {
+      "oneOf": [
+        { "$ref": "#/$defs/error" },
+        { "type": "null" }
+      ]
+    },
+    "model": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {
+        "id": { "$ref": "#/$defs/nonEmptyString" },
+        "displayName": { "$ref": "#/$defs/nonEmptyString" }
+      },
+      "additionalProperties": true
+    },
+    "nullableModel": {
+      "oneOf": [
+        { "$ref": "#/$defs/model" },
+        { "type": "null" }
+      ]
+    },
+    "attachment": {
+      "type": "object",
+      "required": ["id", "name", "mimeType", "sizeBytes"],
+      "properties": {
+        "id": { "$ref": "#/$defs/nonEmptyString" },
+        "name": { "$ref": "#/$defs/nonEmptyString" },
+        "mimeType": { "$ref": "#/$defs/nonEmptyString" },
+        "sizeBytes": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": true
+    },
+    "usage": {
+      "type": "object",
+      "required": ["inputTokens", "outputTokens", "totalTokens"],
+      "properties": {
+        "inputTokens": { "type": "integer", "minimum": 0 },
+        "outputTokens": { "type": "integer", "minimum": 0 },
+        "totalTokens": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": true
+    },
+    "nullableUsage": {
+      "oneOf": [
+        { "$ref": "#/$defs/usage" },
+        { "type": "null" }
+      ]
+    }
+  }
+}

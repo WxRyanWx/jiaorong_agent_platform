@@ -1,0 +1,3 @@
+{"type":"init","protocolVersion":1,"requestId":"req_optional","sessionId":"ses_optional","resumed":false,"model":{"id":"jiaorong-fixture","vendorExtension":"safe"},"permissionMode":"default","attachments":[],"futureCapability":true}
+{"type":"message","messageId":"msg_optional","role":"assistant","delta":"Compatible.","futureField":{"enabled":true}}
+{"type":"result","requestId":"req_optional","sessionId":"ses_optional","status":"success","content":"Compatible.","usage":null,"turns":1,"durationMs":17,"error":null,"futureMetric":7}
