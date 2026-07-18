@@ -52,7 +52,7 @@ test('the public runner validates a fixture-backed CLI through real process I/O'
 
 test('the runner inventory cannot drift from the frozen conformance matrix', async () => {
     const matrix = await readFile(
-        resolve(root, '../docs/jiaorong-cli-v1-conformance-matrix.md'),
+        resolve(root, 'docs/jiaorong-cli-v1-conformance-matrix.md'),
         'utf8',
     );
     const documented = [...matrix.matchAll(/^\| ([A-Z]{2,4}-\d{3})/gm)]
