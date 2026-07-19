@@ -1,6 +1,6 @@
 # Jiaorong CLI v1 机器协议规范
 
-> 状态：Draft for implementation
+> 状态：Active implementation contract
 > 协议主版本：1
 > 关联：[产品需求文档](./jiaorong-cli-v1-prd.md) · [一致性测试矩阵](./jiaorong-cli-v1-conformance-matrix.md) · [领域词汇表](../CONTEXT.md)
 
@@ -8,7 +8,7 @@
 
 本规范定义 Jiaorong CLI v1 的非交互调用、机器输出、事件顺序、会话、工具、错误和取消合同。它不定义交互式 TUI、后台任务、ACP、MCP 或桌面客户端协议。
 
-Jiaorong CLI 不要求与 CodeBuddy CLI 使用相同的命令参数或 JSON 字段。Workbuddian 通过薄适配器消费本协议。
+本协议是 Jiaorong CLI 自己的公开合同。调用者只能依赖本文定义的参数、事件、错误和兼容规则。
 
 ## 2. 传输约定
 
@@ -57,7 +57,7 @@ jiaorong-cli -p "Inspect this vault" --output-format stream-json
 jiaorong-cli -p "Continue" --resume ses_01J... --output-format stream-json
 ```
 
-- 新建会话的 Session ID 由 CLI 生成。
+- 新建会话的 Session ID 由 JiaorongAI 生成并由 CLI 返回。
 - `--resume` 不允许与调用方自定义新 Session ID 的参数并存。
 - Session 不存在、已删除或不属于当前账号时返回 `INVALID_ARGUMENT` 和 exit 42，不创建同名新会话。
 
@@ -372,7 +372,7 @@ Agent 开始一次工具调用。
   "durationMs": 140,
   "error": {
     "code": "AUTH_REQUIRED",
-    "message": "Sign in with jiaorong-cli auth login."
+    "message": "Open JiaorongAI and complete sign-in before retrying."
   }
 }
 ```
@@ -437,16 +437,16 @@ stateDiagram-v2
 
 `--permission-mode`：
 
-| 工具类别 | plan | default | acceptEdits | bypassPermissions |
-|---|---:|---:|---:|---:|
-| Read | 允许 | 允许 | 允许 | 允许 |
-| Search | 允许 | 允许 | 允许 | 允许 |
-| Edit | 拒绝 | 需默认策略；不能自动批准则拒绝 | 允许 | 允许 |
-| Shell | 拒绝 | 需默认策略；不能自动批准则拒绝 | 需默认策略；不能自动批准则拒绝 | 允许 |
+| 工具类别 | default | full_access |
+|---|---:|---:|
+| Read | 允许 | 允许 |
+| Search | 允许 | 允许 |
+| Edit | 需默认策略；不能自动批准则拒绝 | 允许 |
+| Shell | 需默认策略；不能自动批准则拒绝 | 允许 |
 
 - 拒绝时必须返回 `tool_result.status="failed"` 和 `PERMISSION_DENIED`。
 - v1 不得在 Headless Run 中等待键盘或 stdin 审批。
-- `bypassPermissions` 不取消 Project Root 和 Additional Directory 边界。
+- `full_access` 不取消 Project Root 和 Additional Directory 边界。
 
 ## 8. 文件与 Attachment
 
@@ -456,7 +456,7 @@ stateDiagram-v2
 - `--add-dir` 可重复。
 - 相对路径相对于 Project Root 解析。
 - 访问前比较规范化后的 real path。
-- 必须防止 `..`、symlink、Windows junction 和大小写别名逃逸。
+- 必须防止 `..`、symlink 和 macOS 大小写别名逃逸。
 
 ### 8.2 Attachment
 
@@ -506,60 +506,11 @@ jiaorong-cli models list --output-format json
 - `contextWindow` 无法提供时可省略。
 - 不可用模型可以保留在列表并标记 `available: false`。
 
-## 10. Session 管理协议
+## 10. Session 范围
 
-```bash
-jiaorong-cli sessions list --output-format json
-```
+首版公开命令只支持新建和 `--resume`。CLI 使用 JiaorongAI 的 Session persistence，但不承诺完整 Session 列表或管理 API。
 
-```json
-{
-  "schemaVersion": 1,
-  "sessions": [
-    {
-      "id": "ses_01JXYZ",
-      "title": "Inspect this vault",
-      "createdAt": "2026-07-18T08:00:00Z",
-      "updatedAt": "2026-07-18T08:05:00Z",
-      "modelId": "jiaorong-default"
-    }
-  ]
-}
-```
-
-删除：
-
-```bash
-jiaorong-cli sessions delete ses_01JXYZ --output-format json
-```
-
-```json
-{
-  "deleted": true,
-  "sessionId": "ses_01JXYZ"
-}
-```
-
-不存在的 Session 不得假报删除成功。
-
-## 11. Auth 与 Doctor
-
-```bash
-jiaorong-cli auth status --output-format json
-```
-
-```json
-{
-  "authenticated": true,
-  "account": {
-    "id": "acct_redacted",
-    "displayName": "User"
-  },
-  "credentialSource": "os-keychain"
-}
-```
-
-不得输出 token。
+## 11. Doctor
 
 ```bash
 jiaorong-cli doctor --output-format json
@@ -571,11 +522,12 @@ jiaorong-cli doctor --output-format json
   "cliVersion": "1.0.0",
   "protocolVersions": [1],
   "checks": [
-    { "name": "installation", "status": "pass" },
-    { "name": "authentication", "status": "pass" },
-    { "name": "models", "status": "pass" },
-    { "name": "credential-store", "status": "pass" },
-    { "name": "core-tools", "status": "pass" }
+    { "name": "app-installation", "status": "pass" },
+    { "name": "app-version", "status": "pass" },
+    { "name": "loopback-endpoint", "status": "pass" },
+    { "name": "bridge-contract", "status": "pass" },
+    { "name": "account-readiness", "status": "pass" },
+    { "name": "models", "status": "pass" }
   ]
 }
 ```
@@ -624,7 +576,7 @@ Doctor 必须只读。
 6. 输出唯一 `result(status="cancelled")`。
 7. exit 130。
 
-调用方在约定宽限期后可强制终止。强制终止允许缺失 result，但必须被 Workbuddian 视为传输/协议失败，不得伪装成已确认取消。
+调用方在约定宽限期后可强制终止。强制终止允许缺失 result，但必须被任何调用方视为传输/协议失败，不得伪装成已确认取消。
 
 ## 14. 协议版本兼容
 
@@ -633,21 +585,11 @@ Doctor 必须只读。
 - 同一主版本可新增非终止事件；消费者可以记录并跳过未知事件。
 - 不得删除必填字段、改变字段类型或重定义既有枚举值。
 - `init` 和 `result` 不允许被未知事件替代。
-- Workbuddian 不支持该主版本时必须在发送真实任务前拒绝接入。
+- 调用方不支持该主版本时必须在发送真实任务前拒绝接入。
 
-## 15. Workbuddian 事件映射
+## 15. 调用方事件消费
 
-| Jiaorong CLI | Workbuddian Transport |
-|---|---|
-| 非空 `init.sessionId` | `session` |
-| `message.delta` | `text` append |
-| `reasoning_summary.delta` | `thinking` append |
-| `tool_use` | tool pending |
-| `tool_result` | tool success/failed/cancelled |
-| terminal `error` | `error` |
-| `result` | `done` + usage |
-
-未知非终止事件只记录日志，不得破坏当前 run。未知主版本直接拒绝。
+调用方按顺序消费事件，以 `init` 建立协议和 Session，以增量事件更新状态，以 `result` 作为唯一终止事实。未知非终止事件只记录日志，不得破坏当前 run；未知主版本直接拒绝。
 
 ## 16. 解析器必须拒绝的情况
 

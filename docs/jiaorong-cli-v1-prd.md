@@ -1,248 +1,148 @@
 # Jiaorong CLI v1 产品需求文档
 
-> 状态：已完成产品决策，待研发评审
-> 文档版本：1.0
-> 日期：2026-07-18
+> 状态：已批准并进入实现
+> 文档版本：2.0
+> 日期：2026-07-19
 > 目标版本：Jiaorong CLI v1
-> 关联文档：[领域词汇表](../CONTEXT.md) · [机器协议规范](./jiaorong-cli-v1-protocol.md) · [协议一致性测试矩阵](./jiaorong-cli-v1-conformance-matrix.md) · [架构决策](./adr/)
+> 关联文档：[领域词汇表](../CONTEXT.md) · [机器协议](./jiaorong-cli-v1-protocol.md) · [一致性矩阵](./jiaorong-cli-v1-conformance-matrix.md) · [App Backend ADR](./adr/0018-use-jiaorongai-app-backend-for-v1.md)
 
 ## 1. 产品概述
 
-Jiaorong CLI 是一个独立、非交互优先的 Agent CLI。它允许人类脚本、IDE、Obsidian 插件及其他本地程序启动 Jiaorong Agent、读取流式结果、使用工具并恢复长期会话。
+Jiaorong CLI 是面向 JiaorongAI 用户和本地自动化的非交互优先命令行产品。用户安装并运行受支持的 `JiaorongAI.app` 后，可以从终端发起真实 Agent 任务、选择模型、传入附件、观察工具事件、恢复会话并取消运行。
 
-Jiaorong CLI v1 的首要集成目标是具备未来替代 CodeBuddy CLI 接入 Workbuddian 的能力，但本版本不实施替换，也不要求 Workbuddian 立即切换后端。
+首版不修改 JiaorongAI 源码，不复制其 Agent Runtime，也不直接读取或写入其 SQLite。CLI 通过仅限本机回环地址、严格校验身份和版本的 CDP 通道调用 JiaorongAI 已有的 `window.deepchat` bridge。
 
-Jiaorong CLI 不复制 CodeBuddy 的私有参数和事件 envelope。未来接入时允许增加一个薄的 `JiaorongTransport`，但 Workbuddian 的聊天 UI、会话业务和上下文组装不应因后端切换而重写。
+## 2. 产品边界
 
-## 2. 成熟产品基线
+### 2.1 必须实现
 
-本 PRD 不自创桌面遥控或私有 daemon 架构，而采用成熟 Agent CLI 的共同模式：
+1. 支持已安装的 macOS `JiaorongAI.app` 0.5.6。
+2. 应用未运行时，CLI 可用显式、安全的参数启动它并建立回环 CDP endpoint。
+3. 应用已运行但没有可验证 CDP endpoint 时，CLI 不得重启或终止应用，必须给出恢复说明。
+4. 支持 prompt 参数和 stdin 输入。
+5. 支持 `text`、`json`、`stream-json` 三种输出。
+6. 使用 JiaorongAI 的真实 Session，返回稳定 Session ID 并支持跨 CLI 进程续聊。
+7. 从 JiaorongAI 读取可用模型并按稳定 Model ID 选择模型。
+8. 支持结构化文本和图片 Attachment。
+9. 支持非交互默认 Permission Mode 和显式 full-access 模式。
+10. 投影正文、Reasoning Summary、工具开始/结果、错误和唯一 Terminal Result。
+11. SIGINT 和 timeout 必须停止真实远端运行并等待其终止状态落定。
+12. 提供只读 `doctor`，检查安装、版本、进程、endpoint、bridge 和模型 readiness。
+13. 提供稳定 Machine Error Code 和进程 exit code。
+14. 提供确定性 conformance、真实应用冒烟、可复现候选、本地安装和卸载证据。
 
-- [OpenAI Codex CLI](https://github.com/openai/codex)：独立 CLI、Headless 执行、会话恢复、审批、沙箱和 MCP。
-- [Google Gemini CLI](https://github.com/google-gemini/gemini-cli)：`text/json/stream-json`、JSONL 事件、Headless exit code。
-- [Anthropic Claude Code](https://docs.anthropic.com/en/docs/claude-code/cli-reference)：`-p`、会话恢复、权限模式、附加目录、工具控制。
-- CodeBuddy CLI：Workbuddian 当前基线，提供 `--print`、`stream-json`、Session ID、模型、权限、工具和项目工作目录。
+### 2.2 非目标
 
-Jiaorong CLI v1 采用的共同主路径是：独立前台进程持有本轮 Agent Loop，直接使用 Jiaorong 账号、模型和工具能力，通过 stdout 输出稳定机器协议。它不依赖桌面窗口、CDP、DOM、GUI 自动化或 daemon。
+- 修改 `jiaorong_agent_platform` 或 `JiaorongAI.app`。
+- 在 CLI 中重写 provider、模型调用、Agent Loop、工具、Skills、认证或数据库。
+- 在没有安装 JiaorongAI 的机器上运行真实任务。
+- 支持 JiaorongAI 0.5.6 之外的版本。
+- Windows、Linux、独立 OAuth、独立凭据库、自包含 Agent Runtime。
+- 直接数据库访问、数据库迁移或用户数据清理。
+- TUI、daemon、server、ACP、插件、子智能体或第三方产品适配。
+- 自动终止、替换或重启用户已运行的 JiaorongAI 进程。
 
-## 3. 问题陈述
+## 3. 用户场景
 
-当前 Workbuddian 与 CodeBuddy CLI 的耦合主要集中在以下方面：
+### 3.1 终端单轮
 
-1. CLI 路径、启动方式和命令参数。
-2. Session ID 的创建和续聊。
-3. 流式 JSON 的事件结构和结束语义。
-4. 模型选择与权限模式。
-5. Vault 工作目录、外部附件目录和工具访问。
-6. 停止生成、超时、错误和退出码。
+用户运行 `jiaorong-cli -p <prompt>`。CLI 验证 App Backend，创建真实 Session，流式接收快照并输出最终正文和 Session ID。
 
-如果 Jiaorong 只有桌面 UI 或不稳定的自动化桥接，Workbuddian 无法把它作为可靠 Agent 后端。Jiaorong CLI v1 必须先形成独立、稳定、可测试的机器接口，再考虑迁移 Workbuddian。
+### 3.2 自动化调用
 
-## 4. 产品目标
+脚本通过 stdin 提交任意 UTF-8 prompt，选择 `json` 或 `stream-json`，并只依赖 exit code、Machine Error Code 和协议字段决定后续行为。
 
-### 4.1 必须实现
+### 3.3 跨进程续聊
 
-1. 独立运行：不依赖 Jiaorong 桌面客户端或额外开发环境。
-2. Headless 调用：支持 prompt 参数和 stdin 输入。
-3. 三档输出：`text`、`json`、`stream-json`。
-4. 持久会话：首次返回 Session ID，后续跨进程、跨重启恢复。
-5. 流式协议：稳定输出会话、正文、推理摘要、工具、错误和最终结果。
-6. 核心工具：文件读取、搜索、编辑和 Shell。
-7. 权限控制：`plan/default/acceptEdits/bypassPermissions`。
-8. 文件边界：当前工作目录为 Project Root，外部目录必须显式授权。
-9. 结构化附件：重复 `--file`，首版支持文本和常见图片。
-10. 模型发现：机器可读模型列表和稳定 Model ID。
-11. 独立认证：登录、状态、登出；Headless 不隐式弹登录。
-12. 可取消：SIGINT 优雅停止，输出 cancelled 结果并以 130 退出。
-13. 可诊断：版本、doctor、结构化错误和固定退出码。
-14. 跨平台：macOS Apple Silicon、macOS Intel、Windows x64。
-15. 可验证：提供黑盒协议一致性套件和 Workbuddian 适配夹具。
+用户把首次返回的 Session ID 传给 `--resume`。CLI 恢复 JiaorongAI 已保存的 Session，只提交新 prompt，不在 CLI 内重放历史。
 
-### 4.2 成功标准
+### 3.4 附件与工具
 
-- Jiaorong CLI 在所有支持平台上通过 100% v1 Protocol Conformance Suite。
-- Workbuddian 的未来 Jiaorong 适配器只负责参数映射与事件投影，不修改聊天 UI 和核心会话流程。
-- 两次独立 CLI 进程调用可通过 Session ID 完成真实多轮续聊。
-- stdout 无日志污染；每个已成功建立 `stream-json` 协议的 Headless Run 恰好一个 `init` 和一个 `result`。
-- 所有机器可读运行的非成功结果均能通过退出码和 Machine Error Code 自动判断，不解析自然语言错误文案。
-- 支持真实取消模型请求和工具执行，而非只停止本地输出读取。
+用户通过重复 `--file` 传入授权范围内的文本或图片，通过显式 Permission Mode 决定 JiaorongAI 工具行为。每个 Tool Call ID 最多一个 start，且必须有一个 terminal result。
 
-## 5. 非目标
+### 3.5 故障诊断
 
-以下能力不属于 v1 交付门槛：
+`jiaorong-cli doctor --output-format json` 在不启动 Agent Run 的情况下说明应用是否安装、版本是否支持、当前进程是否可安全连接、bridge 是否完整以及是否存在可用模型。
 
-- 交互式全屏 TUI。
-- 后台 Agent、daemon、server 或远程控制。
-- ACP、双向 JSONL 或运行中人工审批。
-- MCP、插件、Skills、自定义 Agent 和子智能体。
-- 浏览器自动化、网页搜索和图片生成。
-- PDF、Word、Excel 等办公文件的强制解析承诺。
-- Linux 正式支持。
-- 与 CodeBuddy 参数或 JSON 的字节级兼容。
-- 立即替换 Workbuddian 中的 CodeBuddy。
-- 暴露模型原始思维链。
-
-## 6. 目标用户与场景
-
-### 6.1 Workbuddian
-
-Workbuddian 在 Obsidian 中把 Vault 根目录作为工作目录，发送用户问题、文件和权限模式，消费 JSONL 流，并把 Jiaorong Session ID 持久化到本地对话。
-
-### 6.2 本地自动化脚本
-
-脚本提交一次任务，使用 JSON 或 JSONL 读取结果，并依据 exit code 和 Machine Error Code 决定成功、失败或重试。
-
-### 6.3 开发者和运维人员
-
-开发者登录、检查版本与模型列表、运行 doctor、查看结构化诊断，并执行 Protocol Conformance Suite。
-
-## 7. 首版命令面
+## 4. 命令面
 
 ```text
 jiaorong-cli -p <prompt>
 jiaorong-cli -p <prompt> --resume <session-id>
-
-jiaorong-cli auth login
-jiaorong-cli auth status
-jiaorong-cli auth logout
-
 jiaorong-cli models list
-
-jiaorong-cli sessions list
-jiaorong-cli sessions delete <session-id>
-
 jiaorong-cli doctor
-jiaorong-cli update
 jiaorong-cli --version
 ```
 
-通用运行参数：
+运行参数：
 
 ```text
 --output-format text|json|stream-json
 --model <model-id>
---permission-mode plan|default|acceptEdits|bypassPermissions
+--permission-mode default|full_access
 --add-dir <path>       # 可重复
 --file <path>          # 可重复
 --max-turns <number>
 --timeout <seconds>
+--resume <session-id>
 ```
 
 输入规则：
 
-- `-p/--prompt` 接受 prompt 文本。
-- 未提供 `-p` 时从 stdin 读取 prompt。
-- 同时提供非空 `-p` 和非空 stdin 时返回 `INVALID_ARGUMENT`，避免隐式拼接。
-- 新会话不接受调用方指定 Session ID；CLI 在 `init` 中返回新 ID。
-- `--resume` 只能恢复 Jiaorong CLI 已存在且当前账号有权访问的 Agent Session。
+- `-p/--prompt` 接受原始文本；不得拼接进 shell command。
+- 未提供 `-p` 时从 stdin 读取。
+- 同时提供非空 prompt 参数和非空 stdin 时返回 `INVALID_ARGUMENT`、exit 42。
+- 空 prompt 返回 `INVALID_ARGUMENT`、exit 42。
+- 未知 Session ID 不得触发同名 Session 创建。
 
-## 8. 核心功能需求
+## 5. 运行与安全要求
 
-### FR-01 Headless Run
+### 5.1 App Runtime
 
-- CLI 必须能在无 TTY 环境运行。
-- 默认执行一个前台 Agent Run，完成后退出。
-- 运行期间 Agent Loop、模型请求和工具调度由该进程负责。
-- `--max-turns` 和 `--timeout` 必须在 CLI 内生效。
+- 默认 endpoint 为 `127.0.0.1:9238`，禁止非 loopback 地址。
+- 连接前校验 listener owner、可执行文件、CDP metadata、renderer target、应用版本、bridge methods、routes 和 events。
+- 仅支持 JiaorongAI 0.5.6；其他版本 fail closed。
+- 所有 HTTP、WebSocket、target、payload、event buffer、polling 和 evaluation 都有明确上限。
+- 已运行但无 CDP 的应用由用户决定如何处理；CLI 只给指令，不抢占生命周期。
 
-### FR-02 输出模式
+### 5.2 Bridge 与事件
 
-- `text`：stdout 仅输出最终 Assistant 正文。
-- `json`：stdout 仅输出一个完整结果对象。
-- `stream-json`：stdout 逐行输出完整 JSON 对象。
-- stderr 专用于诊断、警告和调试，不属于机器协议。
-- 所有输出必须使用 UTF-8。
+- 每个 CLI request 使用唯一、有界 event buffer。
+- Session ID 和真实 request identity 共同关联事件。
+- 并发运行不得串流、串取消或互相释放锁。
+- 正文和 Reasoning Summary 只输出经过验证的单调增量。
+- 每个运行恰好一个 Terminal Result。
+- 任意 schema drift、未知快照、buffer overflow、身份丢失或取消无法证实都必须失败，不得 best effort。
 
-### FR-03 Agent Session
+### 5.3 文件与 Attachment
 
-- 首次成功进入 Agent Run 时创建 Agent Session，并在第一个 `init` 事件返回 Session ID；认证、参数、模型或 Attachment 预检失败不得创建垃圾会话。
-- 使用 `--resume` 的后续运行必须恢复服务端/本地持久上下文。
-- Agent Session 必须在 CLI 进程和机器重启后仍可恢复。
-- `sessions list` 返回机器可读元数据；`sessions delete` 可删除临时或用户指定会话。
-- Workbuddian 只保存 Session ID，不负责重放完整可见聊天历史。
+- 当前工作目录是 Project Root；`--add-dir` 显式增加 Additional Directory。
+- Session 创建前检查 realpath、symlink、范围、MIME、单文件和总大小。
+- 通过校验后使用 JiaorongAI 的 `file.prepareFile`，不把文件内容写入 stdout。
+- 不支持的格式返回 `UNSUPPORTED_ATTACHMENT`；越界或不存在返回稳定参数/权限错误。
 
-### FR-04 模型
+### 5.4 Permission Mode
 
-- `models list --output-format json` 返回当前账号可用模型。
-- 每个模型具有稳定 Model ID、展示名称、默认状态、可用状态和输入类型。
-- 可选返回上下文窗口大小。
-- `--model` 使用稳定 ID；未知、无权或不可用模型返回结构化错误。
+- `default` 不允许 headless run 等待人工输入；交互请求通过真实 bridge 明确拒绝并投影为失败工具结果。
+- `full_access` 必须由调用者显式选择，仍受 Project Root、Additional Directory、超时和操作系统权限约束。
 
-### FR-05 认证
+### 5.5 取消
 
-- `auth login` 使用浏览器 OAuth 或设备授权。
-- 凭据保存在操作系统安全凭据库。
-- `auth status` 为只读命令，支持 JSON 输出。
-- `auth logout` 清除本机凭据。
-- Headless Run 不得隐式打开登录页面。
-- 未登录或凭据失效时返回 `AUTH_REQUIRED`。
-- CI 可通过环境变量 Token 登录，但不是 Workbuddian 默认路径。
+- SIGINT 和 timeout 共用 stop-and-settle 状态机。
+- CLI 调用真实 `chat.stopStream` 后等待原始运行到达终止状态。
+- 仅收到 stop acknowledgement 不构成取消完成证据。
+- SIGINT 完成时输出 `cancelled` Terminal Result 并以 130 退出；timeout 使用 `TIMEOUT`。
 
-### FR-06 核心工具
+### 5.6 输出与隐私
 
-v1 必须提供：
+- stdout 只包含所选公开格式；诊断只写 stderr。
+- stderr 不得包含 token、完整 prompt、数据库内容、Attachment 正文或非必要绝对路径。
+- `stream-json` 每个非空行都是完整 JSON object，并以换行结束。
+- 不公开模型私有 raw chain of thought。
 
-- Read：读取授权范围内文件。
-- Search：按名称、路径和正文检索。
-- Edit：创建、修改和删除授权范围内文件。
-- Shell：在 Project Root 中执行命令，具有超时和取消能力。
+## 6. 错误与 exit code
 
-所有工具调用必须产生 `tool_use` 和对应的 `tool_result`，并使用稳定 `toolCallId` 关联。
-
-### FR-07 权限模式
-
-| 模式 | 行为 |
-|---|---|
-| `plan` | 允许读取与搜索；禁止编辑和 Shell 副作用 |
-| `default` | 使用默认安全策略；需要人工批准但无法自动批准的动作必须结构化拒绝，不能等待输入 |
-| `acceptEdits` | 允许文件编辑；Shell 仍按默认安全策略处理 |
-| `bypassPermissions` | 允许四类核心工具，但仍受 Project Root、Additional Directory、超时和操作系统权限约束 |
-
-Headless v1 不提供运行中人工审批。被拒绝的工具返回 `tool_result(status="failed")` 和 `PERMISSION_DENIED`，Agent 可以继续尝试无副作用方案。
-
-### FR-08 文件边界
-
-- CLI 当前工作目录是 Project Root。
-- 文件和 Shell 默认不得越出 Project Root。
-- `--add-dir` 为可重复参数，显式增加 Additional Directory。
-- 所有路径必须先执行真实路径解析，并检查 `..`、符号链接、junction 和大小写差异。
-- `bypassPermissions` 不得自动取消文件边界。
-- Workbuddian 使用 Obsidian Vault 根目录作为 `cwd`。
-
-### FR-09 Attachment
-
-- `--file` 为可重复参数。
-- Attachment 必须位于 Project Root 或 Additional Directory。
-- CLI 校验真实路径、存在性、类型、大小和读取权限。
-- v1 必须支持 UTF-8 文本和常见图片格式；具体 MIME 白名单由协议规范固定。
-- 不支持的 MIME 返回 `UNSUPPORTED_ATTACHMENT`；路径、存在性或参数无效返回 `INVALID_ARGUMENT`，不得静默忽略。
-- `init` 返回已接受附件的名称、MIME、字节数和安全标识，不包含原始字节。
-
-### FR-10 Reasoning Summary
-
-- 不输出模型原始思维链。
-- 支持可选、可展示的 `reasoning_summary` 增量事件。
-- 缺失 Reasoning Summary 不属于错误。
-
-### FR-11 取消与超时
-
-- 收到 SIGINT 后立即进入取消流程。
-- 停止活动模型请求和可取消工具。
-- 在取消宽限期内输出 `result(status="cancelled")` 并以 130 退出。
-- 调用方在宽限期后可强制终止。
-- `--timeout` 超时产生 `TIMEOUT`，不得伪装成用户取消。
-
-### FR-12 错误与退出码
-
-| Exit code | 含义 |
-|---:|---|
-| 0 | 成功 |
-| 1 | 模型、工具或内部执行失败 |
-| 42 | 参数、输入或协议错误 |
-| 53 | 超过最大 Agent 轮数 |
-| 130 | SIGINT 取消 |
-
-v1 稳定 Machine Error Code 固定为：
+稳定 Machine Error Code：
 
 ```text
 AUTH_REQUIRED
@@ -258,160 +158,39 @@ CANCELLED
 INTERNAL_ERROR
 ```
 
-错误显示文案可以本地化和调整；调用方不得解析文案决定行为。
+稳定 exit code：`0` 成功、`1` 运行或 readiness 失败、`42` 参数/协议错误、`53` turn limit、`130` SIGINT。
 
-### FR-13 版本和诊断
+## 7. 测试与发布门禁
 
-- `--version` 返回 CLI SemVer。
-- `init.protocolVersion` 返回机器协议主版本，v1 固定为 `1`。
-- `doctor --output-format json` 至少检查安装、认证、模型访问、凭据库、核心工具和工作目录。
-- doctor 只读，不得修改账号、文件或配置。
-- `update` 必须校验发行物签名。
+- Deterministic Conformance Inventory 通过公开进程 I/O 执行，不需要真实账号。
+- Live JiaorongAI Inventory 必须使用当前安装的受支持应用；自然语言不做逐字断言。
+- Deferred Inventory 只保留历史可追溯性，不计入 active missing coverage。
+- 所有 deterministic cases、fake bridge 功能测试和回归必须通过。
+- 真实 smoke 至少覆盖 doctor、model discovery、三种输出、一次真实文本运行、Session resume、一个 Attachment、一个可观察 Read 工具和真实取消。
+- 在隔离环境记录 revision、Node/npm/platform、lock hash、artifact filename 和 checksum，构建一个不可变候选。
+- 安装并测试该精确候选，不得用仓库脚本代替安装后命令。
+- 卸载只删除 CLI artifact 和命令暴露，不得修改 JiaorongAI 应用或用户数据。
 
-## 9. Workbuddian 薄适配器边界
-
-未来 `JiaorongTransport` 只承担：
-
-1. 把 Workbuddian 请求转换为 Jiaorong CLI 参数。
-2. 启动 CLI，设置 Vault `cwd`。
-3. 解析 JSONL 并投影事件：
-   - `init` → `session`
-   - `message` → `text`
-   - `reasoning_summary` → `thinking`
-   - `tool_use/tool_result` → `tool`
-   - `error` → `error`
-   - `result` → `done`
-4. 保存 Session ID。
-5. 发送 SIGINT 并执行超时强制终止。
-6. 调用模型列表、认证状态和 doctor。
-
-适配器不得：
-
-- 重建 Jiaorong Agent Loop。
-- 解析错误自然语言。
-- 在插件中硬编码 Jiaorong 模型。
-- 依赖 Jiaorong 桌面 UI。
-- 把未知协议主版本当作兼容版本继续执行。
-
-## 10. 平台与分发
-
-### 支持平台
-
-- macOS arm64。
-- macOS x64。
-- Windows x64。
-
-Linux 后置，不属于 v1 兼容承诺。
-
-### 分发
-
-- 官方提供签名、自包含发行物。
-- 不要求用户安装 Node、Python、Rust 或编译工具链。
-- 官方安装器或包管理渠道把 `jiaorong-cli` 放入稳定路径并配置 `PATH`。
-- Workbuddian 默认通过 `PATH` 查找，允许绝对路径覆盖。
-- npm 全局安装仅作为开发者选项。
-
-## 11. 安全要求
-
-- 凭据只能进入操作系统安全凭据库或进程环境，禁止写入项目目录和 stdout。
-- stdout 不得输出 access token、refresh token、系统提示词或原始思维链。
-- 日志必须对凭据、授权 header、敏感环境变量和附件内容脱敏。
-- Tool input 可以进入 JSONL，但实现必须提供大小上限和敏感字段脱敏策略。
-- `--add-dir` 与 `--file` 必须防止路径穿越和符号链接逃逸。
-- Shell 命令必须使用 argv/安全进程 API，不把未转义 prompt 拼进 shell 命令字符串。
-- 取消、超时和异常退出必须执行子进程与临时文件清理。
-
-## 12. 测试和发布门禁
-
-### 每次提交阻塞门禁
-
-- 协议 JSON Schema。
-- 事件顺序和唯一 Terminal Result。
-- stdout/stderr 分离。
-- 参数与 stdin。
-- 会话新建、恢复、删除。
-- 模型发现。
-- 四类权限模式和四类工具。
-- 路径边界、符号链接和附件。
-- SIGINT、超时、最大轮数。
-- 错误码与 exit code 一致性。
-- 未知可选字段、未知非终止事件和不支持协议主版本。
-- Workbuddian 适配夹具。
-- macOS/Windows 进程级测试。
-
-### 发布阻塞门禁
-
-- 支持平台真机安装和签名验证。
-- 真实账号登录和凭据恢复。
-- 真实模型单轮和多轮会话。
-- 真实 Read/Search/Edit/Shell 副作用验证。
-- 真实文本和图片 Attachment。
-- 真实模型取消和超时。
-- Workbuddian 试验适配器端到端冒烟。
-
-真实模型测试不得断言自然语言逐字一致，只断言协议、状态、工具副作用和会话连续性。
-
-## 13. 验收标准
+## 8. 验收标准
 
 | ID | 验收条件 |
 |---|---|
-| AC-01 | 在三个支持目标上执行 `--version`、`doctor` 和签名校验成功 |
-| AC-02 | 无 TTY 环境可完成 text、json、stream-json 三种运行 |
-| AC-03 | 协议建立后，JSONL 第一个事件为 `init`、最后且唯一终止事件为 `result`；预检失败允许 session/model 为 null |
-| AC-04 | stdout 不含日志；stderr 内容不会破坏 JSONL 解析 |
-| AC-05 | 新会话返回 Session ID，第二个独立进程可恢复并利用上一轮上下文 |
-| AC-06 | 重启机器后仍可恢复同一 Agent Session |
-| AC-07 | 模型目录可动态读取，指定有效 Model ID 实际生效 |
-| AC-08 | 四类核心工具均产生可关联的 tool_use/tool_result |
-| AC-09 | 四类 Permission Mode 的允许和拒绝行为符合矩阵 |
-| AC-10 | 未授权路径、路径穿越、符号链接逃逸被拒绝 |
-| AC-11 | 多文本/图片 Attachment 可被模型使用，未支持格式明确失败 |
-| AC-12 | SIGINT 取消产生 cancelled Terminal Result 和 exit 130 |
-| AC-13 | timeout、turn limit、auth、model、tool 错误产生正确 Machine Error Code 和 exit code |
-| AC-14 | 同主版本新增可选字段不会破坏旧适配器，不支持主版本在执行前被拒绝 |
-| AC-15 | Workbuddian 适配测试无需修改聊天 UI 或核心会话业务即可消费完整夹具 |
-| AC-16 | Protocol Conformance Suite 100% 通过且无跳过的 P0 用例 |
+| AC-01 | `--version`、`doctor` 和不安全 endpoint 拒绝行为有进程级证据 |
+| AC-02 | prompt 参数、stdin、Unicode 和 shell metacharacter 全程保真 |
+| AC-03 | text、json、stream-json 的 stdout/stderr/exit 行为符合协议 |
+| AC-04 | 新 Session 和跨进程 resume 使用 JiaorongAI 真实持久化 |
+| AC-05 | model catalog 可读取，指定 Model ID 实际生效，不静默回退 |
+| AC-06 | Attachment 在 Session 创建前完成路径和类型校验 |
+| AC-07 | default 和 full-access 的工具行为通过真实 bridge 投影 |
+| AC-08 | 每个 Tool Call ID 有唯一 start 和 terminal result |
+| AC-09 | 并发 run 不串 Session、事件或取消 |
+| AC-10 | SIGINT 停止真实运行、输出 cancelled 并 exit 130 |
+| AC-11 | timeout 与 turn limit 有界且使用稳定错误/exit code |
+| AC-12 | deterministic runner 只计算 active deterministic inventory，missing 归属准确 |
+| AC-13 | 真实 smoke 的每项结论都有当前命令输出或证据文件 |
+| AC-14 | 精确候选完成构建、checksum、本地安装、安装后 smoke 和卸载验证 |
+| AC-15 | 未执行或无法证明的 live 场景明确标为未核实，不能写成通过 |
 
-## 14. 里程碑
+## 9. 完成定义
 
-### M0：合同冻结
-
-- 冻结 v1 命令面、JSON Schema、错误码和 exit code。
-- 发布 Protocol Conformance Suite 与标准夹具。
-
-### M1：基础 Headless
-
-- 认证、模型发现、新会话、text/json/stream-json。
-- Read/Search 工具。
-
-### M2：完整工具和边界
-
-- Edit/Shell、四种 Permission Mode、Project Root、Additional Directory、Attachment。
-
-### M3：生命周期
-
-- 跨进程恢复、会话管理、SIGINT、timeout、turn limit、doctor/update。
-
-### M4：跨平台和发布候选
-
-- 三个支持目标的自包含签名发行物。
-- 全量一致性套件和真实模型发布门禁。
-
-### M5：Workbuddian 预接入验证
-
-- 实现试验性 JiaorongTransport。
-- 运行端到端冒烟和能力对齐，不在本里程碑切换正式默认后端。
-
-## 15. 未决实施参数
-
-以下不是产品边界，研发评审时补齐数值：
-
-- Attachment 单文件、总大小和 Tool output 上限。
-- Session 保存期限、最大数量和删除恢复策略。
-- SIGINT 取消宽限期的最终数值。
-- 默认 timeout 与 max-turns。
-- Attachment 类型检测与 MIME 伪造的处理策略。
-- OAuth 端点、Token 环境变量名称和凭据库 key 命名。
-- 签名证书、升级渠道和回滚策略。
-
-这些参数必须在发布候选前写入协议规范或运维文档，不得依赖隐藏默认值。
+只有 active deterministic coverage 为 100%、真实 JiaorongAI smoke 通过、精确候选安装后通过、卸载未影响 JiaorongAI 数据、无阻断审查发现并完成需求到证据矩阵，才能报告 Release verified。否则必须报告 No-Go、released-unverified 或具体阻断项。

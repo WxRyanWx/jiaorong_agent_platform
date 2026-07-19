@@ -1,12 +1,12 @@
 # Jiaorong CLI v1 协议一致性测试矩阵
 
-> 状态：Draft for implementation
+> 状态：Active implementation inventory
 > 协议版本：1
 > 关联：[PRD](./jiaorong-cli-v1-prd.md) · [协议规范](./jiaorong-cli-v1-protocol.md)
 
 ## 1. 目标
 
-本测试计划回答一个问题：给定任意 Jiaorong CLI v1 候选发行物，能否只通过公开命令和进程 I/O，证明它满足 Workbuddian 所需的接口与行为合同。
+本测试计划回答一个问题：给定任意 Jiaorong CLI v1 候选发行物，能否只通过公开命令和进程 I/O，证明它满足已发布的参数、协议、安全和 App Backend 行为合同。
 
 测试不评价模型回答“好不好”，不比较自然语言原文，也不依赖桌面 UI。它验证：
 
@@ -14,8 +14,8 @@
 - stdout/stderr/exit code 稳定。
 - JSON/JSONL 符合 Schema 和状态机。
 - Session、工具、权限、附件、取消和错误具有确定行为。
-- macOS/Windows 发行物行为一致。
-- Workbuddian 薄适配器能够无猜测地消费协议。
+- macOS 本地候选可安装、运行并安全卸载。
+- 确定性、真实 JiaorongAI 和 deferred case 的状态互不混淆。
 
 ## 2. 测试层级
 
@@ -23,9 +23,19 @@
 |---|---|---|---|---|
 | L1 | Schema/纯协议 | 无 | 每次提交 | PR 阻塞 |
 | L2 | 黑盒进程一致性 | 假模型、假工具、真实 CLI 进程 | 每次提交 | PR 阻塞 |
-| L3 | Workbuddian 适配集成 | 标准 JSONL 夹具、真实适配器 | 每次提交 | PR 阻塞 |
+| L3 | App Backend 集成 | 假 loopback CDP/bridge、真实 CLI 进程 | 每次提交 | PR 阻塞 |
 | L4 | 真实模型冒烟 | 真实账号、模型和工具 | 每日、发布前 | 发布阻塞 |
-| L5 | 安装与平台验收 | 签名发行物、目标 OS | 发布候选 | 发布阻塞 |
+| L5 | 本地候选验收 | 精确 npm artifact、本机安装路径 | 发布候选 | 发布阻塞 |
+
+### 2.1 Inventory ownership
+
+| Inventory | 文件 | 含义 |
+|---|---|---|
+| Active deterministic | `conformance/v1/deterministic-case-ids.json` | public runner 的唯一 required 集合；未执行项计入 missing |
+| Active live/release | `conformance/v1/live-case-ids.json` | 需要真实 JiaorongAI、可用模型或精确安装候选；单独报告通过、失败、未核实 |
+| Deferred | `conformance/v1/deferred-case-ids.json` | 历史或当前范围外用例；不执行、不计入 active coverage |
+
+三个文件必须互斥，三者并集必须与本矩阵中的 ID 完全一致。runner 输出 `scope: "deterministic"`，不得把 live 或 deferred ID 报为 missing。
 
 ## 3. 测试资产
 
@@ -105,7 +115,7 @@ jiaorong-cli-conformance --binary /path/to/jiaorong-cli --protocol 1
 - 分别捕获 stdout、stderr、exit code 和墙钟超时。
 - 按任意 chunk 边界解析 JSONL，而不是假设一次 data event 等于一行。
 - 保存失败时的脱敏原始证据。
-- 支持 macOS arm64/x64 和 Windows x64。
+- 当前 Release 目标仅为 macOS arm64；其他平台 ID 保留在 deferred inventory。
 
 ## 4. PR 阻塞测试矩阵
 
@@ -196,12 +206,12 @@ jiaorong-cli-conformance --binary /path/to/jiaorong-cli --protocol 1
 
 | ID | 层级 | 场景 | 必须断言 |
 |---|---|---|---|
-| PER-001 | L2 | plan + Read/Search | 允许 |
-| PER-002 | L2 | plan + Edit/Shell | PERMISSION_DENIED；无副作用 |
+| PER-001 | L2 | default + Read/Search | 允许 |
+| PER-002 | L2 | default + 权限交互 | 通过真实 response bridge 拒绝；无副作用 |
 | PER-003 | L2 | default + 需审批动作 | 不等待 stdin；结构化拒绝 |
-| PER-004 | L2 | acceptEdits + Edit | 文件副作用正确 |
-| PER-005 | L2 | acceptEdits + 非默认允许 Shell | 结构化拒绝 |
-| PER-006 | L2 | bypass + 四类工具 | 允许，但仍受路径边界 |
+| PER-004 | L2 | full_access + Edit | 文件副作用正确 |
+| PER-005 | L2 | full_access + Shell | 在 Project Root 中允许并正确投影结果 |
+| PER-006 | L2 | full_access + 四类工具 | 允许，但仍受路径边界 |
 | PER-007 | L2 | 未知 permission mode | INVALID_ARGUMENT；exit 42 |
 | TOL-001 | L2 | Read | tool_use/result；正文与 canary 正确 |
 | TOL-002 | L2 | Search | 路径/正文检索结果确定 |
@@ -222,7 +232,7 @@ jiaorong-cli-conformance --binary /path/to/jiaorong-cli --protocol 1
 | FIL-005 | L2 | symlink 指向根外 | 拒绝 |
 | FIL-006 | L2 | Windows junction 指向根外 | Windows 拒绝 |
 | FIL-007 | L2 | Windows 盘符/UNC/大小写别名 | 不绕过边界 |
-| FIL-008 | L2 | bypassPermissions + 根外路径 | 仍拒绝 |
+| FIL-008 | L2 | full_access + 根外路径 | 仍拒绝 |
 | ATT-001 | L2 | 单文本附件 | init 元数据正确；模型 canary 可见 |
 | ATT-002 | L2 | 多附件顺序 | 全部接受且顺序稳定 |
 | ATT-003 | L2 | PNG/JPEG/WebP/GIF | 支持的模型可见图片输入 |
@@ -264,7 +274,9 @@ jiaorong-cli-conformance --binary /path/to/jiaorong-cli --protocol 1
 | CMP-005 | L1 | 删除 v1 必填字段 | Schema 拒绝 |
 | CMP-006 | L1 | 改变字段类型或枚举 | Schema 拒绝 |
 
-### 4.10 Workbuddian 适配器
+### 4.10 Deferred historical consumer cases
+
+以下 `WB-*` ID 只保留历史追溯性，全部属于 `deferred-case-ids.json`，不是当前产品需求、PR 门禁或发布门禁。
 
 | ID | 层级 | 场景 | 必须断言 |
 |---|---|---|---|
@@ -289,16 +301,16 @@ jiaorong-cli-conformance --binary /path/to/jiaorong-cli --protocol 1
 |---|---|---|
 | LIVE-001 | 登录后单轮文本 | init/model/session/result 正确，content 非空 |
 | LIVE-002 | 跨进程第二轮 | 模型能回答仅上一轮出现的 canary |
-| LIVE-003 | 重启后第三轮 | 同一 Session ID 继续有效 |
-| LIVE-004 | Read/Search | 模型读取并定位临时文件 canary |
-| LIVE-005 | Edit | 指定文件发生唯一预期修改 |
-| LIVE-006 | Shell | 指定无害命令在正确 cwd 执行 |
-| LIVE-007 | plan/default 拒绝 | 禁止动作无副作用且协议明确 |
+| LIVE-003 | 模型发现与选择 | 目录非空，显式 Model ID 实际生效 |
+| LIVE-004 | Read | 模型读取临时文件 canary，产生可关联工具事件 |
+| LIVE-005 | text 输出 | 安装后命令 stdout 只有最终正文 |
+| LIVE-006 | json 输出 | 安装后命令输出单个合法结果对象 |
+| LIVE-007 | stream-json 输出 | 安装后命令事件合法且唯一终止 |
 | LIVE-008 | 文本 Attachment | 模型能引用附件 canary |
 | LIVE-009 | 图片 Attachment | 支持图片的模型识别预置视觉 canary |
 | LIVE-010 | SIGINT | 远端生成停止，result cancelled，exit 130 |
-| LIVE-011 | 模型不可用 | MODEL_UNAVAILABLE，不静默换模型 |
-| LIVE-012 | Workbuddian 冒烟 | UI 流式、工具卡、停止、续聊正常 |
+| LIVE-011 | doctor | JiaorongAI 0.5.6、loopback endpoint、bridge 和模型 readiness 通过 |
+| LIVE-012 | Deferred historical UI integration | 不属于当前产品范围，不执行、不计入 active coverage |
 
 若模型本身无法稳定复述 canary，测试应改为验证工具调用和服务端 session snapshot，不得把自然语言波动误判为协议失败。
 
@@ -306,14 +318,14 @@ jiaorong-cli-conformance --binary /path/to/jiaorong-cli --protocol 1
 
 | ID | 平台 | 场景 |
 |---|---|---|
-| DST-001 | macOS arm64 | 安装、签名、PATH、update、卸载 |
-| DST-002 | macOS x64 | 安装、签名、PATH、update、卸载 |
-| DST-003 | Windows x64 | 安装、签名、PATH、update、卸载 |
-| DST-004 | 全部 | 用户无需 Node/Python/Rust 即可运行 |
-| DST-005 | 全部 | 绝对路径和 PATH 两种启动方式行为一致 |
-| DST-006 | 全部 | 中文用户名、空格路径和 Unicode 文件名 |
-| DST-007 | Windows | Ctrl-C/SIGINT 等效取消、子进程清理 |
-| DST-008 | 全部 | 从旧补丁版本升级后 Session 和凭据可用 |
+| DST-001 | macOS arm64 | 精确 npm artifact 安装、PATH、卸载 |
+| DST-002 | deferred | macOS x64 安装与卸载 |
+| DST-003 | deferred | Windows x64 安装与卸载 |
+| DST-004 | deferred | 自包含、无需 Node 的发行物 |
+| DST-005 | macOS arm64 | 绝对路径和 PATH 两种启动方式行为一致 |
+| DST-006 | macOS arm64 | 中文用户名、空格路径和 Unicode 文件名 |
+| DST-007 | deferred | Windows Ctrl-C 等效取消与子进程清理 |
+| DST-008 | deferred | 旧版本升级兼容性 |
 
 ## 7. CI 门禁
 
@@ -325,7 +337,7 @@ jiaorong-cli-conformance --binary /path/to/jiaorong-cli --protocol 1
 - L2 全量。
 - L3 全量。
 - 静态 Schema 变更检查。
-- macOS 和 Windows 核心进程矩阵。
+- macOS arm64 核心进程矩阵。
 - 协议夹具 snapshot diff 人工评审。
 
 禁止：
@@ -348,7 +360,7 @@ jiaorong-cli-conformance --binary /path/to/jiaorong-cli --protocol 1
 - L5 所有目标发行物通过。
 - 无未批准 Schema diff。
 - 所有 P0 缺陷关闭。
-- Workbuddian 冒烟通过，但不要求正式切换默认后端。
+- 精确候选完成本地安装、安装后 smoke 和安全卸载。
 
 ## 8. 测试证据
 
@@ -364,16 +376,16 @@ test-results/<version>/live-model-summary.json
 test-results/<version>/schema-diff.md
 ```
 
-证据必须包含：CLI 版本、协议版本、平台、测试套件版本、fixture 版本和时间；不得包含 Token、附件正文、用户真实 Vault 路径或未脱敏模型内容。
+证据必须包含：CLI 版本、协议版本、平台、测试套件版本、fixture 版本和时间；不得包含 Token、附件正文、用户真实 Project Root 路径或未脱敏模型内容。
 
 ## 9. 发布判定
 
-Jiaorong CLI v1 只有同时满足以下条件才具备 Replacement Readiness：
+Jiaorong CLI v1 只有同时满足以下条件才能标记为 `release-verified`：
 
 1. 所有支持平台的 Protocol Conformance Suite 100% 通过。
 2. 真实模型发布测试通过。
-3. Workbuddian JiaorongTransport 使用公开协议完成冒烟，无 UI/core 特殊补丁。
+3. 精确候选已安装，并通过安装路径执行关键 smoke 和卸载验证。
 4. 没有 stdout 污染、Session 串线、文件边界逃逸、取消假确认或凭据泄漏。
 5. 协议、发行物和测试套件版本均可追溯。
 
-满足 Replacement Readiness 只表示“具备未来替换资格”，不自动触发 Workbuddian 正式迁移。
+未执行或没有当前证据的真实场景必须标记为未核实；deferred case 不得伪装成通过，也不得计入 active missing coverage。

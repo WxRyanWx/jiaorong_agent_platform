@@ -107,7 +107,7 @@ export async function runSuite({ binary, protocolVersion }) {
         await readFile(
             resolve(
                 import.meta.dirname,
-                '../../conformance/v1/required-case-ids.json',
+                '../../conformance/v1/deterministic-case-ids.json',
             ),
             'utf8',
         ),
@@ -137,6 +137,7 @@ export async function runSuite({ binary, protocolVersion }) {
         ok: executedOk && complete,
         executedOk,
         complete,
+        scope: 'deterministic',
         suiteVersion: '0.1.0',
         protocolVersion,
         platform: `${process.platform}-${process.arch}`,
