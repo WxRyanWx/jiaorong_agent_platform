@@ -16,6 +16,7 @@ import { test } from 'node:test';
 import { promisify } from 'node:util';
 
 import { runProcess } from '../src/conformance/run-process.mjs';
+import { runCli } from '../src/cli/run-cli.mjs';
 import {
     MAX_ADDITIONAL_DIRECTORIES,
     MAX_ATTACHMENTS,
@@ -383,6 +384,64 @@ test('JiaorongAI reads a bounded snapshot when the source grows after preflight'
         await server.close();
         await rm(projectRoot, { recursive: true, force: true });
     }
+});
+
+test('renderer startup failure disposes prepared backend resources and the private snapshot', async () => {
+    let snapshotPath;
+    let disposed = false;
+    const backend = {
+        async prepare(request) {
+            snapshotPath = request.fileScope.attachments[0].path;
+            return {
+                sessionId: 'session-render-failure',
+                resumed: false,
+                model: { id: 'model-test', displayName: 'Model Test' },
+                attachments: request.fileScope.attachments.map(
+                    ({ id, name, mimeType, sizeBytes }) => ({
+                        id,
+                        name,
+                        mimeType,
+                        sizeBytes,
+                    }),
+                ),
+            };
+        },
+        async dispose() {
+            disposed = true;
+        },
+        async *run() {
+            throw new Error('run must not start');
+        },
+    };
+    const outputFailure = new Error('OUTPUT_START_FAILURE');
+
+    await assert.rejects(
+        runCli({
+            argv: [
+                '-p',
+                'inspect the Attachment',
+                '--file',
+                './CONTEXT.md',
+                '--output-format',
+                'stream-json',
+            ],
+            stdin: { isTTY: true },
+            stdout: {
+                write() {
+                    throw outputFailure;
+                },
+            },
+            stderr: { write() {} },
+            backend,
+            ids: {
+                requestId: () => 'request-render-failure',
+                messageId: () => 'message-render-failure',
+            },
+        }),
+        outputFailure,
+    );
+    assert.equal(disposed, true);
+    assert.equal(await pathExists(snapshotPath), false);
 });
 
 test('PNG, JPEG, WebP, and GIF files keep their detected MIME and send order', async () => {

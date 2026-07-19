@@ -382,24 +382,24 @@ export function createJiaorongAppBackend({ runtimeOptions } = {}) {
         },
 
         async *run(prepared, request) {
+            yield* runBridgeTurn(prepared.bridgeClient, {
+                sessionId: prepared.sessionId,
+                prompt: request.prompt,
+                attachmentToken: prepared.attachmentToken,
+                invokeTimeoutMs: prepared.bridgeInvokeTimeoutMs,
+                runTimeoutMs: prepared.runTimeoutMs,
+            });
+        },
+
+        async dispose(prepared) {
             try {
-                yield* runBridgeTurn(prepared.bridgeClient, {
-                    sessionId: prepared.sessionId,
-                    prompt: request.prompt,
-                    attachmentToken: prepared.attachmentToken,
-                    invokeTimeoutMs: prepared.bridgeInvokeTimeoutMs,
-                    runTimeoutMs: prepared.runTimeoutMs,
-                });
+                await discardBridgeAttachments(
+                    prepared.bridgeClient,
+                    prepared.attachmentToken,
+                    { timeoutMs: prepared.bridgeInvokeTimeoutMs },
+                );
             } finally {
-                try {
-                    await discardBridgeAttachments(
-                        prepared.bridgeClient,
-                        prepared.attachmentToken,
-                        { timeoutMs: prepared.bridgeInvokeTimeoutMs },
-                    );
-                } finally {
-                    prepared.bridgeClient.close();
-                }
+                prepared.bridgeClient.close();
             }
         },
     };

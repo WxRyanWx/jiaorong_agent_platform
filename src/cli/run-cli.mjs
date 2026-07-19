@@ -315,6 +315,11 @@ export async function runCli({
 
     const request = { ...options, prompt, requestId, cwd: process.cwd() };
     let prepared;
+    let state;
+    let content = '';
+    let usage = null;
+    let turns = 0;
+    let failure = null;
     try {
         request.fileScope = await preflightAttachments({
             cwd: request.cwd,
@@ -322,28 +327,8 @@ export async function runCli({
             additionalDirectories: request.additionalDirectories,
         });
         prepared = await backend.prepare(request);
-    } catch (error) {
-        const failure =
-            (await cleanupSnapshots(request.fileScope)) ??
-            normalizeFailure(error);
-        return emitFailure({
-            renderer,
-            options,
-            requestId,
-            prepared: null,
-            content: '',
-            startedAt,
-            now,
-            failure,
-        });
-    }
-
-    const state = { ...prepared, turns: 0 };
-    renderer.start(initEvent(requestId, options, prepared));
-    let content = '';
-    let usage = null;
-    let turns = 0;
-    try {
+        state = { ...prepared, turns: 0 };
+        renderer.start(initEvent(requestId, options, prepared));
         for await (const event of backend.run(prepared, request)) {
             if (event.kind === 'message') {
                 content += event.delta;
@@ -366,32 +351,30 @@ export async function runCli({
             }
         }
     } catch (error) {
-        const failure =
-            (await cleanupSnapshots(request.fileScope)) ??
-            normalizeFailure(error);
+        failure = normalizeFailure(error);
+    } finally {
+        let lifecycleFailure = null;
+        if (prepared && typeof backend.dispose === 'function') {
+            try {
+                await backend.dispose(prepared);
+            } catch (error) {
+                lifecycleFailure = normalizeFailure(error);
+            }
+        }
+        lifecycleFailure ??= await cleanupSnapshots(request.fileScope);
+        failure = lifecycleFailure ?? failure;
+    }
+
+    if (failure) {
         return emitFailure({
             renderer,
             options,
             requestId,
-            prepared: state,
+            prepared: state ?? null,
             content,
             startedAt,
             now,
             failure,
-        });
-    }
-
-    const cleanupFailure = await cleanupSnapshots(request.fileScope);
-    if (cleanupFailure) {
-        return emitFailure({
-            renderer,
-            options,
-            requestId,
-            prepared: state,
-            content,
-            startedAt,
-            now,
-            failure: cleanupFailure,
         });
     }
 
