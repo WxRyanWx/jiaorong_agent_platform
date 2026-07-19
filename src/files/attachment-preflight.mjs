@@ -1,8 +1,27 @@
 import { randomUUID } from 'node:crypto';
 import { constants } from 'node:fs';
-import { access, lstat, readFile, realpath, stat } from 'node:fs/promises';
+import {
+    access,
+    chmod,
+    lstat,
+    mkdir,
+    mkdtemp,
+    open,
+    realpath,
+    rm,
+    stat,
+} from 'node:fs/promises';
 import { execFile } from 'node:child_process';
-import { extname, isAbsolute, relative, resolve, sep } from 'node:path';
+import { tmpdir } from 'node:os';
+import {
+    basename,
+    extname,
+    isAbsolute,
+    join,
+    relative,
+    resolve,
+    sep,
+} from 'node:path';
 import { promisify } from 'node:util';
 
 import { BackendFailure } from '../cli/failures.mjs';
@@ -133,6 +152,56 @@ function detectMimeType(path, content) {
     return textMimeType;
 }
 
+function sameFileIdentity(left, right) {
+    return (
+        left.dev === right.dev &&
+        left.ino === right.ino &&
+        left.size === right.size &&
+        left.ctimeNs === right.ctimeNs &&
+        left.mtimeNs === right.mtimeNs
+    );
+}
+
+function changedDuringPreflight() {
+    return invalid('The Attachment changed while it was being prepared.');
+}
+
+async function readStableFile(handle, expectedStat) {
+    const content = Buffer.alloc(Number(expectedStat.size));
+    let offset = 0;
+    while (offset < content.length) {
+        const { bytesRead } = await handle.read(
+            content,
+            offset,
+            content.length - offset,
+            offset,
+        );
+        if (bytesRead === 0) throw changedDuringPreflight();
+        offset += bytesRead;
+    }
+    const extra = Buffer.alloc(1);
+    const { bytesRead: extraBytes } = await handle.read(
+        extra,
+        0,
+        1,
+        content.length,
+    );
+    const finalStat = await handle.stat({ bigint: true });
+    if (extraBytes !== 0 || !sameFileIdentity(expectedStat, finalStat))
+        throw changedDuringPreflight();
+    return content;
+}
+
+async function closeHandles(handles) {
+    await Promise.allSettled(handles.map((handle) => handle.close()));
+}
+
+export async function cleanupAttachmentSnapshots(fileScope) {
+    if (!fileScope?.snapshotDirectory) return;
+    await rm(fileScope.snapshotDirectory, { recursive: true, force: true });
+    fileScope.snapshotDirectory = null;
+}
+
 export async function preflightAttachments({
     cwd,
     files,
@@ -157,7 +226,6 @@ export async function preflightAttachments({
     }
 
     const candidates = [];
-    let totalBytes = 0;
     for (const input of files) {
         assertPathArgument(input, '--file');
         const candidate = resolve(projectRoot, input);
@@ -167,54 +235,115 @@ export async function preflightAttachments({
             canonical = await realpath(candidate);
             if (!authorizedRoots.some((root) => contains(root, canonical)))
                 throw denied();
-            const linkStat = await lstat(canonical);
-            fileStat = await stat(canonical);
+            const linkStat = await lstat(canonical, { bigint: true });
+            fileStat = await stat(canonical, { bigint: true });
             if (!linkStat.isFile() || !fileStat.isFile())
                 throw invalid('--file must identify a regular file.');
-            await access(canonical, constants.R_OK);
         } catch (error) {
             if (error instanceof BackendFailure) throw error;
             throw invalid('The Attachment does not identify a readable file.');
         }
         if (await isMacAlias(canonical)) throw denied();
-        if (fileStat.size > MAX_ATTACHMENT_BYTES)
+        if (fileStat.size > BigInt(MAX_ATTACHMENT_BYTES))
             throw new BackendFailure(
                 'UNSUPPORTED_ATTACHMENT',
                 `An Attachment exceeds the ${MAX_ATTACHMENT_BYTES}-byte limit.`,
                 42,
             );
-        totalBytes += fileStat.size;
-        if (totalBytes > MAX_TOTAL_ATTACHMENT_BYTES)
-            throw new BackendFailure(
-                'UNSUPPORTED_ATTACHMENT',
-                `Attachments exceed the ${MAX_TOTAL_ATTACHMENT_BYTES}-byte total limit.`,
-                42,
-            );
-        candidates.push({ path: canonical, sizeBytes: fileStat.size });
+        candidates.push({ path: canonical, stat: fileStat });
     }
 
-    const attachments = [];
-    for (const candidate of candidates) {
-        let content;
-        try {
-            content = await readFile(candidate.path);
-        } catch {
-            throw invalid('The Attachment could not be read.');
+    const handles = [];
+    let snapshotDirectory = null;
+    try {
+        let totalBytes = 0n;
+        for (const candidate of candidates) {
+            let handle;
+            try {
+                handle = await open(
+                    candidate.path,
+                    constants.O_RDONLY | constants.O_NOFOLLOW,
+                );
+                const openedStat = await handle.stat({ bigint: true });
+                if (
+                    !openedStat.isFile() ||
+                    !sameFileIdentity(candidate.stat, openedStat)
+                )
+                    throw changedDuringPreflight();
+                if (openedStat.size > BigInt(MAX_ATTACHMENT_BYTES))
+                    throw new BackendFailure(
+                        'UNSUPPORTED_ATTACHMENT',
+                        `An Attachment exceeds the ${MAX_ATTACHMENT_BYTES}-byte limit.`,
+                        42,
+                    );
+                totalBytes += openedStat.size;
+                if (totalBytes > BigInt(MAX_TOTAL_ATTACHMENT_BYTES))
+                    throw new BackendFailure(
+                        'UNSUPPORTED_ATTACHMENT',
+                        `Attachments exceed the ${MAX_TOTAL_ATTACHMENT_BYTES}-byte total limit.`,
+                        42,
+                    );
+                candidate.stat = openedStat;
+                handles.push(handle);
+            } catch (error) {
+                if (handle && !handles.includes(handle)) await handle.close();
+                if (error instanceof BackendFailure) throw error;
+                throw invalid('The Attachment does not identify a readable file.');
+            }
         }
-        const mimeType = detectMimeType(candidate.path, content);
-        const name = candidate.path.split(sep).at(-1);
-        attachments.push({
-            id: `att_${randomUUID()}`,
-            name,
-            mimeType,
-            sizeBytes: candidate.sizeBytes,
-            path: candidate.path,
-        });
-    }
 
-    return {
-        projectRoot,
-        additionalDirectories: authorizedRoots.slice(1),
-        attachments,
-    };
+        if (candidates.length > 0) {
+            snapshotDirectory = await mkdtemp(
+                join(tmpdir(), 'jiaorong-cli-attachments-'),
+            );
+            await chmod(snapshotDirectory, 0o700);
+        }
+
+        const attachments = [];
+        for (let index = 0; index < candidates.length; index += 1) {
+            const candidate = candidates[index];
+            let content;
+            try {
+                content = await readStableFile(handles[index], candidate.stat);
+            } catch (error) {
+                if (error instanceof BackendFailure) throw error;
+                throw invalid('The Attachment could not be read.');
+            }
+            const mimeType = detectMimeType(candidate.path, content);
+            const name = basename(candidate.path);
+            const attachmentDirectory = join(snapshotDirectory, String(index));
+            await mkdir(attachmentDirectory, { mode: 0o700 });
+            const snapshotPath = join(attachmentDirectory, name);
+            const snapshot = await open(
+                snapshotPath,
+                constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL,
+                0o600,
+            );
+            try {
+                await snapshot.writeFile(content);
+            } finally {
+                await snapshot.close();
+            }
+            attachments.push({
+                id: `att_${randomUUID()}`,
+                name,
+                mimeType,
+                sizeBytes: Number(candidate.stat.size),
+                path: snapshotPath,
+            });
+        }
+
+        return {
+            projectRoot,
+            additionalDirectories: authorizedRoots.slice(1),
+            attachments,
+            snapshotDirectory,
+        };
+    } catch (error) {
+        if (snapshotDirectory)
+            await rm(snapshotDirectory, { recursive: true, force: true });
+        throw error;
+    } finally {
+        await closeHandles(handles);
+    }
 }

@@ -2,8 +2,11 @@ import {
     access,
     mkdtemp,
     open,
+    readFile,
     rm,
+    stat,
     symlink,
+    utimes,
     writeFile,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -85,6 +88,7 @@ export async function runAttachmentFileCases(binary) {
         const outsidePath = join(outsideRoot, 'outside.txt');
         const unsupportedPath = join(projectRoot, 'unsupported.pdf');
         const oversizedPath = join(projectRoot, 'oversized.md');
+        const readProbePath = join(projectRoot, 'read-probe.md');
         await writeFile(
             textPath,
             'CONFORMANCE_ATTACHMENT_CANARY\n',
@@ -96,6 +100,13 @@ export async function runAttachmentFileCases(binary) {
         const oversized = await open(oversizedPath, 'w');
         await oversized.truncate(MAX_ATTACHMENT_BYTES + 1);
         await oversized.close();
+        const readCanaryAtime = new Date('2000-01-01T00:00:00.000Z');
+        await utimes(oversizedPath, readCanaryAtime, new Date());
+        await writeFile(readProbePath, 'READ_PROBE\n', 'utf8');
+        await utimes(readProbePath, readCanaryAtime, new Date());
+        await readFile(readProbePath);
+        const readCanaryObservable =
+            (await stat(readProbePath)).atimeMs > readCanaryAtime.getTime();
         const symlinkPath = join(projectRoot, 'escape.md');
         await symlink(outsidePath, symlinkPath);
 
@@ -173,15 +184,19 @@ export async function runAttachmentFileCases(binary) {
             'PERMISSION_DENIED',
             1,
         );
-        const bypass = await run([
+        const fullAccess = await run([
             '-p',
             'must fail',
             '--permission-mode',
-            'bypassPermissions',
+            'full_access',
             '--file',
             outsidePath,
         ]);
-        const bypassErrors = failureErrors(bypass, 'PERMISSION_DENIED', 1);
+        const fullAccessErrors = failureErrors(
+            fullAccess,
+            'PERMISSION_DENIED',
+            1,
+        );
 
         const multiple = await run([
             '-p',
@@ -245,6 +260,22 @@ export async function runAttachmentFileCases(binary) {
             '--file',
             oversizedPath,
         ]);
+        const oversizedErrors = failureErrors(
+            oversizedRun,
+            'UNSUPPORTED_ATTACHMENT',
+            42,
+        );
+        if (!readCanaryObservable) {
+            oversizedErrors.push(
+                'filesystem cannot observe the oversized-file read canary',
+            );
+        } else if (
+            (await stat(oversizedPath)).atimeMs > readCanaryAtime.getTime()
+        ) {
+            oversizedErrors.push(
+                'oversized Attachment body was read before rejection',
+            );
+        }
 
         const metadataErrors = [...insideErrors];
         const metadata = insideInit?.attachments?.[0];
@@ -265,7 +296,7 @@ export async function runAttachmentFileCases(binary) {
             caseResult('FIL-003', additional, additionalErrors),
             caseResult('FIL-004', traversal, traversalErrors),
             caseResult('FIL-005', symlinkEscape, symlinkErrors),
-            caseResult('FIL-008', bypass, bypassErrors),
+            caseResult('FIL-008', fullAccess, fullAccessErrors),
             caseResult('ATT-001', inside, insideErrors),
             caseResult('ATT-002', multiple, multipleErrors),
             caseResult('ATT-003', images, imageErrors),
@@ -282,11 +313,7 @@ export async function runAttachmentFileCases(binary) {
             caseResult(
                 'ATT-006',
                 oversizedRun,
-                failureErrors(
-                    oversizedRun,
-                    'UNSUPPORTED_ATTACHMENT',
-                    42,
-                ),
+                oversizedErrors,
             ),
             caseResult('ATT-007', outside, outsideErrors),
             caseResult('ATT-008', inside, metadataErrors),

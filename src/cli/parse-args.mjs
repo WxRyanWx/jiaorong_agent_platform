@@ -1,12 +1,7 @@
 import { CliFailure } from './failures.mjs';
 
 const outputFormats = new Set(['text', 'json', 'stream-json']);
-const permissionModes = new Set([
-    'plan',
-    'default',
-    'acceptEdits',
-    'bypassPermissions',
-]);
+const permissionModes = new Set(['default', 'full_access']);
 
 function takeValue(argv, index, flag) {
     const value = argv[index + 1];

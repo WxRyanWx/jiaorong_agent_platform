@@ -2,7 +2,10 @@ import { CliFailure } from './failures.mjs';
 import { MAX_PROMPT_BYTES } from './limits.mjs';
 import { createOutputRenderer } from './output-renderer.mjs';
 import { detectOutputFormat, parseArgs } from './parse-args.mjs';
-import { preflightAttachments } from '../files/attachment-preflight.mjs';
+import {
+    cleanupAttachmentSnapshots,
+    preflightAttachments,
+} from '../files/attachment-preflight.mjs';
 
 const VERSION = '0.1.0';
 
@@ -100,6 +103,19 @@ function normalizeFailure(error) {
         'The Headless Run failed internally.',
         1,
     );
+}
+
+async function cleanupSnapshots(fileScope) {
+    try {
+        await cleanupAttachmentSnapshots(fileScope);
+        return null;
+    } catch {
+        return new CliFailure(
+            'INTERNAL_ERROR',
+            'Attachment snapshot cleanup failed.',
+            1,
+        );
+    }
 }
 
 function emitFailure({
@@ -307,7 +323,9 @@ export async function runCli({
         });
         prepared = await backend.prepare(request);
     } catch (error) {
-        const failure = normalizeFailure(error);
+        const failure =
+            (await cleanupSnapshots(request.fileScope)) ??
+            normalizeFailure(error);
         return emitFailure({
             renderer,
             options,
@@ -348,7 +366,9 @@ export async function runCli({
             }
         }
     } catch (error) {
-        const failure = normalizeFailure(error);
+        const failure =
+            (await cleanupSnapshots(request.fileScope)) ??
+            normalizeFailure(error);
         return emitFailure({
             renderer,
             options,
@@ -358,6 +378,20 @@ export async function runCli({
             startedAt,
             now,
             failure,
+        });
+    }
+
+    const cleanupFailure = await cleanupSnapshots(request.fileScope);
+    if (cleanupFailure) {
+        return emitFailure({
+            renderer,
+            options,
+            requestId,
+            prepared: state,
+            content,
+            startedAt,
+            now,
+            failure: cleanupFailure,
         });
     }
 

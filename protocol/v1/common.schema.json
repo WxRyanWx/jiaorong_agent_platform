@@ -10,7 +10,7 @@
       ]
     },
     "permissionMode": {
-      "enum": ["plan", "default", "acceptEdits", "bypassPermissions"]
+      "enum": ["default", "full_access"]
     },
     "nullablePermissionMode": {
       "oneOf": [

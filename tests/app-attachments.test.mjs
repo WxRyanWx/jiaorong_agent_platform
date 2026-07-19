@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import {
+    access,
     chmod,
     mkdtemp,
     open,
@@ -10,7 +11,7 @@ import {
     writeFile,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join, relative, resolve } from 'node:path';
+import { basename, join, relative, resolve } from 'node:path';
 import { test } from 'node:test';
 import { promisify } from 'node:util';
 
@@ -33,6 +34,15 @@ function appEnv(endpoint) {
         JIAORONG_CLI_TEST_CDP_ENDPOINT: endpoint,
         JIAORONG_CLI_TEST_APP_EXECUTABLE: process.execPath,
     };
+}
+
+async function pathExists(path) {
+    try {
+        await access(path);
+        return true;
+    } catch {
+        return false;
+    }
 }
 
 async function streamRun(endpoint, cwd, args) {
@@ -102,10 +112,27 @@ test('repeatable --file arguments are prepared before Session creation and sent 
                 'sizeBytes',
             ]);
         }
-        assert.deepEqual(server.state.prepareFileInputs, [
-            { path: canonicalMarkdownPath, mimeType: 'text/markdown' },
-            { path: canonicalJsonPath, mimeType: 'application/json' },
-        ]);
+        assert.deepEqual(
+            server.state.prepareFileInputs.map(({ path, mimeType }) => ({
+                name: basename(path),
+                mimeType,
+                original: [canonicalMarkdownPath, canonicalJsonPath].includes(
+                    path,
+                ),
+            })),
+            [
+                {
+                    name: 'notes.md',
+                    mimeType: 'text/markdown',
+                    original: false,
+                },
+                {
+                    name: 'data.json',
+                    mimeType: 'application/json',
+                    original: false,
+                },
+            ],
+        );
         assert.equal(server.state.createInputs.length, 1);
         assert.ok(
             server.state.invokedRoutes.lastIndexOf('file.prepareFile') <
@@ -122,16 +149,18 @@ test('repeatable --file arguments are prepared before Session creation and sent 
             [
                 {
                     name: 'notes.md',
-                    path: canonicalMarkdownPath,
+                    path: server.state.prepareFileInputs[0].path,
                     mimeType: 'text/markdown',
                 },
                 {
                     name: 'data.json',
-                    path: canonicalJsonPath,
+                    path: server.state.prepareFileInputs[1].path,
                     mimeType: 'application/json',
                 },
             ],
         );
+        for (const { path } of server.state.prepareFileInputs)
+            assert.equal(await pathExists(path), false);
     } finally {
         await server.close();
         await rm(projectRoot, { recursive: true, force: true });
@@ -180,9 +209,14 @@ test('an Additional Directory authorizes only its canonical filesystem boundary'
             server.state.createInputs[0].projectDir,
             canonicalProjectRoot,
         );
-        assert.deepEqual(server.state.prepareFileInputs, [
-            { path: canonicalOutsidePath, mimeType: 'text/plain' },
-        ]);
+        assert.equal(server.state.prepareFileInputs.length, 1);
+        assert.equal(server.state.prepareFileInputs[0].mimeType, 'text/plain');
+        assert.equal(basename(server.state.prepareFileInputs[0].path), 'outside.txt');
+        assert.notEqual(server.state.prepareFileInputs[0].path, canonicalOutsidePath);
+        assert.equal(
+            await pathExists(server.state.prepareFileInputs[0].path),
+            false,
+        );
     } finally {
         await server.close();
         await rm(projectRoot, { recursive: true, force: true });
@@ -243,8 +277,8 @@ test('filesystem and Attachment failures stop before the App Backend is opened',
         await rejected('parent traversal', ['--file', relative(projectRoot, outsidePath)], 'PERMISSION_DENIED');
         await rejected('symlink escape', ['--file', './escape.md'], 'PERMISSION_DENIED');
         await rejected(
-            'bypassPermissions does not bypass the file boundary',
-            ['--permission-mode', 'bypassPermissions', '--file', outsidePath],
+            'full_access does not bypass the file boundary',
+            ['--permission-mode', 'full_access', '--file', outsidePath],
             'PERMISSION_DENIED',
         );
 
@@ -269,6 +303,85 @@ test('filesystem and Attachment failures stop before the App Backend is opened',
         await chmod(unreadablePath, 0o600);
         await rm(projectRoot, { recursive: true, force: true });
         await rm(outsideRoot, { recursive: true, force: true });
+    }
+});
+
+test('JiaorongAI reads a private snapshot when the authorized source path is replaced after preflight', async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), 'jiaorong-cli-snapshot-'));
+    const outsideRoot = await mkdtemp(join(tmpdir(), 'jiaorong-cli-snapshot-outside-'));
+    const sourcePath = join(projectRoot, 'notes.md');
+    const outsidePath = join(outsideRoot, 'outside.md');
+    const safe = 'AUTHORIZED_SNAPSHOT\n';
+    const escaped = 'OUTSIDE_REPLACEMENT\n';
+    assert.equal(Buffer.byteLength(safe), Buffer.byteLength(escaped));
+    await writeFile(sourcePath, safe);
+    await writeFile(outsidePath, escaped);
+    let replaced = false;
+    const server = await startFakeCdpServer({
+        async beforeInvoke(route) {
+            if (route !== 'device.getAppVersion' || replaced) return;
+            replaced = true;
+            await rm(sourcePath);
+            await symlink(outsidePath, sourcePath);
+        },
+    });
+    try {
+        const run = await streamRun(server.endpoint, projectRoot, [
+            '-p',
+            'inspect it',
+            '--file',
+            './notes.md',
+        ]);
+        assert.equal(run.result.exitCode, 0, run.result.stderr || run.result.stdout);
+        assert.equal(replaced, true);
+        assert.equal(server.state.prepareFileInputs.length, 1);
+        const snapshotPath = server.state.prepareFileInputs[0].path;
+        assert.notEqual(snapshotPath, sourcePath);
+        assert.equal(server.state.sendInputs[0].content.files[0].content, safe);
+        assert.equal(await pathExists(snapshotPath), false);
+    } finally {
+        await server.close();
+        await rm(projectRoot, { recursive: true, force: true });
+        await rm(outsideRoot, { recursive: true, force: true });
+    }
+});
+
+test('JiaorongAI reads a bounded snapshot when the source grows after preflight', async () => {
+    const projectRoot = await mkdtemp(join(tmpdir(), 'jiaorong-cli-snapshot-size-'));
+    const sourcePath = join(projectRoot, 'notes.md');
+    const safe = 'BOUNDED_SNAPSHOT\n';
+    await writeFile(sourcePath, safe);
+    let enlarged = false;
+    const server = await startFakeCdpServer({
+        async beforeInvoke(route) {
+            if (route !== 'device.getAppVersion' || enlarged) return;
+            enlarged = true;
+            const handle = await open(sourcePath, 'r+');
+            await handle.truncate(MAX_ATTACHMENT_BYTES + 1);
+            await handle.close();
+        },
+    });
+    try {
+        const run = await streamRun(server.endpoint, projectRoot, [
+            '-p',
+            'inspect it',
+            '--file',
+            './notes.md',
+        ]);
+        assert.equal(run.result.exitCode, 0, run.result.stderr || run.result.stdout);
+        assert.equal(enlarged, true);
+        assert.equal(server.state.sendInputs[0].content.files[0].content, safe);
+        assert.equal(
+            server.state.sendInputs[0].content.files[0].metadata.fileSize,
+            Buffer.byteLength(safe),
+        );
+        assert.equal(
+            await pathExists(server.state.prepareFileInputs[0].path),
+            false,
+        );
+    } finally {
+        await server.close();
+        await rm(projectRoot, { recursive: true, force: true });
     }
 });
 
@@ -331,6 +444,11 @@ test('JiaorongAI attachment preparation failures do not create a Session', async
                 assert.equal(run.validation.events.at(-2).code, 'UNSUPPORTED_ATTACHMENT');
                 assert.deepEqual(server.state.createInputs, []);
                 assert.doesNotMatch(run.result.stdout, /private route failure/u);
+                assert.equal(server.state.prepareFileInputs.length, 1);
+                assert.equal(
+                    await pathExists(server.state.prepareFileInputs[0].path),
+                    false,
+                );
             } finally {
                 await server.close();
             }
@@ -362,6 +480,11 @@ test('JiaorongAI attachment preparation failures do not create a Session', async
                 assert.equal(run.validation.valid, true, run.validation.errors.join('; '));
                 assert.equal(run.validation.events.at(-2).code, 'INTERNAL_ERROR');
                 assert.deepEqual(server.state.createInputs, []);
+                assert.equal(server.state.prepareFileInputs.length, 1);
+                assert.equal(
+                    await pathExists(server.state.prepareFileInputs[0].path),
+                    false,
+                );
             } finally {
                 await server.close();
             }

@@ -93,6 +93,7 @@ export async function startFakeCdpServer({
     dropRuntimeCleanupRequestCount,
     emitLateTerminalBeforeCleanup = false,
     prepareFileFactory,
+    beforeInvoke,
 } = {}) {
     const state = {
         activeSubscriptions: 0,
@@ -282,6 +283,7 @@ export async function startFakeCdpServer({
                     throw new Error(`Unknown deepchat route: ${route}`);
                 if (input === null)
                     throw new Error('Invalid bridge route input');
+                if (beforeInvoke) await beforeInvoke(route, input);
                 if (hangingRoutes.has(route)) return new Promise(() => {});
                 if (route === 'device.getAppVersion')
                     return { version: appVersion };

@@ -45,7 +45,7 @@ function nonEmptyString(value) {
 }
 
 function permissionMode(mode) {
-    return mode === 'bypassPermissions' ? 'full_access' : 'default';
+    return mode === 'full_access' ? 'full_access' : 'default';
 }
 
 function providerConnectionFailure(connection) {
@@ -78,6 +78,26 @@ async function verifyProviderConnection(client, config, selectedModel) {
     );
     const failure = providerConnectionFailure(connection);
     if (failure) throw failure;
+}
+
+async function prepareFileScope(client, config, fileScope) {
+    const attachmentToken = await prepareBridgeAttachments(
+        client,
+        fileScope.attachments,
+        { timeoutMs: config.bridgeInvokeTimeoutMs },
+    );
+    return {
+        attachmentToken,
+        attachments: fileScope.attachments.map(
+            ({ id, name, mimeType, sizeBytes }) => ({
+                id,
+                name,
+                mimeType,
+                sizeBytes,
+            }),
+        ),
+        additionalDirectories: fileScope.additionalDirectories,
+    };
 }
 
 export function createJiaorongAppBackend({ runtimeOptions } = {}) {
@@ -240,11 +260,12 @@ export function createJiaorongAppBackend({ runtimeOptions } = {}) {
                         config,
                         selectedModel,
                     );
-                    attachmentToken = await prepareBridgeAttachments(
+                    const preparedFileScope = await prepareFileScope(
                         client,
-                        fileScope.attachments,
-                        { timeoutMs: config.bridgeInvokeTimeoutMs },
+                        config,
+                        fileScope,
                     );
+                    attachmentToken = preparedFileScope.attachmentToken;
                     return {
                         sessionId: session.id,
                         resumed: true,
@@ -252,17 +273,7 @@ export function createJiaorongAppBackend({ runtimeOptions } = {}) {
                             id: selectedModel.id,
                             displayName: selectedModel.displayName,
                         },
-                        attachments: fileScope.attachments.map(
-                            ({ id, name, mimeType, sizeBytes }) => ({
-                                id,
-                                name,
-                                mimeType,
-                                sizeBytes,
-                            }),
-                        ),
-                        attachmentToken,
-                        additionalDirectories:
-                            fileScope.additionalDirectories,
+                        ...preparedFileScope,
                         bridgeClient: client,
                         bridgeInvokeTimeoutMs: config.bridgeInvokeTimeoutMs,
                         runTimeoutMs: config.runTimeoutMs,
@@ -307,11 +318,12 @@ export function createJiaorongAppBackend({ runtimeOptions } = {}) {
                 }
 
                 await verifyProviderConnection(client, config, selectedModel);
-                attachmentToken = await prepareBridgeAttachments(
+                const preparedFileScope = await prepareFileScope(
                     client,
-                    fileScope.attachments,
-                    { timeoutMs: config.bridgeInvokeTimeoutMs },
+                    config,
+                    fileScope,
                 );
+                attachmentToken = preparedFileScope.attachmentToken;
 
                 const createInput = {
                     agentId: agent.id,
@@ -345,16 +357,7 @@ export function createJiaorongAppBackend({ runtimeOptions } = {}) {
                         id: selectedModel.id,
                         displayName: selectedModel.displayName,
                     },
-                    attachments: fileScope.attachments.map(
-                        ({ id, name, mimeType, sizeBytes }) => ({
-                            id,
-                            name,
-                            mimeType,
-                            sizeBytes,
-                        }),
-                    ),
-                    attachmentToken,
-                    additionalDirectories: fileScope.additionalDirectories,
+                    ...preparedFileScope,
                     bridgeClient: client,
                     bridgeInvokeTimeoutMs: config.bridgeInvokeTimeoutMs,
                     runTimeoutMs: config.runTimeoutMs,
