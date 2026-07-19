@@ -22,11 +22,17 @@ node ./bin/jiaorong-cli.mjs \
   -p "Reply with a short confirmation" \
   --model <model-id> \
   --output-format stream-json
+node ./bin/jiaorong-cli.mjs \
+  -p "Continue the same conversation" \
+  --resume <session-id> \
+  --output-format stream-json
 ```
 
 Credentials remain owned by JiaorongAI. `doctor` and `models list` are read-only and never print provider credentials. Because JiaorongAI exposes no read-only credential-validity signal, doctor reports authentication as `warn` until a run starts. Before creating an Agent Session, a run uses JiaorongAI's provider connection check. JiaorongAI 0.5.6 returns only an unstructured `errorMsg` when that check fails, so the App Backend does not guess from its text: every failed connection check is projected as a redacted `INTERNAL_ERROR`. `AUTH_REQUIRED` is reserved for a future verified structured discriminator.
 
 Public Model IDs are provider-qualified (`<encoded-provider-id>/<encoded-model-id>`). Use the exact `id` returned by `models list`; display names are not stable identifiers.
+
+JiaorongAI owns durable Session history. Save the `sessionId` from a successful run and pass it to a later process with `--resume`; the CLI sends only the new prompt and never replays visible history. Different Sessions may run concurrently. One Session permits only one active run at a time; a competing run fails with `INVALID_ARGUMENT` and exit `42` before a second stream starts.
 
 ## Development
 

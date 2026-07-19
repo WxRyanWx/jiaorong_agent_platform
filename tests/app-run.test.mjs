@@ -178,13 +178,6 @@ test('App Backend fails closed and cleans listeners for invalid stream boundarie
             streamEvents: [updated(), completed(), completed()],
         },
         {
-            name: 'crossed Session',
-            streamEvents: [
-                updated({ sessionId: 'session-other' }),
-                completed(),
-            ],
-        },
-        {
             name: 'crossed request',
             streamEvents: [
                 updated(),
@@ -279,6 +272,32 @@ test('App Backend fails closed and cleans listeners for invalid stream boundarie
     }
 });
 
+test('App Backend ignores another Session stream while consuming its own', async () => {
+    const server = await startFakeCdpServer({
+        streamEvents: [
+            updated({ sessionId: 'session-other' }),
+            updated(),
+            completed(),
+        ],
+    });
+    try {
+        const result = await runProcess(
+            cli,
+            ['-p', 'hello', '--output-format', 'stream-json'],
+            { cwd: root, env: appEnv(server.endpoint) },
+        );
+        assert.equal(result.exitCode, 0, result.stderr || result.stdout);
+        const validation = await validateStream(result.stdout, {
+            exitCode: result.exitCode,
+        });
+        assert.equal(validation.valid, true, validation.errors.join('; '));
+        assert.equal(validation.events.at(-1).content, 'partial');
+        assert.equal(server.state.activeSubscriptions, 0);
+    } finally {
+        await server.close();
+    }
+});
+
 test('App Backend rejects an oversized UTF-8 prompt before Session creation', async () => {
     const server = await startFakeCdpServer();
     try {
@@ -336,8 +355,9 @@ test('App Backend preserves a prompt whose JSON escaping would exceed the CDP li
 
 test('renderer-local deadline cleans listeners when the start response is lost', async () => {
     const server = await startFakeCdpServer({
-        dropRuntimeStartResponse: true,
-        dropRuntimeCleanupRequest: true,
+        dropRuntimeStartResponseCount: 1,
+        dropRuntimeCleanupRequestCount: 1,
+        sharedRenderer: true,
     });
     try {
         const result = await runProcess(
@@ -354,6 +374,31 @@ test('renderer-local deadline cleans listeners when the start response is lost',
         assert.equal(result.exitCode, 1);
         await wait(150);
         assert.equal(server.state.activeSubscriptions, 0);
+        const second = await runProcess(
+            cli,
+            [
+                '-p',
+                'must not start',
+                '--resume',
+                'session-test',
+                '--output-format',
+                'stream-json',
+            ],
+            {
+                cwd: root,
+                env: appEnv(server.endpoint, {
+                    JIAORONG_CLI_TEST_BRIDGE_INVOKE_TIMEOUT_MS: '50',
+                    JIAORONG_CLI_TEST_RUN_TIMEOUT_MS: '50',
+                }),
+            },
+        );
+        assert.equal(second.exitCode, 42, second.stderr || second.stdout);
+        const validation = await validateStream(second.stdout, {
+            exitCode: second.exitCode,
+        });
+        assert.equal(validation.valid, true, validation.errors.join('; '));
+        assert.equal(validation.events.at(-2).code, 'INVALID_ARGUMENT');
+        assert.equal(server.state.sendInputs.length, 1);
     } finally {
         await server.close();
     }
@@ -392,6 +437,7 @@ test('authoritative send identity is checked before any crossed event is emitted
 test('a terminal arriving between the final poll and cleanup fails explicitly', async () => {
     const server = await startFakeCdpServer({
         emitLateTerminalBeforeCleanup: true,
+        sharedRenderer: true,
     });
     try {
         const result = await runProcess(
@@ -407,6 +453,20 @@ test('a terminal arriving between the final poll and cleanup fails explicitly', 
         assert.equal(validation.events.at(-2).code, 'INTERNAL_ERROR');
         assert.equal(validation.events.at(-1).status, 'failed');
         assert.equal(server.state.activeSubscriptions, 0);
+        const second = await runProcess(
+            cli,
+            [
+                '-p',
+                'must not start',
+                '--resume',
+                'session-test',
+                '--output-format',
+                'stream-json',
+            ],
+            { cwd: root, env: appEnv(server.endpoint) },
+        );
+        assert.equal(second.exitCode, 42, second.stderr || second.stdout);
+        assert.equal(server.state.sendInputs.length, 1);
     } finally {
         await server.close();
     }

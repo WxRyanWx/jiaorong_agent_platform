@@ -7,6 +7,7 @@ import { runCliCases } from './cli-cases.mjs';
 import { runEventCases } from './event-cases.mjs';
 import { runModelAuthCases } from './model-auth-cases.mjs';
 import { runOutputCases } from './output-cases.mjs';
+import { runSessionCases } from './session-cases.mjs';
 import { validateStreamRun } from './stream-run.mjs';
 
 const terminalStreamCases = [
@@ -120,6 +121,7 @@ export async function runSuite({ binary, protocolVersion }) {
         ...(await runOutputCases(binary)),
         ...(await runEventCases(binary)),
         ...(await runModelAuthCases(binary)),
+        ...(await runSessionCases(binary)),
         ...(await runTerminalStreamCases(binary)),
     ];
 

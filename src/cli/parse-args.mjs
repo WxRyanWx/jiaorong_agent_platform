@@ -33,6 +33,21 @@ function positiveNumber(value, flag) {
     return number;
 }
 
+function sessionId(value) {
+    if (
+        value.length === 0 ||
+        Buffer.byteLength(value, 'utf8') > 512 ||
+        /[\u0000-\u001f\u007f]/u.test(value)
+    )
+        throw new CliFailure(
+            'INVALID_ARGUMENT',
+            '--resume requires a valid Session ID.',
+            42,
+            { protocolEligible: true },
+        );
+    return value;
+}
+
 export function parseArgs(argv) {
     if (argv.length === 1 && argv[0] === '--version')
         return { command: 'version' };
@@ -115,7 +130,7 @@ export function parseArgs(argv) {
                 );
             }
         } else if (flag === '--resume') {
-            options.resume = takeValue(argv, index, flag);
+            options.resume = sessionId(takeValue(argv, index, flag));
             index += 1;
         } else if (flag === '--max-turns') {
             options.maxTurns = positiveNumber(

@@ -64,6 +64,20 @@ function providerConnectionFailure(connection) {
     );
 }
 
+async function verifyProviderConnection(client, config, selectedModel) {
+    const connection = await invokeBridgeRoute(
+        client,
+        'providers.testConnection',
+        {
+            providerId: selectedModel.providerId,
+            modelId: selectedModel.bridgeModelId,
+        },
+        { timeoutMs: config.bridgeInvokeTimeoutMs },
+    );
+    const failure = providerConnectionFailure(connection);
+    if (failure) throw failure;
+}
+
 export function createJiaorongAppBackend({ runtimeOptions } = {}) {
     return {
         async doctor() {
@@ -161,13 +175,6 @@ export function createJiaorongAppBackend({ runtimeOptions } = {}) {
                     42,
                 );
             }
-            if (request.resume) {
-                throw new BackendFailure(
-                    'INVALID_ARGUMENT',
-                    'Resuming an Agent Session is not available yet.',
-                    42,
-                );
-            }
             if (
                 request.files.length > 0 ||
                 request.additionalDirectories.length > 0
@@ -182,6 +189,77 @@ export function createJiaorongAppBackend({ runtimeOptions } = {}) {
             const runtime = await openVerifiedAppRuntime(runtimeOptions);
             const { client, config, readiness } = runtime;
             try {
+                if (request.resume) {
+                    const restored = await invokeBridgeRoute(
+                        client,
+                        'sessions.restore',
+                        { sessionId: request.resume },
+                        { timeoutMs: config.bridgeInvokeTimeoutMs },
+                    );
+                    if (
+                        !restored ||
+                        typeof restored !== 'object' ||
+                        !Array.isArray(restored.messages) ||
+                        typeof restored.hasMore !== 'boolean' ||
+                        !(
+                            restored.nextCursor === null ||
+                            typeof restored.nextCursor === 'object'
+                        )
+                    )
+                        throw invalidBridgeDocument();
+                    if (restored.session === null)
+                        throw new BackendFailure(
+                            'INVALID_ARGUMENT',
+                            'The JiaorongAI Session does not exist.',
+                            42,
+                        );
+                    const session = restored.session;
+                    if (
+                        !session ||
+                        typeof session !== 'object' ||
+                        session.id !== request.resume ||
+                        !nonEmptyString(session.providerId) ||
+                        !nonEmptyString(session.modelId)
+                    )
+                        throw invalidBridgeDocument();
+                    const matches = readiness.availableModels.filter(
+                        (model) =>
+                            model.providerId === session.providerId &&
+                            model.bridgeModelId === session.modelId,
+                    );
+                    if (matches.length !== 1)
+                        throw new BackendFailure(
+                            'MODEL_UNAVAILABLE',
+                            'The JiaorongAI Session model is unavailable.',
+                        );
+                    const selectedModel = matches[0];
+                    if (
+                        request.modelId !== undefined &&
+                        request.modelId !== selectedModel.id
+                    )
+                        throw new BackendFailure(
+                            'MODEL_UNAVAILABLE',
+                            'The requested model does not match the resumed JiaorongAI Session.',
+                        );
+                    await verifyProviderConnection(
+                        client,
+                        config,
+                        selectedModel,
+                    );
+                    return {
+                        sessionId: session.id,
+                        resumed: true,
+                        model: {
+                            id: selectedModel.id,
+                            displayName: selectedModel.displayName,
+                        },
+                        attachments: [],
+                        bridgeClient: client,
+                        bridgeInvokeTimeoutMs: config.bridgeInvokeTimeoutMs,
+                        runTimeoutMs: config.runTimeoutMs,
+                    };
+                }
+
                 const agentDocument = await invokeBridgeRoute(
                     client,
                     'sessions.getAgents',
@@ -219,17 +297,7 @@ export function createJiaorongAppBackend({ runtimeOptions } = {}) {
                     );
                 }
 
-                const connection = await invokeBridgeRoute(
-                    client,
-                    'providers.testConnection',
-                    {
-                        providerId: selectedModel.providerId,
-                        modelId: selectedModel.bridgeModelId,
-                    },
-                    { timeoutMs: config.bridgeInvokeTimeoutMs },
-                );
-                const connectionFailure = providerConnectionFailure(connection);
-                if (connectionFailure) throw connectionFailure;
+                await verifyProviderConnection(client, config, selectedModel);
 
                 const createInput = {
                     agentId: agent.id,

@@ -32,7 +32,12 @@ function invalidEvent() {
 }
 
 function nonEmptyString(value) {
-    return typeof value === 'string' && value.length > 0;
+    return (
+        typeof value === 'string' &&
+        value.length > 0 &&
+        Buffer.byteLength(value, 'utf8') <= 512 &&
+        !/[\u0000-\u001f\u007f]/u.test(value)
+    );
 }
 
 function timestamp(value) {
@@ -117,10 +122,12 @@ export function createBridgeProjector({ sessionId }) {
 
             if (eventName === 'chat.stream.failed') {
                 terminal = true;
-                throw new BackendFailure(
+                const failure = new BackendFailure(
                     'INTERNAL_ERROR',
                     'JiaorongAI failed the Agent Session stream.',
                 );
+                failure.remoteSettled = true;
+                throw failure;
             }
             if (eventName === 'chat.stream.completed') {
                 terminal = true;

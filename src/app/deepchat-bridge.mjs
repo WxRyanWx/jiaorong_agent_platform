@@ -9,11 +9,13 @@ const RUN_EVENTS = [
 const INVOKE_ROUTES = new Set([
     'sessions.getAgents',
     'sessions.create',
+    'sessions.restore',
     'providers.testConnection',
 ]);
 const MAX_BUFFERED_EVENTS = 128;
 const MAX_EVENT_BYTES = 32 * 1_024;
 const DRAIN_BATCH_SIZE = 4;
+const MAX_RETIRED_IDENTITIES = 16_384;
 
 function bridgeFailure(message = 'The JiaorongAI bridge request failed.') {
     return new BackendFailure('INTERNAL_ERROR', message);
@@ -69,12 +71,25 @@ function startExpression(token, sessionId, prompt, rendererDeadlineMs) {
   const store = window[storeName] || Object.defineProperty(window, storeName, {
     value: Object.create(null), configurable: true
   })[storeName];
+  const lockStoreName = '__JIAORONG_CLI_SESSION_LOCKS_V1__';
+  const locks = window[lockStoreName] || Object.defineProperty(window, lockStoreName, {
+    value: Object.create(null), configurable: true
+  })[lockStoreName];
+  const identityStoreName = '__JIAORONG_CLI_RETIRED_IDENTITIES_V1__';
+  const identityHistory = window[identityStoreName] || Object.defineProperty(window, identityStoreName, {
+    value: { bySession: Object.create(null), total: 0, saturated: false }, configurable: true
+  })[identityStoreName];
   const token = ${JSON.stringify(token)};
+  const sessionId = ${JSON.stringify(sessionId)};
   if (store[token]) throw new Error('run token collision');
+  if (identityHistory.saturated) return { started: false, historyFull: true };
+  if (locks[sessionId]) return { started: false, busy: true };
+  locks[sessionId] = token;
   const state = {
     events: [],
     overflow: false,
     terminalCount: 0,
+    identities: [],
     send: { status: 'pending' },
     unsubscriptions: [],
     deadlineTimer: undefined,
@@ -90,15 +105,36 @@ function startExpression(token, sessionId, prompt, rendererDeadlineMs) {
     for (const unsubscribe of state.unsubscriptions.reverse()) {
       try { unsubscribe(); } catch { cleanupError = true; }
     }
+    let retired = identityHistory.bySession[sessionId];
+    if (!retired) {
+      retired = [];
+      identityHistory.bySession[sessionId] = retired;
+    }
+    for (const identity of state.identities) {
+      if (retired.includes(identity)) continue;
+      if (identityHistory.total >= ${MAX_RETIRED_IDENTITIES}) {
+        identityHistory.saturated = true;
+        cleanupError = true;
+        break;
+      }
+      retired.push(identity);
+      identityHistory.total += 1;
+    }
     delete store[token];
     return cleanupError;
   };
   const enqueue = (name, payload) => {
+    if (!payload || payload.sessionId !== sessionId) return;
     let size = ${MAX_EVENT_BYTES + 1};
     try { size = new TextEncoder().encode(JSON.stringify(payload)).byteLength; } catch {}
     if (size > ${MAX_EVENT_BYTES} || state.events.length >= ${MAX_BUFFERED_EVENTS}) {
       state.overflow = true;
       return;
+    }
+    if (typeof payload.requestId === 'string' && typeof payload.messageId === 'string') {
+      const identity = JSON.stringify([payload.requestId, payload.messageId]);
+      if (identityHistory.bySession[sessionId]?.includes(identity)) return;
+      if (!state.identities.includes(identity)) state.identities.push(identity);
     }
     if (name === 'chat.stream.completed' || name === 'chat.stream.failed') {
       state.terminalCount += 1;
@@ -169,6 +205,19 @@ function cleanupExpression(token) {
 `;
 }
 
+function releaseExpression(token, sessionId) {
+    return `
+(() => {
+  const locks = window.__JIAORONG_CLI_SESSION_LOCKS_V1__;
+  if (!locks || locks[${JSON.stringify(sessionId)}] !== ${JSON.stringify(token)}) {
+    return { released: false };
+  }
+  delete locks[${JSON.stringify(sessionId)}];
+  return { released: true };
+})()
+`;
+}
+
 function validPoll(document) {
     return (
         document !== null &&
@@ -197,7 +246,9 @@ export async function* runBridgeTurn(
     const token = crypto.randomUUID();
     const projector = createBridgeProjector({ sessionId });
     let sendBound = false;
-    let terminalObserved = false;
+    let terminalFailureObserved = false;
+    let started = false;
+    let runSucceeded = false;
     const deadline = Date.now() + runTimeoutMs;
     try {
         const start = await evaluate(
@@ -205,7 +256,18 @@ export async function* runBridgeTurn(
             startExpression(token, sessionId, prompt, runTimeoutMs),
             invokeTimeoutMs,
         );
+        if (start?.busy === true)
+            throw new BackendFailure(
+                'INVALID_ARGUMENT',
+                'The JiaorongAI Session already has an active run.',
+                42,
+            );
+        if (start?.historyFull === true)
+            throw bridgeFailure(
+                'The JiaorongAI request identity history reached its safety limit; restart JiaorongAI before running another Session.',
+            );
         if (start?.started !== true) throw bridgeFailure();
+        started = true;
 
         while (Date.now() <= deadline) {
             const document = await evaluate(
@@ -230,12 +292,18 @@ export async function* runBridgeTurn(
             }
 
             for (const event of document.events) {
-                for (const projected of projector.project(
-                    event?.name,
-                    event?.payload,
-                )) {
-                    if (projected.kind === 'complete')
-                        terminalObserved = true;
+                let projectedEvents;
+                try {
+                    projectedEvents = projector.project(
+                        event?.name,
+                        event?.payload,
+                    );
+                } catch (error) {
+                    if (error?.remoteSettled === true)
+                        terminalFailureObserved = true;
+                    throw error;
+                }
+                for (const projected of projectedEvents) {
                     yield projected;
                 }
             }
@@ -247,29 +315,49 @@ export async function* runBridgeTurn(
                 document.events.length === 0
             ) {
                 projector.assertComplete();
+                runSucceeded = true;
                 return;
             }
             await delay(5);
         }
         throw bridgeFailure('The JiaorongAI Agent Session did not settle.');
     } finally {
-        const cleanup = await evaluate(
-            client,
-            cleanupExpression(token),
-            invokeTimeoutMs,
-        );
-        if (cleanup?.cleaned !== true || cleanup.cleanupError === true)
-            throw bridgeFailure(
-                'The JiaorongAI bridge listener cleanup failed.',
+        if (started) {
+            const cleanup = await evaluate(
+                client,
+                cleanupExpression(token),
+                invokeTimeoutMs,
             );
-        if (
-            terminalObserved &&
-            (cleanup.terminalCount !== 1 ||
-                cleanup.remaining !== 0 ||
-                cleanup.overflow !== false)
-        )
-            throw bridgeFailure(
-                'JiaorongAI returned an invalid stream event.',
-            );
+            const cleanupValid =
+                cleanup?.cleaned === true &&
+                cleanup.cleanupError === false &&
+                cleanup.terminalCount === 1 &&
+                cleanup.remaining === 0 &&
+                cleanup.overflow === false;
+            const remotelySettled =
+                runSucceeded || terminalFailureObserved;
+            if (remotelySettled && cleanupValid) {
+                const release = await evaluate(
+                    client,
+                    releaseExpression(token, sessionId),
+                    invokeTimeoutMs,
+                );
+                if (release?.released !== true)
+                    throw bridgeFailure(
+                        'The JiaorongAI Session lock could not be released safely.',
+                    );
+            } else if (remotelySettled) {
+                throw bridgeFailure(
+                    'The JiaorongAI bridge listener cleanup failed.',
+                );
+            } else if (
+                cleanup?.cleaned !== true ||
+                cleanup.cleanupError === true
+            ) {
+                throw bridgeFailure(
+                    'The JiaorongAI bridge listener cleanup failed.',
+                );
+            }
+        }
     }
 }

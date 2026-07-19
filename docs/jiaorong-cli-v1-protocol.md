@@ -60,6 +60,8 @@ jiaorong-cli -p "Continue" --resume ses_01J... --output-format stream-json
 - 新建会话的 Session ID 由 JiaorongAI 生成并由 CLI 返回。
 - `--resume` 不允许与调用方自定义新 Session ID 的参数并存。
 - Session 不存在、已删除或不属于当前账号时返回 `INVALID_ARGUMENT` 和 exit 42，不创建同名新会话。
+- App Backend 允许不同 Session 并发运行。每个 Session 同一时刻只允许一个活动 Headless Run；第二个并发运行必须在调用第二次 `chat.sendMessage` 前返回 `INVALID_ARGUMENT` 和 exit 42。
+- 每个运行使用独立的有界 event buffer 和不可猜测的 run token。buffer 只接收本 Session 的事件；清理只能按本 run token 释放自己的监听器和 Session 锁。
 
 ## 3. 输出模式
 

@@ -91,6 +91,15 @@ test('Bridge Projector fails closed for malformed, non-monotonic, crossed, and d
             events: [['chat.stream.updated', { ...snapshot(), blocks: null }]],
         },
         {
+            name: 'oversized request identity',
+            events: [
+                [
+                    'chat.stream.updated',
+                    snapshot({ requestId: 'r'.repeat(513) }),
+                ],
+            ],
+        },
+        {
             name: 'unsupported error block',
             events: [
                 [
