@@ -3,7 +3,8 @@
 ## 1. 目标
 
 在不修改 `WxRyanWx/jiaorong_agent_platform` 的前提下，把当前只有协议外壳的
-`jiaorong-cli-v1` 接入本机真实的 `JiaorongAI.app`，交付一个可执行的 Jiaorong CLI。
+`jiaorong-cli-v1` 接入本机真实的 `JiaorongAI.app`，交付一个供 JiaorongAI 用户和自动化流程
+直接使用的 Jiaorong CLI。
 
 第一版允许要求用户安装并运行 JiaorongAI。CLI 负责命令解析、v1 输出协议、超时、取消、
 错误归一化和一致性验证；JiaorongAI 继续负责账号、Provider、Model、Agent、Session、Tool、
@@ -12,16 +13,17 @@ Skill 和 SQLite 持久化。
 ## 2. 已确认边界
 
 - 主仓库是 `jiaorong-cli-v1`。
-- `c4workdian` 仅作为已验证桥接行为的只读参考，不复制其产品代码。
 - `WxRyanWx/jiaorong_agent_platform` 仅作为 JiaorongAI `0.5.6` 源码契约参考，不作修改。
 - 第一版依赖 macOS 上的 `/Applications/JiaorongAI.app`。
 - 第一版只支持经过实际核验的 JiaorongAI `0.5.6`；不推定其他 `0.5.x` 版本兼容。
 - CLI 只连接回环地址上的 CDP，不允许局域网或公网调试端口。
 - CLI 不静默结束、替换或重启正在运行的 JiaorongAI。
+- 当前没有下游产品接入目标；任何未来消费者、UI 或产品迁移均不属于本阶段需求和验收范围。
 
-这项决定取代当前 README 和 ADR 0002 中“第一版不依赖桌面客户端”的描述。实现阶段必须同步
-修正文档，使产品声明与实际交付一致。未来的独立 Headless Runtime 仍可替换 App Backend，
-但不属于本次实现。
+这项决定取代当前 README 和 ADR 0002 中“第一版不依赖桌面客户端”的描述，也取代
+`CONTEXT.md`、PRD 和一致性矩阵中以特定下游产品接入为当前目标的表述。实现阶段必须同步修正
+这些文档，使产品声明与实际交付一致。未来的独立 Headless Runtime 仍可替换 App Backend，
+但不属于本次实现；未来产品接入应在真实需求出现后另行设计。
 
 ## 3. 方案选择
 
@@ -30,7 +32,7 @@ Skill 和 SQLite 持久化。
 不采用以下方案：
 
 - 不通过全局 OpenCLI：它会增加额外安装、版本和 adapter 注册依赖。
-- 不复制 C4Workdian adapter：其中包含 Obsidian、交互策略和产品兼容逻辑，不属于 CLI。
+- 不复制其他产品的 adapter：其中的 UI、交互策略和兼容逻辑不属于 Jiaorong CLI。
 - 不复制 JiaorongAI Agent Runtime：这会形成第二套 Provider、Session、Tool 和数据库实现。
 - 不向已打包应用注入任意脚本或修改应用资源：只使用 Electron 已提供的 CDP 与 preload bridge。
 
@@ -211,6 +213,7 @@ JiaorongAI 的 `chat.stream.updated` 可能重复发送完整 block snapshot，�
 ### 8.2 进程与一致性测试
 
 - 现有 fixture backend 和 golden JSONL 继续通过。
+- 一致性矩阵中针对特定下游应用的集成层用例不属于本阶段验收，也不为其新增适配代码。
 - 用假 CDP 服务从真实生产入口跑完整 CLI 进程。
 - prompt 中的 Unicode、换行、引号和 shell 元字符必须原样到达 bridge，不经过 shell 拼接。
 - `SIGINT`、timeout、bridge 断开和重复终止均只有一个最终 `result`。
@@ -245,5 +248,5 @@ JiaorongAI 的 `chat.stream.updated` 可能重复发送完整 block snapshot，�
 ## 10. 后续演进
 
 当 JiaorongAI 提供稳定的无界面 Runtime 包或本地控制服务后，只替换 `JiaorongAppBackend`，
-保留 CLI 参数、v1 输出协议、conformance suite 和 consumer 集成。不能在本次实现中提前构建该独立
-Runtime，也不能把 CDP 描述成最终长期架构。
+保留 CLI 参数、v1 输出协议和 conformance suite。不能在本次实现中提前构建该独立 Runtime，
+也不能把 CDP 描述成最终长期架构，更不能提前为尚不存在的下游产品设计适配层。
