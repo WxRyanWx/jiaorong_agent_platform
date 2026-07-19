@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { chmod } from 'node:fs/promises';
+import { chmod, readFile, unlink } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
@@ -126,6 +127,37 @@ test('prompt argv may begin with a hyphen', async () => {
     const result = await execute(['-p', '-leading', '--output-format', 'text']);
     assert.equal(result.exitCode, 0);
     assert.equal(result.stdout, 'echo:-leading');
+});
+
+test('the test executable exposes when argument parsing reaches the backend', async () => {
+    const invokedCanary = resolve(
+        tmpdir(),
+        `jiaorong-cli-backend-invoked-${crypto.randomUUID()}`,
+    );
+    const invoked = await runProcess(
+        fixtureCli,
+        ['-p', 'hello', '--output-format', 'text'],
+        {
+            cwd: root,
+            env: { JIAORONG_CLI_TEST_BACKEND_CANARY: invokedCanary },
+        },
+    );
+
+    assert.equal(invoked.exitCode, 0);
+    assert.equal(await readFile(invokedCanary, 'utf8'), 'prepare\n');
+    await unlink(invokedCanary);
+
+    const skippedCanary = resolve(
+        tmpdir(),
+        `jiaorong-cli-backend-skipped-${crypto.randomUUID()}`,
+    );
+    const skipped = await runProcess(fixtureCli, ['--unknown'], {
+        cwd: root,
+        env: { JIAORONG_CLI_TEST_BACKEND_CANARY: skippedCanary },
+    });
+
+    assert.equal(skipped.exitCode, 42);
+    await assert.rejects(readFile(skippedCanary), { code: 'ENOENT' });
 });
 
 test('the production executable is wired without enabling the fixture backend', async () => {

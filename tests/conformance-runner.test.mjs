@@ -31,16 +31,30 @@ test('the public runner validates a fixture-backed CLI through real process I/O'
     assert.equal(summary.failed, 0);
     assert.deepEqual(summary.coverage, {
         required: 142,
-        executed: 6,
-        missing: 136,
+        executed: 19,
+        missing: 123,
     });
     assert.ok(summary.missingCaseIds.includes('CLI-002'));
+    assert.ok(!summary.missingCaseIds.includes('CLI-003'));
     assert.deepEqual(
         summary.cases.map(({ id }) => id),
         [
             'ASSET-001',
             'CLI-001',
+            'CLI-003',
+            'CLI-004',
+            'CLI-005',
+            'CLI-006',
+            'CLI-007',
+            'CLI-008',
+            'CLI-009',
+            'CLI-010',
+            'OUT-001',
+            'OUT-002',
+            'OUT-003',
+            'OUT-004',
             'OUT-005',
+            'OUT-010',
             'AUT-002',
             'MOD-003',
             'TIM-001',
@@ -66,4 +80,23 @@ test('the runner inventory cannot drift from the frozen conformance matrix', asy
     ).toSorted();
 
     assert.deepEqual(required, [...new Set(documented)].toSorted());
+});
+
+test('the runner rejects a candidate that reaches the backend for an unknown argument', async () => {
+    const result = await runProcess(
+        runner,
+        ['--binary', candidate, '--protocol', '1'],
+        {
+            cwd: root,
+            env: { JIAORONG_CLI_TEST_FORCE_BACKEND_CANARY: '1' },
+        },
+    );
+
+    assert.equal(result.exitCode, 1, result.stderr);
+    const summary = JSON.parse(result.stdout);
+    assert.equal(summary.executedOk, false);
+    assert.equal(summary.failed, 1);
+    const unknownArgument = summary.cases.find(({ id }) => id === 'CLI-008');
+    assert.equal(unknownArgument.status, 'fail');
+    assert.ok(unknownArgument.errors.includes('unknown argument started the backend'));
 });

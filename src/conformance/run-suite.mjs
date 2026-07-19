@@ -1,15 +1,13 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
-import {
-    fixturePath,
-    validateFixture,
-    validateStream,
-} from '../protocol/validate-fixture.mjs';
-import { runProcess } from './run-process.mjs';
+import { fixturePath, validateFixture } from '../protocol/validate-fixture.mjs';
+import { failed, passed } from './case-result.mjs';
+import { runCliCases } from './cli-cases.mjs';
+import { runOutputCases } from './output-cases.mjs';
+import { validateStreamRun } from './stream-run.mjs';
 
-const cases = [
-    { id: 'OUT-005', marker: '__JIAORONG_FIXTURE_SUCCESS_TEXT__', exitCode: 0 },
+const terminalStreamCases = [
     {
         id: 'AUT-002',
         marker: '__JIAORONG_FIXTURE_AUTH_REQUIRED__',
@@ -34,6 +32,12 @@ function redact(value) {
         );
 }
 
+function resultHasProcessOutput(value) {
+    return (
+        typeof value?.stdout === 'string' && typeof value?.stderr === 'string'
+    );
+}
+
 async function saveFailureEvidence(results) {
     const evidenceDir = resolve(
         process.cwd(),
@@ -56,20 +60,6 @@ async function saveFailureEvidence(results) {
     }
 }
 
-function resultHasProcessOutput(value) {
-    return (
-        typeof value?.stdout === 'string' && typeof value?.stderr === 'string'
-    );
-}
-
-function passed(id, extra = {}) {
-    return { id, status: 'pass', ...extra };
-}
-
-function failed(id, errors, extra = {}) {
-    return { id, status: 'fail', errors, ...extra };
-}
-
 async function validateAssets() {
     const manifest = JSON.parse(
         await readFile(fixturePath('manifest.json'), 'utf8'),
@@ -88,6 +78,30 @@ async function validateAssets() {
         : failed('ASSET-001', errors);
 }
 
+async function runTerminalStreamCases(binary) {
+    const results = [];
+    for (const definition of terminalStreamCases) {
+        const { processResult, validation } = await validateStreamRun(
+            binary,
+            [
+                '-p',
+                definition.marker,
+                '--output-format',
+                'stream-json',
+            ],
+            definition.exitCode,
+        );
+        results.push(
+            validation.valid
+                ? passed(definition.id, {
+                      durationMs: processResult.durationMs,
+                  })
+                : failed(definition.id, validation.errors, processResult),
+        );
+    }
+    return results;
+}
+
 export async function runSuite({ binary, protocolVersion }) {
     const requiredCaseIds = JSON.parse(
         await readFile(
@@ -98,55 +112,16 @@ export async function runSuite({ binary, protocolVersion }) {
             'utf8',
         ),
     );
-    const results = [await validateAssets()];
-    const version = await runProcess(binary, ['--version']);
-    const versionText = version.stdout.trim();
-    const versionErrors = [];
-    if (version.exitCode !== 0)
-        versionErrors.push(`expected exit 0, got ${version.exitCode}`);
-    if (!/^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(versionText))
-        versionErrors.push('stdout is not one SemVer');
-    if (version.stdout !== `${versionText}\n`)
-        versionErrors.push('stdout contains extra version text');
-    if (version.stderr !== '') versionErrors.push('stderr is not empty');
-    results.push(
-        versionErrors.length === 0
-            ? passed('CLI-001', { cliVersion: versionText })
-            : failed('CLI-001', versionErrors, version),
-    );
+    const results = [
+        await validateAssets(),
+        ...(await runCliCases(binary)),
+        ...(await runOutputCases(binary)),
+        ...(await runTerminalStreamCases(binary)),
+    ];
 
-    for (const definition of cases) {
-        const processResult = await runProcess(binary, [
-            '-p',
-            definition.marker,
-            '--output-format',
-            'stream-json',
-        ]);
-        const validation = processResult.timedOut
-            ? {
-                  valid: false,
-                  errors: ['candidate exceeded the wall-clock timeout'],
-              }
-            : await validateStream(processResult.stdout, {
-                  exitCode: processResult.exitCode,
-              });
-        if (processResult.exitCode !== definition.exitCode) {
-            validation.errors.push(
-                `expected exit ${definition.exitCode}, got ${processResult.exitCode}`,
-            );
-            validation.valid = false;
-        }
-        results.push(
-            validation.valid
-                ? passed(definition.id, {
-                      durationMs: processResult.durationMs,
-                  })
-                : failed(definition.id, validation.errors, processResult),
-        );
-    }
-
-    if (results.some(({ status }) => status === 'fail'))
+    if (results.some(({ status }) => status === 'fail')) {
         await saveFailureEvidence(results);
+    }
     const failedCount = results.filter(
         ({ status }) => status === 'fail',
     ).length;

@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { writeFile } from 'node:fs/promises';
+
 import { createFixtureBackend } from '../../src/backends/fixture-backend.mjs';
 import { runCli } from '../../src/cli/run-cli.mjs';
 
@@ -19,12 +21,30 @@ const stdout = {
     },
 };
 
+const fixtureBackend = createFixtureBackend();
+const backendCanary = process.env.JIAORONG_CLI_TEST_BACKEND_CANARY;
+if (
+    backendCanary &&
+    process.env.JIAORONG_CLI_TEST_FORCE_BACKEND_CANARY === '1'
+) {
+    await writeFile(backendCanary, 'forced-before-parse\n', { flag: 'wx' });
+}
+const backend = backendCanary
+    ? {
+          ...fixtureBackend,
+          async prepare(request) {
+              await writeFile(backendCanary, 'prepare\n', { flag: 'wx' });
+              return fixtureBackend.prepare(request);
+          },
+      }
+    : fixtureBackend;
+
 process.exitCode = await runCli({
     argv: process.argv.slice(2),
     stdin: process.stdin,
     stdout,
     stderr: process.stderr,
-    backend: createFixtureBackend(),
+    backend,
     ids: {
         requestId: () => 'req_fixture',
         messageId: () => 'msg_fixture',

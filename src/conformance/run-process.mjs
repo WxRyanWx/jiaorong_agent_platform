@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process';
 export function runProcess(
     binary,
     args,
-    { cwd, stdin = '', timeoutMs = 5_000 } = {},
+    { cwd, env, stdin = '', timeoutMs = 5_000 } = {},
 ) {
     return new Promise((resolve, reject) => {
         const startedAt = Date.now();
@@ -12,6 +12,7 @@ export function runProcess(
             stdio: ['pipe', 'pipe', 'pipe'],
             windowsHide: true,
             cwd,
+            env: env === undefined ? undefined : { ...process.env, ...env },
         });
         const stdout = [];
         const stderr = [];
