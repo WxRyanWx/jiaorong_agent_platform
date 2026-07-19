@@ -2,6 +2,7 @@ import { CliFailure } from './failures.mjs';
 import { MAX_PROMPT_BYTES } from './limits.mjs';
 import { createOutputRenderer } from './output-renderer.mjs';
 import { detectOutputFormat, parseArgs } from './parse-args.mjs';
+import { preflightAttachments } from '../files/attachment-preflight.mjs';
 
 const VERSION = '0.1.0';
 
@@ -299,6 +300,11 @@ export async function runCli({
     const request = { ...options, prompt, requestId, cwd: process.cwd() };
     let prepared;
     try {
+        request.fileScope = await preflightAttachments({
+            cwd: request.cwd,
+            files: request.files,
+            additionalDirectories: request.additionalDirectories,
+        });
         prepared = await backend.prepare(request);
     } catch (error) {
         const failure = normalizeFailure(error);

@@ -139,7 +139,14 @@ export function createFixtureBackend({
                     id: 'jiaorong-fixture',
                     displayName: modelDisplayName,
                 },
-                attachments: [],
+                attachments: request.fileScope.attachments.map(
+                    ({ id, name, mimeType, sizeBytes }) => ({
+                        id,
+                        name,
+                        mimeType,
+                        sizeBytes,
+                    }),
+                ),
                 ...(stateDirectory
                     ? { stateDirectory, sessionState }
                     : {}),
@@ -221,6 +228,23 @@ export function createFixtureBackend({
                         '__JIAORONG_FIXTURE_RESUME_CONTEXT__'
                     ) {
                         content = `context:${prepared.sessionState?.prompts.join(' > ') ?? ''}`;
+                    } else if (
+                        request.prompt ===
+                        '__JIAORONG_FIXTURE_ATTACHMENTS__'
+                    ) {
+                        const sources = await Promise.all(
+                            request.fileScope.attachments.map((attachment) =>
+                                readFile(attachment.path),
+                            ),
+                        );
+                        const textCanaryVisible = sources.some((source) =>
+                            source
+                                .toString('utf8')
+                                .includes('CONFORMANCE_ATTACHMENT_CANARY'),
+                        );
+                        content = `attachments:${prepared.attachments
+                            .map(({ name, mimeType }) => `${name}:${mimeType}`)
+                            .join(',')};text-canary:${textCanaryVisible}`;
                     } else {
                         content =
                             request.prompt ===

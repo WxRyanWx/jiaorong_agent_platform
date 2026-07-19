@@ -1,4 +1,6 @@
+import { readFile, stat } from 'node:fs/promises';
 import { createServer } from 'node:http';
+import { basename } from 'node:path';
 import { createContext, runInContext } from 'node:vm';
 
 import { WebSocketServer, WebSocket } from 'ws';
@@ -90,6 +92,7 @@ export async function startFakeCdpServer({
     dropRuntimeCleanupRequest = false,
     dropRuntimeCleanupRequestCount,
     emitLateTerminalBeforeCleanup = false,
+    prepareFileFactory,
 } = {}) {
     const state = {
         activeSubscriptions: 0,
@@ -99,6 +102,7 @@ export async function startFakeCdpServer({
         testConnectionInputs: [],
         createInputs: [],
         restoreInputs: [],
+        prepareFileInputs: [],
         sendInputs: [],
         stopInputs: [],
         lateTerminalEmitted: false,
@@ -339,6 +343,37 @@ export async function startFakeCdpServer({
                         messages: [],
                         nextCursor: null,
                         hasMore: false,
+                    };
+                }
+                if (route === 'file.prepareFile') {
+                    state.prepareFileInputs.push(
+                        JSON.parse(JSON.stringify(input)),
+                    );
+                    if (prepareFileFactory)
+                        return { file: await prepareFileFactory(input) };
+                    const fileStat = await stat(input.path);
+                    const source = await readFile(input.path);
+                    const name = basename(input.path);
+                    const image = input.mimeType.startsWith('image/');
+                    return {
+                        file: {
+                            name,
+                            path: input.path,
+                            mimeType: input.mimeType,
+                            size: fileStat.size,
+                            content: image
+                                ? `data:${input.mimeType};base64,${source.toString('base64')}`
+                                : source.toString('utf8'),
+                            token: 1,
+                            thumbnail: '',
+                            metadata: {
+                                fileName: name,
+                                fileSize: fileStat.size,
+                                fileDescription: input.mimeType,
+                                fileCreated: fileStat.birthtime.toISOString(),
+                                fileModified: fileStat.mtime.toISOString(),
+                            },
+                        },
                     };
                 }
                 if (route === 'chat.sendMessage') {

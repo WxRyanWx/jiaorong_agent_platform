@@ -59,7 +59,129 @@ export async function invokeBridgeRoute(
     return evaluate(client, expression, timeoutMs);
 }
 
-function startExpression(token, sessionId, prompt, rendererDeadlineMs) {
+function prepareAttachmentsExpression(token, attachments) {
+    const inputs = attachments.map(({ path, mimeType }) => ({
+        path,
+        mimeType,
+    }));
+    const inputsBase64 = Buffer.from(JSON.stringify(inputs), 'utf8').toString(
+        'base64',
+    );
+    return `
+(async () => {
+  const bridge = window.deepchat;
+  if (!bridge || typeof bridge.invoke !== 'function') throw new Error('bridge unavailable');
+  const storeName = '__JIAORONG_CLI_ATTACHMENTS_V1__';
+  const store = window[storeName] || Object.defineProperty(window, storeName, {
+    value: Object.create(null), configurable: true
+  })[storeName];
+  const token = ${JSON.stringify(token)};
+  if (store[token]) throw new Error('attachment token collision');
+  const inputBytes = Uint8Array.from(
+    atob(${JSON.stringify(inputsBase64)}),
+    (character) => character.charCodeAt(0)
+  );
+  const inputs = JSON.parse(new TextDecoder().decode(inputBytes));
+  const files = [];
+  try {
+    for (const input of inputs) {
+      const document = await bridge.invoke('file.prepareFile', input);
+      const file = document && document.file;
+      if (!file || typeof file !== 'object') throw new Error('invalid prepared file');
+      files.push(file);
+    }
+    store[token] = files;
+    return {
+      prepared: true,
+      files: files.map((file) => ({
+        name: file.name,
+        path: file.path,
+        mimeType: file.mimeType,
+        size: typeof file.size === 'number' ? file.size : null,
+        contentIsString: typeof file.content === 'string',
+        metadataFileName: file.metadata && file.metadata.fileName,
+        metadataFileSize: file.metadata && file.metadata.fileSize
+      }))
+    };
+  } catch {
+    delete store[token];
+    return { prepared: false };
+  }
+})()
+`;
+}
+
+export async function prepareBridgeAttachments(
+    client,
+    attachments,
+    { timeoutMs = 10_000 } = {},
+) {
+    if (attachments.length === 0) return null;
+    const token = crypto.randomUUID();
+    const document = await evaluate(
+        client,
+        prepareAttachmentsExpression(token, attachments),
+        timeoutMs,
+    );
+    if (document?.prepared !== true)
+        throw new BackendFailure(
+            'UNSUPPORTED_ATTACHMENT',
+            'JiaorongAI could not prepare an Attachment.',
+            42,
+        );
+    const invalid =
+        !Array.isArray(document.files) ||
+        document.files.length !== attachments.length ||
+        document.files.some((file, index) => {
+            const expected = attachments[index];
+            return (
+                file?.name !== expected.name ||
+                file.path !== expected.path ||
+                file.mimeType !== expected.mimeType ||
+                !(
+                    file.size === null ||
+                    file.size === expected.sizeBytes
+                ) ||
+                file.contentIsString !== true ||
+                file.metadataFileName !== expected.name ||
+                file.metadataFileSize !== expected.sizeBytes
+            );
+        });
+    if (invalid) {
+        await discardBridgeAttachments(client, token, { timeoutMs });
+        throw bridgeFailure('JiaorongAI returned an invalid prepared Attachment.');
+    }
+    return token;
+}
+
+export async function discardBridgeAttachments(
+    client,
+    token,
+    { timeoutMs = 10_000 } = {},
+) {
+    if (token === null) return;
+    await evaluate(
+        client,
+        `
+(() => {
+  const store = window.__JIAORONG_CLI_ATTACHMENTS_V1__;
+  if (!store) return { discarded: false };
+  const existed = Object.prototype.hasOwnProperty.call(store, ${JSON.stringify(token)});
+  delete store[${JSON.stringify(token)}];
+  return { discarded: existed };
+})()
+`,
+        timeoutMs,
+    );
+}
+
+function startExpression(
+    token,
+    sessionId,
+    prompt,
+    attachmentToken,
+    rendererDeadlineMs,
+) {
     const promptBase64 = Buffer.from(prompt, 'utf8').toString('base64');
     return `
 (() => {
@@ -147,6 +269,14 @@ function startExpression(token, sessionId, prompt, rendererDeadlineMs) {
       (character) => character.charCodeAt(0)
     );
     const prompt = new TextDecoder().decode(promptBytes);
+    const attachmentToken = ${JSON.stringify(attachmentToken)};
+    const attachmentStore = window.__JIAORONG_CLI_ATTACHMENTS_V1__;
+    let files = [];
+    if (attachmentToken !== null) {
+      files = attachmentStore && attachmentStore[attachmentToken];
+      if (!Array.isArray(files)) throw new Error('prepared attachments unavailable');
+      delete attachmentStore[attachmentToken];
+    }
     for (const name of ${JSON.stringify(RUN_EVENTS)}) {
       const unsubscribe = bridge.on(name, (payload) => enqueue(name, payload));
       if (typeof unsubscribe !== 'function') throw new Error('subscription cleanup unavailable');
@@ -156,7 +286,7 @@ function startExpression(token, sessionId, prompt, rendererDeadlineMs) {
     Promise.resolve()
       .then(() => bridge.invoke('chat.sendMessage', {
         sessionId: ${JSON.stringify(sessionId)},
-        content: prompt
+        content: files.length === 0 ? prompt : { text: prompt, files }
       }))
       .then(
         (value) => { state.send = { status: 'fulfilled', value }; },
@@ -241,7 +371,13 @@ function delay(milliseconds) {
 
 export async function* runBridgeTurn(
     client,
-    { sessionId, prompt, invokeTimeoutMs = 10_000, runTimeoutMs },
+    {
+        sessionId,
+        prompt,
+        attachmentToken = null,
+        invokeTimeoutMs = 10_000,
+        runTimeoutMs,
+    },
 ) {
     const token = crypto.randomUUID();
     const projector = createBridgeProjector({ sessionId });
@@ -253,7 +389,13 @@ export async function* runBridgeTurn(
     try {
         const start = await evaluate(
             client,
-            startExpression(token, sessionId, prompt, runTimeoutMs),
+            startExpression(
+                token,
+                sessionId,
+                prompt,
+                attachmentToken,
+                runTimeoutMs,
+            ),
             invokeTimeoutMs,
         );
         if (start?.busy === true)

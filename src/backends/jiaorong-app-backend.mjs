@@ -2,7 +2,9 @@ import {
     openVerifiedAppRuntime,
 } from '../app/app-runtime.mjs';
 import {
+    discardBridgeAttachments,
     invokeBridgeRoute,
+    prepareBridgeAttachments,
     runBridgeTurn,
 } from '../app/deepchat-bridge.mjs';
 import { AppReadinessError } from '../app/readiness-error.mjs';
@@ -175,19 +177,11 @@ export function createJiaorongAppBackend({ runtimeOptions } = {}) {
                     42,
                 );
             }
-            if (
-                request.files.length > 0 ||
-                request.additionalDirectories.length > 0
-            ) {
-                throw new BackendFailure(
-                    'INVALID_ARGUMENT',
-                    'Attachments and Additional Directories are not available yet.',
-                    42,
-                );
-            }
+            const { fileScope } = request;
 
             const runtime = await openVerifiedAppRuntime(runtimeOptions);
             const { client, config, readiness } = runtime;
+            let attachmentToken = null;
             try {
                 if (request.resume) {
                     const restored = await invokeBridgeRoute(
@@ -246,6 +240,11 @@ export function createJiaorongAppBackend({ runtimeOptions } = {}) {
                         config,
                         selectedModel,
                     );
+                    attachmentToken = await prepareBridgeAttachments(
+                        client,
+                        fileScope.attachments,
+                        { timeoutMs: config.bridgeInvokeTimeoutMs },
+                    );
                     return {
                         sessionId: session.id,
                         resumed: true,
@@ -253,7 +252,17 @@ export function createJiaorongAppBackend({ runtimeOptions } = {}) {
                             id: selectedModel.id,
                             displayName: selectedModel.displayName,
                         },
-                        attachments: [],
+                        attachments: fileScope.attachments.map(
+                            ({ id, name, mimeType, sizeBytes }) => ({
+                                id,
+                                name,
+                                mimeType,
+                                sizeBytes,
+                            }),
+                        ),
+                        attachmentToken,
+                        additionalDirectories:
+                            fileScope.additionalDirectories,
                         bridgeClient: client,
                         bridgeInvokeTimeoutMs: config.bridgeInvokeTimeoutMs,
                         runTimeoutMs: config.runTimeoutMs,
@@ -298,11 +307,16 @@ export function createJiaorongAppBackend({ runtimeOptions } = {}) {
                 }
 
                 await verifyProviderConnection(client, config, selectedModel);
+                attachmentToken = await prepareBridgeAttachments(
+                    client,
+                    fileScope.attachments,
+                    { timeoutMs: config.bridgeInvokeTimeoutMs },
+                );
 
                 const createInput = {
                     agentId: agent.id,
                     message: '',
-                    projectDir: request.cwd,
+                    projectDir: fileScope.projectRoot,
                     permissionMode: permissionMode(request.permissionMode),
                     providerId: selectedModel.providerId,
                     modelId: selectedModel.bridgeModelId,
@@ -331,12 +345,34 @@ export function createJiaorongAppBackend({ runtimeOptions } = {}) {
                         id: selectedModel.id,
                         displayName: selectedModel.displayName,
                     },
-                    attachments: [],
+                    attachments: fileScope.attachments.map(
+                        ({ id, name, mimeType, sizeBytes }) => ({
+                            id,
+                            name,
+                            mimeType,
+                            sizeBytes,
+                        }),
+                    ),
+                    attachmentToken,
+                    additionalDirectories: fileScope.additionalDirectories,
                     bridgeClient: client,
                     bridgeInvokeTimeoutMs: config.bridgeInvokeTimeoutMs,
                     runTimeoutMs: config.runTimeoutMs,
                 };
             } catch (error) {
+                if (attachmentToken !== null) {
+                    try {
+                        await discardBridgeAttachments(client, attachmentToken, {
+                            timeoutMs: config.bridgeInvokeTimeoutMs,
+                        });
+                    } catch {
+                        client.close();
+                        throw new BackendFailure(
+                            'INTERNAL_ERROR',
+                            'Prepared Attachment cleanup failed.',
+                        );
+                    }
+                }
                 client.close();
                 throw error;
             }
@@ -347,11 +383,20 @@ export function createJiaorongAppBackend({ runtimeOptions } = {}) {
                 yield* runBridgeTurn(prepared.bridgeClient, {
                     sessionId: prepared.sessionId,
                     prompt: request.prompt,
+                    attachmentToken: prepared.attachmentToken,
                     invokeTimeoutMs: prepared.bridgeInvokeTimeoutMs,
                     runTimeoutMs: prepared.runTimeoutMs,
                 });
             } finally {
-                prepared.bridgeClient.close();
+                try {
+                    await discardBridgeAttachments(
+                        prepared.bridgeClient,
+                        prepared.attachmentToken,
+                        { timeoutMs: prepared.bridgeInvokeTimeoutMs },
+                    );
+                } finally {
+                    prepared.bridgeClient.close();
+                }
             }
         },
     };

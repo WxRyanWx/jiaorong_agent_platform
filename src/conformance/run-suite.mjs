@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 
 import { fixturePath, validateFixture } from '../protocol/validate-fixture.mjs';
 import { failed, passed } from './case-result.mjs';
+import { runAttachmentFileCases } from './attachment-file-cases.mjs';
 import { runCliCases } from './cli-cases.mjs';
 import { runEventCases } from './event-cases.mjs';
 import { runModelAuthCases } from './model-auth-cases.mjs';
@@ -122,6 +123,7 @@ export async function runSuite({ binary, protocolVersion }) {
         ...(await runEventCases(binary)),
         ...(await runModelAuthCases(binary)),
         ...(await runSessionCases(binary)),
+        ...(await runAttachmentFileCases(binary)),
         ...(await runTerminalStreamCases(binary)),
     ];
 

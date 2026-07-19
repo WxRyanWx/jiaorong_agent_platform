@@ -32,8 +32,8 @@ test('the public runner validates a fixture-backed CLI through real process I/O'
     assert.equal(summary.failed, 0);
     assert.deepEqual(summary.coverage, {
         required: 101,
-        executed: 40,
-        missing: 61,
+        executed: 54,
+        missing: 47,
     });
     assert.ok(!summary.missingCaseIds.some((id) => id.startsWith('LIVE-')));
     assert.ok(!summary.missingCaseIds.some((id) => id.startsWith('WB-')));
@@ -79,6 +79,20 @@ test('the public runner validates a fixture-backed CLI through real process I/O'
             'SES-005',
             'SES-006',
             'SES-010',
+            'FIL-001',
+            'FIL-002',
+            'FIL-003',
+            'FIL-004',
+            'FIL-005',
+            'FIL-008',
+            'ATT-001',
+            'ATT-002',
+            'ATT-003',
+            'ATT-004',
+            'ATT-005',
+            'ATT-006',
+            'ATT-007',
+            'ATT-008',
             'AUT-002',
             'MOD-003',
             'TIM-001',

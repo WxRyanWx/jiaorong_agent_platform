@@ -479,6 +479,14 @@ v1 必须支持：
 - `image/webp`
 - `image/gif`
 
+v1 限制：
+
+- `--file` 最多 16 个；单个 Attachment 的源文件最大 30 MiB，合计最大 60 MiB。
+- `--add-dir` 最多 16 个。
+- 每个传入路径的 UTF-8 编码最大 4,096 bytes，且不得包含控制字符。
+- 所有 Attachment 先完成存在性、可读性、大小与规范化 real path 检查，再读取允许范围内的文件以判定类型；任一失败时不得调用 JiaorongAI 准备文件或创建 Agent Session，超大小文件不得部分读取。
+- macOS Finder alias 不作为可跟随的文件路径接受。
+
 其他 MIME 可由实现增加，但在同一协议主版本中只能作为兼容扩展。无法处理的文件必须在模型调用前失败，不得静默跳过。
 
 ## 9. 模型目录协议
