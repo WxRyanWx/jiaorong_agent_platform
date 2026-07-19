@@ -4,14 +4,14 @@
 
 **Blocked by:** 02 — Prove safe JiaorongAI readiness with doctor.
 
-**Status:** ready-for-human
+**Status:** ready-for-agent
 
-- [ ] Argument and stdin prompts reach the bridge unchanged, including Unicode, newlines, quotes, and shell metacharacters.
-- [ ] A successful run creates a real Session before sending the prompt and returns the same non-empty Session ID in init and result.
-- [ ] Snapshot projection emits monotonic message deltas, never exposes JiaorongAI 0.5.6 raw `reasoning_content` as a summary, and emits exactly one Terminal Result.
-- [ ] Text, JSON, and stream-json describe the same successful outcome and preserve stdout/stderr separation.
-- [ ] Bridge failures, malformed snapshots, duplicate terminals, and lost event correlation fail explicitly.
-- [ ] Production-process functional tests and relevant deterministic conformance cases pass.
+- [x] Argument and stdin prompts reach the bridge unchanged, including Unicode, newlines, quotes, and shell metacharacters.
+- [x] A successful run creates a real Session before sending the prompt and returns the same non-empty Session ID in init and result.
+- [x] Snapshot projection emits monotonic message deltas, never exposes JiaorongAI 0.5.6 raw `reasoning_content` as a summary, and emits exactly one Terminal Result.
+- [x] Text, JSON, and stream-json describe the same successful outcome and preserve stdout/stderr separation.
+- [x] Bridge failures, malformed snapshots, duplicate terminals, and lost event correlation fail explicitly.
+- [x] Production-process functional tests and relevant deterministic conformance cases pass.
 
 ## Architecture contract
 
@@ -31,4 +31,6 @@ Fake-bridge process tests, projector unit tests, protocol Schema validation, and
 - Public deterministic conformance now executes Ticket 03 cases `EVT-001`, `EVT-002`, `EVT-008`, `EVT-010`, `EVT-011`, `EVT-016`, `SES-001`, `ERR-002`, and `ERR-003`.
 - Current verification: `npm test` passes 63/63; deterministic conformance has `executedOk=true`, 29 executed, 72 missing, and 0 failed, so `complete=false`; `npm audit --json` reports 0 vulnerabilities; module syntax and `git diff --check` pass.
 - Direct source verification at upstream revision `d2a7d3fe6a525a8b33633f8851afb44cf6ccc8c3` shows `reasoning_content` is rendered and optionally copied as CoT. ADR 0006 therefore requires suppressing it; JiaorongAI 0.5.6 exposes no separate safe summary source.
-- Real `doctor` passed for JiaorongAI 0.5.6 and one available model. Real Sessions were created and `processMessage` started, but no stream event arrived. JiaorongAI `providers.testConnection` for `jiaorong/jiaorong-deepseek-v4-pro` timed out after 5 seconds, and diagnostic Sessions remained `generating` until explicitly stopped. The live one-turn criterion remains unverified and blocks Ticket completion.
+- Real `doctor` passed for JiaorongAI 0.5.6 and one available model. The earlier `providers.testConnection` timeout was rechecked on 2026-07-19 and returned `isOk=true` for `jiaorong/jiaorong-deepseek-v4-pro`.
+- A real stream-json run passed with Session `wYnb5hmpU9xP9YiPkql4I`: exit 0, empty stderr, valid v1 Schema, matching non-empty init/result Session IDs, non-empty content, no error event, and exactly one Terminal Result. Separate real text and JSON runs both exited 0 with empty stderr and non-empty content; the JSON document was Schema-valid with `status=success` and Session `G7FiMJQu4jBHk862nkEBq`.
+- Two diagnostic prompts produced model-selected `tool_call` blocks and correctly failed closed because tool projection belongs to Ticket 07. A redacted bridge trace proved all observed events belonged to one Session/request/message, and the diagnostic run was explicitly stopped; no temporary instrumentation remains.
