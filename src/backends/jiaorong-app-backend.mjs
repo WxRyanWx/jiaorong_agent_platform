@@ -1,5 +1,4 @@
 import {
-    inspectAppReadiness,
     openVerifiedAppRuntime,
 } from '../app/app-runtime.mjs';
 import {
@@ -21,6 +20,7 @@ const DOCTOR_CHECKS = [
     'renderer-target',
     'bridge-contract',
     'models',
+    'authentication',
 ];
 
 function checksBeforeFailure(name) {
@@ -46,11 +46,37 @@ function permissionMode(mode) {
     return mode === 'bypassPermissions' ? 'full_access' : 'default';
 }
 
+function providerConnectionFailure(connection) {
+    if (
+        !connection ||
+        typeof connection !== 'object' ||
+        typeof connection.isOk !== 'boolean' ||
+        !(
+            connection.errorMsg === null ||
+            typeof connection.errorMsg === 'string'
+        )
+    )
+        return invalidBridgeDocument();
+    if (connection.isOk) return null;
+    return new BackendFailure(
+        'INTERNAL_ERROR',
+        'JiaorongAI could not verify the selected provider/model connection.',
+    );
+}
+
 export function createJiaorongAppBackend({ runtimeOptions } = {}) {
     return {
         async doctor() {
+            let client;
             try {
-                const readiness = await inspectAppReadiness(runtimeOptions);
+                const runtime = await openVerifiedAppRuntime(runtimeOptions);
+                client = runtime.client;
+                const { readiness } = runtime;
+                if (readiness.availableModels.length === 0)
+                    throw new AppReadinessError(
+                        'models',
+                        'JiaorongAI does not report an available model.',
+                    );
                 return {
                     ok: true,
                     cliVersion: VERSION,
@@ -60,10 +86,16 @@ export function createJiaorongAppBackend({ runtimeOptions } = {}) {
                         endpoint: readiness.endpoint,
                     },
                     models: { available: readiness.models },
-                    checks: DOCTOR_CHECKS.map((name) => ({
-                        name,
-                        status: 'pass',
-                    })),
+                    checks: DOCTOR_CHECKS.map((name) =>
+                        name === 'authentication'
+                            ? {
+                                  name,
+                                  status: 'warn',
+                                  message:
+                                      'Provider authentication is verified only when a run starts.',
+                              }
+                            : { name, status: 'pass' },
+                    ),
                 };
             } catch (error) {
                 const failure =
@@ -88,6 +120,36 @@ export function createJiaorongAppBackend({ runtimeOptions } = {}) {
                         },
                     ],
                 };
+            } finally {
+                client?.close();
+            }
+        },
+
+        async listModels() {
+            const runtime = await openVerifiedAppRuntime(runtimeOptions);
+            try {
+                const { modelCatalog, availableModels } = runtime.readiness;
+                const defaultModelId =
+                    availableModels.length === 1
+                        ? availableModels[0].id
+                        : null;
+                return {
+                    schemaVersion: 1,
+                    models: modelCatalog.map((model) => ({
+                        id: model.id,
+                        displayName: model.displayName,
+                        isDefault: model.id === defaultModelId,
+                        available: model.available,
+                        inputTypes: model.vision
+                            ? ['text', 'image']
+                            : ['text'],
+                        ...(model.contextWindow === null
+                            ? {}
+                            : { contextWindow: model.contextWindow }),
+                    })),
+                };
+            } finally {
+                runtime.client.close();
             }
         },
 
@@ -157,13 +219,25 @@ export function createJiaorongAppBackend({ runtimeOptions } = {}) {
                     );
                 }
 
+                const connection = await invokeBridgeRoute(
+                    client,
+                    'providers.testConnection',
+                    {
+                        providerId: selectedModel.providerId,
+                        modelId: selectedModel.bridgeModelId,
+                    },
+                    { timeoutMs: config.bridgeInvokeTimeoutMs },
+                );
+                const connectionFailure = providerConnectionFailure(connection);
+                if (connectionFailure) throw connectionFailure;
+
                 const createInput = {
                     agentId: agent.id,
                     message: '',
                     projectDir: request.cwd,
                     permissionMode: permissionMode(request.permissionMode),
                     providerId: selectedModel.providerId,
-                    modelId: selectedModel.id,
+                    modelId: selectedModel.bridgeModelId,
                 };
                 const sessionDocument = await invokeBridgeRoute(
                     client,
@@ -177,21 +251,17 @@ export function createJiaorongAppBackend({ runtimeOptions } = {}) {
                     typeof session !== 'object' ||
                     !nonEmptyString(session.id) ||
                     !nonEmptyString(session.providerId) ||
-                    !nonEmptyString(session.modelId)
+                    !nonEmptyString(session.modelId) ||
+                    session.providerId !== selectedModel.providerId ||
+                    session.modelId !== selectedModel.bridgeModelId
                 )
                     throw invalidBridgeDocument();
-
-                const model = readiness.availableModels.find(
-                    (candidate) =>
-                        candidate.id === session.modelId &&
-                        candidate.providerId === session.providerId,
-                );
                 return {
                     sessionId: session.id,
                     resumed: false,
                     model: {
-                        id: session.modelId,
-                        displayName: model?.displayName ?? session.modelId,
+                        id: selectedModel.id,
+                        displayName: selectedModel.displayName,
                     },
                     attachments: [],
                     bridgeClient: client,

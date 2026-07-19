@@ -13,6 +13,7 @@ const allRoutes = new Set([
     'sessions.setModel',
     'sessions.delete',
     'providers.listSummaries',
+    'providers.testConnection',
     'models.getProviderCatalog',
     'file.prepareFile',
     'chat.sendMessage',
@@ -28,6 +29,7 @@ const allEvents = new Set([
 export async function startFakeCdpServer({
     appVersion = '0.5.6',
     providers = [{ id: 'provider-test', enable: true }],
+    testConnectionResult = { isOk: true, errorMsg: null },
     catalogs = {
         'provider-test': {
             providerModels: [
@@ -67,6 +69,8 @@ export async function startFakeCdpServer({
     sessionId = 'session-test',
     sessionProviderId = 'provider-test',
     sessionModelId = 'model-test',
+    sessionResponseProviderId,
+    sessionResponseModelId,
     sendResult = {
         accepted: true,
         requestId: null,
@@ -84,6 +88,7 @@ export async function startFakeCdpServer({
         subscriptions: [],
         unsubscriptions: 0,
         invokedRoutes: [],
+        testConnectionInputs: [],
         createInputs: [],
         sendInputs: [],
         lateTerminalEmitted: false,
@@ -229,6 +234,12 @@ export async function startFakeCdpServer({
                 if (route === 'device.getAppVersion')
                     return { version: appVersion };
                 if (route === 'providers.listSummaries') return { providers };
+                if (route === 'providers.testConnection') {
+                    state.testConnectionInputs.push(
+                        JSON.parse(JSON.stringify(input)),
+                    );
+                    return testConnectionResult;
+                }
                 if (route === 'models.getProviderCatalog') {
                     return {
                         catalog: catalogs[input.providerId] ?? {
@@ -257,8 +268,13 @@ export async function startFakeCdpServer({
                             updatedAt: 1,
                             status: 'idle',
                             providerId:
-                                input.providerId ?? sessionProviderId,
-                            modelId: input.modelId ?? sessionModelId,
+                                sessionResponseProviderId ??
+                                input.providerId ??
+                                sessionProviderId,
+                            modelId:
+                                sessionResponseModelId ??
+                                input.modelId ??
+                                sessionModelId,
                         },
                     };
                 }

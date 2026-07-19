@@ -59,6 +59,7 @@ test('doctor proves a conforming loopback JiaorongAI bridge through the producti
         assert.equal(server.state.activeSubscriptions, 0);
         assert.equal(server.state.subscriptions.length, 6);
         assert.equal(server.state.unsubscriptions, 6);
+        assert.deepEqual(server.state.testConnectionInputs, []);
     } finally {
         await server.close();
     }

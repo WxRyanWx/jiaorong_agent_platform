@@ -21,7 +21,11 @@ const stdout = {
     },
 };
 
-const fixtureBackend = createFixtureBackend();
+const fixtureBackend = createFixtureBackend({
+    modelDisplayName:
+        process.env.JIAORONG_CLI_FIXTURE_MODEL_DISPLAY_NAME ??
+        'Jiaorong Fixture',
+});
 const backendCanary = process.env.JIAORONG_CLI_TEST_BACKEND_CANARY;
 if (
     backendCanary &&

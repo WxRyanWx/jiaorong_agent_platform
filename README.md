@@ -9,7 +9,24 @@ This directory is the product-owned Jiaorong CLI workspace. The production CLI u
 - The black-box runner reports only the active deterministic inventory. Live JiaorongAI cases and deferred historical cases have separate inventories and never inflate deterministic missing coverage.
 - The foreground CLI core supports argument/stdin input, `text`, `json`, and `stream-json` projection, stdout/stderr separation, and a backend adapter seam.
 - The test distribution uses a deterministic fixture backend through the full CLI path.
-- The production entry point does not enable the fixture backend. App Backend implementation and live release evidence are tracked separately from deterministic protocol coverage.
+- The production entry point uses only the JiaorongAI App Backend. It verifies the installed application and loopback bridge, reports doctor/model readiness, and can execute a real single turn without enabling the fixture backend.
+
+## Current usage
+
+JiaorongAI 0.5.6 must be installed and running with its verified loopback debugging endpoint.
+
+```bash
+node ./bin/jiaorong-cli.mjs doctor --output-format json
+node ./bin/jiaorong-cli.mjs models list --output-format json
+node ./bin/jiaorong-cli.mjs \
+  -p "Reply with a short confirmation" \
+  --model <model-id> \
+  --output-format stream-json
+```
+
+Credentials remain owned by JiaorongAI. `doctor` and `models list` are read-only and never print provider credentials. Because JiaorongAI exposes no read-only credential-validity signal, doctor reports authentication as `warn` until a run starts. Before creating an Agent Session, a run uses JiaorongAI's provider connection check. JiaorongAI 0.5.6 returns only an unstructured `errorMsg` when that check fails, so the App Backend does not guess from its text: every failed connection check is projected as a redacted `INTERNAL_ERROR`. `AUTH_REQUIRED` is reserved for a future verified structured discriminator.
+
+Public Model IDs are provider-qualified (`<encoded-provider-id>/<encoded-model-id>`). Use the exact `id` returned by `models list`; display names are not stable identifiers.
 
 ## Development
 

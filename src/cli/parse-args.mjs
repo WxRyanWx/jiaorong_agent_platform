@@ -54,6 +54,24 @@ export function parseArgs(argv) {
         );
     }
 
+    if (argv[0] === 'models') {
+        const remaining = argv.slice(1);
+        if (remaining.length === 1 && remaining[0] === 'list')
+            return { command: 'models-list', outputFormat: 'text' };
+        if (
+            remaining.length === 3 &&
+            remaining[0] === 'list' &&
+            remaining[1] === '--output-format' &&
+            ['text', 'json'].includes(remaining[2])
+        )
+            return { command: 'models-list', outputFormat: remaining[2] };
+        throw new CliFailure(
+            'INVALID_ARGUMENT',
+            'models accepts only: models list [--output-format text|json].',
+            42,
+        );
+    }
+
     const options = {
         command: 'run',
         prompt: undefined,

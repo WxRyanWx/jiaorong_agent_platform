@@ -190,7 +190,7 @@ jiaorong-cli-conformance --binary /path/to/jiaorong-cli --protocol 1
 
 | ID | 层级 | 场景 | 必须断言 |
 |---|---|---|---|
-| AUT-001 | L2 | auth status 未登录 | authenticated=false；无 token |
+| AUT-001 | L2 | doctor 认证就绪 | authentication check 明确标记 pass/warn；不发模型请求；无 token 或凭据内容 |
 | AUT-002 | L2 | Headless 未登录 | AUTH_REQUIRED；exit 1；sessionId/model 为 null；不隐式打开浏览器 |
 | AUT-003 | L2 | 过期凭据 | AUTH_REQUIRED；日志不泄露凭据 |
 | AUT-004 | L5 | OAuth/device login | 登录完成后 status=true |

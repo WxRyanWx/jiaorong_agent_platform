@@ -217,6 +217,26 @@ export async function runCli({
         return document.ok ? 0 : 1;
     }
 
+    if (options.command === 'models-list') {
+        try {
+            const document = await backend.listModels();
+            if (options.outputFormat === 'json') {
+                stdout.write(`${JSON.stringify(document)}\n`);
+            } else {
+                for (const model of document.models) {
+                    stdout.write(
+                        `${model.id}\t${model.displayName}\t${model.available ? 'available' : 'unavailable'}\n`,
+                    );
+                }
+            }
+            return 0;
+        } catch (error) {
+            const failure = normalizeFailure(error);
+            stderr.write(`${failure.code}: ${failure.message}\n`);
+            return failure.exitCode;
+        }
+    }
+
     const renderer = createOutputRenderer(options.outputFormat, {
         stdout,
         stderr,

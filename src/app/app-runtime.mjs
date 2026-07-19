@@ -11,6 +11,10 @@ import {
 import { AppReadinessError } from './readiness-error.mjs';
 
 export const SUPPORTED_APP_VERSION = '0.5.6';
+const MAX_PROVIDER_COUNT = 64;
+const MAX_MODEL_COUNT = 4_096;
+const MAX_IDENTIFIER_BYTES = 512;
+const MAX_DISPLAY_NAME_BYTES = 2_048;
 export const defaultRuntimeConfig = Object.freeze({
     endpoint: 'http://127.0.0.1:9238',
     expectedExecutable:
@@ -52,6 +56,73 @@ function rendererTarget(targets, config) {
             'The JiaorongAI renderer target is missing or ambiguous.',
         );
     return candidates[0];
+}
+
+function boundedBridgeString(value, maxBytes) {
+    return (
+        typeof value === 'string' &&
+        value.length > 0 &&
+        Buffer.byteLength(value, 'utf8') <= maxBytes &&
+        !/[\u0000-\u001f\u007f]/u.test(value)
+    );
+}
+
+function invalidCatalog() {
+    return new AppReadinessError(
+        'bridge-contract',
+        'The JiaorongAI model catalog is invalid.',
+    );
+}
+
+function projectModelCatalog(probe) {
+    if (
+        probe.providers.length > MAX_PROVIDER_COUNT ||
+        probe.models.length > MAX_MODEL_COUNT
+    )
+        throw invalidCatalog();
+    const enabledProviders = new Set();
+    const providerIds = new Set();
+    for (const provider of probe.providers) {
+        if (
+            !boundedBridgeString(provider?.id, MAX_IDENTIFIER_BYTES) ||
+            typeof provider.enabled !== 'boolean'
+        )
+            throw invalidCatalog();
+        if (providerIds.has(provider.id)) throw invalidCatalog();
+        providerIds.add(provider.id);
+        if (provider.enabled) enabledProviders.add(provider.id);
+    }
+
+    const modelCatalog = [];
+    const publicIds = new Set();
+    for (const model of probe.models) {
+        if (
+            !boundedBridgeString(model?.id, MAX_IDENTIFIER_BYTES) ||
+            !boundedBridgeString(model?.providerId, MAX_IDENTIFIER_BYTES) ||
+            !boundedBridgeString(
+                model?.displayName,
+                MAX_DISPLAY_NAME_BYTES,
+            ) ||
+            typeof model.available !== 'boolean' ||
+            typeof model.vision !== 'boolean' ||
+            !(
+                model.contextWindow === null ||
+                (Number.isInteger(model.contextWindow) &&
+                    model.contextWindow > 0)
+            )
+        )
+            throw invalidCatalog();
+        if (!enabledProviders.has(model.providerId)) continue;
+        const id = `${encodeURIComponent(model.providerId)}/${encodeURIComponent(model.id)}`;
+        if (publicIds.has(id)) throw invalidCatalog();
+        publicIds.add(id);
+        modelCatalog.push({
+            ...model,
+            id,
+            bridgeModelId: model.id,
+        });
+    }
+    return modelCatalog;
 }
 
 export async function openVerifiedAppRuntime({
@@ -104,23 +175,10 @@ export async function openVerifiedAppRuntime({
                 `JiaorongAI ${probe.version} is unsupported; version ${config.supportedVersion} is required.`,
             );
         assertTrustedBridgeManifest(probe);
-        const enabledProviders = new Set(
-            probe.providers
-                .filter((provider) => provider?.enabled === true)
-                .map((provider) => provider.id),
+        const modelCatalog = projectModelCatalog(probe);
+        const availableModels = modelCatalog.filter(
+            (model) => model.available === true,
         );
-        const availableModels = probe.models.filter(
-            (model) =>
-                typeof model?.id === 'string' &&
-                model.id.length > 0 &&
-                model.available === true &&
-                enabledProviders.has(model.providerId),
-        );
-        if (availableModels.length === 0)
-            throw new AppReadinessError(
-                'models',
-                'JiaorongAI does not report an available model.',
-            );
         return {
             client,
             config,
@@ -129,20 +187,12 @@ export async function openVerifiedAppRuntime({
                 endpoint: endpoint.host,
                 providers: probe.providers.length,
                 models: availableModels.length,
+                modelCatalog,
                 availableModels,
             },
         };
     } catch (error) {
         client.close();
         throw error;
-    }
-}
-
-export async function inspectAppReadiness(options = {}) {
-    const runtime = await openVerifiedAppRuntime(options);
-    try {
-        return runtime.readiness;
-    } finally {
-        runtime.client.close();
     }
 }

@@ -501,7 +501,7 @@ jiaorong-cli models list --output-format json
 }
 ```
 
-- `id` 是调用参数使用的稳定 Model ID。
+- `id` 是调用参数使用的稳定 Model ID。App Backend 使用 `<URL-encoded provider-id>/<URL-encoded model-id>`，确保它唯一映射到一个 JiaorongAI provider/model pair。
 - `displayName` 可变化，不得用作持久标识。
 - `contextWindow` 无法提供时可省略。
 - 不可用模型可以保留在列表并标记 `available: false`。
@@ -526,13 +526,15 @@ jiaorong-cli doctor --output-format json
     { "name": "app-version", "status": "pass" },
     { "name": "loopback-endpoint", "status": "pass" },
     { "name": "bridge-contract", "status": "pass" },
-    { "name": "account-readiness", "status": "pass" },
-    { "name": "models", "status": "pass" }
+    { "name": "models", "status": "pass" },
+    { "name": "authentication", "status": "warn" }
   ]
 }
 ```
 
-Doctor 必须只读。
+Doctor 必须只读。JiaorongAI 0.5.6 没有只读的凭据有效性信号时，`authentication` 必须报告 `warn`，不得通过发送测试模型请求把未知状态假报为 pass/fail。
+
+App Backend 会在创建 Agent Session 前调用 provider connection check。0.5.6 的失败响应只有非结构化 `errorMsg`，因此 CLI 不得解析该文本推断认证或模型状态；失败统一脱敏映射为 `INTERNAL_ERROR`。只有未来经验证的结构化判别字段才可映射为 `AUTH_REQUIRED` 或其他更具体的 Machine Error Code。
 
 ## 12. 错误与退出码
 

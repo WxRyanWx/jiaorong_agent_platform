@@ -13,6 +13,7 @@ export const requiredBridgeRoutes = [
     'sessions.setModel',
     'sessions.delete',
     'providers.listSummaries',
+    'providers.testConnection',
     'models.getProviderCatalog',
     'file.prepareFile',
     'chat.sendMessage',
@@ -90,7 +91,11 @@ function buildProbeExpression(rendererTimeoutMs) {
         id: model.id,
         providerId,
         displayName: typeof model.name === 'string' && model.name.length > 0 ? model.name : model.id,
-        available: model.enabled !== false && status[model.id] !== false
+        available: model.enabled !== false && status[model.id] !== false,
+        vision: model.vision === true,
+        contextWindow: Number.isInteger(model.contextLength) && model.contextLength > 0
+          ? model.contextLength
+          : null
       }));
     });
     return {

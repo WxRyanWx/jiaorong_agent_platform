@@ -17,7 +17,9 @@ const preflightFailures = new Map([
     ],
 ]);
 
-export function createFixtureBackend() {
+export function createFixtureBackend({
+    modelDisplayName = 'Jiaorong Fixture',
+} = {}) {
     return {
         async doctor() {
             return {
@@ -34,6 +36,34 @@ export function createFixtureBackend() {
                     { name: 'app-version', status: 'pass' },
                     { name: 'bridge-contract', status: 'pass' },
                     { name: 'models', status: 'pass' },
+                    {
+                        name: 'authentication',
+                        status: 'warn',
+                        message:
+                            'Provider authentication is verified only when a run starts.',
+                    },
+                ],
+            };
+        },
+
+        async listModels() {
+            return {
+                schemaVersion: 1,
+                models: [
+                    {
+                        id: 'jiaorong-fixture',
+                        displayName: modelDisplayName,
+                        isDefault: true,
+                        available: true,
+                        inputTypes: ['text', 'image'],
+                    },
+                    {
+                        id: 'jiaorong-fixture-unavailable',
+                        displayName: 'Unavailable Fixture Model',
+                        isDefault: false,
+                        available: false,
+                        inputTypes: ['text'],
+                    },
                 ],
             };
         },
@@ -41,12 +71,20 @@ export function createFixtureBackend() {
         async prepare(request) {
             const failure = preflightFailures.get(request.prompt);
             if (failure) throw failure;
+            if (
+                request.modelId !== undefined &&
+                request.modelId !== 'jiaorong-fixture'
+            )
+                throw new BackendFailure(
+                    'MODEL_UNAVAILABLE',
+                    'The selected model is unavailable.',
+                );
             return {
                 sessionId: 'ses_fixture',
                 resumed: Boolean(request.resume),
                 model: {
                     id: 'jiaorong-fixture',
-                    displayName: 'Jiaorong Fixture',
+                    displayName: modelDisplayName,
                 },
                 attachments: [],
             };

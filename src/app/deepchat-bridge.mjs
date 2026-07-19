@@ -9,6 +9,7 @@ const RUN_EVENTS = [
 const INVOKE_ROUTES = new Set([
     'sessions.getAgents',
     'sessions.create',
+    'providers.testConnection',
 ]);
 const MAX_BUFFERED_EVENTS = 128;
 const MAX_EVENT_BYTES = 32 * 1_024;
