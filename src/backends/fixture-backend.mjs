@@ -19,6 +19,25 @@ const preflightFailures = new Map([
 
 export function createFixtureBackend() {
     return {
+        async doctor() {
+            return {
+                ok: true,
+                cliVersion: '0.1.0',
+                protocolVersions: [1],
+                app: {
+                    version: '0.5.6',
+                    endpoint: '127.0.0.1:9238',
+                },
+                models: { available: 1 },
+                checks: [
+                    { name: 'app-installation', status: 'pass' },
+                    { name: 'app-version', status: 'pass' },
+                    { name: 'bridge-contract', status: 'pass' },
+                    { name: 'models', status: 'pass' },
+                ],
+            };
+        },
+
         async prepare(request) {
             const failure = preflightFailures.get(request.prompt);
             if (failure) throw failure;

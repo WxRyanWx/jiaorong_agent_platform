@@ -179,6 +179,24 @@ export async function runCli({
         return 0;
     }
 
+    if (options.command === 'doctor') {
+        const document = await backend.doctor();
+        if (options.outputFormat === 'json') {
+            stdout.write(`${JSON.stringify(document)}\n`);
+        } else {
+            stdout.write(
+                `JiaorongAI readiness: ${document.ok ? 'ready' : 'not ready'}\n`,
+            );
+            for (const check of document.checks) {
+                const detail = check.message ? `: ${check.message}` : '';
+                stdout.write(
+                    `${check.status.toUpperCase()} ${check.name}${detail}\n`,
+                );
+            }
+        }
+        return document.ok ? 0 : 1;
+    }
+
     const renderer = createOutputRenderer(options.outputFormat, {
         stdout,
         stderr,

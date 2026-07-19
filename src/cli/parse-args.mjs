@@ -37,6 +37,23 @@ export function parseArgs(argv) {
     if (argv.length === 1 && argv[0] === '--version')
         return { command: 'version' };
 
+    if (argv[0] === 'doctor') {
+        const remaining = argv.slice(1);
+        if (remaining.length === 0)
+            return { command: 'doctor', outputFormat: 'text' };
+        if (
+            remaining.length === 2 &&
+            remaining[0] === '--output-format' &&
+            ['text', 'json'].includes(remaining[1])
+        )
+            return { command: 'doctor', outputFormat: remaining[1] };
+        throw new CliFailure(
+            'INVALID_ARGUMENT',
+            'doctor accepts only --output-format text|json.',
+            42,
+        );
+    }
+
     const options = {
         command: 'run',
         prompt: undefined,

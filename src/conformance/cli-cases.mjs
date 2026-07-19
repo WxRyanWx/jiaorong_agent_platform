@@ -2,7 +2,10 @@ import { readFile, unlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 
-import { validateStream } from '../protocol/validate-fixture.mjs';
+import {
+    validateDocument,
+    validateStream,
+} from '../protocol/validate-fixture.mjs';
 import {
     addValidationError,
     caseFromValidation,
@@ -127,8 +130,36 @@ async function runVersionCase(binary) {
     return failed('CLI-001', errors, processResult);
 }
 
+async function runDoctorCase(binary) {
+    const processResult = await runProcess(binary, [
+        'doctor',
+        '--output-format',
+        'json',
+    ]);
+    const errors = [];
+    let document;
+    try {
+        document = JSON.parse(processResult.stdout);
+    } catch {
+        errors.push('stdout is not one JSON document');
+    }
+    if (document) {
+        const validation = await validateDocument(
+            'doctor.schema.json',
+            document,
+        );
+        errors.push(...validation.errors);
+        if ((processResult.exitCode === 0) !== document.ok)
+            errors.push('exit code does not agree with doctor ok');
+    }
+    if (processResult.stderr !== '') errors.push('stderr is not empty');
+    return errors.length === 0
+        ? passed('CLI-002', { durationMs: processResult.durationMs })
+        : failed('CLI-002', errors, processResult);
+}
+
 export async function runCliCases(binary) {
-    const results = [await runVersionCase(binary)];
+    const results = [await runVersionCase(binary), await runDoctorCase(binary)];
 
     const prompt = '__JIAORONG_CONFORMANCE_CLI_003__';
     const promptCase = await validateEchoPrompt(

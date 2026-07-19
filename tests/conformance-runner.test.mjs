@@ -32,18 +32,19 @@ test('the public runner validates a fixture-backed CLI through real process I/O'
     assert.equal(summary.failed, 0);
     assert.deepEqual(summary.coverage, {
         required: 101,
-        executed: 19,
-        missing: 82,
+        executed: 20,
+        missing: 81,
     });
     assert.ok(!summary.missingCaseIds.some((id) => id.startsWith('LIVE-')));
     assert.ok(!summary.missingCaseIds.some((id) => id.startsWith('WB-')));
-    assert.ok(summary.missingCaseIds.includes('CLI-002'));
+    assert.ok(!summary.missingCaseIds.includes('CLI-002'));
     assert.ok(!summary.missingCaseIds.includes('CLI-003'));
     assert.deepEqual(
         summary.cases.map(({ id }) => id),
         [
             'ASSET-001',
             'CLI-001',
+            'CLI-002',
             'CLI-003',
             'CLI-004',
             'CLI-005',
