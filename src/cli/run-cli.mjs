@@ -361,7 +361,8 @@ export async function runCli({
                 lifecycleFailure = normalizeFailure(error);
             }
         }
-        lifecycleFailure ??= await cleanupSnapshots(request.fileScope);
+        const snapshotFailure = await cleanupSnapshots(request.fileScope);
+        lifecycleFailure ??= snapshotFailure;
         failure = lifecycleFailure ?? failure;
     }
 

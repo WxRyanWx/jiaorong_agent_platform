@@ -444,6 +444,61 @@ test('renderer startup failure disposes prepared backend resources and the priva
     assert.equal(await pathExists(snapshotPath), false);
 });
 
+test('private snapshot cleanup still runs when prepared backend disposal fails', async () => {
+    let snapshotPath;
+    let stderr = '';
+    const backend = {
+        async prepare(request) {
+            snapshotPath = request.fileScope.attachments[0].path;
+            return {
+                sessionId: 'session-dispose-failure',
+                resumed: false,
+                model: { id: 'model-test', displayName: 'Model Test' },
+                attachments: request.fileScope.attachments.map(
+                    ({ id, name, mimeType, sizeBytes }) => ({
+                        id,
+                        name,
+                        mimeType,
+                        sizeBytes,
+                    }),
+                ),
+            };
+        },
+        async dispose() {
+            throw new Error('private dispose failure');
+        },
+        async *run() {
+            yield { kind: 'complete', usage: null, turns: 1 };
+        },
+    };
+
+    const exitCode = await runCli({
+        argv: [
+            '-p',
+            'inspect the Attachment',
+            '--file',
+            './CONTEXT.md',
+        ],
+        stdin: { isTTY: true },
+        stdout: { write() {} },
+        stderr: {
+            write(chunk) {
+                stderr += chunk;
+            },
+        },
+        backend,
+        ids: {
+            requestId: () => 'request-dispose-failure',
+            messageId: () => 'message-dispose-failure',
+        },
+    });
+
+    assert.equal(exitCode, 1);
+    assert.match(stderr, /^INTERNAL_ERROR:/u);
+    assert.doesNotMatch(stderr, /private dispose failure/u);
+    assert.equal(await pathExists(snapshotPath), false);
+});
+
 test('PNG, JPEG, WebP, and GIF files keep their detected MIME and send order', async () => {
     const projectRoot = await mkdtemp(join(tmpdir(), 'jiaorong-cli-images-'));
     const fixtures = [
