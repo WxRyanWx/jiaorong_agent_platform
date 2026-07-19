@@ -82,6 +82,31 @@ test('non-empty prompt argv and stdin fail after establishing the machine protoc
     assert.equal(validation.events[2].error.code, 'INVALID_ARGUMENT');
 });
 
+test('oversized stdin is rejected before the backend seam', async () => {
+    const invokedCanary = resolve(
+        tmpdir(),
+        `jiaorong-cli-backend-skipped-${crypto.randomUUID()}`,
+    );
+    const result = await runProcess(
+        fixtureCli,
+        ['--output-format', 'stream-json'],
+        {
+            cwd: root,
+            stdin: '界'.repeat(50_000),
+            env: { JIAORONG_CLI_TEST_BACKEND_CANARY: invokedCanary },
+        },
+    );
+
+    assert.equal(result.exitCode, 42);
+    assert.equal(result.stderr, '');
+    const validation = await validateStream(result.stdout, {
+        exitCode: result.exitCode,
+    });
+    assert.equal(validation.valid, true, validation.errors.join('; '));
+    assert.equal(validation.events.at(-2).code, 'INVALID_ARGUMENT');
+    await assert.rejects(readFile(invokedCanary), { code: 'ENOENT' });
+});
+
 test('a preflight argument error uses an already selected machine protocol', async () => {
     const result = await execute([
         '-p',
@@ -160,24 +185,19 @@ test('the test executable exposes when argument parsing reaches the backend', as
     await assert.rejects(readFile(skippedCanary), { code: 'ENOENT' });
 });
 
-test('the production executable is wired without enabling the fixture backend', async () => {
+test('the production executable is wired only to the JiaorongAI App Backend', async () => {
     await chmod(productionCli, 0o755);
     const version = await runProcess(productionCli, ['--version'], {
         cwd: root,
     });
     assert.equal(version.exitCode, 0);
     assert.equal(version.stdout, '0.1.0\n');
-
-    const run = await runProcess(
-        productionCli,
-        ['-p', 'hello', '--output-format', 'stream-json'],
-        { cwd: root },
-    );
-    assert.equal(run.exitCode, 1);
-    const validation = await validateStream(run.stdout, {
-        exitCode: run.exitCode,
-    });
-    assert.equal(validation.valid, true, validation.errors.join('; '));
-    assert.equal(validation.events[1].code, 'INTERNAL_ERROR');
-    assert.doesNotMatch(run.stdout, /echo:hello/);
+    const [binSource, mainSource] = await Promise.all([
+        readFile(productionCli, 'utf8'),
+        readFile(resolve(root, 'src/cli/main.mjs'), 'utf8'),
+    ]);
+    assert.match(binSource, /runMain/);
+    assert.match(mainSource, /createJiaorongAppBackend/);
+    assert.doesNotMatch(binSource + mainSource, /fixture-backend/);
+    assert.doesNotMatch(binSource + mainSource, /JIAORONG_CLI_TEST/);
 });

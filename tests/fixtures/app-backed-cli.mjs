@@ -22,6 +22,14 @@ process.exitCode = await runMain({
                 rendererTimeoutMs: Number(
                     process.env.JIAORONG_CLI_TEST_RENDERER_TIMEOUT_MS ?? 2_000,
                 ),
+                bridgeInvokeTimeoutMs: Number(
+                    process.env.JIAORONG_CLI_TEST_BRIDGE_INVOKE_TIMEOUT_MS ??
+                        10_000,
+                ),
+                runTimeoutMs: Number(
+                    process.env.JIAORONG_CLI_TEST_RUN_TIMEOUT_MS ??
+                        30 * 60 * 1_000,
+                ),
         },
         bundleValidator: async () => {},
     },

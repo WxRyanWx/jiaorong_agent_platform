@@ -24,6 +24,13 @@ export function runProcess(
 
         child.stdout.on('data', (chunk) => stdout.push(chunk));
         child.stderr.on('data', (chunk) => stderr.push(chunk));
+        child.stdin.on('error', (error) => {
+            if (error.code !== 'EPIPE') {
+                clearTimeout(timer);
+                child.kill('SIGKILL');
+                reject(error);
+            }
+        });
         child.on('error', (error) => {
             clearTimeout(timer);
             reject(error);

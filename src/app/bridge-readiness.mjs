@@ -89,6 +89,7 @@ function buildProbeExpression(rendererTimeoutMs) {
       return candidates.map((model) => ({
         id: model.id,
         providerId,
+        displayName: typeof model.name === 'string' && model.name.length > 0 ? model.name : model.id,
         available: model.enabled !== false && status[model.id] !== false
       }));
     });

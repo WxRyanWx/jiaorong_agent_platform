@@ -110,7 +110,7 @@ jiaorong-cli --version
 - 每个 CLI request 使用唯一、有界 event buffer。
 - Session ID 和真实 request identity 共同关联事件。
 - 并发运行不得串流、串取消或互相释放锁。
-- 正文和 Reasoning Summary 只输出经过验证的单调增量。
+- 正文只输出经过验证的单调增量。Reasoning Summary 仅能来自明确可展示的摘要源；JiaorongAI 0.5.6 的 `reasoning_content` 属于 UI 标注的 CoT，不得改名后作为摘要公开。
 - 每个运行恰好一个 Terminal Result。
 - 任意 schema drift、未知快照、buffer overflow、身份丢失或取消无法证实都必须失败，不得 best effort。
 

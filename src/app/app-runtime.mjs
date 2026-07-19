@@ -22,6 +22,8 @@ export const defaultRuntimeConfig = Object.freeze({
         'file:///Applications/JiaorongAI.app/Contents/Resources/app.asar/out/renderer/',
     cdpTimeoutMs: 3_000,
     rendererTimeoutMs: 2_000,
+    bridgeInvokeTimeoutMs: 10_000,
+    runTimeoutMs: 30 * 60 * 1_000,
 });
 
 function rendererTarget(targets, config) {
@@ -52,11 +54,12 @@ function rendererTarget(targets, config) {
     return candidates[0];
 }
 
-export async function inspectAppReadiness({
-    config = defaultRuntimeConfig,
+export async function openVerifiedAppRuntime({
+    config: configOverrides = defaultRuntimeConfig,
     bundleValidator = validateAppBundle,
     lifecycleDependencies,
 } = {}) {
+    const config = { ...defaultRuntimeConfig, ...configOverrides };
     if (!config.endpoint || !config.expectedExecutable || !config.appBundlePath)
         throw new AppReadinessError(
             'configuration',
@@ -119,12 +122,27 @@ export async function inspectAppReadiness({
                 'JiaorongAI does not report an available model.',
             );
         return {
-            version: probe.version,
-            endpoint: endpoint.host,
-            providers: probe.providers.length,
-            models: availableModels.length,
+            client,
+            config,
+            readiness: {
+                version: probe.version,
+                endpoint: endpoint.host,
+                providers: probe.providers.length,
+                models: availableModels.length,
+                availableModels,
+            },
         };
-    } finally {
+    } catch (error) {
         client.close();
+        throw error;
+    }
+}
+
+export async function inspectAppReadiness(options = {}) {
+    const runtime = await openVerifiedAppRuntime(options);
+    try {
+        return runtime.readiness;
+    } finally {
+        runtime.client.close();
     }
 }

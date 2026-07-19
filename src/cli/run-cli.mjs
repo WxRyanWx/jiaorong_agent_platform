@@ -1,4 +1,5 @@
 import { CliFailure } from './failures.mjs';
+import { MAX_PROMPT_BYTES } from './limits.mjs';
 import { createOutputRenderer } from './output-renderer.mjs';
 import { detectOutputFormat, parseArgs } from './parse-args.mjs';
 
@@ -7,8 +8,27 @@ const VERSION = '0.1.0';
 async function readStdin(stdin) {
     if (stdin.isTTY) return '';
     const chunks = [];
-    for await (const chunk of stdin) chunks.push(Buffer.from(chunk));
+    let bytes = 0;
+    for await (const chunk of stdin) {
+        const buffer = Buffer.from(chunk);
+        bytes += buffer.byteLength;
+        if (bytes > MAX_PROMPT_BYTES) throw promptTooLargeFailure();
+        chunks.push(buffer);
+    }
     return Buffer.concat(chunks).toString('utf8');
+}
+
+function promptTooLargeFailure() {
+    return new CliFailure(
+        'INVALID_ARGUMENT',
+        'Prompt exceeds the 128 KiB UTF-8 limit.',
+        42,
+    );
+}
+
+function assertPromptSize(prompt) {
+    if (Buffer.byteLength(prompt, 'utf8') > MAX_PROMPT_BYTES)
+        throw promptTooLargeFailure();
 }
 
 function initEvent(requestId, options, prepared = null) {
@@ -203,7 +223,22 @@ export async function runCli({
     });
     const startedAt = now();
     const requestId = ids.requestId();
-    const stdinPrompt = await readStdin(stdin);
+    let stdinPrompt;
+    try {
+        stdinPrompt = await readStdin(stdin);
+        if (options.prompt !== undefined) assertPromptSize(options.prompt);
+    } catch (error) {
+        return emitFailure({
+            renderer,
+            options,
+            requestId,
+            prepared: null,
+            content: '',
+            startedAt,
+            now,
+            failure: normalizeFailure(error),
+        });
+    }
     let prompt = options.prompt;
     if (prompt !== undefined && stdinPrompt.length > 0) {
         const failure = new CliFailure(

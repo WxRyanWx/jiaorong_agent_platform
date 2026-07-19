@@ -1,5 +1,5 @@
 import { createServer } from 'node:http';
-import { runInNewContext } from 'node:vm';
+import { createContext, runInContext } from 'node:vm';
 
 import { WebSocketServer, WebSocket } from 'ws';
 
@@ -56,12 +56,37 @@ export async function startFakeCdpServer({
     metadataBody,
     targetBody,
     metadataDelayMs = 0,
+    agents = [
+        {
+            id: 'deepchat',
+            name: 'JiaorongAI',
+            type: 'deepchat',
+            enabled: true,
+        },
+    ],
+    sessionId = 'session-test',
+    sessionProviderId = 'provider-test',
+    sessionModelId = 'model-test',
+    sendResult = {
+        accepted: true,
+        requestId: null,
+        messageId: null,
+    },
+    streamRequestId = 'app-request-test',
+    streamMessageId = 'message-test',
+    streamEvents,
+    dropRuntimeStartResponse = false,
+    dropRuntimeCleanupRequest = false,
+    emitLateTerminalBeforeCleanup = false,
 } = {}) {
     const state = {
         activeSubscriptions: 0,
         subscriptions: [],
         unsubscriptions: 0,
         invokedRoutes: [],
+        createInputs: [],
+        sendInputs: [],
+        lateTerminalEmitted: false,
     };
     const unavailableRoutes = new Set(missingRoutes);
     const unavailableEvents = new Set(missingEvents);
@@ -114,6 +139,174 @@ export async function startFakeCdpServer({
         });
     });
     websocketServer.on('connection', (client) => {
+        const listeners = new Map();
+        const deepchat = {};
+        const context = createContext({
+            window: { deepchat },
+            setTimeout,
+            clearTimeout,
+            atob,
+            TextDecoder,
+            TextEncoder,
+        });
+        const emit = (eventName, payload) => {
+            for (const listener of listeners.get(eventName) ?? [])
+                listener(payload);
+        };
+        const eventsForRun = () =>
+            streamEvents ?? [
+                {
+                    name: 'chat.stream.updated',
+                    payload: {
+                        kind: 'snapshot',
+                        requestId: streamRequestId,
+                        sessionId,
+                        messageId: streamMessageId,
+                        updatedAt: 10,
+                        blocks: [
+                            {
+                                id: 'reasoning-test',
+                                type: 'reasoning_content',
+                                content: 'Checking',
+                                status: 'pending',
+                                timestamp: 8,
+                            },
+                            {
+                                id: 'content-test',
+                                type: 'content',
+                                content: 'Hello',
+                                status: 'pending',
+                                timestamp: 9,
+                            },
+                        ],
+                    },
+                },
+                {
+                    name: 'chat.stream.updated',
+                    payload: {
+                        kind: 'snapshot',
+                        requestId: streamRequestId,
+                        sessionId,
+                        messageId: streamMessageId,
+                        updatedAt: 11,
+                        blocks: [
+                            {
+                                id: 'reasoning-test',
+                                type: 'reasoning_content',
+                                content: 'Checking files',
+                                status: 'success',
+                                timestamp: 8,
+                            },
+                            {
+                                id: 'content-test',
+                                type: 'content',
+                                content: 'Hello 世界',
+                                status: 'success',
+                                timestamp: 9,
+                            },
+                        ],
+                    },
+                },
+                {
+                    name: 'chat.stream.completed',
+                    payload: {
+                        requestId: streamRequestId,
+                        sessionId,
+                        messageId: streamMessageId,
+                        completedAt: 12,
+                    },
+                },
+            ];
+
+        if (!missingMethods.includes('invoke')) {
+            deepchat.invoke = async (route, input) => {
+                state.invokedRoutes.push(route);
+                if (!allRoutes.has(route) || unavailableRoutes.has(route))
+                    throw new Error(`Unknown deepchat route: ${route}`);
+                if (input === null)
+                    throw new Error('Invalid bridge route input');
+                if (hangingRoutes.has(route)) return new Promise(() => {});
+                if (route === 'device.getAppVersion')
+                    return { version: appVersion };
+                if (route === 'providers.listSummaries') return { providers };
+                if (route === 'models.getProviderCatalog') {
+                    return {
+                        catalog: catalogs[input.providerId] ?? {
+                            providerModels: [],
+                            customModels: [],
+                            dbProviderModels: [],
+                            modelStatusMap: {},
+                        },
+                    };
+                }
+                if (route === 'sessions.getAgents') return { agents };
+                if (route === 'sessions.create') {
+                    state.createInputs.push(
+                        JSON.parse(JSON.stringify(input)),
+                    );
+                    return {
+                        session: {
+                            id: sessionId,
+                            agentId: input.agentId,
+                            title: String(input.message).slice(0, 50),
+                            projectDir: input.projectDir ?? null,
+                            isPinned: false,
+                            sessionKind: 'regular',
+                            subagentEnabled: false,
+                            createdAt: 1,
+                            updatedAt: 1,
+                            status: 'idle',
+                            providerId:
+                                input.providerId ?? sessionProviderId,
+                            modelId: input.modelId ?? sessionModelId,
+                        },
+                    };
+                }
+                if (route === 'chat.sendMessage') {
+                    state.sendInputs.push(JSON.parse(JSON.stringify(input)));
+                    for (const event of eventsForRun())
+                        emit(event.name, event.payload);
+                    return sendResult;
+                }
+                if (route === 'sessions.setProjectDir') {
+                    return { session: { id: sessionId } };
+                }
+                if (route === 'sessions.setPermissionMode')
+                    return { updated: true };
+                if (route === 'sessions.setModel') {
+                    return { session: { id: sessionId } };
+                }
+                if (route === 'sessions.delete') return { deleted: true };
+                throw new Error('Unexpected non-probe bridge invocation');
+            };
+        }
+        if (!missingMethods.includes('on')) {
+            deepchat.on = (eventName, listener) => {
+                if (
+                    !allEvents.has(eventName) ||
+                    unavailableEvents.has(eventName)
+                )
+                    throw new Error(`Unknown deepchat event: ${eventName}`);
+                if (typeof listener !== 'function')
+                    throw new Error('Bridge event listener is required');
+                const eventListeners = listeners.get(eventName) ?? new Set();
+                eventListeners.add(listener);
+                listeners.set(eventName, eventListeners);
+                state.activeSubscriptions += 1;
+                state.subscriptions.push(eventName);
+                let active = true;
+                return () => {
+                    if (!active) return;
+                    active = false;
+                    eventListeners.delete(listener);
+                    state.activeSubscriptions -= 1;
+                    state.unsubscriptions += 1;
+                    if (unsubscribeThrows)
+                        throw new Error('unsubscribe failed');
+                };
+            };
+        }
+
         client.on('message', async (data) => {
             const message = JSON.parse(data.toString('utf8'));
             if (evaluateDelayMs > 0)
@@ -122,57 +315,32 @@ export async function startFakeCdpServer({
                 );
             let result = {};
             if (message.method === 'Runtime.evaluate') {
-                const deepchat = {};
-                if (!missingMethods.includes('invoke')) {
-                    deepchat.invoke = async (route, input) => {
-                        state.invokedRoutes.push(route);
-                        if (!allRoutes.has(route) || unavailableRoutes.has(route))
-                            throw new Error(`Unknown deepchat route: ${route}`);
-                        if (input === null)
-                            throw new Error('Invalid bridge route input');
-                        if (hangingRoutes.has(route))
-                            return new Promise(() => {});
-                        if (route === 'device.getAppVersion')
-                            return { version: appVersion };
-                        if (route === 'providers.listSummaries')
-                            return { providers };
-                        if (route === 'models.getProviderCatalog')
-                            return {
-                                catalog: catalogs[input.providerId] ?? {
-                                    providerModels: [],
-                                    customModels: [],
-                                    dbProviderModels: [],
-                                    modelStatusMap: {},
-                                },
-                            };
-                        throw new Error('Unexpected non-probe bridge invocation');
-                    };
-                }
-                if (!missingMethods.includes('on')) {
-                    deepchat.on = (eventName) => {
-                        if (!allEvents.has(eventName) || unavailableEvents.has(eventName))
-                            throw new Error(`Unknown deepchat event: ${eventName}`);
-                        state.activeSubscriptions += 1;
-                        state.subscriptions.push(eventName);
-                        let active = true;
-                        return () => {
-                            if (!active) return;
-                            active = false;
-                            state.activeSubscriptions -= 1;
-                            state.unsubscriptions += 1;
-                            if (unsubscribeThrows)
-                                throw new Error('unsubscribe failed');
-                        };
-                    };
-                }
+                if (
+                    dropRuntimeCleanupRequest &&
+                    message.params.expression.includes(
+                        'const cleanupError = state.cleanup()',
+                    )
+                )
+                    return;
                 try {
-                    const value = await runInNewContext(
+                    if (
+                        emitLateTerminalBeforeCleanup &&
+                        !state.lateTerminalEmitted &&
+                        message.params.expression.includes(
+                            'const cleanupError = state.cleanup()',
+                        )
+                    ) {
+                        state.lateTerminalEmitted = true;
+                        emit('chat.stream.completed', {
+                            requestId: streamRequestId,
+                            sessionId,
+                            messageId: streamMessageId,
+                            completedAt: 13,
+                        });
+                    }
+                    const value = await runInContext(
                         message.params.expression,
-                        {
-                            window: { deepchat },
-                            setTimeout,
-                            clearTimeout,
-                        },
+                        context,
                         { timeout: 1_000 },
                     );
                     if (responsePadding) value.padding = responsePadding;
@@ -185,6 +353,15 @@ export async function startFakeCdpServer({
                     };
                 }
             }
+            if (
+                dropRuntimeStartResponse &&
+                message.method === 'Runtime.evaluate' &&
+                message.params.expression.includes(
+                    '__JIAORONG_CLI_RUNS_V1__',
+                ) &&
+                message.params.expression.includes("bridge.invoke('chat.sendMessage'")
+            )
+                return;
             if (client.readyState === WebSocket.OPEN)
                 client.send(JSON.stringify({ id: message.id, result }));
         });

@@ -63,11 +63,46 @@ export function createFixtureBackend() {
                     53,
                 );
             }
-            const content =
-                request.prompt === '__JIAORONG_FIXTURE_SUCCESS_TEXT__'
-                    ? 'Hello, fixture.'
-                    : `echo:${request.prompt}`;
-            yield { kind: 'message', messageId: 'msg_fixture', delta: content };
+            if (request.prompt === '__JIAORONG_FIXTURE_REASONING__') {
+                yield {
+                    kind: 'reasoning_summary',
+                    messageId: 'msg_fixture',
+                    delta: 'Step 1.',
+                };
+                yield {
+                    kind: 'reasoning_summary',
+                    messageId: 'msg_fixture',
+                    delta: 'Step 2.',
+                };
+                yield {
+                    kind: 'message',
+                    messageId: 'msg_fixture',
+                    delta: 'Done.',
+                };
+            } else if (
+                request.prompt === '__JIAORONG_FIXTURE_FRAGMENTED__'
+            ) {
+                yield {
+                    kind: 'message',
+                    messageId: 'msg_fixture',
+                    delta: 'fragment-',
+                };
+                yield {
+                    kind: 'message',
+                    messageId: 'msg_fixture',
+                    delta: 'success',
+                };
+            } else {
+                const content =
+                    request.prompt === '__JIAORONG_FIXTURE_SUCCESS_TEXT__'
+                        ? 'Hello, fixture.'
+                        : `echo:${request.prompt}`;
+                yield {
+                    kind: 'message',
+                    messageId: 'msg_fixture',
+                    delta: content,
+                };
+            }
             yield {
                 kind: 'complete',
                 usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },

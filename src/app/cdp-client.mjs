@@ -1,5 +1,7 @@
 import { AppReadinessError } from './readiness-error.mjs';
 
+const MAX_CDP_MESSAGE_BYTES = 512_000;
+
 export class CdpClient {
     #nextId = 1;
     #pending = new Map();
@@ -10,7 +12,7 @@ export class CdpClient {
         this.timeoutMs = timeoutMs;
         websocket.addEventListener('message', (event) => {
             const source = String(event.data);
-            if (Buffer.byteLength(source, 'utf8') > 512_000) {
+            if (Buffer.byteLength(source, 'utf8') > MAX_CDP_MESSAGE_BYTES) {
                 this.#failAll('The CDP renderer response exceeded its size limit.');
                 websocket.close();
                 return;
@@ -82,7 +84,26 @@ export class CdpClient {
         return new CdpClient(websocket, options);
     }
 
-    request(method, params = {}) {
+    request(method, params = {}, { timeoutMs = this.timeoutMs } = {}) {
+        let message;
+        try {
+            message = JSON.stringify({ id: this.#nextId, method, params });
+        } catch {
+            return Promise.reject(
+                new AppReadinessError(
+                    'bridge-contract',
+                    'The CDP bridge request could not be encoded.',
+                ),
+            );
+        }
+        if (Buffer.byteLength(message, 'utf8') > MAX_CDP_MESSAGE_BYTES) {
+            return Promise.reject(
+                new AppReadinessError(
+                    'bridge-contract',
+                    'The CDP bridge request exceeded its size limit.',
+                ),
+            );
+        }
         const id = this.#nextId++;
         return new Promise((resolve, reject) => {
             const timer = setTimeout(() => {
@@ -93,9 +114,9 @@ export class CdpClient {
                         'The CDP bridge request timed out.',
                     ),
                 );
-            }, this.timeoutMs);
+            }, timeoutMs);
             this.#pending.set(id, { resolve, reject, timer });
-            this.#websocket.send(JSON.stringify({ id, method, params }));
+            this.#websocket.send(message);
         });
     }
 

@@ -1,14 +1,14 @@
 # 03 — Run a real single turn in every output mode
 
-**What to build:** Let users run one real JiaorongAI prompt through the production CLI, create a durable Session, stream validated text and reasoning deltas, and finish with consistent text, JSON, or stream-json output.
+**What to build:** Let users run one real JiaorongAI prompt through the production CLI, create a durable Session, stream validated text and any explicitly safe Reasoning Summary, and finish with consistent text, JSON, or stream-json output.
 
 **Blocked by:** 02 — Prove safe JiaorongAI readiness with doctor.
 
-**Status:** ready-for-agent
+**Status:** ready-for-human
 
 - [ ] Argument and stdin prompts reach the bridge unchanged, including Unicode, newlines, quotes, and shell metacharacters.
 - [ ] A successful run creates a real Session before sending the prompt and returns the same non-empty Session ID in init and result.
-- [ ] Snapshot projection emits monotonic message and reasoning deltas and exactly one Terminal Result.
+- [ ] Snapshot projection emits monotonic message deltas, never exposes JiaorongAI 0.5.6 raw `reasoning_content` as a summary, and emits exactly one Terminal Result.
 - [ ] Text, JSON, and stream-json describe the same successful outcome and preserve stdout/stderr separation.
 - [ ] Bridge failures, malformed snapshots, duplicate terminals, and lost event correlation fail explicitly.
 - [ ] Production-process functional tests and relevant deterministic conformance cases pass.
@@ -20,3 +20,15 @@ The App Backend is the sole JiaorongAI-to-v1 translator. CLI parsing/rendering s
 ## Expected proof
 
 Fake-bridge process tests, projector unit tests, protocol Schema validation, and a real one-turn smoke later reused by Release.
+
+## Comments
+
+### 2026-07-19 implementation evidence
+
+- The production App Backend now creates an empty durable Session with the sole verified provider/model pair, installs a bounded renderer-local event buffer, then sends the prompt exactly once through `chat.sendMessage`.
+- Fake-bridge process coverage proves argv/stdin preservation, text/json/stream-json equivalence, nullable send acknowledgements, authoritative request correlation before output, malformed snapshots, unsupported blocks, duplicate and late terminals, buffer overflow, UTF-8 size limits, lost start responses, and listener cleanup.
+- CLI preflight bounds stdin while reading and rejects prompts over 128 KiB before the backend seam. Bridge start payloads carry the prompt as UTF-8 Base64 so JSON escaping cannot exceed the bounded CDP request while the renderer receives the original text.
+- Public deterministic conformance now executes Ticket 03 cases `EVT-001`, `EVT-002`, `EVT-008`, `EVT-010`, `EVT-011`, `EVT-016`, `SES-001`, `ERR-002`, and `ERR-003`.
+- Current verification: `npm test` passes 63/63; deterministic conformance has `executedOk=true`, 29 executed, 72 missing, and 0 failed, so `complete=false`; `npm audit --json` reports 0 vulnerabilities; module syntax and `git diff --check` pass.
+- Direct source verification at upstream revision `d2a7d3fe6a525a8b33633f8851afb44cf6ccc8c3` shows `reasoning_content` is rendered and optionally copied as CoT. ADR 0006 therefore requires suppressing it; JiaorongAI 0.5.6 exposes no separate safe summary source.
+- Real `doctor` passed for JiaorongAI 0.5.6 and one available model. Real Sessions were created and `processMessage` started, but no stream event arrived. JiaorongAI `providers.testConnection` for `jiaorong/jiaorong-deepseek-v4-pro` timed out after 5 seconds, and diagnostic Sessions remained `generating` until explicitly stopped. The live one-turn criterion remains unverified and blocks Ticket completion.

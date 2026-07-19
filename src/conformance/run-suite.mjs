@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import { fixturePath, validateFixture } from '../protocol/validate-fixture.mjs';
 import { failed, passed } from './case-result.mjs';
 import { runCliCases } from './cli-cases.mjs';
+import { runEventCases } from './event-cases.mjs';
 import { runOutputCases } from './output-cases.mjs';
 import { validateStreamRun } from './stream-run.mjs';
 
@@ -116,6 +117,7 @@ export async function runSuite({ binary, protocolVersion }) {
         await validateAssets(),
         ...(await runCliCases(binary)),
         ...(await runOutputCases(binary)),
+        ...(await runEventCases(binary)),
         ...(await runTerminalStreamCases(binary)),
     ];
 
