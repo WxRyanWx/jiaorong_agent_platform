@@ -12,7 +12,7 @@
   当前已验证功能、首版 waiver 和运行限制。用于区分“实现存在”与“真实环境已验收”。
 - [Release dossier](./docs/jiaorong-cli-v1-release-dossier.md)
   RC1 checksum、安装、真实 smoke、回滚和最终 Go 决策。用于核对候选身份。
-- [Bundled Skill command reference](./skills/use-jiaorong-cli/references/command-reference.md)
+- [Bundled Skill command reference](./skills/jiaorong-cli-skills/references/command-reference.md)
   面向 Agent 的紧凑命令、事件、限制和错误处理参考。
 
 ## Wisdom

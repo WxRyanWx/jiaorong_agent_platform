@@ -1,9 +1,9 @@
 ---
-name: use-jiaorong-cli
+name: jiaorong-cli-skills
 description: Use when a user or automation task involves the installed `jiaorong-cli` v0.1.0 or terminal access to JiaorongAI.app, including prompts, doctor/readiness, model discovery, Sessions/resume, text Attachments, Additional Directories, permission modes, text/json/stream-json output, tool events, cancellation, timeout, Machine Error Codes, or CLI usage teaching.
 ---
 
-# Use Jiaorong CLI
+# Jiaorong CLI Skills
 
 Run real JiaorongAI turns from the terminal without modifying JiaorongAI or reimplementing its runtime.
 

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Jiaorong CLI Skills"
+  short_description: "Safely run and automate JiaorongAI from the terminal"
+  default_prompt: "Use $jiaorong-cli-skills to run this task through JiaorongAI with the correct model, scope, output format, and Session handling."
