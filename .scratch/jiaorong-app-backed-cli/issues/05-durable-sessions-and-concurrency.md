@@ -4,7 +4,9 @@
 
 **Blocked by:** 03 — Run a real single turn in every output mode.
 
-**Status:** resolved
+**Status:** ready-for-agent
+
+**Resolution:** completed
 
 - [x] `--resume` validates and restores an existing JiaorongAI Session without replaying visible history from the CLI.
 - [x] New and resumed runs preserve stable Session identity across separate processes.
@@ -32,4 +34,4 @@ Multi-process fake-bridge tests, cross-request adversarial events, real new/resu
 - Conformance: `required=101`, `executed=40`, `missing=61`, `failed=0`, `executedOk=true`, `complete=false`. Ticket 05 cases `SES-002`, `SES-003`, `SES-005`, `SES-006`, and `SES-010` pass; `SES-006` now creates then removes fixture state before restore, and repeated unknown/deleted attempts prove no replacement Session is created.
 - Full repository tests passed 93/93. Every `.mjs` passed `node --check`; `npm audit --json` reported zero vulnerabilities; `git diff --check 66dae91` passed.
 - Real JiaorongAI 0.5.6 smoke used two separate CLI processes with Session `RtU8KeRGthnYKH2jd2ZHb`: the first stored `JRCLI_T05_FINAL_719`; the resumed run returned `resumed=true`, the same Session ID, and exact content `JRCLI_T05_FINAL_719` without history replay from the CLI.
-- Independent Standards and Spec re-reviews reported no remaining blocker and no scope creep. Non-blocking judgement: retired identity history fails closed after 16,384 bounded identities and has no dedicated saturation test yet; this is recorded for later capacity hardening, not claimed as unbounded operation.
+- Independent Standards and Spec re-reviews reported no remaining blocker and no scope creep. The later Feature-boundary regression adds a dedicated 16,384 retired-identity saturation test and proves fail-closed behavior before send with no listener leak.

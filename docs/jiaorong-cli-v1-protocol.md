@@ -251,7 +251,8 @@ Agent 开始一次工具调用。
 
 - `name` 是稳定工具标识，不使用本地化展示名称。
 - `input` 必须是 JSON 值，通常为 object。
-- 实现必须限制序列化大小并对敏感字段脱敏。
+- `input` 序列化后的 UTF-8 上限为 8 KiB；超限或非合法 JSON 的 App snapshot 必须 fail closed。
+- 键名匹配 authorization、API key、password、secret、token、credential 或 cookie 的输入字段必须递归替换为 `<redacted>`。
 - 发出 `tool_use` 后必须最终发出且只发出一个对应 `tool_result`，除非进程被外部强杀。
 
 ### 5.5 tool_result
@@ -303,6 +304,8 @@ Agent 开始一次工具调用。
 ```
 
 `status` 只允许：`success | failed | cancelled`。
+
+App Backend 投影的成功 `output` 使用 `{ "content": <JSON value>, "truncated": <boolean> }`。完整 `content` 序列化后的 UTF-8 上限为 16 KiB；超过上限时 `content` 是不超过 16 KiB 的 UTF-8 安全预览，且 `truncated=true`。失败和取消的 `output` 为 null。JiaorongAI 私有的 provider、server、RTK、图片和 action 扩展字段不得进入公共 Tool Result。
 
 工具失败不一定终止整个 Headless Run；Agent 可以继续执行其他安全步骤。是否最终失败由 `result` 决定。
 
@@ -444,11 +447,17 @@ stateDiagram-v2
 | Read | 允许 | 允许 |
 | Search | 允许 | 允许 |
 | Edit | 需默认策略；不能自动批准则拒绝 | 允许 |
-| Shell | 需默认策略；不能自动批准则拒绝 | 允许 |
+| Shell | JiaorongAI 0.5.6 App Backend 禁用 | JiaorongAI 0.5.6 App Backend 禁用 |
 
 - 拒绝时必须返回 `tool_result.status="failed"` 和 `PERMISSION_DENIED`。
 - v1 不得在 Headless Run 中等待键盘或 stdin 审批。
 - `full_access` 不取消 Project Root 和 Additional Directory 边界。
+- JiaorongAI 0.5.6 必须始终保持其自身 `default` Permission Mode；不得把 CLI `full_access` 直接映射为 App `full_access`，因为真实验证已证明后者可读取 Project Root 外文件。
+- CLI `full_access` 只能对结构、身份和字段关联均通过校验，且规范化目标完全位于 Project Root 或显式 Additional Directory 内的内置工具权限请求授权。未知工具、未知 schema、字段串线、越界路径和无法可靠证明作用域的操作必须拒绝。
+- Additional Directory 不得通过扩大共同父目录或 prompt 指令实现。App Backend 只通过 JiaorongAI 的真实 interaction-response 路由批准具体路径，工具仍由 JiaorongAI 执行。
+- 固定 0.5.6 构建的文件授权按 Session 缓存。App Backend 必须在 renderer Session lock 内重新确认 Session 为 `idle`，在订阅和发送前调用 `chat.stopStream` 清除旧授权，并在已验证终态且退订后再次清除；非 idle、route 失败、非法返回或 `stopped != true` 必须在发送前或释放锁前 fail closed。该 route 同时取消生成，因此同一 Agent Session 不支持桌面端与 CLI 并发使用。
+- 省略先前使用过的 `--add-dir` 只阻止新的工具访问，不会删除已持久化在 Session 历史中的旧工具结果或模型上下文。
+- 真实验证证明 JiaorongAI 0.5.6 会在没有 permission interaction 的情况下直接执行部分 Shell 命令，包括读取 Project Root 外文件的 `cat`。因此 CLI 创建 Session 时必须将 `exec` 和 `process` 写入 `disabledAgentTools`；resume 时若任一工具被重新启用，必须在发送 prompt 前以 `INVALID_ARGUMENT` fail closed。当前 App Backend 不得声称支持 Shell。
 
 ## 8. 文件与 Attachment
 
@@ -529,15 +538,25 @@ jiaorong-cli doctor --output-format json
 ```json
 {
   "ok": true,
-  "cliVersion": "1.0.0",
+  "cliVersion": "0.1.0",
   "protocolVersions": [1],
+  "app": { "version": "0.5.6", "endpoint": "127.0.0.1:9238" },
+  "models": { "available": 1 },
   "checks": [
     { "name": "app-installation", "status": "pass" },
     { "name": "app-version", "status": "pass" },
     { "name": "loopback-endpoint", "status": "pass" },
+    { "name": "app-state", "status": "pass" },
+    { "name": "endpoint-owner", "status": "pass" },
+    { "name": "cdp-metadata", "status": "pass" },
+    { "name": "renderer-target", "status": "pass" },
     { "name": "bridge-contract", "status": "pass" },
     { "name": "models", "status": "pass" },
-    { "name": "authentication", "status": "warn" }
+    {
+      "name": "authentication",
+      "status": "warn",
+      "message": "Provider authentication is verified only when a run starts."
+    }
   ]
 }
 ```
@@ -589,6 +608,10 @@ App Backend 会在创建 Agent Session 前调用 provider connection check。0.5
 7. exit 130。
 
 调用方在约定宽限期后可强制终止。强制终止允许缺失 result，但必须被任何调用方视为传输/协议失败，不得伪装成已确认取消。
+
+v1 的调用方宽限期为第一次 SIGINT 后 30 秒。第二次 SIGINT 可立即强制终止本地 CLI；两种强制终止都允许缺失 result，并按上一段视为协议失败。
+
+JiaorongAI 0.5.6 在 provider 以 AbortError 结束时可能不发布 `chat.stream.failed`。固定 App Backend 只有在 `chat.stopStream` 已确认、`sessions.restore` 返回同一 Session 为 `idle`，且对应 assistant message 是结构化 `status="error"`、error block 为 `common.error.userCanceledGeneration` 时，才把该持久化状态视为原始运行已落定。仅有 stop acknowledgement、idle 状态或文案相似均不够。
 
 ## 14. 协议版本兼容
 

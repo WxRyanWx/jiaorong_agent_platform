@@ -45,6 +45,72 @@ function terminal(overrides = {}) {
     };
 }
 
+function toolSnapshot({
+    name = 'read',
+    status = 'pending',
+    response,
+    action = false,
+    actionStatus = 'pending',
+    actionType = 'tool_call_permission',
+    needsUserAction = true,
+    params = {
+        path: 'README.md',
+        apiKey: 'must-not-leak',
+    },
+    argsComplete = status !== 'pending',
+    permissionType = 'read',
+    permissionToolName = name,
+    permissionServerName = 'agent-filesystem',
+    permissionPaths = ['/project/README.md'],
+    permissionRequestExtra = {},
+} = {}) {
+    const toolCall = {
+        id: 'tool-1',
+        name,
+        params,
+        ...(response === undefined ? {} : { response }),
+    };
+    return {
+        ...snapshot({ content: '', reasoning: '' }),
+        blocks: [
+            {
+                id: 'tool-block-1',
+                type: 'tool_call',
+                status,
+                timestamp: 9,
+                tool_call: toolCall,
+                extra: { toolCallArgsComplete: argsComplete },
+            },
+            ...(action
+                ? [
+                      {
+                          id: 'action-1',
+                          type: 'action',
+                          action_type: actionType,
+                          status: actionStatus,
+                          timestamp: 10,
+                          tool_call: toolCall,
+                          extra: {
+                              needsUserAction,
+                              permissionType,
+                              toolName: permissionToolName,
+                              serverName: permissionServerName,
+                              permissionRequest: JSON.stringify({
+                                  toolName: permissionToolName,
+                                  serverName: permissionServerName,
+                                  permissionType,
+                                  description: 'Permission required.',
+                                  paths: permissionPaths,
+                                  ...permissionRequestExtra,
+                              }),
+                          },
+                      },
+                  ]
+                : []),
+        ],
+    };
+}
+
 test('Bridge Projector emits monotonic text without exposing raw reasoning content', () => {
     const projector = createBridgeProjector({ sessionId: 'session-1' });
 
@@ -227,4 +293,257 @@ test('Bridge Projector accepts a queued send acknowledgement and binds identity 
     );
     projector.project('chat.stream.completed', terminal());
     projector.assertComplete();
+});
+
+test('Bridge Projector emits one redacted tool start and one correlated success', () => {
+    const projector = createBridgeProjector({ sessionId: 'session-1' });
+    assert.deepEqual(
+        projector.project(
+            'chat.stream.updated',
+            toolSnapshot({ status: 'loading' }),
+        ),
+        [
+            {
+                kind: 'tool_use',
+                toolCallId: 'tool-1',
+                name: 'read',
+                input: { path: 'README.md', apiKey: '<redacted>' },
+            },
+        ],
+    );
+    assert.deepEqual(
+        projector.project(
+            'chat.stream.updated',
+            toolSnapshot({ status: 'success', response: 'README canary' }),
+        ),
+        [
+            {
+                kind: 'tool_result',
+                toolCallId: 'tool-1',
+                status: 'success',
+                output: { content: 'README canary', truncated: false },
+                error: null,
+            },
+        ],
+    );
+    assert.deepEqual(
+        projector.project(
+            'chat.stream.updated',
+            toolSnapshot({ status: 'success', response: 'README canary' }),
+        ),
+        [],
+    );
+});
+
+test('Bridge Projector exposes one owned pending permission interaction and waits for its terminal snapshot', () => {
+    const projector = createBridgeProjector({ sessionId: 'session-1' });
+    assert.deepEqual(
+        projector.project(
+            'chat.stream.updated',
+            toolSnapshot({
+                status: 'success',
+                response: '',
+                action: true,
+                argsComplete: true,
+                permissionRequestExtra: { rememberable: true },
+            }),
+        ),
+        [
+            {
+                kind: 'tool_use',
+                toolCallId: 'tool-1',
+                name: 'read',
+                input: { path: 'README.md', apiKey: '<redacted>' },
+            },
+            {
+                kind: 'tool_interaction',
+                sessionId: 'session-1',
+                messageId: 'message-1',
+                toolCallId: 'tool-1',
+                actionType: 'tool_call_permission',
+                tool: {
+                    name: 'read',
+                    input: { path: 'README.md', apiKey: '<redacted>' },
+                },
+                permission: {
+                    toolName: 'read',
+                    serverName: 'agent-filesystem',
+                    permissionType: 'read',
+                    paths: ['/project/README.md'],
+                },
+            },
+        ],
+    );
+    assert.deepEqual(
+        projector.project(
+            'chat.stream.updated',
+            toolSnapshot({
+                status: 'error',
+                response: 'User denied the request.',
+                action: true,
+                actionStatus: 'denied',
+                needsUserAction: false,
+            }),
+        ),
+        [
+            {
+                kind: 'tool_result',
+                toolCallId: 'tool-1',
+                status: 'failed',
+                output: null,
+                error: {
+                    code: 'PERMISSION_DENIED',
+                    message: 'The tool request was denied by the headless permission policy.',
+                },
+            },
+        ],
+    );
+});
+
+test('Bridge Projector bounds tool output and fails closed on malformed tool state', () => {
+    const projector = createBridgeProjector({ sessionId: 'session-1' });
+    projector.project(
+        'chat.stream.updated',
+        toolSnapshot({ status: 'loading' }),
+    );
+    const [result] = projector.project(
+        'chat.stream.updated',
+        toolSnapshot({ status: 'success', response: '界'.repeat(8_000) }),
+    );
+    assert.equal(result.kind, 'tool_result');
+    assert.equal(result.output.truncated, true);
+    assert.ok(
+        Buffer.byteLength(result.output.content, 'utf8') <= 16 * 1_024,
+    );
+
+    const escapedProjector = createBridgeProjector({ sessionId: 'session-1' });
+    escapedProjector.project(
+        'chat.stream.updated',
+        toolSnapshot({ status: 'loading' }),
+    );
+    const [escaped] = escapedProjector.project(
+        'chat.stream.updated',
+        toolSnapshot({
+            status: 'success',
+            response: '"\\'.repeat(12_000),
+        }),
+    );
+    assert.equal(escaped.output.truncated, true);
+    assert.ok(
+        Buffer.byteLength(
+            JSON.stringify(escaped.output.content),
+            'utf8',
+        ) <=
+            16 * 1_024,
+    );
+
+    const privateProjector = createBridgeProjector({ sessionId: 'session-1' });
+    privateProjector.project(
+        'chat.stream.updated',
+        toolSnapshot({ status: 'loading' }),
+    );
+    const [privateResult] = privateProjector.project(
+        'chat.stream.updated',
+        toolSnapshot({
+            status: 'success',
+            response: {
+                content: 'safe',
+                provider: { id: 'private-provider' },
+                nested: {
+                    serverName: 'private-server',
+                    rtk: 'private-rtk',
+                    image: 'private-image',
+                    action: 'private-action',
+                    password: 'private-password',
+                    visible: true,
+                },
+            },
+        }),
+    );
+    assert.deepEqual(privateResult.output, {
+        content: {
+            content: 'safe',
+            nested: {
+                password: '<redacted>',
+                visible: true,
+            },
+        },
+        truncated: false,
+    });
+
+    for (const invalid of [
+        toolSnapshot({ status: 'cancelled', response: 'cancelled' }),
+        toolSnapshot({ action: true, actionType: 'unknown_action' }),
+        toolSnapshot({ action: true, permissionType: 'write' }),
+        toolSnapshot({ action: true, permissionToolName: 'edit' }),
+        toolSnapshot({
+            action: true,
+            permissionRequestExtra: { command: 'cat README.md' },
+        }),
+        toolSnapshot({
+            action: true,
+            permissionRequestExtra: { unexpected: true },
+        }),
+        {
+            ...toolSnapshot(),
+            blocks: [
+                {
+                    ...toolSnapshot().blocks[0],
+                    tool_call: {
+                        ...toolSnapshot().blocks[0].tool_call,
+                        params: { value: 'x'.repeat(9_000) },
+                    },
+                },
+            ],
+        },
+    ]) {
+        const isolated = createBridgeProjector({ sessionId: 'session-1' });
+        assert.throws(
+            () => isolated.project('chat.stream.updated', invalid),
+            /invalid stream event/,
+        );
+    }
+});
+
+test('Bridge Projector waits for streamed tool params and publishes the final parsed input', () => {
+    const projector = createBridgeProjector({ sessionId: 'session-1' });
+    assert.deepEqual(
+        projector.project(
+            'chat.stream.updated',
+            toolSnapshot({ params: '' }),
+        ),
+        [],
+    );
+    assert.deepEqual(
+        projector.project(
+            'chat.stream.updated',
+            toolSnapshot({ params: '{"path":"README' }),
+        ),
+        [],
+    );
+    assert.deepEqual(
+        projector.project(
+            'chat.stream.updated',
+            toolSnapshot({
+                status: 'success',
+                params: '{"path":"README.md"}',
+                response: 'canary',
+            }),
+        ),
+        [
+            {
+                kind: 'tool_use',
+                toolCallId: 'tool-1',
+                name: 'read',
+                input: { path: 'README.md' },
+            },
+            {
+                kind: 'tool_result',
+                toolCallId: 'tool-1',
+                status: 'success',
+                output: { content: 'canary', truncated: false },
+                error: null,
+            },
+        ],
+    );
 });

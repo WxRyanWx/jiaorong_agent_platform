@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process';
 export function runProcess(
     binary,
     args,
-    { cwd, env, stdin = '', timeoutMs = 5_000 } = {},
+    { cwd, env, stdin = '', timeoutMs = 5_000, signals = [] } = {},
 ) {
     return new Promise((resolve, reject) => {
         const startedAt = Date.now();
@@ -16,13 +16,27 @@ export function runProcess(
         });
         const stdout = [];
         const stderr = [];
+        const pendingSignals = signals.map((entry) => ({
+            signal: entry.signal,
+            afterStdout: entry.afterStdout,
+            delayMs: entry.delayMs ?? 0,
+            sent: false,
+        }));
         let timedOut = false;
         const timer = setTimeout(() => {
             timedOut = true;
             child.kill('SIGKILL');
         }, timeoutMs);
 
-        child.stdout.on('data', (chunk) => stdout.push(chunk));
+        child.stdout.on('data', (chunk) => {
+            stdout.push(chunk);
+            const text = Buffer.concat(stdout).toString('utf8');
+            for (const entry of pendingSignals) {
+                if (entry.sent || !text.includes(entry.afterStdout)) continue;
+                entry.sent = true;
+                setTimeout(() => child.kill(entry.signal), entry.delayMs);
+            }
+        });
         child.stderr.on('data', (chunk) => stderr.push(chunk));
         child.stdin.on('error', (error) => {
             if (error.code !== 'EPIPE') {

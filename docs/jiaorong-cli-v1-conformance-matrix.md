@@ -210,15 +210,15 @@ jiaorong-cli-conformance --binary /path/to/jiaorong-cli --protocol 1
 | PER-002 | L2 | default + 权限交互 | 通过真实 response bridge 拒绝；无副作用 |
 | PER-003 | L2 | default + 需审批动作 | 不等待 stdin；结构化拒绝 |
 | PER-004 | L2 | full_access + Edit | 文件副作用正确 |
-| PER-005 | L2 | full_access + Shell | 在 Project Root 中允许并正确投影结果 |
-| PER-006 | L2 | full_access + 四类工具 | 允许，但仍受路径边界 |
+| PER-005 | L2 | JiaorongAI 0.5.6 Shell 禁用 | default/full_access 均不产生 Shell tool_use/result 或副作用；确定性 fixture 使用 `SHELL_DISABLED` 作为测试标记，真实模型正文不做逐字断言 |
+| PER-006 | L2 | full_access + 三类文件工具 | Read/Search/Edit 允许，但仍受路径边界；Shell 不出现 |
 | PER-007 | L2 | 未知 permission mode | INVALID_ARGUMENT；exit 42 |
 | TOL-001 | L2 | Read | tool_use/result；正文与 canary 正确 |
 | TOL-002 | L2 | Search | 路径/正文检索结果确定 |
 | TOL-003 | L2 | Edit create/update/delete | 实际文件结果正确；事件可关联 |
-| TOL-004 | L2 | Shell success | cwd 正确；stdout/stderr/exit 被正确总结 |
-| TOL-005 | L2 | Shell timeout | 子进程结束；TIMEOUT/TOOL_FAILED 明确 |
-| TOL-006 | L2 | Shell argv 注入 canary | prompt 不能触发额外 shell 语句 |
+| TOL-004 | Deferred | Shell success | 首版禁用；未来安全 backend 恢复 Shell 后重新启用 |
+| TOL-005 | Deferred | Shell timeout | 首版禁用；未来安全 backend 恢复 Shell 后重新启用 |
+| TOL-006 | Deferred | Shell argv 注入 canary | 首版禁用；未来安全 backend 恢复 Shell 后重新启用 |
 | TOL-007 | L2 | 大 tool output | 按公布上限截断并标记，不破坏 JSONL |
 
 ### 4.7 路径与 Attachment
@@ -247,14 +247,14 @@ jiaorong-cli-conformance --binary /path/to/jiaorong-cli --protocol 1
 | ID | 层级 | 场景 | 必须断言 |
 |---|---|---|---|
 | CAN-001 | L2 | 模型流期间 SIGINT | 停止模型；cancelled result；exit 130 |
-| CAN-002 | L2 | Shell 期间 SIGINT | 子进程清理；tool cancelled；result cancelled |
+| CAN-002 | L2 | 活动文件工具期间 SIGINT | tool cancelled；result cancelled；首版不启用 Shell |
 | CAN-003 | L2 | Edit 前 SIGINT | 不产生编辑副作用 |
 | CAN-004 | L2 | Edit 后 SIGINT | 不伪装回滚；事件反映已发生副作用 |
 | CAN-005 | L2 | 连续多个 SIGINT | 最多一个 result；进程不挂起 |
 | CAN-006 | L2 | CLI 不在宽限期退出 | 调用方强杀；标记 protocol failure，不假报 cancelled |
 | TIM-001 | L2 | `--timeout` | TIMEOUT；exit 1；清理工具 |
 | TIM-002 | L2 | timeout 与 SIGINT 竞争 | 只有一个确定终止原因和 result |
-| TUR-001 | L2 | 达到 max turns | TURN_LIMIT；exit 53 |
+| TUR-001 | L2 | backend 报告的 turns 超过 max turns | TURN_LIMIT；exit 53 |
 | TUR-002 | L2 | 未达到 max turns | 不提前失败 |
 
 ### 4.9 错误和兼容性

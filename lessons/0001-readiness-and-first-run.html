@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>第 1 课：就绪与第一条任务</title><link rel="icon" href="data:,"><link rel="stylesheet" href="../assets/course.css"></head>
+<body><main>
+  <header><p class="kicker">Lesson 1 · 约 10 分钟</p><h1>确认你连接的是正确的 JiaorongAI</h1><p>先建立可靠反馈回路，再运行第一条真实文本任务。</p></header>
+  <div class="outcome"><strong>本课成果：</strong>你能确认 CLI、App、endpoint 和模型，并得到一个带 Session ID 的成功 JSON。</div>
+  <h2>1. 四步 readiness</h2>
+  <pre><code>command -v jiaorong-cli
+jiaorong-cli --version
+jiaorong-cli doctor --output-format json
+jiaorong-cli models list --output-format json</code></pre>
+  <p>要求：版本为 0.1.0；Doctor 的 <code>ok=true</code>；App 为 0.5.6；endpoint 是 loopback；至少一个模型 <code>available=true</code>。<code>authentication: warn</code> 是预期状态，真正运行时才验证 Provider。</p>
+  <h2>2. 第一条任务</h2>
+  <pre><code>cd '/absolute/project-root'
+jiaorong-cli \
+  -p '只输出 FIRST_RUN_OK，不要解释，不要调用工具。' \
+  --model jiaorong/jiaorong-deepseek-v4-pro \
+  --output-format json \
+  --timeout 60</code></pre>
+  <p>保存返回的 <code>sessionId</code>。成功条件不是“看到了回答”，而是 exit 0、<code>status=success</code>、<code>error=null</code> 和非空 Session ID 同时成立。</p>
+  <section class="exercise"><h2>练习</h2><ol><li>运行四步 readiness。</li><li>把模型 ID 换成目录里当前 available 的准确 ID。</li><li>执行 canary，并把 exit、status、content、sessionId 四项抄下来。</li></ol></section>
+  <details><summary>自测：Doctor 的 authentication warn 是否表示登录失败？</summary><p>不是。0.5.6 没有只读凭据有效性信号，实际 run 才会检查 Provider。</p></details>
+  <p><strong>权威来源：</strong><a href="../README.md">README</a>、<a href="../docs/jiaorong-cli-v1-protocol.md#11-doctor">Protocol Doctor</a></p>
+  <nav><a href="../reference/jiaorong-cli-quick-reference.html">速查表</a><a href="0002-output-and-sessions.html">下一课：输出与 Session →</a></nav>
+</main></body></html>

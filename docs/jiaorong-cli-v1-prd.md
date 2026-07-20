@@ -101,7 +101,7 @@ jiaorong-cli --version
 
 - 默认 endpoint 为 `127.0.0.1:9238`，禁止非 loopback 地址。
 - 连接前校验 listener owner、可执行文件、CDP metadata、renderer target、应用版本、bridge methods、routes 和 events。
-- 仅支持 JiaorongAI 0.5.6；其他版本 fail closed。
+- 仅支持 JiaorongAI 0.5.6 且 `app.asar` SHA-256 为 `46c10c761eb3c70f461061cbd80ad1c0cc2796aea29574e73cd85d445f1b22aa` 的已验证构建；其他版本或构建 fail closed。
 - 所有 HTTP、WebSocket、target、payload、event buffer、polling 和 evaluation 都有明确上限。
 - 已运行但无 CDP 的应用由用户决定如何处理；CLI 只给指令，不抢占生命周期。
 
@@ -125,13 +125,18 @@ jiaorong-cli --version
 
 - `default` 不允许 headless run 等待人工输入；交互请求通过真实 bridge 明确拒绝并投影为失败工具结果。
 - `full_access` 必须由调用者显式选择，仍受 Project Root、Additional Directory、超时和操作系统权限约束。
+- App Backend 每次发送前和已验证终态后清除固定 0.5.6 构建的 Session 授权缓存；非 idle Session 或重置失败不得发送。首版禁用 Shell 与后台进程，同一 Agent Session 不支持桌面端与 CLI 并发运行。
 
 ### 5.5 取消
 
 - SIGINT 和 timeout 共用 stop-and-settle 状态机。
 - CLI 调用真实 `chat.stopStream` 后等待原始运行到达终止状态。
 - 仅收到 stop acknowledgement 不构成取消完成证据。
+- 第一次 SIGINT 后调用方给予 30 秒宽限期；第二次 SIGINT 可立即强制终止，且不得伪装为已确认取消。
+- 对固定 JiaorongAI 0.5.6，若 AbortError 分支缺失 stream terminal，只有公开 `sessions.restore` 同时证明 Session idle 和结构化 user-cancelled assistant error 才构成 settlement。
 - SIGINT 完成时输出 `cancelled` Terminal Result 并以 130 退出；timeout 使用 `TIMEOUT`。
+
+`--max-turns` 只接受正整数。JiaorongAI 0.5.6 App Backend 的一次 `chat.sendMessage` 是一个 Headless Run turn，因此首版正常 App run 的 turn 数固定为 1；限制为 1 或更高不会提前终止。该参数不控制或中断 JiaorongAI 内部的 tool-loop steps，因为 0.5.6 bridge 未公开这种控制能力。通用 CLI/backend seam 仍在 backend 报告 turns 超限时返回 `TURN_LIMIT`、exit 53，确定性 fixture 用两 turn 验证该合同；此 fixture 不是 App Backend 多 turn 执行能力的证据。
 
 ### 5.6 输出与隐私
 

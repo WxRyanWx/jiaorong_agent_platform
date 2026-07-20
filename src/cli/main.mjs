@@ -7,12 +7,16 @@ export function runMain({
     stdout = process.stdout,
     stderr = process.stderr,
     runtimeOptions,
+    backendOptions,
 } = {}) {
     return runCli({
         argv,
         stdin,
         stdout,
         stderr,
-        backend: createJiaorongAppBackend({ runtimeOptions }),
+        backend: createJiaorongAppBackend({
+            ...backendOptions,
+            runtimeOptions,
+        }),
     });
 }

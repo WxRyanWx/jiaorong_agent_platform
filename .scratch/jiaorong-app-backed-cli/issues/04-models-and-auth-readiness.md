@@ -4,7 +4,9 @@
 
 **Blocked by:** 03 — Run a real single turn in every output mode.
 
-**Status:** resolved
+**Status:** ready-for-agent
+
+**Resolution:** completed
 
 - [x] `models list` returns Schema-valid text and JSON model catalogs from enabled JiaorongAI providers.
 - [x] The selected Model ID maps to an exact provider/model pair before the run starts.

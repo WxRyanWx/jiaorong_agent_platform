@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Jiaorong CLI v1 速查表</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="../assets/course.css">
+</head>
+<body><main>
+  <header><p class="kicker">Reference · v0.1.0</p><h1>Jiaorong CLI 速查表</h1><p>只列首版已验收口径。图片识别和 Shell 不在其中。</p></header>
+  <h2>启动顺序</h2>
+  <pre><code>command -v jiaorong-cli
+jiaorong-cli --version
+jiaorong-cli doctor --output-format json
+jiaorong-cli models list --output-format json</code></pre>
+  <h2>功能</h2>
+  <table><thead><tr><th>目的</th><th>参数</th><th>关键点</th></tr></thead><tbody>
+    <tr><td>人读正文</td><td><code>--output-format text</code></td><td>stdout 只有成功正文</td></tr>
+    <tr><td>脚本终态</td><td><code>--output-format json</code></td><td>一个 JSON；同时检查 exit 和 status</td></tr>
+    <tr><td>实时事件</td><td><code>--output-format stream-json</code></td><td>init 第一、result 最后且各一次</td></tr>
+    <tr><td>继续会话</td><td><code>--resume SESSION_ID</code></td><td>同一 Session 不并发</td></tr>
+    <tr><td>文本附件</td><td><code>--file PATH</code></td><td>重复传入；首版不依赖图片</td></tr>
+    <tr><td>外部目录</td><td><code>--add-dir ABS_PATH</code></td><td>不扩大 Project Root 的其他边界</td></tr>
+    <tr><td>文件操作</td><td><code>--permission-mode full_access</code></td><td>仍只在授权根内；无 Shell</td></tr>
+    <tr><td>超时</td><td><code>--timeout SECONDS</code></td><td>走真实远端取消并等待落定</td></tr>
+  </tbody></table>
+  <h2>可靠成功条件</h2>
+  <pre><code>exit = 0
+result.status = success
+result.error = null
+result.sessionId 非空</code></pre>
+  <h2>退出码</h2>
+  <table><tbody>
+    <tr><th>0</th><td>success</td></tr><tr><th>1</th><td>model/tool/timeout/internal</td></tr>
+    <tr><th>42</th><td>input/argument/attachment/protocol</td></tr><tr><th>53</th><td>turn limit</td></tr><tr><th>130</th><td>SIGINT cancellation path</td></tr>
+  </tbody></table>
+  <p class="warning">不要：从 Home 或 / 运行文件任务；猜模型 ID；把 stderr 混进 JSONL；把 full_access 当成全盘权限；依赖图片或 Shell。</p>
+  <nav><a href="../lessons/0001-readiness-and-first-run.html">从第 1 课开始</a><a href="../docs/jiaorong-cli-v1-user-guide.md">完整手册</a></nav>
+</main></body></html>

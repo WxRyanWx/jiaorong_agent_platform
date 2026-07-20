@@ -10,7 +10,12 @@ const INVOKE_ROUTES = new Set([
     'sessions.getAgents',
     'sessions.create',
     'sessions.restore',
+    'sessions.setProjectDir',
+    'sessions.getPermissionMode',
+    'sessions.setPermissionMode',
+    'sessions.getDisabledAgentTools',
     'providers.testConnection',
+    'chat.respondToolInteraction',
 ]);
 const MAX_BUFFERED_EVENTS = 128;
 const MAX_EVENT_BYTES = 32 * 1_024;
@@ -28,7 +33,12 @@ function expressionValue(response) {
     return response.result.value;
 }
 
-async function evaluate(client, expression, timeoutMs) {
+async function evaluate(
+    client,
+    expression,
+    timeoutMs,
+    { requestTimeoutMs = timeoutMs + 250 } = {},
+) {
     const response = await client.request(
         'Runtime.evaluate',
         {
@@ -37,7 +47,7 @@ async function evaluate(client, expression, timeoutMs) {
             returnByValue: true,
             timeout: timeoutMs,
         },
-        { timeoutMs: timeoutMs + 250 },
+        { timeoutMs: requestTimeoutMs },
     );
     return expressionValue(response);
 }
@@ -178,6 +188,7 @@ export async function discardBridgeAttachments(
 function startExpression(
     token,
     sessionId,
+    projectRoot,
     prompt,
     attachmentToken,
     rendererDeadlineMs,
@@ -213,8 +224,12 @@ function startExpression(
     terminalCount: 0,
     identities: [],
     send: { status: 'pending' },
+    permissionResetAttempted: false,
+    preexistingMessageIds: [],
+    sendStartedAt: null,
     unsubscriptions: [],
     deadlineTimer: undefined,
+    aborted: false,
     cleaned: false,
     cleanup: undefined
   };
@@ -263,6 +278,9 @@ function startExpression(
     }
     state.events.push({ name, payload });
   };
+  const assertActive = () => {
+    if (state.aborted || state.cleaned) throw new Error('run deadline exceeded');
+  };
   try {
     const promptBytes = Uint8Array.from(
       atob(${JSON.stringify(promptBase64)}),
@@ -277,20 +295,96 @@ function startExpression(
       if (!Array.isArray(files)) throw new Error('prepared attachments unavailable');
       delete attachmentStore[attachmentToken];
     }
-    for (const name of ${JSON.stringify(RUN_EVENTS)}) {
-      const unsubscribe = bridge.on(name, (payload) => enqueue(name, payload));
-      if (typeof unsubscribe !== 'function') throw new Error('subscription cleanup unavailable');
-      state.unsubscriptions.push(unsubscribe);
-    }
-    state.deadlineTimer = setTimeout(() => state.cleanup(), ${JSON.stringify(rendererDeadlineMs)});
+    state.deadlineTimer = setTimeout(() => {
+      state.aborted = true;
+      const permissionResetAttempted = state.permissionResetAttempted;
+      state.cleanup();
+      if (permissionResetAttempted) {
+        Promise.resolve()
+          .then(() => bridge.invoke('chat.stopStream', { sessionId }))
+          .catch(() => undefined);
+      }
+    }, ${JSON.stringify(rendererDeadlineMs)});
     Promise.resolve()
-      .then(() => bridge.invoke('chat.sendMessage', {
-        sessionId: ${JSON.stringify(sessionId)},
-        content: files.length === 0 ? prompt : { text: prompt, files }
-      }))
+      .then(async () => {
+        const disabled = await bridge.invoke('sessions.getDisabledAgentTools', {
+          sessionId
+        });
+        assertActive();
+        if (!disabled || !Array.isArray(disabled.disabledAgentTools) ||
+            !['exec', 'process'].every((name) => disabled.disabledAgentTools.includes(name))) {
+          throw new Error('unsafe agent tool configuration');
+        }
+        const restored = await bridge.invoke('sessions.restore', { sessionId });
+        assertActive();
+        if (!restored || !restored.session || restored.session.id !== sessionId ||
+            typeof restored.session.status !== 'string' || !Array.isArray(restored.messages) ||
+            !restored.messages.every((message) => message && typeof message.id === 'string')) {
+          throw new Error('invalid session status');
+        }
+        if (restored.session.status !== 'idle') {
+          throw new Error('session is not idle');
+        }
+        state.permissionResetAttempted = true;
+        const reset = await bridge.invoke('chat.stopStream', { sessionId });
+        assertActive();
+        if (!reset || reset.stopped !== true) {
+          throw new Error('permission cache reset failed');
+        }
+        const project = await bridge.invoke('sessions.setProjectDir', {
+          sessionId,
+          projectDir: ${JSON.stringify(projectRoot)}
+        });
+        assertActive();
+        if (!project || !project.session || project.session.id !== sessionId ||
+            project.session.projectDir !== ${JSON.stringify(projectRoot)}) {
+          throw new Error('invalid project configuration');
+        }
+        const permission = await bridge.invoke('sessions.setPermissionMode', {
+          sessionId,
+          mode: 'default'
+        });
+        assertActive();
+        if (!permission || permission.updated !== true) {
+          throw new Error('invalid permission configuration');
+        }
+        const permissionReadback = await bridge.invoke('sessions.getPermissionMode', {
+          sessionId
+        });
+        assertActive();
+        if (!permissionReadback || permissionReadback.mode !== 'default') {
+          throw new Error('invalid permission configuration');
+        }
+        assertActive();
+        for (const name of ${JSON.stringify(RUN_EVENTS)}) {
+          const unsubscribe = bridge.on(name, (payload) => enqueue(name, payload));
+          if (typeof unsubscribe !== 'function') throw new Error('subscription cleanup unavailable');
+          state.unsubscriptions.push(unsubscribe);
+        }
+        assertActive();
+        state.preexistingMessageIds = restored.messages.map((message) => message.id);
+        state.sendStartedAt = Date.now();
+        state.send = { status: 'invoking' };
+        return bridge.invoke('chat.sendMessage', {
+          sessionId,
+          content: files.length === 0 ? prompt : { text: prompt, files }
+        });
+      })
       .then(
         (value) => { state.send = { status: 'fulfilled', value }; },
-        () => { state.send = { status: 'rejected' }; }
+        (error) => {
+          state.send = {
+            status: 'rejected',
+            reason: error && error.message === 'session is not idle'
+              ? 'session_busy'
+              : error && (error.message === 'invalid project configuration' ||
+                           error.message === 'invalid permission configuration' ||
+                           error.message === 'unsafe agent tool configuration' ||
+                           error.message === 'permission cache reset failed')
+                ? 'preflight'
+                : 'internal'
+          };
+        }
       );
     return { started: true };
   } catch (error) {
@@ -320,17 +414,121 @@ function pollExpression(token) {
 `;
 }
 
-function cleanupExpression(token) {
+function cleanupExpression(token, sessionId) {
     return `
-(() => {
+(async () => {
+  const bridge = window.deepchat;
+  if (!bridge || typeof bridge.invoke !== 'function') throw new Error('bridge unavailable');
   const store = window.__JIAORONG_CLI_RUNS_V1__;
   const state = store && store[${JSON.stringify(token)}];
-  if (!state) return { cleaned: false, cleanupError: false };
+  if (!state) return { cleaned: false, cleanupError: false, permissionReset: false };
   const terminalCount = state.terminalCount;
   const remaining = state.events.length;
   const overflow = state.overflow;
   const cleanupError = state.cleanup();
-  return { cleaned: true, cleanupError, terminalCount, remaining, overflow };
+  let permissionReset = !state.permissionResetAttempted;
+  if (state.permissionResetAttempted) {
+    try {
+      const reset = await bridge.invoke('chat.stopStream', {
+        sessionId: ${JSON.stringify(sessionId)}
+      });
+      permissionReset = Boolean(reset && reset.stopped === true);
+    } catch {}
+  }
+  return { cleaned: true, cleanupError, permissionReset, terminalCount, remaining, overflow };
+})()
+`;
+}
+
+function cancelExpression(token, sessionId, requestId) {
+    return `
+(async () => {
+  const bridge = window.deepchat;
+  if (!bridge || typeof bridge.invoke !== 'function') throw new Error('bridge unavailable');
+  const store = window.__JIAORONG_CLI_RUNS_V1__;
+  const state = store && store[${JSON.stringify(token)}];
+  if (!state || state.cleaned || state.aborted) {
+    return { requested: false, unavailable: true };
+  }
+  if (state.cancellationRequested === true) {
+    return { requested: true, requestId: ${JSON.stringify(requestId)} };
+  }
+  state.cancellationRequested = true;
+  const input = { sessionId: ${JSON.stringify(sessionId)} };
+  if (${JSON.stringify(requestId)} !== null) {
+    input.requestId = ${JSON.stringify(requestId)};
+  }
+  const stopped = await bridge.invoke('chat.stopStream', input);
+  return {
+    requested: Boolean(stopped && stopped.stopped === true),
+    requestId: ${JSON.stringify(requestId)}
+  };
+})()
+`;
+}
+
+function interactionResponseExpression(token, interaction, granted) {
+    return `
+(async () => {
+  const bridge = window.deepchat;
+  if (!bridge || typeof bridge.invoke !== 'function') throw new Error('bridge unavailable');
+  const state = window.__JIAORONG_CLI_RUNS_V1__?.[${JSON.stringify(token)}];
+  if (!state || state.cleaned || state.aborted || state.cancellationRequested === true) {
+    return { responded: false, cancelled: true };
+  }
+  const response = await bridge.invoke('chat.respondToolInteraction', {
+    sessionId: ${JSON.stringify(interaction.sessionId)},
+    messageId: ${JSON.stringify(interaction.messageId)},
+    toolCallId: ${JSON.stringify(interaction.toolCallId)},
+    response: { kind: 'permission', granted: ${JSON.stringify(granted)} }
+  });
+  return { responded: true, cancelled: false, response };
+})()
+`;
+}
+
+function cancellationSettlementExpression(token, sessionId) {
+    return `
+(async () => {
+  const bridge = window.deepchat;
+  if (!bridge || typeof bridge.invoke !== 'function') throw new Error('bridge unavailable');
+  const state = window.__JIAORONG_CLI_RUNS_V1__?.[${JSON.stringify(token)}];
+  if (!state || !Array.isArray(state.preexistingMessageIds) ||
+      typeof state.sendStartedAt !== 'number') throw new Error('missing run identity state');
+  const restored = await bridge.invoke('sessions.restore', {
+    sessionId: ${JSON.stringify(sessionId)},
+    limit: 10
+  });
+  if (!restored || !restored.session || restored.session.id !== ${JSON.stringify(sessionId)} ||
+      typeof restored.session.status !== 'string' || !Array.isArray(restored.messages)) {
+    throw new Error('invalid cancellation settlement');
+  }
+  if (restored.session.status !== 'idle') return { settled: false };
+  const latestUserOrderSeq = restored.messages.reduce((latest, message) =>
+    message && message.role === 'user' && Number.isInteger(message.orderSeq)
+      ? Math.max(latest, message.orderSeq)
+      : latest,
+    -1
+  );
+  for (let index = restored.messages.length - 1; index >= 0; index -= 1) {
+    const message = restored.messages[index];
+    if (!message || message.role !== 'assistant' || message.status !== 'error' ||
+        typeof message.id !== 'string' || message.id.length === 0 ||
+        typeof message.content !== 'string' || !Number.isInteger(message.orderSeq) ||
+        !Number.isInteger(message.updatedAt) ||
+        state.preexistingMessageIds.includes(message.id) ||
+        message.updatedAt < state.sendStartedAt ||
+        message.orderSeq <= latestUserOrderSeq) continue;
+    let blocks;
+    try { blocks = JSON.parse(message.content); } catch { continue; }
+    if (!Array.isArray(blocks)) continue;
+    const cancelled = blocks.some((block) =>
+      block && block.type === 'error' && block.status === 'error' &&
+      block.content === 'common.error.userCanceledGeneration'
+    );
+    if (cancelled) return { settled: true, messageId: message.id };
+  }
+  return { settled: false };
 })()
 `;
 }
@@ -361,7 +559,23 @@ function validPoll(document) {
         document.terminalCount >= 0 &&
         document.send !== null &&
         typeof document.send === 'object' &&
-        ['pending', 'fulfilled', 'rejected'].includes(document.send.status)
+        ['pending', 'invoking', 'fulfilled', 'rejected'].includes(document.send.status) &&
+        (document.send.status === 'rejected'
+            ? ['internal', 'preflight', 'session_busy'].includes(document.send.reason)
+            : document.send.reason === undefined)
+    );
+}
+
+function validInteractionResponse(document) {
+    return (
+        document !== null &&
+        typeof document === 'object' &&
+        document.accepted === true &&
+        ['resumed', 'waitingForUserMessage', 'handledInline'].every(
+            (key) =>
+                document[key] === undefined ||
+                typeof document[key] === 'boolean',
+        )
     );
 }
 
@@ -373,25 +587,84 @@ export async function* runBridgeTurn(
     client,
     {
         sessionId,
+        projectRoot,
         prompt,
         attachmentToken = null,
+        handleInteraction,
         invokeTimeoutMs = 10_000,
         runTimeoutMs,
+        cancellationGraceMs = 30_000,
+        signal,
     },
 ) {
     const token = crypto.randomUUID();
     const projector = createBridgeProjector({ sessionId });
     let sendBound = false;
     let terminalFailureObserved = false;
+    let persistedCancellationObserved = false;
+    let preflightRejected = false;
     let started = false;
     let runSucceeded = false;
-    const deadline = Date.now() + runTimeoutMs;
+    let terminationFailure = null;
+    let cancellationRequested = false;
+    let cancellationPromise = null;
+    let interactionInProgress = false;
+    let nextCancellationSettlementCheck = 0;
+    let deadline = Date.now() + runTimeoutMs;
+    const observeTermination = () => {
+        if (!signal?.aborted || terminationFailure !== null) return;
+        terminationFailure =
+            signal.reason instanceof BackendFailure
+                ? signal.reason
+                : new BackendFailure(
+                      signal.reason?.code ?? 'CANCELLED',
+                      signal.reason?.message ?? 'The run was cancelled.',
+                      signal.reason?.exitCode ?? 130,
+                  );
+        deadline = Math.min(deadline, Date.now() + cancellationGraceMs);
+    };
+    const currentInvokeTimeout = () => {
+        if (terminationFailure === null) return invokeTimeoutMs;
+        return Math.max(1, Math.min(invokeTimeoutMs, deadline - Date.now()));
+    };
+    const evaluateCurrent = (expression) => {
+        const timeoutMs = currentInvokeTimeout();
+        return evaluate(client, expression, timeoutMs, {
+            requestTimeoutMs:
+                terminationFailure === null ? timeoutMs + 250 : timeoutMs,
+        });
+    };
+    const requestCancellation = () => {
+        if (cancellationRequested) return Promise.resolve();
+        if (cancellationPromise !== null) return cancellationPromise;
+        const identity = projector.currentIdentity();
+        cancellationPromise = evaluateCurrent(
+            cancelExpression(token, sessionId, identity.requestId),
+        ).then((cancellation) => {
+            if (
+                cancellation?.requested !== true ||
+                cancellation.requestId !== identity.requestId
+            )
+                throw bridgeFailure(
+                    'The JiaorongAI run cancellation could not be verified.',
+                );
+            cancellationRequested = true;
+        });
+        return cancellationPromise;
+    };
+    const handleAbort = () => {
+        observeTermination();
+        if (started && interactionInProgress)
+            void requestCancellation().catch(() => undefined);
+    };
+    signal?.addEventListener('abort', handleAbort);
     try {
         const start = await evaluate(
             client,
             startExpression(
                 token,
                 sessionId,
+                projectRoot,
                 prompt,
                 attachmentToken,
                 runTimeoutMs,
@@ -412,11 +685,9 @@ export async function* runBridgeTurn(
         started = true;
 
         while (Date.now() <= deadline) {
-            const document = await evaluate(
-                client,
-                pollExpression(token),
-                invokeTimeoutMs,
-            );
+            observeTermination();
+            const document = await evaluateCurrent(pollExpression(token));
+            observeTermination();
             if (!validPoll(document) || document.overflow)
                 throw bridgeFailure(
                     'JiaorongAI returned an invalid stream event.',
@@ -426,11 +697,77 @@ export async function* runBridgeTurn(
                     'JiaorongAI returned an invalid stream event.',
                 );
 
-            if (document.send.status === 'rejected')
+            if (
+                document.send.status === 'rejected' &&
+                document.send.reason === 'session_busy'
+            ) {
+                preflightRejected = true;
+                throw new BackendFailure(
+                    'INVALID_ARGUMENT',
+                    'The JiaorongAI Session is not idle.',
+                    42,
+                );
+            }
+            if (
+                document.send.status === 'rejected' &&
+                document.send.reason === 'preflight'
+            ) {
+                preflightRejected = true;
+                throw bridgeFailure(
+                    'JiaorongAI rejected the Headless Run safety configuration.',
+                );
+            }
+            if (
+                document.send.status === 'rejected' &&
+                terminationFailure === null
+            )
                 throw bridgeFailure('JiaorongAI rejected the Agent Session run.');
             if (document.send.status === 'fulfilled' && !sendBound) {
                 projector.bindSendResult(document.send.value);
                 sendBound = true;
+            }
+            if (
+                terminationFailure !== null &&
+                (document.send.status === 'invoking' || sendBound) &&
+                !cancellationRequested
+            ) {
+                const identity = projector.currentIdentity();
+                await requestCancellation();
+            }
+
+            if (
+                terminationFailure !== null &&
+                cancellationRequested &&
+                !terminalFailureObserved &&
+                Date.now() >= nextCancellationSettlementCheck
+            ) {
+                nextCancellationSettlementCheck = Date.now() + 100;
+                const settlement = await evaluateCurrent(
+                    cancellationSettlementExpression(token, sessionId),
+                );
+                if (
+                    settlement?.settled !== false &&
+                    !(
+                        settlement?.settled === true &&
+                        typeof settlement.messageId === 'string'
+                    )
+                )
+                    throw bridgeFailure(
+                        'The JiaorongAI run cancellation settlement was invalid.',
+                    );
+                if (settlement.settled === true) {
+                    const identity = projector.currentIdentity();
+                    if (
+                        identity.messageId !== null &&
+                        identity.messageId !== settlement.messageId
+                    )
+                        throw bridgeFailure(
+                            'The JiaorongAI run cancellation identity did not match.',
+                        );
+                    persistedCancellationObserved = true;
+                    terminalFailureObserved = true;
+                    throw terminationFailure;
+                }
             }
 
             for (const event of document.events) {
@@ -441,12 +778,72 @@ export async function* runBridgeTurn(
                         event?.payload,
                     );
                 } catch (error) {
-                    if (error?.remoteSettled === true)
+                    if (error?.remoteSettled === true) {
                         terminalFailureObserved = true;
+                        if (
+                            terminationFailure !== null &&
+                            cancellationRequested
+                        )
+                            throw terminationFailure;
+                    }
                     throw error;
                 }
                 for (const projected of projectedEvents) {
-                    yield projected;
+                    if (projected.kind === 'tool_interaction') {
+                        observeTermination();
+                        if (terminationFailure !== null) continue;
+                        if (typeof handleInteraction !== 'function')
+                            throw bridgeFailure(
+                                'JiaorongAI requested an unsupported tool interaction.',
+                            );
+                        interactionInProgress = true;
+                        let granted;
+                        try {
+                            granted = await handleInteraction(projected);
+                        } catch (error) {
+                            observeTermination();
+                            if (terminationFailure === null) throw error;
+                        } finally {
+                            interactionInProgress = false;
+                        }
+                        observeTermination();
+                        if (terminationFailure !== null) {
+                            await requestCancellation();
+                            continue;
+                        }
+                        if (typeof granted !== 'boolean')
+                            throw bridgeFailure(
+                                'JiaorongAI returned an invalid tool permission decision.',
+                            );
+                        const interactionResponse = await evaluateCurrent(
+                            interactionResponseExpression(
+                                token,
+                                projected,
+                                granted,
+                            ),
+                        );
+                        observeTermination();
+                        if (
+                            interactionResponse?.responded === false &&
+                            interactionResponse.cancelled === true &&
+                            terminationFailure !== null
+                        )
+                            continue;
+                        if (
+                            interactionResponse?.responded !== true ||
+                            interactionResponse.cancelled !== false ||
+                            !validInteractionResponse(
+                                interactionResponse.response,
+                            )
+                        )
+                            throw bridgeFailure(
+                                'JiaorongAI returned an invalid interaction response.',
+                            );
+                        if (terminationFailure !== null) continue;
+                        projector.acceptInteraction(projected.toolCallId);
+                    } else {
+                        yield projected;
+                    }
                 }
             }
 
@@ -463,26 +860,54 @@ export async function* runBridgeTurn(
             await delay(5);
         }
         throw bridgeFailure('The JiaorongAI Agent Session did not settle.');
+    } catch (error) {
+        for (const result of projector.failPending({
+            code:
+                typeof error?.code === 'string'
+                    ? error.code
+                    : 'INTERNAL_ERROR',
+        })) {
+            yield result;
+        }
+        throw error;
     } finally {
+        signal?.removeEventListener('abort', handleAbort);
         if (started) {
-            const cleanup = await evaluate(
-                client,
-                cleanupExpression(token),
-                invokeTimeoutMs,
+            const cleanup = await evaluateCurrent(
+                cleanupExpression(token, sessionId),
             );
             const cleanupValid =
                 cleanup?.cleaned === true &&
                 cleanup.cleanupError === false &&
+                cleanup.permissionReset === true &&
                 cleanup.terminalCount === 1 &&
+                cleanup.remaining === 0 &&
+                cleanup.overflow === false;
+            const persistedCleanupValid =
+                persistedCancellationObserved &&
+                cleanup?.cleaned === true &&
+                cleanup.cleanupError === false &&
+                cleanup.permissionReset === true &&
+                cleanup.terminalCount === 0 &&
                 cleanup.remaining === 0 &&
                 cleanup.overflow === false;
             const remotelySettled =
                 runSucceeded || terminalFailureObserved;
-            if (remotelySettled && cleanupValid) {
-                const release = await evaluate(
-                    client,
+            const preflightCleanupValid =
+                preflightRejected &&
+                cleanup?.cleaned === true &&
+                cleanup.cleanupError === false &&
+                cleanup.permissionReset === true &&
+                cleanup.terminalCount === 0 &&
+                cleanup.remaining === 0 &&
+                cleanup.overflow === false;
+            if (
+                (remotelySettled &&
+                    (cleanupValid || persistedCleanupValid)) ||
+                preflightCleanupValid
+            ) {
+                const release = await evaluateCurrent(
                     releaseExpression(token, sessionId),
-                    invokeTimeoutMs,
                 );
                 if (release?.released !== true)
                     throw bridgeFailure(
@@ -494,7 +919,8 @@ export async function* runBridgeTurn(
                 );
             } else if (
                 cleanup?.cleaned !== true ||
-                cleanup.cleanupError === true
+                cleanup.cleanupError === true ||
+                cleanup.permissionReset !== true
             ) {
                 throw bridgeFailure(
                     'The JiaorongAI bridge listener cleanup failed.',

@@ -6,6 +6,8 @@
 
 **Status:** ready-for-agent
 
+**Resolution:** completed
+
 - [x] Argument and stdin prompts reach the bridge unchanged, including Unicode, newlines, quotes, and shell metacharacters.
 - [x] A successful run creates a real Session before sending the prompt and returns the same non-empty Session ID in init and result.
 - [x] Snapshot projection emits monotonic message deltas, never exposes JiaorongAI 0.5.6 raw `reasoning_content` as a summary, and emits exactly one Terminal Result.

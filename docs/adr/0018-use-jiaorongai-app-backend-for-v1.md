@@ -23,7 +23,7 @@ Jiaorong CLI v1 will be a macOS command-line client backed by an installed Jiaor
 - No CLI module may read or write JiaorongAI's database directly.
 - A running application without a verified endpoint is never terminated or restarted automatically.
 - Endpoint, owner, executable, metadata, renderer, version, route, event, payload, timeout, buffer, and cancellation checks fail closed.
-- The supported application allowlist contains only version 0.5.6 until new live compatibility evidence is approved.
+- The supported application allowlist contains only version 0.5.6 with `app.asar` SHA-256 `46c10c761eb3c70f461061cbd80ad1c0cc2796aea29574e73cd85d445f1b22aa` until new live compatibility evidence is approved.
 
 The public v1 protocol remains stable so a future native headless runtime can replace App Backend without changing callers.
 

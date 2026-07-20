@@ -89,6 +89,8 @@ test('App Runtime validates the installed bundle identity and exact supported ve
     const directory = await mkdtemp(resolve(tmpdir(), 'jiaorong-bundle-'));
     const contents = resolve(directory, 'Contents');
     const plist = resolve(contents, 'Info.plist');
+    const resources = resolve(contents, 'Resources');
+    const appAsar = resolve(resources, 'app.asar');
     const writePlist = (bundleId, version) =>
         writeFile(
             plist,
@@ -103,11 +105,19 @@ test('App Runtime validates the installed bundle identity and exact supported ve
         appBundlePath: directory,
         bundleId: 'com.wefonk.jiaorong',
         supportedVersion: '0.5.6',
+        supportedAppAsarSha256:
+            '9488114ad29c32d562aee5597bb04defc79868266d28aa847aa041a2143e2d8a',
     };
     try {
         await mkdir(contents, { recursive: true });
+        await mkdir(resources, { recursive: true });
+        await writeFile(appAsar, 'trusted-bundle');
         await writePlist('com.wefonk.jiaorong', '0.5.6');
         await validateAppBundle(config);
+
+        await writeFile(appAsar, 'different-bundle');
+        await assert.rejects(validateAppBundle(config), /build identity/);
+        await writeFile(appAsar, 'trusted-bundle');
 
         await writePlist('com.wefonk.jiaorong', '0.5.7');
         await assert.rejects(validateAppBundle(config), /unsupported/);
@@ -134,6 +144,13 @@ test('doctor rejects wrong versions, ambiguous targets, and missing bridge contr
         {
             name: 'missing route',
             options: { missingRoutes: ['sessions.create'] },
+            check: 'bridge-contract',
+        },
+        {
+            name: 'missing disabled-tools route',
+            options: {
+                missingRoutes: ['sessions.getDisabledAgentTools'],
+            },
             check: 'bridge-contract',
         },
         {

@@ -8,10 +8,12 @@ import {
     runBridgeTurn,
 } from '../app/deepchat-bridge.mjs';
 import { AppReadinessError } from '../app/readiness-error.mjs';
+import { shouldGrantToolPermission } from '../app/tool-permission-policy.mjs';
 import { BackendFailure } from '../cli/failures.mjs';
 import { MAX_PROMPT_BYTES } from '../cli/limits.mjs';
 
 const VERSION = '0.1.0';
+const REQUIRED_DISABLED_AGENT_TOOLS = ['exec', 'process'];
 const DOCTOR_CHECKS = [
     'app-installation',
     'app-version',
@@ -42,10 +44,6 @@ function invalidBridgeDocument() {
 
 function nonEmptyString(value) {
     return typeof value === 'string' && value.length > 0;
-}
-
-function permissionMode(mode) {
-    return mode === 'full_access' ? 'full_access' : 'default';
 }
 
 function providerConnectionFailure(connection) {
@@ -80,6 +78,26 @@ async function verifyProviderConnection(client, config, selectedModel) {
     if (failure) throw failure;
 }
 
+async function verifyDisabledAgentTools(client, config, sessionId) {
+    const document = await invokeBridgeRoute(
+        client,
+        'sessions.getDisabledAgentTools',
+        { sessionId },
+        { timeoutMs: config.bridgeInvokeTimeoutMs },
+    );
+    if (
+        !Array.isArray(document?.disabledAgentTools) ||
+        !REQUIRED_DISABLED_AGENT_TOOLS.every((toolName) =>
+            document.disabledAgentTools.includes(toolName),
+        )
+    )
+        throw new BackendFailure(
+            'INVALID_ARGUMENT',
+            'The JiaorongAI Session is not CLI-safe because Shell tools are enabled.',
+            42,
+        );
+}
+
 async function prepareFileScope(client, config, fileScope) {
     const attachmentToken = await prepareBridgeAttachments(
         client,
@@ -100,7 +118,10 @@ async function prepareFileScope(client, config, fileScope) {
     };
 }
 
-export function createJiaorongAppBackend({ runtimeOptions } = {}) {
+export function createJiaorongAppBackend({
+    runtimeOptions,
+    toolPermissionPolicy = shouldGrantToolPermission,
+} = {}) {
     return {
         async doctor() {
             let client;
@@ -236,6 +257,11 @@ export function createJiaorongAppBackend({ runtimeOptions } = {}) {
                         !nonEmptyString(session.modelId)
                     )
                         throw invalidBridgeDocument();
+                    await verifyDisabledAgentTools(
+                        client,
+                        config,
+                        session.id,
+                    );
                     const matches = readiness.availableModels.filter(
                         (model) =>
                             model.providerId === session.providerId &&
@@ -277,6 +303,13 @@ export function createJiaorongAppBackend({ runtimeOptions } = {}) {
                         bridgeClient: client,
                         bridgeInvokeTimeoutMs: config.bridgeInvokeTimeoutMs,
                         runTimeoutMs: config.runTimeoutMs,
+                        cancellationGraceMs: config.cancellationGraceMs,
+                        permissionMode: request.permissionMode,
+                        fileScope: {
+                            projectRoot: fileScope.projectRoot,
+                            additionalDirectories:
+                                fileScope.additionalDirectories,
+                        },
                     };
                 }
 
@@ -329,7 +362,8 @@ export function createJiaorongAppBackend({ runtimeOptions } = {}) {
                     agentId: agent.id,
                     message: '',
                     projectDir: fileScope.projectRoot,
-                    permissionMode: permissionMode(request.permissionMode),
+                    permissionMode: 'default',
+                    disabledAgentTools: REQUIRED_DISABLED_AGENT_TOOLS,
                     providerId: selectedModel.providerId,
                     modelId: selectedModel.bridgeModelId,
                 };
@@ -350,6 +384,7 @@ export function createJiaorongAppBackend({ runtimeOptions } = {}) {
                     session.modelId !== selectedModel.bridgeModelId
                 )
                     throw invalidBridgeDocument();
+                await verifyDisabledAgentTools(client, config, session.id);
                 return {
                     sessionId: session.id,
                     resumed: false,
@@ -361,6 +396,12 @@ export function createJiaorongAppBackend({ runtimeOptions } = {}) {
                     bridgeClient: client,
                     bridgeInvokeTimeoutMs: config.bridgeInvokeTimeoutMs,
                     runTimeoutMs: config.runTimeoutMs,
+                    cancellationGraceMs: config.cancellationGraceMs,
+                    permissionMode: request.permissionMode,
+                    fileScope: {
+                        projectRoot: fileScope.projectRoot,
+                        additionalDirectories: fileScope.additionalDirectories,
+                    },
                 };
             } catch (error) {
                 if (attachmentToken !== null) {
@@ -384,23 +425,40 @@ export function createJiaorongAppBackend({ runtimeOptions } = {}) {
         async *run(prepared, request) {
             yield* runBridgeTurn(prepared.bridgeClient, {
                 sessionId: prepared.sessionId,
+                projectRoot: prepared.fileScope.projectRoot,
                 prompt: request.prompt,
                 attachmentToken: prepared.attachmentToken,
                 invokeTimeoutMs: prepared.bridgeInvokeTimeoutMs,
                 runTimeoutMs: prepared.runTimeoutMs,
+                cancellationGraceMs: prepared.cancellationGraceMs,
+                signal: request.signal,
+                handleInteraction: async (event) => {
+                    return toolPermissionPolicy({
+                        permissionMode: prepared.permissionMode,
+                        interaction: event,
+                        fileScope: prepared.fileScope,
+                    });
+                },
             });
         },
 
         async dispose(prepared) {
+            let failure = null;
             try {
                 await discardBridgeAttachments(
                     prepared.bridgeClient,
                     prepared.attachmentToken,
                     { timeoutMs: prepared.bridgeInvokeTimeoutMs },
                 );
+            } catch {
+                failure ??= new BackendFailure(
+                    'INTERNAL_ERROR',
+                    'Prepared Attachment cleanup failed.',
+                );
             } finally {
                 prepared.bridgeClient.close();
             }
+            if (failure) throw failure;
         },
     };
 }

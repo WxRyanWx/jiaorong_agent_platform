@@ -1,4 +1,8 @@
-import { validateDocument } from '../protocol/validate-fixture.mjs';
+import {
+    validateDocument,
+    validateStream,
+    validateStreamChunks,
+} from '../protocol/validate-fixture.mjs';
 import { failed, passed } from './case-result.mjs';
 import { runProcess } from './run-process.mjs';
 import { validateStreamRun } from './stream-run.mjs';
@@ -54,7 +58,76 @@ async function runStreamOutputCases(binary) {
     const newlineCase = newlineErrors.length === 0
         ? passed('OUT-010', { durationMs: processResult.durationMs })
         : failed('OUT-010', newlineErrors, processResult);
-    return [outputCase, newlineCase];
+    const diagnostic = await runProcess(
+        binary,
+        [
+            '-p',
+            '__JIAORONG_FIXTURE_SUCCESS_TEXT__',
+            '--output-format',
+            'stream-json',
+        ],
+        { env: { JIAORONG_CLI_FIXTURE_DIAGNOSTIC: '1' } },
+    );
+    const diagnosticValidation = await validateStream(diagnostic.stdout, {
+        exitCode: diagnostic.exitCode,
+    });
+    const diagnosticErrors = [...diagnosticValidation.errors];
+    if (
+        diagnostic.exitCode !== 0 ||
+        !diagnostic.stderr.includes('fixture diagnostic')
+    ) {
+        diagnosticErrors.push('diagnostic was not isolated on stderr');
+    }
+
+    const sourceBytes = Buffer.from(processResult.stdout, 'utf8');
+    const chunks = [];
+    const sizes = [1, 2, 7, 3, 11];
+    for (let offset = 0, index = 0; offset < sourceBytes.length; index += 1) {
+        const end = Math.min(
+            sourceBytes.length,
+            offset + sizes[index % sizes.length],
+        );
+        chunks.push(sourceBytes.subarray(offset, end));
+        offset = end;
+    }
+    const chunkValidation = await validateStreamChunks(chunks, {
+        exitCode: processResult.exitCode,
+    });
+    const chunkErrors = [...chunkValidation.errors];
+    if (
+        JSON.stringify(chunkValidation.events) !==
+        JSON.stringify(validation.events)
+    ) {
+        chunkErrors.push('byte-chunk parsing changed the event stream');
+    }
+
+    const nonJson = await validateStream(
+        `not-json\n${processResult.stdout}`,
+        { exitCode: 0 },
+    );
+    const prettyEvents = (validation.events ?? [])
+        .map((event) => JSON.stringify(event, null, 2))
+        .join('\n');
+    const pretty = await validateStream(`${prettyEvents}\n`, {
+        exitCode: 0,
+    });
+
+    return [
+        outputCase,
+        diagnosticErrors.length === 0
+            ? passed('OUT-006', { durationMs: diagnostic.durationMs })
+            : failed('OUT-006', diagnosticErrors, diagnostic),
+        chunkErrors.length === 0
+            ? passed('OUT-007', { durationMs: processResult.durationMs })
+            : failed('OUT-007', chunkErrors, processResult),
+        nonJson.valid
+            ? failed('OUT-008', ['non-JSON line was accepted'])
+            : passed('OUT-008'),
+        pretty.valid
+            ? failed('OUT-009', ['pretty multi-line JSON was accepted'])
+            : passed('OUT-009'),
+        newlineCase,
+    ];
 }
 
 export async function runOutputCases(binary) {

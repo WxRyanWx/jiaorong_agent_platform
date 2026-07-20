@@ -4,6 +4,15 @@
   "private": true,
   "type": "module",
   "description": "Jiaorong CLI and its versioned protocol conformance suite",
+  "files": [
+    "bin/",
+    "conformance/",
+    "fixtures/",
+    "protocol/",
+    "src/",
+    "CONTEXT.md",
+    "README.md"
+  ],
   "bin": {
     "jiaorong-cli": "./bin/jiaorong-cli.mjs",
     "jiaorong-cli-conformance": "./bin/jiaorong-cli-conformance.mjs"

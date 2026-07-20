@@ -53,6 +53,16 @@ test('a Session ID resumes the same JiaorongAI Session in a separate CLI process
         assert.equal(second.validation.events.at(-1).sessionId, sessionId);
         assert.deepEqual(server.state.restoreInputs, [
             { sessionId: 'session-test' },
+            { sessionId: 'session-test' },
+            { sessionId: 'session-test' },
+        ]);
+        assert.deepEqual(server.state.setProjectDirInputs, [
+            { sessionId: 'session-test', projectDir: root },
+            { sessionId: 'session-test', projectDir: root },
+        ]);
+        assert.deepEqual(server.state.setPermissionModeInputs, [
+            { sessionId: 'session-test', mode: 'default' },
+            { sessionId: 'session-test', mode: 'default' },
         ]);
         assert.equal(server.state.createInputs.length, 1);
         assert.deepEqual(
@@ -92,6 +102,56 @@ test('resume sends only the new prompt while JiaorongAI preserves prior context'
             server.state.sendInputs.map(({ content }) => content),
             ['CONTEXT_CANARY_ONE', 'SECOND_PROMPT_ONLY'],
         );
+    } finally {
+        await server.close();
+    }
+});
+
+test('resume rejects a Session whose Shell tools were re-enabled', async () => {
+    const server = await startFakeCdpServer();
+    try {
+        const first = await streamRun(server.endpoint, ['-p', 'create safe']);
+        assert.equal(first.result.exitCode, 0, first.result.stderr);
+        const sessionId = first.validation.events[0].sessionId;
+        const sendsBefore = server.state.sendInputs.length;
+        server.mutateSession(sessionId, { disabledAgentTools: [] });
+
+        const resumed = await streamRun(server.endpoint, [
+            '-p',
+            'must not run',
+            '--resume',
+            sessionId,
+        ]);
+        assert.equal(resumed.result.exitCode, 42);
+        assert.equal(resumed.validation.valid, true, resumed.validation.errors.join('; '));
+        assert.equal(resumed.validation.events.at(-2).code, 'INVALID_ARGUMENT');
+        assert.equal(server.state.sendInputs.length, sendsBefore);
+    } finally {
+        await server.close();
+    }
+});
+
+test('resume does not stop or send into a non-idle JiaorongAI Session', async () => {
+    const server = await startFakeCdpServer();
+    try {
+        const first = await streamRun(server.endpoint, ['-p', 'create safe']);
+        assert.equal(first.result.exitCode, 0, first.result.stderr);
+        const sessionId = first.validation.events[0].sessionId;
+        const sendsBefore = server.state.sendInputs.length;
+        const stopsBefore = server.state.stopInputs.length;
+        server.mutateSession(sessionId, { status: 'generating' });
+
+        const resumed = await streamRun(server.endpoint, [
+            '-p',
+            'must not interrupt the active turn',
+            '--resume',
+            sessionId,
+        ]);
+        assert.equal(resumed.result.exitCode, 42);
+        assert.equal(resumed.validation.valid, true, resumed.validation.errors.join('; '));
+        assert.equal(resumed.validation.events.at(-2).code, 'INVALID_ARGUMENT');
+        assert.equal(server.state.sendInputs.length, sendsBefore);
+        assert.equal(server.state.stopInputs.length, stopsBefore);
     } finally {
         await server.close();
     }
@@ -207,6 +267,11 @@ test('concurrent runs for one Session fail closed before a second stream starts'
         assert.equal(created.result.exitCode, 0, created.result.stderr);
         const sessionId = created.validation.events[0].sessionId;
         const sendsBefore = server.state.sendInputs.length;
+        const projectConfigurationsBefore =
+            server.state.setProjectDirInputs.length;
+        const permissionConfigurationsBefore =
+            server.state.setPermissionModeInputs.length;
+        const permissionResetsBefore = server.state.stopInputs.length;
 
         const runs = await Promise.all([
             streamRun(server.endpoint, [
@@ -230,8 +295,23 @@ test('concurrent runs for one Session fail closed before a second stream starts'
         assert.equal(failed.validation.valid, true, failed.validation.errors.join('; '));
         assert.equal(failed.validation.events.at(-2).code, 'INVALID_ARGUMENT');
         assert.equal(server.state.sendInputs.length, sendsBefore + 1);
+        assert.equal(
+            server.state.setProjectDirInputs.length,
+            projectConfigurationsBefore + 1,
+        );
+        assert.equal(
+            server.state.setPermissionModeInputs.length,
+            permissionConfigurationsBefore + 1,
+        );
         assert.equal(server.state.activeSubscriptions, 0);
-        assert.deepEqual(server.state.stopInputs, []);
+        assert.equal(
+            server.state.stopInputs.length,
+            permissionResetsBefore + 2,
+        );
+        assert.deepEqual(
+            server.state.stopInputs.slice(permissionResetsBefore),
+            [{ sessionId }, { sessionId }],
+        );
     } finally {
         await server.close();
     }
@@ -297,6 +377,40 @@ test('a resumed run ignores a retired request that arrives late for the same Ses
         assert.equal(second.validation.valid, true, second.validation.errors.join('; '));
         assert.equal(second.validation.events.at(-1).content, 'FRESH');
         assert.doesNotMatch(second.result.stdout, /OLD|STALE/);
+    } finally {
+        await server.close();
+    }
+});
+
+test('retired identity history fails closed at its 16,384 identity capacity', async () => {
+    const retiredIdentityState = {
+        bySession: Object.create(null),
+        total: 16_384,
+        saturated: true,
+    };
+    const server = await startFakeCdpServer({
+        sharedRenderer: true,
+        retiredIdentityState,
+    });
+    try {
+        const run = await streamRun(server.endpoint, [
+            '-p',
+            'must fail before send',
+        ]);
+        assert.equal(run.result.exitCode, 1, run.result.stderr);
+        assert.equal(
+            run.validation.valid,
+            true,
+            run.validation.errors.join('; '),
+        );
+        assert.equal(
+            run.validation.events.at(-1).error.code,
+            'INTERNAL_ERROR',
+        );
+        assert.deepEqual(server.state.sendInputs, []);
+        assert.equal(server.state.activeSubscriptions, 0);
+        assert.equal(retiredIdentityState.total, 16_384);
+        assert.equal(retiredIdentityState.saturated, true);
     } finally {
         await server.close();
     }

@@ -281,6 +281,7 @@ export async function runCliCases(binary) {
     const maxTurns = await validateInvalidNumbers(binary, '--max-turns', [
         '0',
         '-1',
+        '1.5',
     ]);
     results.push(
         maxTurns.errors.length === 0

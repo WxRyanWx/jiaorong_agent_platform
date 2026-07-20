@@ -9,15 +9,51 @@ import {
 
 const VERSION = '0.1.0';
 
-async function readStdin(stdin) {
+function throwIfAborted(signal) {
+    if (signal.aborted) throw signal.reason;
+}
+
+async function readStdin(stdin, signal) {
     if (stdin.isTTY) return '';
     const chunks = [];
     let bytes = 0;
-    for await (const chunk of stdin) {
-        const buffer = Buffer.from(chunk);
-        bytes += buffer.byteLength;
-        if (bytes > MAX_PROMPT_BYTES) throw promptTooLargeFailure();
-        chunks.push(buffer);
+    const iterator = stdin[Symbol.asyncIterator]();
+    try {
+        while (true) {
+            throwIfAborted(signal);
+            let abortListener;
+            const aborted = new Promise((_, reject) => {
+                abortListener = () => reject(signal.reason);
+                signal.addEventListener('abort', abortListener, { once: true });
+            });
+            let item;
+            try {
+                item = await Promise.race([iterator.next(), aborted]);
+            } finally {
+                signal.removeEventListener('abort', abortListener);
+            }
+            if (item.done) break;
+            const buffer = Buffer.from(item.value);
+            bytes += buffer.byteLength;
+            if (bytes > MAX_PROMPT_BYTES) throw promptTooLargeFailure();
+            chunks.push(buffer);
+        }
+    } catch (error) {
+        if (signal.aborted) {
+            if (typeof stdin.destroy === 'function' && stdin.destroyed !== true) {
+                try {
+                    stdin.destroy();
+                } catch {}
+            }
+            if (typeof iterator.return === 'function') {
+                try {
+                    void Promise.resolve(iterator.return()).catch(
+                        () => undefined,
+                    );
+                } catch {}
+            }
+        }
+        throw error;
     }
     return Buffer.concat(chunks).toString('utf8');
 }
@@ -173,6 +209,9 @@ export async function runCli({
         messageId: () => `msg_${crypto.randomUUID()}`,
     },
     now = () => Date.now(),
+    signalSource = process,
+    forceExit = (code) => process.exit(code),
+    attachmentPreflight = preflightAttachments,
 }) {
     let options;
     const detectedOutputFormat = detectOutputFormat(argv);
@@ -260,12 +299,30 @@ export async function runCli({
     });
     const startedAt = now();
     const requestId = ids.requestId();
+    const abortController = new AbortController();
+    let sigintCount = 0;
+    const handleSigint = () => {
+        sigintCount += 1;
+        if (sigintCount > 1) {
+            forceExit(130);
+            return;
+        }
+        abortController.abort(
+            new CliFailure('CANCELLED', 'The run was cancelled.', 130),
+        );
+    };
+    const finishEarly = (exitCode) => {
+        signalSource.removeListener('SIGINT', handleSigint);
+        return exitCode;
+    };
+    signalSource.on('SIGINT', handleSigint);
     let stdinPrompt;
     try {
-        stdinPrompt = await readStdin(stdin);
+        stdinPrompt = await readStdin(stdin, abortController.signal);
+        throwIfAborted(abortController.signal);
         if (options.prompt !== undefined) assertPromptSize(options.prompt);
     } catch (error) {
-        return emitFailure({
+        return finishEarly(emitFailure({
             renderer,
             options,
             requestId,
@@ -274,7 +331,7 @@ export async function runCli({
             startedAt,
             now,
             failure: normalizeFailure(error),
-        });
+        }));
     }
     let prompt = options.prompt;
     if (prompt !== undefined && stdinPrompt.length > 0) {
@@ -283,7 +340,7 @@ export async function runCli({
             'Prompt argv and non-empty stdin are mutually exclusive.',
             42,
         );
-        return emitFailure({
+        return finishEarly(emitFailure({
             renderer,
             options,
             requestId,
@@ -292,7 +349,7 @@ export async function runCli({
             startedAt,
             now,
             failure,
-        });
+        }));
     }
     prompt ??= stdinPrompt;
     if (prompt.length === 0) {
@@ -301,7 +358,7 @@ export async function runCli({
             'Prompt must not be empty.',
             42,
         );
-        return emitFailure({
+        return finishEarly(emitFailure({
             renderer,
             options,
             requestId,
@@ -310,25 +367,40 @@ export async function runCli({
             startedAt,
             now,
             failure,
-        });
+        }));
     }
 
     const request = { ...options, prompt, requestId, cwd: process.cwd() };
+    request.signal = abortController.signal;
     let prepared;
     let state;
     let content = '';
     let usage = null;
     let turns = 0;
     let failure = null;
+    let timeoutTimer;
+    let runStarted = false;
     try {
-        request.fileScope = await preflightAttachments({
+        request.fileScope = await attachmentPreflight({
             cwd: request.cwd,
             files: request.files,
             additionalDirectories: request.additionalDirectories,
         });
+        throwIfAborted(abortController.signal);
         prepared = await backend.prepare(request);
+        throwIfAborted(abortController.signal);
         state = { ...prepared, turns: 0 };
         renderer.start(initEvent(requestId, options, prepared));
+        if (options.timeoutSeconds !== undefined) {
+            timeoutTimer = setTimeout(
+                () =>
+                    abortController.abort(
+                        new CliFailure('TIMEOUT', 'The run timed out.', 1),
+                    ),
+                options.timeoutSeconds * 1_000,
+            );
+        }
+        runStarted = true;
         for await (const event of backend.run(prepared, request)) {
             if (event.kind === 'message') {
                 content += event.delta;
@@ -344,15 +416,46 @@ export async function runCli({
                     messageId: event.messageId ?? ids.messageId(),
                     delta: event.delta,
                 });
+            } else if (event.kind === 'tool_use') {
+                renderer.event({
+                    type: 'tool_use',
+                    toolCallId: event.toolCallId,
+                    name: event.name,
+                    input: event.input,
+                });
+            } else if (event.kind === 'tool_result') {
+                renderer.event({
+                    type: 'tool_result',
+                    toolCallId: event.toolCallId,
+                    status: event.status,
+                    output: event.output,
+                    error: event.error,
+                });
             } else if (event.kind === 'complete') {
                 usage = event.usage ?? null;
                 turns = event.turns;
                 state.turns = turns;
+                if (
+                    options.maxTurns !== undefined &&
+                    turns > options.maxTurns
+                ) {
+                    throw new CliFailure(
+                        'TURN_LIMIT',
+                        'The run reached its turn limit.',
+                        53,
+                    );
+                }
             }
         }
     } catch (error) {
-        failure = normalizeFailure(error);
+        failure = normalizeFailure(
+            !runStarted && abortController.signal.aborted
+                ? abortController.signal.reason
+                : error,
+        );
     } finally {
+        clearTimeout(timeoutTimer);
+        signalSource.removeListener('SIGINT', handleSigint);
         let lifecycleFailure = null;
         if (prepared && typeof backend.dispose === 'function') {
             try {

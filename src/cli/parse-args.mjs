@@ -28,6 +28,19 @@ function positiveNumber(value, flag) {
     return number;
 }
 
+function positiveInteger(value, flag) {
+    const number = positiveNumber(value, flag);
+    if (!Number.isSafeInteger(number)) {
+        throw new CliFailure(
+            'INVALID_ARGUMENT',
+            `${flag} must be a positive integer.`,
+            42,
+            { protocolEligible: true },
+        );
+    }
+    return number;
+}
+
 function sessionId(value) {
     if (
         value.length === 0 ||
@@ -128,7 +141,7 @@ export function parseArgs(argv) {
             options.resume = sessionId(takeValue(argv, index, flag));
             index += 1;
         } else if (flag === '--max-turns') {
-            options.maxTurns = positiveNumber(
+            options.maxTurns = positiveInteger(
                 takeValue(argv, index, flag),
                 flag,
             );

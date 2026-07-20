@@ -1,8 +1,8 @@
 import { validateStream } from '../protocol/validate-fixture.mjs';
 import { runProcess } from './run-process.mjs';
 
-export async function validateStreamRun(binary, args, expectedExit) {
-    const processResult = await runProcess(binary, args);
+export async function validateStreamRun(binary, args, expectedExit, options) {
+    const processResult = await runProcess(binary, args, options);
     const validation = processResult.timedOut
         ? {
               valid: false,

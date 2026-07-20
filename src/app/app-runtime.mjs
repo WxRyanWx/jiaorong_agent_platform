@@ -11,6 +11,8 @@ import {
 import { AppReadinessError } from './readiness-error.mjs';
 
 export const SUPPORTED_APP_VERSION = '0.5.6';
+export const SUPPORTED_APP_ASAR_SHA256 =
+    '46c10c761eb3c70f461061cbd80ad1c0cc2796aea29574e73cd85d445f1b22aa';
 const MAX_PROVIDER_COUNT = 64;
 const MAX_MODEL_COUNT = 4_096;
 const MAX_IDENTIFIER_BYTES = 512;
@@ -22,12 +24,14 @@ export const defaultRuntimeConfig = Object.freeze({
     appBundlePath: '/Applications/JiaorongAI.app',
     bundleId: 'com.wefonk.jiaorong',
     supportedVersion: SUPPORTED_APP_VERSION,
+    supportedAppAsarSha256: SUPPORTED_APP_ASAR_SHA256,
     targetUrlPrefix:
         'file:///Applications/JiaorongAI.app/Contents/Resources/app.asar/out/renderer/',
     cdpTimeoutMs: 3_000,
     rendererTimeoutMs: 2_000,
     bridgeInvokeTimeoutMs: 10_000,
     runTimeoutMs: 30 * 60 * 1_000,
+    cancellationGraceMs: 30_000,
 });
 
 function rendererTarget(targets, config) {

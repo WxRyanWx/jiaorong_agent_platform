@@ -1,4 +1,6 @@
 import { execFile } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { createReadStream } from 'node:fs';
 import { resolve } from 'node:path';
 import { promisify } from 'node:util';
 
@@ -13,6 +15,16 @@ async function plistValue(plistPath, key) {
         { timeout: 2_000, maxBuffer: 16_000 },
     );
     return stdout.trim();
+}
+
+function fileSha256(path) {
+    return new Promise((resolveHash, rejectHash) => {
+        const hash = createHash('sha256');
+        const stream = createReadStream(path);
+        stream.on('error', rejectHash);
+        stream.on('data', (chunk) => hash.update(chunk));
+        stream.on('end', () => resolveHash(hash.digest('hex')));
+    });
 }
 
 export async function validateAppBundle(config) {
@@ -39,5 +51,21 @@ export async function validateAppBundle(config) {
         throw new AppReadinessError(
             'app-version',
             `JiaorongAI ${version} is unsupported; version ${config.supportedVersion} is required.`,
+        );
+    let appAsarSha256;
+    try {
+        appAsarSha256 = await fileSha256(
+            resolve(config.appBundlePath, 'Contents/Resources/app.asar'),
+        );
+    } catch {
+        throw new AppReadinessError(
+            'app-installation',
+            'JiaorongAI.app is missing or its application resources cannot be read.',
+        );
+    }
+    if (appAsarSha256 !== config.supportedAppAsarSha256)
+        throw new AppReadinessError(
+            'app-version',
+            'The installed JiaorongAI build identity is unsupported.',
         );
 }

@@ -11,7 +11,9 @@ const allRoutes = new Set([
     'sessions.create',
     'sessions.restore',
     'sessions.setProjectDir',
+    'sessions.getPermissionMode',
     'sessions.setPermissionMode',
+    'sessions.getDisabledAgentTools',
     'sessions.setModel',
     'sessions.delete',
     'providers.listSummaries',
@@ -84,6 +86,18 @@ export async function startFakeCdpServer({
     streamMessageId = 'message-test',
     streamEvents,
     streamEventsPerSend,
+    stopStreamEvents = [],
+    responseStreamEvents = [],
+    responseStreamEventsPerResponse,
+    respondToolInteractionResult = { accepted: true, resumed: true },
+    permissionCacheTarget,
+    cachedPermissionStreamEvents,
+    stopStreamThrowAt = [],
+    sendWaitsForStop = false,
+    stopPersistsCancellation = false,
+    stopPersistedMessages,
+    initialSessionMessages = [],
+    retiredIdentityState,
     respondWithSessionHistory = false,
     sharedRenderer = false,
     streamDelayMs = 0,
@@ -94,6 +108,8 @@ export async function startFakeCdpServer({
     emitLateTerminalBeforeCleanup = false,
     prepareFileFactory,
     beforeInvoke,
+    setProjectDirResult,
+    permissionModeReadback = 'default',
 } = {}) {
     const state = {
         activeSubscriptions: 0,
@@ -106,10 +122,17 @@ export async function startFakeCdpServer({
         prepareFileInputs: [],
         sendInputs: [],
         stopInputs: [],
+        respondToolInteractionInputs: [],
+        setProjectDirInputs: [],
+        setPermissionModeInputs: [],
+        getPermissionModeInputs: [],
+        permissionCacheHits: 0,
         lateTerminalEmitted: false,
     };
     const sessions = new Map();
     const sessionPrompts = new Map();
+    const sessionPermissions = new Map();
+    const sessionMessages = new Map();
     const unavailableRoutes = new Set(missingRoutes);
     const unavailableEvents = new Set(missingEvents);
     const hangingRoutes = new Set(hangRoutes);
@@ -120,6 +143,8 @@ export async function startFakeCdpServer({
     let remainingCleanupRequestDrops =
         dropRuntimeCleanupRequestCount ??
         (dropRuntimeCleanupRequest ? Number.POSITIVE_INFINITY : 0);
+    let activeRun = false;
+    let releaseBlockedSend;
 
     const server = createServer(async (request, response) => {
         const address = server.address();
@@ -173,8 +198,13 @@ export async function startFakeCdpServer({
         if (!runtime) {
             const listeners = new Map();
             const deepchat = {};
+            const window = { deepchat };
+            if (retiredIdentityState !== undefined) {
+                window.__JIAORONG_CLI_RETIRED_IDENTITIES_V1__ =
+                    retiredIdentityState;
+            }
             const context = createContext({
-                window: { deepchat },
+                window,
                 setTimeout,
                 clearTimeout,
                 atob,
@@ -190,6 +220,15 @@ export async function startFakeCdpServer({
         }
         const { listeners, deepchat, context, emit } = runtime;
         const eventsForRun = (input) => {
+            if (
+                permissionCacheTarget !== undefined &&
+                sessionPermissions.get(input.sessionId)?.has(
+                    permissionCacheTarget,
+                )
+            ) {
+                state.permissionCacheHits += 1;
+                return cachedPermissionStreamEvents ?? [];
+            }
             if (streamEventsPerSend)
                 return streamEventsPerSend[state.sendInputs.length - 1] ?? [];
             if (streamEvents) return streamEvents;
@@ -320,6 +359,8 @@ export async function startFakeCdpServer({
                             isPinned: false,
                             sessionKind: 'regular',
                             subagentEnabled: false,
+                            disabledAgentTools:
+                                input.disabledAgentTools ?? [],
                             createdAt: 1,
                             updatedAt: 1,
                             status: 'idle',
@@ -333,7 +374,11 @@ export async function startFakeCdpServer({
                                 sessionModelId,
                         };
                     sessions.set(session.id, session);
-                    sessionPrompts.set(session.id, []);
+                        sessionPrompts.set(session.id, []);
+                        sessionMessages.set(
+                            session.id,
+                            structuredClone(initialSessionMessages),
+                        );
                     return { session };
                 }
                 if (route === 'sessions.restore') {
@@ -342,9 +387,16 @@ export async function startFakeCdpServer({
                     );
                     return {
                         session: sessions.get(input.sessionId) ?? null,
-                        messages: [],
+                        messages: sessionMessages.get(input.sessionId) ?? [],
                         nextCursor: null,
                         hasMore: false,
+                    };
+                }
+                if (route === 'sessions.getDisabledAgentTools') {
+                    return {
+                        disabledAgentTools:
+                            sessions.get(input.sessionId)
+                                ?.disabledAgentTools ?? [],
                     };
                 }
                 if (route === 'file.prepareFile') {
@@ -380,6 +432,12 @@ export async function startFakeCdpServer({
                 }
                 if (route === 'chat.sendMessage') {
                     state.sendInputs.push(JSON.parse(JSON.stringify(input)));
+                    activeRun = true;
+                    if (sendWaitsForStop) {
+                        await new Promise((resolveBlockedSend) => {
+                            releaseBlockedSend = resolveBlockedSend;
+                        });
+                    }
                     if (streamDelayMs > 0)
                         await new Promise((resolve) =>
                             setTimeout(resolve, streamDelayMs),
@@ -390,13 +448,111 @@ export async function startFakeCdpServer({
                 }
                 if (route === 'chat.stopStream') {
                     state.stopInputs.push(JSON.parse(JSON.stringify(input)));
+                    if (stopStreamThrowAt.includes(state.stopInputs.length))
+                        throw new Error('Permission cache reset failed');
+                    sessionPermissions.delete(input.sessionId);
+                    if (activeRun) {
+                        activeRun = false;
+                        releaseBlockedSend?.();
+                        releaseBlockedSend = undefined;
+                        if (Array.isArray(stopPersistedMessages)) {
+                            sessionMessages.set(
+                                input.sessionId,
+                                structuredClone(stopPersistedMessages),
+                            );
+                        } else if (stopPersistsCancellation) {
+                            const cancelledMessage = {
+                                id: streamMessageId,
+                                sessionId: input.sessionId,
+                                orderSeq: 2,
+                                role: 'assistant',
+                                content: JSON.stringify([
+                                    {
+                                        type: 'error',
+                                        content:
+                                            'common.error.userCanceledGeneration',
+                                        status: 'error',
+                                        timestamp: 12,
+                                    },
+                                ]),
+                                status: 'error',
+                                isContextEdge: 0,
+                                metadata: '{}',
+                                createdAt: 11,
+                                updatedAt: 12,
+                            };
+                            sessionMessages.set(input.sessionId, [
+                                {
+                                    id: `user-${streamMessageId}`,
+                                    sessionId: input.sessionId,
+                                    orderSeq: 1,
+                                    role: 'user',
+                                    content: 'cancel this run',
+                                    status: 'sent',
+                                    isContextEdge: 0,
+                                    metadata: '{}',
+                                    createdAt: 10,
+                                    updatedAt: Date.now(),
+                                },
+                                {
+                                    ...cancelledMessage,
+                                    updatedAt: Date.now(),
+                                },
+                            ]);
+                        }
+                        for (const event of stopStreamEvents)
+                            emit(event.name, event.payload);
+                    }
                     return { stopped: true };
                 }
-                if (route === 'sessions.setProjectDir') {
-                    return { session: { id: sessionId } };
+                if (route === 'chat.respondToolInteraction') {
+                    state.respondToolInteractionInputs.push(
+                        JSON.parse(JSON.stringify(input)),
+                    );
+                    if (
+                        permissionCacheTarget !== undefined &&
+                        input.response?.kind === 'permission' &&
+                        input.response.granted === true
+                    ) {
+                        const permissions =
+                            sessionPermissions.get(input.sessionId) ?? new Set();
+                        permissions.add(permissionCacheTarget);
+                        sessionPermissions.set(input.sessionId, permissions);
+                    }
+                    const responseEvents = responseStreamEventsPerResponse
+                        ? responseStreamEventsPerResponse[
+                              state.respondToolInteractionInputs.length - 1
+                          ] ?? []
+                        : responseStreamEvents;
+                    for (const event of responseEvents)
+                        emit(event.name, event.payload);
+                    return respondToolInteractionResult;
                 }
-                if (route === 'sessions.setPermissionMode')
+                if (route === 'sessions.setProjectDir') {
+                    state.setProjectDirInputs.push(
+                        JSON.parse(JSON.stringify(input)),
+                    );
+                    return (
+                        setProjectDirResult ?? {
+                            session: {
+                                id: input.sessionId,
+                                projectDir: input.projectDir,
+                            },
+                        }
+                    );
+                }
+                if (route === 'sessions.setPermissionMode') {
+                    state.setPermissionModeInputs.push(
+                        JSON.parse(JSON.stringify(input)),
+                    );
                     return { updated: true };
+                }
+                if (route === 'sessions.getPermissionMode') {
+                    state.getPermissionModeInputs.push(
+                        JSON.parse(JSON.stringify(input)),
+                    );
+                    return { mode: permissionModeReadback };
+                }
                 if (route === 'sessions.setModel') {
                     return { session: { id: sessionId } };
                 }
@@ -507,6 +663,12 @@ export async function startFakeCdpServer({
         deleteSession(value) {
             sessions.delete(value);
             sessionPrompts.delete(value);
+            sessionMessages.delete(value);
+        },
+        mutateSession(value, patch) {
+            const session = sessions.get(value);
+            if (!session) throw new Error(`Unknown fake Session: ${value}`);
+            sessions.set(value, { ...session, ...patch });
         },
         async close() {
             for (const client of websocketServer.clients) client.terminate();

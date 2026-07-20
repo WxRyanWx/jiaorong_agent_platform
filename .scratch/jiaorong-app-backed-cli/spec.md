@@ -1,4 +1,10 @@
-Status: ready-for-agent
+Feature ID: JRC-FEATURE-001
+Revision: 2026-07-20.1
+Status: approved
+Approval authority: workspace owner
+Approval evidence: this thread's explicit approval to write and complete the c4-dev-ops Feature/Release plan, including the confirmed first-release no-Shell boundary
+Last decision date: 2026-07-20
+Downstream records: Tickets 01–12 in this directory; Feature acceptance and Release dossier are created by Tickets 11–12
 
 # JiaorongAI App-Backed CLI
 
@@ -54,13 +60,16 @@ The first release will require JiaorongAI 0.5.6 to be installed. It may launch a
 - The application-backed backend will be the only module allowed to translate between the public CLI protocol and JiaorongAI bridge payloads. CLI parsing and renderers will not import CDP or JiaorongAI-specific code.
 - Application lifecycle ownership remains with the user. The CLI may launch JiaorongAI only when it is absent; it will not terminate, replace, or restart an existing process.
 - The default CDP endpoint will bind to loopback. Listener address, listener owner, executable path, CDP metadata, renderer target, application version, required bridge methods, routes, and events must all pass fail-closed validation.
-- The first supported JiaorongAI version is exactly 0.5.6. Supporting another version requires new live compatibility evidence and an explicit allowlist change.
+- The first supported JiaorongAI build is version 0.5.6 with `app.asar` SHA-256 `46c10c761eb3c70f461061cbd80ad1c0cc2796aea29574e73cd85d445f1b22aa`. Supporting another build requires new live compatibility evidence and an explicit allowlist change.
 - The CDP transport will use Node's HTTP and WebSocket capabilities directly. It will not require OpenCLI, browser automation frameworks, or a copied adapter from another product.
 - A unique bounded event buffer will be installed in the renderer for every CLI request. Buffers must be drained, overflow must fail explicitly, and listeners must be removed on every terminal path.
 - Event correlation will require the current Session and real request identity. Concurrent runs must not consume, cancel, or terminate each other's events.
 - JiaorongAI snapshot projection will be monotonic. Text emits only validated deltas. A Reasoning Summary may be emitted only from an explicitly displayable summary source; JiaorongAI 0.5.6 `reasoning_content` is UI-labelled CoT and must not be renamed or exposed as a summary. Each Tool Call ID emits at most one start and exactly one terminal result; one run emits exactly one Terminal Result.
 - Attachment path, type, size, realpath, symlink, Project Root, and Additional Directory validation occurs before Session creation. Accepted files are then prepared through JiaorongAI's own file bridge.
 - The default Permission Mode is non-interactive. Permission requests are denied through the real interaction-response bridge and surfaced as failed tool results. Full access must be selected explicitly.
+- JiaorongAI 0.5.6 must always run in its own `default` Permission Mode because its native `full_access` mode can read outside the Project Root. For CLI `full_access`, App Backend may approve only a structurally valid, correlated built-in tool permission whose canonical targets stay inside the Project Root or an explicit Additional Directory. Unknown tools, unknown schemas, crossed permission fields, out-of-bound paths, and operations whose scope cannot be proved are denied. JiaorongAI still executes every approved tool; the CLI implements only the headless permission policy and does not reimplement tools.
+- Before each send, App Backend rechecks `Session.status === "idle"` inside its renderer Session lock and uses the pinned 0.5.6 `chat.stopStream` route to clear per-Session approvals before subscribing. It repeats the reset after a validated terminal state and listener removal. Non-idle Sessions are rejected without stop or send; reset failures block send or lock release. Omitting a previously authorized Additional Directory prevents new tool access but does not erase content already persisted in Session history. Because the idle check and reset are not atomic, users must not run the same Agent Session concurrently in the desktop application and CLI.
+- Shell and background-process tools are disabled for every CLI-created 0.5.6 Session. Live evidence proved that JiaorongAI can execute some commands, including an outside-root `cat`, without emitting a permission interaction, so App Backend cannot mediate Shell safely. Resume accepts only Sessions that retain `exec` and `process` in `disabledAgentTools`. Broader Shell support requires a future backend that can enforce the filesystem boundary before execution. Product accepted this first-release limit under ADR 0019 on 2026-07-19.
 - Ctrl-C and timeout use the same remote stop-and-settle state machine. A stop acknowledgement alone does not prove completion; the CLI waits for the original run to terminate before releasing its Session lock.
 - stdout is reserved for the selected public output format. Diagnostics go to stderr and must redact secrets, prompts, database content, and unneeded absolute paths.
 - The first Feature supports macOS and an installed JiaorongAI application. Independent OAuth, a self-contained agent runtime, Windows, Linux, TUI, server mode, plugins, subagents, and integrations with future downstream products are excluded.
@@ -90,6 +99,7 @@ The first release will require JiaorongAI 0.5.6 to be installed. It may launch a
 - Focused unit tests cover only deterministic boundaries that are difficult to prove through the process seam: endpoint validation, process ownership parsing, CDP request lifecycle, snapshot projection, bounded buffers, path boundaries, and error normalization.
 - Integration tests use the production entry point and fake CDP server rather than swapping in the fixture backend, proving that production wiring reaches the app-backed backend.
 - Negative and boundary tests cover non-loopback endpoints, unrelated listeners, unsupported versions, missing routes/events, oversized responses, target limits, evaluation timeouts, malformed snapshots, unknown tools, buffer overflow, attachment traversal/symlinks, duplicate terminals, cross-request events, and failed cancellation settlement.
+- Permission tests additionally cover App-default enforcement, correlated Additional Directory approval, cross-run permission-cache reset, Project Root and Additional Directory containment, outside-root denial, crossed permission metadata, unknown tools, mandatory Shell/process disabling, unsafe-resume rejection, non-idle Session rejection, and reset failure before send.
 - Functional tests preserve Unicode, newlines, quotes, and shell metacharacters end to end and prove that prompts are never assembled into shell command strings.
 - Real JiaorongAI smoke tests cover doctor, model discovery, one real text run, Session resume, all three output modes, one attachment, one observable Read tool effect, and real Ctrl-C cancellation. Natural-language output is not asserted byte-for-byte.
 - Feature completion requires the full relevant deterministic suite plus live smoke evidence. Any live scenario not run or not provable remains incomplete or explicitly waived by the user; it cannot be inferred from mocks.
@@ -108,6 +118,7 @@ The first release will require JiaorongAI 0.5.6 to be installed. It may launch a
 - Direct database access or database schema migration.
 - TUI, daemon, background server, ACP, plugin management, subagent management, or custom-agent administration.
 - Integration with C4Workdian, Workbuddian, or any other downstream product.
+- Shell and background-process execution through the JiaorongAI 0.5.6 App Backend.
 - Production deployment or remote rollout. This Release is limited to a reproducible local artifact, local installation, local smoke, and rollback/uninstall proof.
 
 ## Further Notes

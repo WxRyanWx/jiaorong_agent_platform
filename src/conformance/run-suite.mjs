@@ -5,10 +5,13 @@ import { fixturePath, validateFixture } from '../protocol/validate-fixture.mjs';
 import { failed, passed } from './case-result.mjs';
 import { runAttachmentFileCases } from './attachment-file-cases.mjs';
 import { runCliCases } from './cli-cases.mjs';
+import { runCancellationCases } from './cancellation-cases.mjs';
 import { runEventCases } from './event-cases.mjs';
 import { runModelAuthCases } from './model-auth-cases.mjs';
 import { runOutputCases } from './output-cases.mjs';
+import { runProtocolCases } from './protocol-cases.mjs';
 import { runSessionCases } from './session-cases.mjs';
+import { runToolPermissionCases } from './tool-permission-cases.mjs';
 import { validateStreamRun } from './stream-run.mjs';
 
 const terminalStreamCases = [
@@ -23,7 +26,12 @@ const terminalStreamCases = [
         exitCode: 1,
     },
     { id: 'TIM-001', marker: '__JIAORONG_FIXTURE_TIMEOUT__', exitCode: 1 },
-    { id: 'TUR-001', marker: '__JIAORONG_FIXTURE_TURN_LIMIT__', exitCode: 53 },
+    {
+        id: 'TUR-001',
+        marker: '__JIAORONG_FIXTURE_TURN_LIMIT__',
+        exitCode: 53,
+        extraArgs: ['--max-turns', '1'],
+    },
 ];
 
 function redact(value) {
@@ -92,6 +100,7 @@ async function runTerminalStreamCases(binary) {
                 definition.marker,
                 '--output-format',
                 'stream-json',
+                ...(definition.extraArgs ?? []),
             ],
             definition.exitCode,
         );
@@ -121,9 +130,12 @@ export async function runSuite({ binary, protocolVersion }) {
         ...(await runCliCases(binary)),
         ...(await runOutputCases(binary)),
         ...(await runEventCases(binary)),
+        ...(await runProtocolCases(binary)),
         ...(await runModelAuthCases(binary)),
         ...(await runSessionCases(binary)),
         ...(await runAttachmentFileCases(binary)),
+        ...(await runToolPermissionCases(binary)),
+        ...(await runCancellationCases(binary)),
         ...(await runTerminalStreamCases(binary)),
     ];
 

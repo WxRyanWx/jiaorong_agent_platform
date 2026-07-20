@@ -27,6 +27,9 @@ const fixtureBackend = createFixtureBackend({
         'Jiaorong Fixture',
     stateDirectory: process.env.JIAORONG_CLI_FIXTURE_STATE_DIR,
 });
+if (process.env.JIAORONG_CLI_FIXTURE_DIAGNOSTIC === '1') {
+    process.stderr.write('fixture diagnostic: safe and non-protocol\n');
+}
 const backendCanary = process.env.JIAORONG_CLI_TEST_BACKEND_CANARY;
 if (
     backendCanary &&

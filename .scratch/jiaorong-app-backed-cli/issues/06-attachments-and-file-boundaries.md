@@ -4,7 +4,9 @@
 
 **Blocked by:** 03 — Run a real single turn in every output mode.
 
-**Status:** resolved
+**Status:** ready-for-agent
+
+**Resolution:** completed
 
 - [x] Repeatable structured attachment and Additional Directory arguments are parsed without prompt interpolation.
 - [x] Missing, unreadable, oversized, unsupported, traversal, symlink-escape, and out-of-bound files fail before Session creation.

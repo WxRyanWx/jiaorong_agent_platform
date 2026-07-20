@@ -211,6 +211,24 @@ export async function validateStream(source, { exitCode }) {
     return { valid: errors.length === 0, errors, events };
 }
 
+export async function validateStreamChunks(chunks, options) {
+    const decoder = new TextDecoder('utf-8', { fatal: true });
+    let source = '';
+    try {
+        for (const chunk of chunks) {
+            source += decoder.decode(chunk, { stream: true });
+        }
+        source += decoder.decode();
+    } catch (error) {
+        return {
+            valid: false,
+            errors: [`stdout is not valid UTF-8: ${error.message}`],
+            events: [],
+        };
+    }
+    return validateStream(source, options);
+}
+
 export async function validateFixture(name, options) {
     return validateStream(await readFile(fixturePath(name), 'utf8'), options);
 }

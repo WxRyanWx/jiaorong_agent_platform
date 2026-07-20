@@ -20,85 +20,36 @@ test('the public runner validates a fixture-backed CLI through real process I/O'
         { cwd: root },
     );
 
-    assert.equal(result.exitCode, 1, result.stderr);
+    assert.equal(result.exitCode, 0, result.stderr);
     assert.equal(result.stderr, '');
     assert.match(result.stdout, /\n$/);
     const summary = JSON.parse(result.stdout);
-    assert.equal(summary.ok, false);
+    assert.equal(summary.ok, true);
     assert.equal(summary.executedOk, true);
-    assert.equal(summary.complete, false);
+    assert.equal(summary.complete, true);
     assert.equal(summary.scope, 'deterministic');
     assert.equal(summary.protocolVersion, 1);
     assert.equal(summary.failed, 0);
     assert.deepEqual(summary.coverage, {
-        required: 101,
-        executed: 54,
-        missing: 47,
+        required: 98,
+        executed: 98,
+        missing: 0,
     });
+    assert.deepEqual(summary.missingCaseIds, []);
     assert.ok(!summary.missingCaseIds.some((id) => id.startsWith('LIVE-')));
     assert.ok(!summary.missingCaseIds.some((id) => id.startsWith('WB-')));
     assert.ok(!summary.missingCaseIds.includes('CLI-002'));
     assert.ok(!summary.missingCaseIds.includes('CLI-003'));
-    assert.deepEqual(
-        summary.cases.map(({ id }) => id),
-        [
-            'ASSET-001',
-            'CLI-001',
-            'CLI-002',
-            'CLI-003',
-            'CLI-004',
-            'CLI-005',
-            'CLI-006',
-            'CLI-007',
-            'CLI-008',
-            'CLI-009',
-            'CLI-010',
-            'OUT-001',
-            'OUT-002',
-            'OUT-003',
-            'OUT-004',
-            'OUT-005',
-            'OUT-010',
-            'EVT-001',
-            'EVT-002',
-            'EVT-008',
-            'EVT-010',
-            'SES-001',
-            'ERR-002',
-            'EVT-011',
-            'EVT-016',
-            'ERR-003',
-            'AUT-001',
-            'AUT-003',
-            'MOD-001',
-            'MOD-002',
-            'MOD-004',
-            'MOD-005',
-            'SES-002',
-            'SES-003',
-            'SES-005',
-            'SES-006',
-            'SES-010',
-            'FIL-001',
-            'FIL-002',
-            'FIL-003',
-            'FIL-004',
-            'FIL-005',
-            'FIL-008',
-            'ATT-001',
-            'ATT-002',
-            'ATT-003',
-            'ATT-004',
-            'ATT-005',
-            'ATT-006',
-            'ATT-007',
-            'ATT-008',
-            'AUT-002',
-            'MOD-003',
-            'TIM-001',
-            'TUR-001',
-        ],
+    const required = JSON.parse(
+        await readFile(
+            resolve(root, 'conformance/v1/deterministic-case-ids.json'),
+            'utf8',
+        ),
     );
+    const executed = summary.cases
+        .map(({ id }) => id)
+        .filter((id) => required.includes(id));
+    assert.deepEqual(executed.toSorted(), required.toSorted());
     assert.ok(summary.cases.every(({ status }) => status === 'pass'));
 });
 
@@ -142,6 +93,9 @@ test('deterministic, live, and deferred inventories form an explicit disjoint pa
         'FIL-006',
         'FIL-007',
         'LIVE-012',
+        'TOL-004',
+        'TOL-005',
+        'TOL-006',
         'SES-004',
         'SES-007',
         'SES-008',
@@ -155,8 +109,8 @@ test('deterministic, live, and deferred inventories form an explicit disjoint pa
         '| PER-001 | L2 | default + Read/Search |',
         '| PER-002 | L2 | default + 权限交互 |',
         '| PER-004 | L2 | full_access + Edit |',
-        '| PER-005 | L2 | full_access + Shell |',
-        '| PER-006 | L2 | full_access + 四类工具 |',
+        '| PER-005 | L2 | JiaorongAI 0.5.6 Shell 禁用 |',
+        '| PER-006 | L2 | full_access + 三类文件工具 |',
         '| FIL-008 | L2 | full_access + 根外路径 |',
     ];
     for (const row of requiredPermissionRows) assert.ok(matrix.includes(row));

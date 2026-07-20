@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>第 4 课：可靠自动化</title><link rel="icon" href="data:,"><link rel="stylesheet" href="../assets/course.css"></head>
+<body><main>
+  <header><p class="kicker">Lesson 4 · 约 15 分钟</p><h1>正确结束、取消和恢复</h1><p>可靠自动化的核心不是启动命令，而是识别唯一终态并处理不确定副作用。</p></header>
+  <div class="outcome"><strong>本课成果：</strong>你能设置 timeout、解释 Ctrl-C、按 Machine Error Code 分支，并安全卸载。</div>
+  <h2>1. Timeout 与 max-turns</h2>
+  <pre><code>jiaorong-cli \
+  -p '执行任务' \
+  --model MODEL_ID \
+  --output-format stream-json \
+  --timeout 300 \
+  --max-turns 1</code></pre>
+  <p>Timeout 走真实远端取消路径。<code>--max-turns 1</code> 只表达 Headless Run turn；它不能限制 JiaorongAI 内部工具循环。</p>
+  <h2>2. Ctrl-C</h2><p>第一次 Ctrl-C 请求远端停止并等待最多 30 秒。第二次会强制本地退出；若因此没有 <code>result</code>，只能记为协议失败，不能声称远端已取消。</p>
+  <h2>3. 按机器码处理</h2>
+  <table><tbody><tr><th>INVALID_ARGUMENT / PERMISSION_DENIED</th><td>修正输入或权限，不原样重试</td></tr><tr><th>MODEL_UNAVAILABLE</th><td>刷新模型目录后退避或换 available ID</td></tr><tr><th>TIMEOUT / INTERNAL_ERROR</th><td>先检查可能副作用；安全时最多谨慎重试</td></tr><tr><th>CANCELLED</th><td>记录取消，不当成成功</td></tr></tbody></table>
+  <h2>4. JSONL 消费契约</h2>
+  <ol><li>逐行解析 stdout。</li><li>要求 init 第一且唯一。</li><li>配对 toolCallId。</li><li>等待 result 最后且唯一。</li><li>对照 status、error.code 和 exit。</li><li>stderr 单独存储。</li></ol>
+  <h2>5. 卸载</h2>
+  <pre><code>npm uninstall --global @jiaorong/cli
+command -v jiaorong-cli</code></pre>
+  <p>卸载不会删除 JiaorongAI.app、账号、Provider 或 Agent Session。</p>
+  <section class="exercise"><h2>练习</h2><ol><li>运行一个带 60 秒 timeout 的 stream-json 短任务。</li><li>写下可靠成功的四个条件。</li><li>解释如果第二次 Ctrl-C 后没有 result，调用方应该记录什么。</li><li>在速查表中找到 exit 42 和 130 的含义。</li></ol></section>
+  <details><summary>自测：TIMEOUT 后能否直接重跑写文件任务？</summary><p>不能先假定无副作用。先检查文件实际状态，只有操作可安全重复时才重试。</p></details>
+  <p><strong>权威来源：</strong><a href="../docs/jiaorong-cli-v1-protocol.md#12-错误与退出码">错误与退出码</a>、<a href="../docs/jiaorong-cli-v1-protocol.md#13-sigint-取消">SIGINT 取消</a></p>
+  <nav><a href="0003-files-and-permissions.html">← 上一课</a><a href="../reference/jiaorong-cli-quick-reference.html">速查表</a><a href="../docs/jiaorong-cli-v1-user-guide.md">完整手册</a></nav>
+</main></body></html>
