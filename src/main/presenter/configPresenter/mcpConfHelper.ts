@@ -3,11 +3,11 @@ import { eventBus, SendTarget } from '@/eventbus'
 import { BuiltinKnowledgeConfig, MCPServerConfig } from '@shared/presenter'
 import { MCP_EVENTS } from '@/events'
 import ElectronStore from 'electron-store'
-// app is used in DEFAULT_INMEMORY_SERVERS but removed buildInFileSystem
-// import { app } from 'electron'
+import { app } from 'electron'
 import { compare } from 'compare-versions'
 import { presenter } from '..'
 import type { StoreLike } from './storeLike'
+import { prepareJsonStoreFile } from './jsonStoreRecovery'
 
 // NPM Registry cache interface
 export interface INpmRegistryCache {
@@ -288,9 +288,12 @@ export class McpConfHelper {
   private mcpStore: StoreLike<IMcpSettings & Record<string, unknown>>
 
   constructor() {
+    // Quarantine truncated/invalid JSON before electron-store parses it
+    prepareJsonStoreFile(app.getPath('userData'), 'mcp-settings')
     // Initialize MCP settings storage
     this.mcpStore = new ElectronStore<IMcpSettings>({
       name: 'mcp-settings',
+      clearInvalidConfig: true,
       defaults: {
         mcpServers: this.buildDefaultServerConfigs(),
         mcpEnabled: DEFAULT_MCP_SERVERS.mcpEnabled,

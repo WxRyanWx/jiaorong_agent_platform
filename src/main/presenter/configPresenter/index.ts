@@ -47,6 +47,7 @@ import path from 'path'
 import { getDefaultSkillsPath, repairLegacySkillsPath } from '@shared/appIdentity'
 import { app, nativeTheme, shell, safeStorage } from 'electron'
 import fs from 'fs'
+import { prepareJsonStoreFile } from './jsonStoreRecovery'
 import {
   CONFIG_EVENTS,
   SYSTEM_EVENTS,
@@ -424,9 +425,14 @@ export class ConfigPresenter implements IConfigPresenter {
   constructor() {
     this.userDataPath = app.getPath('userData')
     this.currentAppVersion = app.getVersion()
+    // Quarantine truncated/invalid JSON before electron-store parses it (prevents critical INIT white screen)
+    prepareJsonStoreFile(this.userDataPath, 'app-settings')
+    prepareJsonStoreFile(this.userDataPath, 'custom_prompts')
+    prepareJsonStoreFile(this.userDataPath, 'system_prompts')
     // Initialize application settings storage
     this.store = new ElectronStore<IAppSettings>({
       name: 'app-settings',
+      clearInvalidConfig: true,
       defaults: {
         language: 'system',
         providers: defaultProviders,
@@ -476,6 +482,7 @@ export class ConfigPresenter implements IConfigPresenter {
     // Initialize custom prompts storage
     this.customPromptsStore = new ElectronStore<{ prompts: Prompt[] }>({
       name: 'custom_prompts',
+      clearInvalidConfig: true,
       defaults: {
         prompts: []
       }
@@ -483,6 +490,7 @@ export class ConfigPresenter implements IConfigPresenter {
 
     this.systemPromptsStore = new ElectronStore<{ prompts: SystemPrompt[] }>({
       name: 'system_prompts',
+      clearInvalidConfig: true,
       defaults: {
         prompts: [
           {
