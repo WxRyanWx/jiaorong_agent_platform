@@ -317,7 +317,7 @@ const setup = async (options: SetupOptions = {}) => {
       t: (key: string) => key
     })
   }))
-  vi.doMock('@jiaorong/auth/lib/session', () => ({
+  vi.doMock('@jiaorong/auth/host', () => ({
     forceRevalidateAuthSession: vi.fn(async () => true)
   }))
   const route = reactive({

@@ -1,8 +1,23 @@
+export type JiaorongSidebarSlot = 'after-deepchat'
+
 export type JiaorongSidebarItem = {
   id: string
   titleKey?: string
   title?: string
   order?: number
+  /** Iconify 图标名，如 lucide:wand-sparkles */
+  icon?: string
+  /** vue-router name（点击跳转目标） */
+  routeName: string
+  /**
+   * 高亮匹配的 route name 列表（如技能列表+详情共用入口）。
+   * 未设置时仅匹配 `routeName`。
+   */
+  matchRouteNames?: string[]
+  testId?: string
+  slot?: JiaorongSidebarSlot
+  /** 激活时隐藏会话栏等宿主 chrome */
+  exclusiveChrome?: boolean
 }
 
 export type JiaorongRouteContribution = {

@@ -3,14 +3,14 @@ import Base64 from 'crypto-js/enc-base64'
 import { SM4Encrypt, SM4Decrypt } from './sm4'
 import { isEmptyObject } from './is'
 
-export function pwdEncrypt(value: string) {
+export async function pwdEncrypt(value: string) {
   if (value) {
     return SM4Encrypt(value)
   }
   return ''
 }
 
-export function pwdDecrypt(value: string) {
+export async function pwdDecrypt(value: string) {
   if (value) {
     return SM4Decrypt(value)
   }

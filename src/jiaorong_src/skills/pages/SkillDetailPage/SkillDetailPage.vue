@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
@@ -15,34 +15,44 @@ import {
 import MarkdownRenderer from '@/components/markdown/MarkdownRenderer.vue'
 import { useToast } from '@/components/use-toast'
 import {
+  disableSkill,
+  enableSkill,
+  getSkillSwitchStatus,
+  isSkillInstalled,
+  isSkillInstalledAsync,
   openSkillFolder,
   readSkillMarkdown,
   showGlobalSuccessToast,
+  SkillSwitchStatus,
   startGeneralChatWithSkills,
   uninstallSkill as uninstallRealSkill
 } from '@jiaorong/utils'
 import {
-  getMockSkill,
-  installMockSkill,
-  setMockSkillEnabled,
-  applyMockSkillUninstalled
-} from '@jiaorong/skills/services'
+  readJiaorongSkillFromSession,
+  SkillSource,
+  type JiaorongSkillItem
+} from '../../lib/sessionSkill'
 
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
 const { toast } = useToast()
-const installing = ref(false)
 const uninstalling = ref(false)
 const skillMarkdown = ref('')
 const skillMarkdownLoading = ref(false)
 const skillMarkdownError = ref('')
-// 当前阶段卸载仅更新 Mock 数据；设为 false 即可恢复下方保留的真实卸载流程。
-const USE_MOCK_SKILL_UNINSTALL = true
-let installTimer: ReturnType<typeof setTimeout> | undefined
+const skill = ref<JiaorongSkillItem | null>(readJiaorongSkillFromSession())
+const installed = ref(false)
+const enabled = ref(true)
 
 const skillId = computed(() => String(route.params.skillId ?? ''))
-const skill = computed(() => getMockSkill(skillId.value))
+const currentSkillName = computed(() => skill.value?.name || skillId.value)
+const skillDisplayName = computed(() => {
+  const displayName = skill.value?.metadata?.displayName
+  return typeof displayName === 'string' && displayName.trim()
+    ? displayName.trim()
+    : skill.value?.name || ''
+})
 
 watch(
   skillId,
@@ -52,13 +62,34 @@ watch(
       cancelled = true
     })
 
+    const storedSkill = readJiaorongSkillFromSession()
+    skill.value = storedSkill?.name === currentSkillId ? storedSkill : null
+    const name = skill.value?.name || currentSkillId
+    installed.value = isSkillInstalled(name)
+    enabled.value = getSkillSwitchStatus(name) === SkillSwitchStatus.On
+
+    const result = await isSkillInstalledAsync(name)
+    if (!cancelled) installed.value = result
+  },
+  { immediate: true }
+)
+
+watch(
+  [skillId, installed],
+  async (currentSkillId, _previousSkillId, onCleanup) => {
+    let cancelled = false
+    onCleanup(() => {
+      cancelled = true
+    })
+
     skillMarkdown.value = ''
     skillMarkdownError.value = ''
-    if (!currentSkillId || !getMockSkill(currentSkillId)?.installed) return
+    const [id, isInstalled] = currentSkillId
+    if (!id || !isInstalled) return
 
     skillMarkdownLoading.value = true
     try {
-      const content = await readSkillMarkdown(currentSkillId)
+      const content = await readSkillMarkdown(id)
       if (!cancelled) skillMarkdown.value = content
     } catch (error) {
       if (!cancelled) {
@@ -76,17 +107,19 @@ const goBack = () => {
   void router.push({ name: 'skills' })
 }
 
-const installSkill = () => {
-  if (!skill.value || installing.value) return
-  installing.value = true
-  installTimer = setTimeout(() => {
-    installMockSkill(skillId.value)
-    installing.value = false
-  }, 600)
-}
+const updateEnabled = async (nextEnabled: boolean) => {
+  const result = nextEnabled
+    ? await enableSkill(currentSkillName.value)
+    : await disableSkill(currentSkillName.value)
 
-const updateEnabled = (enabled: boolean) => {
-  setMockSkillEnabled(skillId.value, enabled)
+  enabled.value = result.status === SkillSwitchStatus.On
+  if (!result.success) {
+    toast({
+      title: t('routes.skillsUnknownError'),
+      description: result.error || t('routes.skillsUnknownError'),
+      variant: 'destructive'
+    })
+  }
 }
 
 const useSkill = async () => {
@@ -94,16 +127,7 @@ const useSkill = async () => {
   await startGeneralChatWithSkills({
     router,
     prompt: '',
-    skillNames: [skill.value.id]
-  })
-}
-
-const trySkill = async (prompt: string) => {
-  if (!skill.value) return
-  await startGeneralChatWithSkills({
-    router,
-    prompt,
-    skillNames: [skill.value.id]
+    skillNames: [skill.value.name]
   })
 }
 
@@ -111,7 +135,7 @@ const handleOpenSkillFolder = async () => {
   if (!skill.value) return
 
   try {
-    await openSkillFolder(skill.value.id)
+    await openSkillFolder(skill.value.name)
   } catch (error) {
     toast({
       title: t('routes.skillsOpenFolderFailed'),
@@ -125,21 +149,8 @@ const uninstallSkill = async () => {
   const currentSkill = skill.value
   if (!currentSkill || uninstalling.value) return
 
-  if (USE_MOCK_SKILL_UNINSTALL) {
-    const source = applyMockSkillUninstalled(currentSkill.id)
-    if (!source) return
-
-    showGlobalSuccessToast(t('routes.skillsUninstallSuccess'))
-
-    if (source === 'local') {
-      await router.push({ name: 'skills' })
-    }
-    return
-  }
-
-  // 保留真实卸载逻辑，后续关闭 Mock 开关即可重新启用。
   uninstalling.value = true
-  const result = await uninstallRealSkill(currentSkill.id)
+  const result = await uninstallRealSkill(currentSkill.name)
   uninstalling.value = false
 
   if (!result.success) {
@@ -151,19 +162,14 @@ const uninstallSkill = async () => {
     return
   }
 
-  const source = applyMockSkillUninstalled(currentSkill.id)
-  if (!source) return
+  installed.value = false
 
   showGlobalSuccessToast(t('routes.skillsUninstallSuccess'))
 
-  if (source === 'local') {
+  if (currentSkill.skill_source !== SkillSource.RemoteApi) {
     await router.push({ name: 'skills' })
   }
 }
-
-onBeforeUnmount(() => {
-  if (installTimer) clearTimeout(installTimer)
-})
 </script>
 
 <template>
@@ -191,36 +197,23 @@ onBeforeUnmount(() => {
                   <Icon icon="lucide:sparkles" class="h-6 w-6" />
                 </div>
                 <div class="min-w-0">
-                  <h1 class="text-2xl font-semibold tracking-tight">{{ skill.name }}</h1>
-                  <p
-                    v-if="skill.source === 'market'"
-                    class="mt-3 max-w-3xl text-sm leading-7 text-muted-foreground"
-                  >
+                  <h1 class="text-2xl font-semibold tracking-tight">{{ skillDisplayName }}</h1>
+                  <p class="mt-3 max-w-3xl text-sm leading-7 text-muted-foreground">
                     {{ skill.description }}
                   </p>
                 </div>
               </div>
 
-              <div v-if="skill.installed" class="flex shrink-0 items-center gap-3">
+              <div v-if="installed" class="flex shrink-0 items-center gap-3">
                 <span class="text-sm text-muted-foreground">
-                  {{ skill.enabled ? t('routes.skillsEnabled') : t('routes.skillsDisabled') }}
+                  {{ enabled ? t('routes.skillsEnabled') : t('routes.skillsDisabled') }}
                 </span>
-                <Switch :model-value="skill.enabled" @update:model-value="updateEnabled" />
+                <Switch :model-value="enabled" @update:model-value="updateEnabled" />
               </div>
             </div>
 
-            <div v-if="!skill.installed" class="mt-7 border-t pt-6">
-              <Button :disabled="installing" class="min-w-28 gap-2" @click="installSkill">
-                <Icon
-                  :icon="installing ? 'lucide:loader-circle' : 'lucide:download'"
-                  :class="['h-4 w-4', installing && 'animate-spin']"
-                />
-                {{ installing ? t('routes.skillsInstalling') : t('routes.skillsInstall') }}
-              </Button>
-            </div>
-
-            <div v-else class="mt-7 flex flex-wrap items-center gap-3 border-t pt-6">
-              <Button class="gap-2" :disabled="!skill.enabled" @click="useSkill">
+            <div v-if="installed" class="mt-7 flex flex-wrap items-center gap-3 border-t pt-6">
+              <Button class="gap-2" :disabled="!enabled" @click="useSkill">
                 <Icon icon="lucide:message-square" class="h-4 w-4" />
                 {{ t('routes.skillsUse') }}
               </Button>
@@ -253,30 +246,7 @@ onBeforeUnmount(() => {
             </div>
           </section>
 
-          <template v-if="skill.installed">
-            <section
-              v-if="skill.source === 'market' && skill.tryPrompts.length > 0"
-              class="mt-6 rounded-xl border bg-card p-6 shadow-sm md:p-8"
-            >
-              <h2 class="text-lg font-semibold">{{ t('routes.skillsTryTitle') }}</h2>
-              <div class="mt-4 grid gap-3 md:grid-cols-2">
-                <button
-                  v-for="prompt in skill.tryPrompts"
-                  :key="prompt"
-                  type="button"
-                  class="group flex items-start justify-between gap-4 rounded-lg border bg-background p-4 text-left transition hover:border-primary/40 hover:bg-muted/30 disabled:cursor-not-allowed disabled:opacity-50"
-                  :disabled="!skill.enabled"
-                  @click="trySkill(prompt)"
-                >
-                  <span class="text-sm leading-6 text-foreground">{{ prompt }}</span>
-                  <Icon
-                    icon="lucide:arrow-up-right"
-                    class="mt-1 h-4 w-4 shrink-0 text-muted-foreground transition group-hover:text-primary"
-                  />
-                </button>
-              </div>
-            </section>
-
+          <template v-if="installed">
             <section class="mt-6 rounded-xl border bg-card p-6 shadow-sm md:p-8">
               <h2 class="mb-5 text-lg font-semibold">{{ t('routes.skillsSourceTitle') }}</h2>
               <Tabs default-value="source">
@@ -318,8 +288,8 @@ onBeforeUnmount(() => {
                   <div v-else class="min-h-40 rounded-lg border bg-background p-5">
                     <MarkdownRenderer
                       :content="skillMarkdown"
-                      :message-id="`skill-preview-${skill.id}`"
-                      :thread-id="`skill-preview-${skill.id}`"
+                      :message-id="`skill-preview-${skill.name}`"
+                      :thread-id="`skill-preview-${skill.name}`"
                       :smooth-streaming="false"
                     />
                   </div>

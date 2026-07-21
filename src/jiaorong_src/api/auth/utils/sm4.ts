@@ -1,4 +1,6 @@
-// SM4 加密/解密（依赖 index.html 中加载的全局 Sm4utils）
+// SM4 加密/解密（依赖 ensureSm4Loaded 注入的全局 Sm4utils）
+
+import { ensureSm4Loaded } from '@jiaorong/auth/lib/ensureSm4'
 
 declare let Sm4utils: new (key: string) => {
   encryptData_ECB: (plaintext: unknown) => string | false
@@ -31,7 +33,8 @@ function decrypt(ciphertext: unknown, key: string) {
   return decryptData
 }
 
-export function SM4Encrypt(data: unknown) {
+export async function SM4Encrypt(data: unknown) {
+  await ensureSm4Loaded()
   const encryptData = encrypt(data, SM4_KEY)
   if (!encryptData) {
     console.error('数据加密失败')
@@ -40,7 +43,8 @@ export function SM4Encrypt(data: unknown) {
   return encryptData
 }
 
-export function SM4Decrypt(data: unknown) {
+export async function SM4Decrypt(data: unknown) {
+  await ensureSm4Loaded()
   if (!SM4_KEY) {
     console.error('SM4密钥错误')
     return null

@@ -27,6 +27,10 @@ import { eventBus, SendTarget } from '@/eventbus'
 import { SKILL_EVENTS } from '@/events'
 import { publishDeepchatEvent } from '@/routes/publishDeepchatEvent'
 import logger from '@shared/logger'
+import {
+  filterEnabledSkillNamesFromSetting,
+  JIAORONG_SKILL_SWITCH_SETTING_KEY
+} from '@jiaorong/utils/skillSwitchCore'
 import { normalizeSkillAllowedTools } from './toolNameMapping'
 import {
   APP_HOME_DIR_NAME,
@@ -2075,6 +2079,12 @@ export class SkillPresenter implements ISkillPresenter {
     })
   }
 
+  /** 按交融全局开关过滤已关闭技能（不注入模型 / 不可激活） */
+  private filterJiaorongEnabledSkills(skillNames: string[]): string[] {
+    const setting = this.configPresenter.getSetting<unknown>(JIAORONG_SKILL_SWITCH_SETTING_KEY)
+    return filterEnabledSkillNamesFromSetting(skillNames, setting)
+  }
+
   /**
    * Get active skills for a conversation
    */
@@ -2082,7 +2092,9 @@ export class SkillPresenter implements ISkillPresenter {
     if (await this.isNewAgentSession(conversationId)) {
       const rawSkills = await this.loadNewSessionSkills(conversationId)
       const repairedSkills = this.repairLegacySkillNames(rawSkills)
-      const validSkills = await this.validateSkillNames(repairedSkills)
+      const validSkills = this.filterJiaorongEnabledSkills(
+        await this.validateSkillNames(repairedSkills)
+      )
 
       if (
         JSON.stringify(rawSkills) !== JSON.stringify(validSkills) ||
@@ -2103,8 +2115,8 @@ export class SkillPresenter implements ISkillPresenter {
   async setActiveSkills(conversationId: string, skills: string[]): Promise<string[]> {
     try {
       const isNewSession = await this.isNewAgentSession(conversationId)
-      // Validate skill names
-      const validSkills = await this.validateSkillNames(skills)
+      // Validate skill names（并剔除交融侧已关闭技能）
+      const validSkills = this.filterJiaorongEnabledSkills(await this.validateSkillNames(skills))
       if (!isNewSession) {
         this.warnLegacySkillRetired(conversationId)
         return await this.getActiveSkills(conversationId)

@@ -16,7 +16,7 @@ export const FeatchLogin = async (username: string, password: string) => {
   formData.append('grant_type', 'password')
   formData.append('scope', 'all')
   formData.append('username', username || '')
-  formData.append('password', pwdEncrypt(password || '') || '')
+  formData.append('password', (await pwdEncrypt(password || '')) || '')
   const flatObj = getDecParams({})
   return postLogin(
     initParams(flatObj.signParams as Record<string, string | number>),
@@ -54,7 +54,7 @@ export const FeatchUserInfo = async (_userName?: string, options?: { silent?: bo
 
 export const FeatchUpdatePwd = async (newPwd: string, key: string) => {
   const paramas = {
-    newPwd: pwdEncrypt(newPwd || '') || '',
+    newPwd: (await pwdEncrypt(newPwd || '')) || '',
     key
   }
   const flatObj = getDecParams({})
@@ -74,7 +74,7 @@ export const FeatchRetrievePwd = async (
     captcha,
     key,
     phone,
-    pwd: pwdEncrypt(newPwd || '') || ''
+    pwd: (await pwdEncrypt(newPwd || '')) || ''
   }
   const flatObj = getDecParams({})
   return retrievePwd(

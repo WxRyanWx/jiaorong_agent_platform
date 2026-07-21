@@ -2,16 +2,22 @@
 export { default as authModule } from './module'
 export { default } from './module'
 
-export { setupAuthGuard } from './lib/guard'
-export { setupAuthInterceptors } from './lib/setup'
-export { saveTokenFromUrl, getUrlToken } from './lib/auth-from-url'
-export { useAuthLoginDeeplinkHandler } from './lib/auth-deeplink'
+/** 宿主对接请优先 `@jiaorong/auth/host` */
 export {
+  bootstrapJiaorongRendererAuth,
+  loadLoginPage,
+  setupAuthGuard,
+  setupAuthInterceptors,
+  saveTokenFromUrl,
+  getUrlToken,
+  useAuthLoginDeeplinkHandler,
   ensureAuthSessionValidated,
   forceRevalidateAuthSession,
   markAuthSessionValidated,
   clearAuthSession,
-  resetAuthSessionValidation
-} from './lib/session'
-export { getToken, clearOutLocal } from './lib/local-user'
+  resetAuthSessionValidation,
+  getToken,
+  clearOutLocal
+} from './host'
+
 export { useLoginPageScale } from './composables/useLoginPageScale'

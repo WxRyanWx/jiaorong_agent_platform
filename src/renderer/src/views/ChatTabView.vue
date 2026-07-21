@@ -24,7 +24,6 @@
 
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue'
-import { createStartupClient } from '@api/StartupClient'
 import ChatSidePanel from '@/components/sidepanel/ChatSidePanel.vue'
 import NewThreadPage from '@/pages/NewThreadPage.vue'
 import ChatPage from '@/pages/ChatPage.vue'
@@ -37,6 +36,7 @@ import { useModelStore } from '@/stores/modelStore'
 import { useOllamaStore } from '@/stores/ollamaStore'
 import { useStartupWorkloadStore } from '@/stores/startupWorkloadStore'
 import { markStartupInteractive, scheduleStartupDeferredTask } from '@/lib/startupDeferred'
+import { ensureShellBootstrap } from '@/lib/shellBootstrap'
 
 const pageRouter = usePageRouterStore()
 const sessionStore = useSessionStore()
@@ -71,25 +71,19 @@ onMounted(async () => {
   let criticalLoadPromises: Promise<void> | null = null
 
   try {
-    const startupClient = createStartupClient()
-    const bootstrap = await startupClient.getBootstrap()
-    console.info(
-      `[Startup][Renderer] startup.bootstrap.ready run=${bootstrap.startupRunId} agents=${bootstrap.agents.length} activeSession=${bootstrap.activeSessionId ?? 'none'}`
-    )
+    // 与 App 壳层共用同一 bootstrap，避免早进 /skills 时 agents 未加载
+    const bootstrap = await ensureShellBootstrap()
+    if (bootstrap) {
+      console.info(
+        `[Startup][Renderer] ChatTabView reuse shell.bootstrap run=${bootstrap.startupRunId}`
+      )
+      await pageRouter.initialize({
+        activeSessionId: bootstrap.activeSessionId
+      })
+    } else {
+      await initializeRouteFromFallbackState()
+    }
 
-    await sessionStore.applyBootstrapShell({
-      activeSessionId: bootstrap.activeSessionId,
-      activeSession: bootstrap.activeSession ?? null
-    })
-    agentStore.applyBootstrapAgents(bootstrap.agents)
-    projectStore.applyBootstrapDefaultProjectPath(bootstrap.defaultProjectPath)
-
-    await pageRouter.initialize({
-      activeSessionId: bootstrap.activeSessionId
-    })
-
-    // Start loading agents, projects, models, and ollama immediately after router init
-    // Don't block on them, they load in background while we mark interactive
     criticalLoadPromises = Promise.allSettled([
       agentStore.fetchAgents(),
       projectStore.fetchProjects(),
@@ -106,8 +100,6 @@ onMounted(async () => {
     isReady.value = true
     console.info('[Startup][Renderer] ChatTabView interactive ready')
 
-    // Session data is already loading in parallel from App.vue.onMounted
-    // Don't block on it here - let it load in background
     if (!sessionStore.hasLoadedInitialPage) {
       void sessionStore.fetchSessions()
     }
@@ -115,7 +107,6 @@ onMounted(async () => {
     markStartupInteractive()
     cancelDeferredHydration = scheduleStartupDeferredTask(async () => {
       console.info('[Startup][Renderer] ChatTabView deferred hydration begin')
-      // Wait for critical loads if they're still running
       if (criticalLoadPromises) {
         await criticalLoadPromises
       }

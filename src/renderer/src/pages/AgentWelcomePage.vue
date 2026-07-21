@@ -56,7 +56,7 @@ import { Icon } from '@iconify/vue'
 import { useI18n } from 'vue-i18n'
 import { createSettingsClient } from '@api/SettingsClient'
 import { useAgentStore, type UIAgent } from '@/stores/ui/agent'
-import { forceRevalidateAuthSession } from '@jiaorong/auth/lib/session'
+import { forceRevalidateAuthSession } from '@jiaorong/auth/host'
 import AgentAvatar from '@/components/icons/AgentAvatar.vue'
 
 type AgentWelcomeCard = {
