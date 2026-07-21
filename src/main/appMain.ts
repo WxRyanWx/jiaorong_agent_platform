@@ -15,6 +15,7 @@ import {
 } from './lib/startupDeepLink'
 import { isInsecureTlsAllowed } from './lib/insecureTls'
 import { activateAppOnMac, ensureRegularAppOnMac } from './lib/activateApp'
+import { initScreenshotRuntime } from '@jiaorong/screenshot'
 
 let appStarted = false
 const APP_NAME = 'JiaorongAI'
@@ -181,6 +182,7 @@ export function startApp(): void {
       logger.info('main: Application lifecycle startup')
       await lifecycleManager.start()
       presenter = getInstance(lifecycleManager)
+      initScreenshotRuntime()
       logger.info('main: Application lifecycle startup completed successfully')
     } catch (error) {
       console.error('main: Application lifecycle startup failed:', error)

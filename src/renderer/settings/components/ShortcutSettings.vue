@@ -170,6 +170,10 @@ const shortcutMapping: Record<
     icon: 'lucide:plus-square',
     label: 'settings.shortcuts.showHideWindow'
   },
+  Screenshot: {
+    icon: 'lucide:scan-line',
+    label: 'settings.shortcuts.screenshot'
+  },
   NewConversation: {
     icon: 'lucide:plus-square',
     label: 'settings.shortcuts.newConversation'

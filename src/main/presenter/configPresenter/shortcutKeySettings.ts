@@ -22,6 +22,7 @@ export const rendererShortcutKey = {
 // System-level shortcut keys
 export const systemShortcutKey = {
   ShowHideWindow: `${CommandKey}+O`,
+  Screenshot: `${CommandKey}+${ShiftKey}+A`,
   Quit: `${CommandKey}+Q`
 }
 

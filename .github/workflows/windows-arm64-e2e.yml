@@ -5,6 +5,8 @@ on:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  SCREENSHOT_RUNTIME_VERSION: "v0.1.1"
+  SCREENSHOT_REPO_TOKEN: ${{ secrets.SCREENSHOT_REPO_TOKEN }}
 
 jobs:
   windows-arm64-e2e:
@@ -49,6 +51,8 @@ jobs:
       - name: Build Windows arm64 package
         run: |
           pnpm run build
+          pnpm run screenshot:download -- --platform win32 --arch arm64
+          pnpm run screenshot:stage -- --platform win32 --arch arm64
           pnpm run plugin:bundle:clean
           pnpm run plugin:bundle -- --name feishu --platform win32 --arch arm64
           pnpm exec electron-builder --win --arm64 --publish=never

@@ -20,3 +20,6 @@
 | H14 | `src/main/.../deeplinkPresenter` + events | `AUTH_LOGIN` 扫码回调 IPC | auth | 高 | 协议层仍宿主，勿整文件搬走 |
 | H15 | `src/renderer/src/stores/ui/draft.ts` / `pages/NewThreadPage.vue` / `components/chat/ChatInputBox.vue` | 通用对话启动参数支持待激活技能，并复用现有 pending skills 流程 | skills | 中 | 交融业务入口与编排保留在 `jiaorong_src`；宿主仅消费通用启动参数 |
 | H16 | `src/shared/contracts/routes/skills.routes.ts` / `types/skill.ts` / `src/main/presenter/skillPresenter/index.ts` / `src/main/routes/index.ts` / `src/renderer/api/SkillClient.ts` | 按已发现技能元数据打开或卸载实际 `skillRoot`，并读取真实 `SKILL.md` | skills | 中 | `skills.openFolder` 不传名称时兼容原有打开技能根目录行为；卸载校验目录位于受管技能根目录内；读取复用 Presenter 的文件大小限制 |
+| H17 | `src/main/appMain.ts` / `src/main/presenter/shortcutPresenter.ts` / `configPresenter/shortcutKeySettings.ts` | 初始化独立截图 IPC，并由宿主注册用户截图快捷键 | screenshot | 中 | 截图程序自身不注册快捷键 |
+| H18 | `src/preload/index.ts` / `src/preload/index.d.ts` / `src/renderer/settings/components/ShortcutSettings.vue` | 暴露打开截图 API，并展示截图快捷键设置 | screenshot | 中 | 仅暴露布尔启动结果，不暴露截图内部 IPC |
+| H19 | `package.json` / `electron-builder.yml` / `.github/workflows/*` / `scripts/*screenshot-runtime.mjs` | 下载、暂存并只打包当前目标截图运行时 | screenshot | 中 | Release 版本固定，不提交六套大文件 |

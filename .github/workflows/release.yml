@@ -16,6 +16,8 @@ permissions:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  SCREENSHOT_RUNTIME_VERSION: "v0.1.1"
+  SCREENSHOT_REPO_TOKEN: ${{ secrets.SCREENSHOT_REPO_TOKEN }}
   RTK_INSTALL_GITHUB_TOKEN: ${{ secrets.RTK_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
   RTK_INSTALL_GITHUB_TOKEN_SOURCE: ${{ secrets.RTK_GITHUB_TOKEN != '' && 'RTK_GITHUB_TOKEN' || 'GITHUB_TOKEN' }}
 
@@ -174,6 +176,8 @@ jobs:
       - name: Build Windows
         run: |
           pnpm run build
+          pnpm run screenshot:download -- --platform win32 --arch ${{ matrix.arch }}
+          pnpm run screenshot:stage -- --platform win32 --arch ${{ matrix.arch }}
           pnpm run plugin:bundle -- --name feishu --platform win32 --arch ${{ matrix.arch }}
           pnpm exec electron-builder --win --${{ matrix.arch }} --publish=never
         env:
@@ -237,6 +241,8 @@ jobs:
       - name: Build Linux
         run: |
           pnpm run build
+          pnpm run screenshot:download -- --platform linux --arch ${{ matrix.arch }}
+          pnpm run screenshot:stage -- --platform linux --arch ${{ matrix.arch }}
           pnpm run plugin:bundle -- --name feishu --platform linux --arch ${{ matrix.arch }}
           pnpm exec electron-builder --linux --${{ matrix.arch }} --publish=never
         env:
@@ -311,6 +317,8 @@ jobs:
       - name: Build Mac
         run: |
           pnpm run build
+          pnpm run screenshot:download -- --platform darwin --arch ${{ matrix.arch }}
+          pnpm run screenshot:stage -- --platform darwin --arch ${{ matrix.arch }}
           pnpm run plugin:cua:build:mac:${{ matrix.arch }}
           pnpm run plugin:bundle -- --name cua --platform darwin --arch ${{ matrix.arch }}
           pnpm run plugin:bundle -- --name feishu --platform darwin --arch ${{ matrix.arch }}

@@ -19,6 +19,7 @@ jiaorong_src/
   skills/            # V0.6 技能中心
     routes.ts module.ts
     pages/SkillListPage/ SkillDetailPage/
+  screenshot/        # 独立截图可执行程序的主进程适配层
   utils/ runtime/
 ```
 
@@ -28,6 +29,8 @@ jiaorong_src/
 2. **新模块**：建 `xxx/module.ts` 并 `export default`，再在 `runtime/discover.ts` 的 `BUILTIN_MODULES` 里显式 `import` 一行（禁止 `import.meta.glob({ eager: true })`，以免拖慢首屏）。
 3. **调自有后端**：放 `api/`，复用 `api/auth` 的 origin（`c4ai.ccccltd.cn` / `VITE_AUTH_API_ORIGIN`）。
 4. **改开源主仓**：必须记入 `HOST_TOUCHPOINTS.md`。
+5. **截图能力**：由 `screenshot-electron` 独立发布；本项目只注册快捷键并启动可执行程序，参见
+   [`screenshot/README.md`](screenshot/README.md)。
 
 ## 引用
 

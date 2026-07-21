@@ -10,6 +10,7 @@ import {
 } from 'electron'
 import { exposeElectronAPI } from '@electron-toolkit/preload'
 import { normalizeExternalUrl } from '@shared/externalUrl'
+import { SCREENSHOT_OPEN_CHANNEL } from '@jiaorong/screenshot/contracts'
 import { createBridge } from './createBridge'
 
 const isDevHiddenApiEnabled =
@@ -22,6 +23,7 @@ let cachedWebContentsId: number | undefined = undefined
 
 // Custom APIs for renderer
 const api = Object.freeze({
+  openScreenShotWindow: () => ipcRenderer.invoke(SCREENSHOT_OPEN_CHANNEL) as Promise<boolean>,
   copyText: (text: string) => {
     clipboard.writeText(text)
   },

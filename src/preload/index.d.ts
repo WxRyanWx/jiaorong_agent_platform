@@ -6,6 +6,7 @@ declare global {
     electron: ElectronAPI
     deepchat: DeepchatBridge
     api: {
+      openScreenShotWindow(): Promise<boolean>
       copyText(text: string): void
       copyImage(image: string): void
       readClipboardText(): string
