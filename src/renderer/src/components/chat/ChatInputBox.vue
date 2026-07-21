@@ -446,6 +446,10 @@ function getPendingSkillsSnapshot(): string[] {
   return Array.from(new Set(skillsData.pendingSkills.value))
 }
 
+async function activateSkill(skillName: string) {
+  await skillsData.activateSkill(skillName)
+}
+
 function focusInput() {
   editor.chain().focus().scrollIntoView().run()
   setCaretToEnd(editor)
@@ -456,6 +460,7 @@ defineExpose({
   insertRecognizedText,
   insertWorkspaceReference,
   getPendingSkillsSnapshot,
+  activateSkill,
   focusInput
 })
 </script>

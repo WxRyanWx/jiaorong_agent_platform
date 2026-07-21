@@ -86,6 +86,16 @@ export const skillsUpdateFileRoute = defineRouteContract({
   })
 })
 
+export const skillsReadFileRoute = defineRouteContract({
+  name: 'skills.readFile',
+  input: z.object({
+    name: z.string().trim().min(1)
+  }),
+  output: z.object({
+    content: z.string()
+  })
+})
+
 export const skillsSaveWithExtensionRoute = defineRouteContract({
   name: 'skills.saveWithExtension',
   input: z.object({
@@ -110,7 +120,9 @@ export const skillsGetFolderTreeRoute = defineRouteContract({
 
 export const skillsOpenFolderRoute = defineRouteContract({
   name: 'skills.openFolder',
-  input: z.object({}),
+  input: z.object({
+    name: z.string().trim().min(1).optional()
+  }),
   output: z.object({
     opened: z.literal(true)
   })

@@ -1739,7 +1739,20 @@ export class SkillPresenter implements ISkillPresenter {
    */
   async uninstallSkill(name: string): Promise<SkillInstallResult> {
     try {
-      const skillDir = path.join(this.skillsDir, name)
+      if (this.metadataCache.size === 0) {
+        await this.discoverSkills()
+      }
+
+      const metadata = this.metadataCache.get(name)
+      if (!metadata) {
+        return { success: false, error: `Skill "${name}" not found` }
+      }
+
+      const skillDir = path.resolve(metadata.skillRoot)
+      const relativePath = path.relative(this.skillsDir, skillDir)
+      if (!relativePath || relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
+        return { success: false, error: `Skill "${name}" is outside the managed skills directory` }
+      }
 
       if (!fs.existsSync(skillDir)) {
         return { success: false, error: `Skill "${name}" not found` }
@@ -1934,12 +1947,27 @@ export class SkillPresenter implements ISkillPresenter {
     }
   }
 
-  /**
-   * Open the skills folder in file explorer
-   */
-  async openSkillsFolder(): Promise<void> {
+  /** Open the skills root, or a discovered skill's own folder, in the file explorer. */
+  async openSkillsFolder(name?: string): Promise<void> {
     this.ensureSkillsDir()
-    await shell.openPath(this.skillsDir)
+    let targetPath = this.skillsDir
+
+    if (name) {
+      if (this.metadataCache.size === 0) {
+        await this.discoverSkills()
+      }
+
+      const skill = this.metadataCache.get(name)
+      if (!skill) {
+        throw new Error(`Skill "${name}" not found`)
+      }
+      targetPath = skill.skillRoot
+    }
+
+    const errorMessage = await shell.openPath(targetPath)
+    if (errorMessage) {
+      throw new Error(errorMessage)
+    }
   }
 
   async getSkillExtension(name: string): Promise<SkillExtensionConfig> {

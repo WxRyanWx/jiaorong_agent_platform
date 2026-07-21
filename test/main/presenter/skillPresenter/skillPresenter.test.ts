@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi, Mock, afterEach } from 'vitest'
 import type { IConfigPresenter } from '../../../../src/shared/presenter'
 import type { SkillMetadata } from '../../../../src/shared/types/skill'
-import { app } from 'electron'
+import { app, shell } from 'electron'
 
 const DEFAULT_SKILLS_DIR = '/mock/home/.jiaorongchat/skills'
 
@@ -395,6 +395,35 @@ describe('SkillPresenter', () => {
       const dir = await skillPresenter.getSkillsDir()
       expect(dir).toBeTruthy()
       expect(typeof dir).toBe('string')
+    })
+  })
+
+  describe('openSkillsFolder', () => {
+    it('opens the skills root when no skill name is provided', async () => {
+      await skillPresenter.openSkillsFolder()
+
+      expect(shell.openPath).toHaveBeenCalledWith(DEFAULT_SKILLS_DIR)
+    })
+
+    it('opens the discovered skill root when a skill name is provided', async () => {
+      const metadata = createSkillMetadata('skill-a', 'skill-a')
+      const metadataCache = (skillPresenter as any).metadataCache as Map<string, SkillMetadata>
+      metadataCache.set(metadata.name, metadata)
+
+      await skillPresenter.openSkillsFolder(metadata.name)
+
+      expect(shell.openPath).toHaveBeenCalledWith(metadata.skillRoot)
+    })
+
+    it('rejects unknown skill names', async () => {
+      ;(skillPresenter as any).metadataCache.set(
+        'known-skill',
+        createSkillMetadata('known-skill', 'known-skill')
+      )
+
+      await expect(skillPresenter.openSkillsFolder('missing-skill')).rejects.toThrow(
+        'Skill "missing-skill" not found'
+      )
     })
   })
 
@@ -1496,6 +1525,10 @@ describe('SkillPresenter', () => {
     it('should successfully uninstall a skill', async () => {
       ;(fs.existsSync as Mock).mockReturnValue(true)
       ;(fs.rmSync as Mock).mockReturnValue(undefined)
+      ;(skillPresenter as any).metadataCache.set(
+        'test-skill',
+        createSkillMetadata('test-skill', 'test-skill')
+      )
 
       const result = await skillPresenter.uninstallSkill('test-skill')
 
