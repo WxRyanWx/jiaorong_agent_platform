@@ -23,3 +23,8 @@
 | H17 | `src/main/lib/watermark.ts` | 品牌默认文案 → `@jiaorong/brand` | brand | 低 | |
 | H18 | `src/main/.../devicePresenter` | X-Title / UA → `@jiaorong/brand` | brand | 低 | |
 | H19 | `src/main/.../artifactsServer.ts` | footer 文案 → `@jiaorong/brand` | brand | 低 | |
+| H20 | `devicePresenter.selectFiles` + legacy 类型 | 可选 `allowDirectory`（文件/文件夹同一对话框） | skills upload | 低 | 仅属性透传，无新 API |
+| H21 | `filePresenter.writeTemp` + legacy 类型 | 支持 `number[]` 二进制内容（IPC 序列化 Uint8Array） | skills upload | 低 | 上传 md/zip 临时包 |
+| H22 | `useSkillsData.ts` | 过滤关闭技能；监听开关事件 | skill switch | 低 | `@jiaorong/utils` |
+| H23 | `useChatInputMentions.ts` | slash 技能列表过滤关闭项 | skill switch | 低 | `@jiaorong/utils` |
+| H24 | `skillPresenter/index.ts` | `get/setActiveSkills` 按开关 map 过滤 | skill switch | 中 | 读 `jiaorong_skill_switch_map`；纯逻辑在 `@jiaorong/utils/skillSwitchCore` |

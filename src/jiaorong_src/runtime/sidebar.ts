@@ -4,7 +4,7 @@
  */
 import type { JiaorongSidebarItem, JiaorongSidebarSlot } from './types'
 import { BUILTIN_MODULES } from './modules'
-import { isSkillRouteLocation } from '../skills/routes'
+import { isSkillRouteLocation } from '../router/skills.meta'
 
 export function listJiaorongSidebarItems(
   slot: JiaorongSidebarSlot = 'after-deepchat'

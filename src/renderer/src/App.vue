@@ -22,6 +22,7 @@ import MessageDialog from './components/ui/MessageDialog.vue'
 import McpSamplingDialog from '@/components/mcp/McpSamplingDialog.vue'
 import { initAppStores, useMcpInstallDeeplinkHandler } from '@/lib/storeInitializer'
 import { getToken, useAuthLoginDeeplinkHandler } from '@jiaorong/auth/host'
+import { ensureShellBootstrap } from '@/lib/shellBootstrap'
 import { ensureIconsLoaded } from '@/lib/iconLoader'
 import 'vue-sonner/style.css' // vue-sonner v2 requires this import
 import { useFontManager } from './composables/useFontManager'
@@ -509,6 +510,17 @@ const handleEscKey = (event: KeyboardEvent) => {
 }
 
 void ensureStartupWelcomeState()
+
+// 登录后立刻灌入侧栏 agents，不依赖 ChatTabView（避免早进 /skills 时 deepchat 缺失）
+watch(
+  isLoginRoute,
+  (login) => {
+    if (!login) {
+      void ensureShellBootstrap()
+    }
+  },
+  { immediate: true }
+)
 
 watch(
   () =>

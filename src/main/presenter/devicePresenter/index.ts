@@ -499,8 +499,11 @@ export class DevicePresenter implements IDevicePresenter {
   async selectFiles(options?: {
     filters?: { name: string; extensions: string[] }[]
     multiple?: boolean
+    /** 允许在同一对话框中选择文件或文件夹（技能上传等场景） */
+    allowDirectory?: boolean
   }): Promise<{ canceled: boolean; filePaths: string[] }> {
-    const properties: ('openFile' | 'multiSelections')[] = ['openFile']
+    const properties: Array<'openFile' | 'openDirectory' | 'multiSelections'> =
+      options?.allowDirectory ? ['openFile', 'openDirectory'] : ['openFile']
     if (options?.multiple) {
       properties.push('multiSelections')
     }

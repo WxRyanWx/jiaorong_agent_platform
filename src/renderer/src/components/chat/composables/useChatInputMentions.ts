@@ -8,6 +8,7 @@ import { createWorkspaceClient } from '@api/WorkspaceClient'
 import type { MCPToolDefinition, PromptListEntry, WorkspaceFileNode } from '@shared/presenter'
 import { useMcpStore } from '@/stores/mcp'
 import { useSkillsStore } from '@/stores/skillsStore'
+import { isSkillSwitchOn } from '@jiaorong/utils'
 import {
   buildChatInputWorkspaceReferenceText,
   resolveChatInputWorkspaceReferencePath
@@ -209,6 +210,9 @@ export function useChatInputMentions(options: UseChatInputMentionsOptions) {
     }
 
     for (const skill of skillsStore.skills) {
+      if (!isSkillSwitchOn(skill.name)) {
+        continue
+      }
       const display = resolveSkillDisplay(skill)
       items.push({
         id: `skill:${skill.name}`,
@@ -286,6 +290,7 @@ export function useChatInputMentions(options: UseChatInputMentionsOptions) {
 
   const activateSkill = async (skillName: string) => {
     if (!skillName) return
+    if (!isSkillSwitchOn(skillName)) return
 
     const sessionId = options.sessionId.value
     if (!sessionId) {

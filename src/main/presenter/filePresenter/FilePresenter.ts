@@ -295,7 +295,10 @@ export class FilePresenter implements IFilePresenter {
     return UnsupportFileAdapter
   }
 
-  async writeTemp(file: { name: string; content: string | Buffer | ArrayBuffer }): Promise<string> {
+  async writeTemp(file: {
+    name: string
+    content: string | Buffer | ArrayBuffer | number[]
+  }): Promise<string> {
     const ext = path.extname(file.name)
     const tempName = `${nanoid()}${ext || '.tmp'}` // Add .tmp extension if original name has none
     const tempPath = path.join(this.tempDir, tempName)
@@ -305,6 +308,9 @@ export class FilePresenter implements IFilePresenter {
     } else if (Buffer.isBuffer(file.content)) {
       // If it's already a Buffer, write it directly
       await fs.writeFile(tempPath, file.content)
+    } else if (Array.isArray(file.content)) {
+      // Renderer IPC 可能把 Uint8Array 序列化成 number[]
+      await fs.writeFile(tempPath, Buffer.from(file.content))
     } else {
       // Otherwise, assume it's ArrayBuffer and convert to Buffer
       await fs.writeFile(tempPath, Buffer.from(file.content))

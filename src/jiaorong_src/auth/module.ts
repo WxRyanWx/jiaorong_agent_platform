@@ -1,18 +1,12 @@
 /**
- * 登录模块元数据（扫码 + 账号登录 UI）。
- * 页面由宿主 router 懒加载；勿在此 import .vue。
+ * 登录模块元数据。
+ * 路由统一在 `@jiaorong/router` 维护，此处不声明 routes。
  */
 import type { JiaorongModule } from '../runtime/types'
 
 const authModule: JiaorongModule = {
   id: 'auth',
-  label: '登录',
-  routes: [
-    {
-      name: 'login',
-      path: '/login'
-    }
-  ]
+  label: '登录'
 }
 
 export default authModule
