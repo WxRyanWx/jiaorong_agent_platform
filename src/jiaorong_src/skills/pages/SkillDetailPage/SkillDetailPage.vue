@@ -44,6 +44,8 @@ const skillMarkdownError = ref('')
 const skill = ref<JiaorongSkillItem | null>(readJiaorongSkillFromSession())
 const installed = ref(false)
 const enabled = ref(true)
+const USE_MOCK_SKILL_UNINSTALL = true
+const MOCK_UNINSTALL_DELAY_MS = 300
 
 const skillId = computed(() => String(route.params.skillId ?? ''))
 const currentSkillName = computed(() => skill.value?.name || skillId.value)
@@ -150,17 +152,21 @@ const uninstallSkill = async () => {
   if (!currentSkill || uninstalling.value) return
 
   uninstalling.value = true
-  const result = await uninstallRealSkill(currentSkill.name)
-  uninstalling.value = false
-
-  if (!result.success) {
-    toast({
-      title: t('routes.skillsUninstallFailed'),
-      description: result.error || t('routes.skillsUnknownError'),
-      variant: 'destructive'
-    })
-    return
+  if (USE_MOCK_SKILL_UNINSTALL) {
+    await new Promise((resolve) => setTimeout(resolve, MOCK_UNINSTALL_DELAY_MS))
+  } else {
+    const result = await uninstallRealSkill(currentSkill.name)
+    if (!result.success) {
+      uninstalling.value = false
+      toast({
+        title: t('routes.skillsUninstallFailed'),
+        description: result.error || t('routes.skillsUnknownError'),
+        variant: 'destructive'
+      })
+      return
+    }
   }
+  uninstalling.value = false
 
   installed.value = false
 
