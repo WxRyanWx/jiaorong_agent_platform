@@ -4,7 +4,10 @@
     "electron.vite.config.*",
     "src/main/**/*",
     "src/preload/**/*",
-    "src/shared/**/*"
+    "src/shared/**/*",
+    "src/jiaorong_src/prompts/**/*",
+    "src/jiaorong_src/config/**/*",
+    "src/jiaorong_src/brand/**/*"
   ],
   "compilerOptions": {
     "composite": true,

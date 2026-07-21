@@ -14,8 +14,14 @@ jiaorong_src/
   auth/              # 扫码登录 UI + 门禁/会话 lib
     pages/LoginPage/
     components/      # CodeLogin / UserCompact
-    lib/             # guard / session / deeplink …
+    lib/             # guard / session / deeplink / ensureSm4 …
+    vendor/sm4/      # 账号密码登录按需加载
     assets/
+  config/            # 设置侧栏白名单等私有配置
+  prompts/           # 默认系统提示词文案（非设置页 UI）
+  brand/             # APP_NAME / UA / 水印等品牌常量
+  auth/host.ts       # 宿主登录薄入口（优先从此 import）
+  runtime/sidebar.ts # 侧栏贡献同步列表（不依赖 idle mount）
   skills/            # V0.6 技能中心
     routes.ts module.ts
     pages/SkillListPage/ SkillDetailPage/
@@ -34,9 +40,11 @@ jiaorong_src/
 ```ts
 import { mountJiaorong } from '@jiaorong'
 import { FeatchUserInfo } from '@jiaorong/api/auth'
-import { setupAuthGuard, getToken } from '@jiaorong/auth'
+import { bootstrapJiaorongRendererAuth, getToken, loadLoginPage } from '@jiaorong/auth/host'
+import { listJiaorongSidebarItems } from '@jiaorong/runtime/sidebar'
+import { APP_NAME } from '@jiaorong/brand'
 import { SKILL_ROUTE_DEFS } from '@jiaorong/skills/routes'
 ```
 
 兼容：`import … from '@api/auth'` → HTTP 薄 re-export（`src/renderer/api/auth`）。  
-门禁/会话请直接 `import … from '@jiaorong/auth/lib/…'`（已无 `@/lib/auth` shim）。
+宿主登录相关请走 `@jiaorong/auth/host`，避免散落 `auth/lib/*`。

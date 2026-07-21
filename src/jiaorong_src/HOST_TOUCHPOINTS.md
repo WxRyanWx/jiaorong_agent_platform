@@ -6,15 +6,20 @@
 |----|----------|----------|----------|------|------|
 | H01 | `electron.vite.config.ts` | 增加 `@jiaorong` alias | skeleton | 低 | main/preload/renderer |
 | H02 | `tsconfig.app.json` / `tsconfig.app.tsgo.json` | include + paths | skeleton | 低 | |
-| H03 | `tsconfig.node.json` | paths `@jiaorong` | skeleton | 低 | 预留 main |
-| H04 | `src/renderer/src/main.ts` | idle `mountJiaorong`；`setupAuthInterceptors` / `saveTokenFromUrl` 来自 `@jiaorong/auth` | skeleton+auth | 中 | 勿静态 import `@jiaorong` 整包做业务 |
+| H03 | `tsconfig.node.json` | paths + include prompts/config/brand | skeleton | 低 | 勿 include Vue |
+| H04 | `src/renderer/src/main.ts` | `bootstrapJiaorongRendererAuth` + idle mount + `document.title` | auth+brand | 中 | 经 `@jiaorong/auth/host` / `@jiaorong/brand` |
 | H05 | `src/renderer/api/auth/index.ts` | HTTP 兼容 re-export | auth | 低 | 实体在 `jiaorong_src/api/auth` |
-| H06 | `src/renderer/src/router/index.ts` | `/login` → `@jiaorong/auth/...`；`/skills` 懒加载 | auth+skills | 中 | guard/token 来自 `@jiaorong/auth` |
-| H07 | `src/renderer/src/components/WindowSideBar.vue` | 技能入口；会话校验 import | skills+auth | 中 | |
+| H06 | `src/renderer/src/router/index.ts` | login/skills 经 auth/host + skills/routes | auth+skills | 中 | |
+| H07 | `src/renderer/src/components/WindowSideBar.vue` | `listJiaorongSidebarItems` 渲染；auth/host 校验 | skills+auth | 中 | 无硬编码技能按钮 |
 | H08 | `src/renderer/src/i18n/*/routes.json` | skills / skillsDetail 文案 | skills | 低 | |
 | H09 | `vitest.config.ts` / `vitest.config.renderer.ts` | `@jiaorong` alias | skeleton | 低 | |
-| H10 | `test/renderer/components/WindowSideBar.test.ts` | skills + auth session mock | skills+auth | 低 | |
-| H11 | `src/renderer/src/App.vue` | deeplink / getToken 来自 `@jiaorong/auth` | auth | 中 | |
-| H12 | `src/renderer/src/pages/AgentWelcomePage.vue` | `forceRevalidateAuthSession` 路径 | auth | 低 | |
-| H13 | `src/renderer/index.html` + `public/sm4/*` | 全局 Sm4utils（账号密码登录） | auth | 中 | 本切片暂留宿主 |
-| H14 | `src/main/.../deeplinkPresenter` + events | `AUTH_LOGIN` 扫码回调 IPC | auth | 高 | 协议层仍宿主，勿整文件搬走 |
+| H10 | `test/renderer/components/*.test.ts` | mock `@jiaorong/auth/host` | skills+auth | 低 | |
+| H11 | `src/renderer/src/App.vue` | deeplink / getToken 经 auth/host | auth | 中 | |
+| H12 | `src/renderer/src/pages/AgentWelcomePage.vue` | forceRevalidate 经 auth/host | auth | 低 | |
+| H13 | `src/renderer/index.html` | 已移除全局 sm4 script | auth | 低 | title 亦可由 main.ts 覆盖 |
+| H14 | `src/main/.../deeplinkPresenter` + events | `AUTH_LOGIN` 扫码回调 IPC | auth | 高 | 协议层仍宿主 |
+| H15 | `src/shared/settingsSidebarAdmin.ts` | 薄 re-export → `@jiaorong/config/...` | config | 低 | |
+| H16 | `src/main/.../systemPromptHelper.ts` | 引用 `@jiaorong/prompts/...` | prompts | 中 | 仅默认文案 |
+| H17 | `src/main/lib/watermark.ts` | 品牌默认文案 → `@jiaorong/brand` | brand | 低 | |
+| H18 | `src/main/.../devicePresenter` | X-Title / UA → `@jiaorong/brand` | brand | 低 | |
+| H19 | `src/main/.../artifactsServer.ts` | footer 文案 → `@jiaorong/brand` | brand | 低 | |

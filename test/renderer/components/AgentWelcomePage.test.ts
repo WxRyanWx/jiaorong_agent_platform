@@ -69,7 +69,7 @@ describe('AgentWelcomePage', () => {
         template: '<span />'
       }
     }))
-    vi.doMock('@jiaorong/auth/lib/session', () => ({
+    vi.doMock('@jiaorong/auth/host', () => ({
       forceRevalidateAuthSession: vi.fn(async () => true)
     }))
 

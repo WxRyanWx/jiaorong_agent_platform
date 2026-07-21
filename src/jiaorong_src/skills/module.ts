@@ -12,12 +12,17 @@ const skillsModule: JiaorongModule = {
     name: route.name,
     path: route.path
   })),
-  // 侧栏入口暂由宿主 WindowSideBar 硬编码（需在 idle mount 前可见）；此处仅作模块清单
   sidebarItems: [
     {
       id: 'skills',
       titleKey: 'routes.skills',
-      order: 10
+      order: 10,
+      icon: 'lucide:wand-sparkles',
+      routeName: 'skills',
+      matchRouteNames: SKILL_ROUTE_DEFS.map((route) => route.name),
+      testId: 'sidebar-skills-button',
+      slot: 'after-deepchat',
+      exclusiveChrome: true
     }
   ]
 }

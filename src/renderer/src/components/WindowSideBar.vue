@@ -60,25 +60,27 @@
           <TooltipContent side="right">{{ agentStore.sidebarAgents.deepchat.name }}</TooltipContent>
         </Tooltip>
 
-        <!-- 交融私有：技能中心入口（通用对话后） -->
-        <Tooltip>
+        <!-- 交融私有侧栏贡献（after-deepchat，来自 jiaorong registry） -->
+        <Tooltip v-for="item in jiaorongAfterDeepchatItems" :key="item.id">
           <TooltipTrigger as-child>
             <Button
-              data-testid="sidebar-skills-button"
-              :data-selected="String(isSkillsRoute)"
+              :data-testid="item.testId || `sidebar-jiaorong-${item.id}`"
+              :data-selected="String(isJiaorongSidebarItemActive(item))"
               size="icon"
               class="flex items-center justify-center w-9 h-9 rounded-xl border transition-all duration-150"
               :class="
-                isSkillsRoute
+                isJiaorongSidebarItemActive(item)
                   ? 'bg-card/50 border-white/80 dark:border-white/20 ring-1 ring-black/10 hover:bg-white/30 dark:hover:bg-white/10'
                   : 'bg-transparent border-none hover:bg-white/30 dark:hover:bg-white/10 shadow-none'
               "
-              @click="openSkillsCenter"
+              @click="openJiaorongSidebarItem(item)"
             >
-              <Icon icon="lucide:wand-sparkles" class="w-4 h-4 text-foreground/80" />
+              <Icon :icon="item.icon || 'lucide:circle'" class="w-4 h-4 text-foreground/80" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent side="right">{{ t('routes.skills') }}</TooltipContent>
+          <TooltipContent side="right">{{
+            item.titleKey ? t(item.titleKey) : item.title || item.id
+          }}</TooltipContent>
         </Tooltip>
 
         <Tooltip v-for="agent in agentStore.sidebarAgents.userAgents" :key="agent.id">
@@ -457,7 +459,9 @@ import {
 import { createSettingsClient } from '@api/SettingsClient'
 import { createRemoteControlRuntime } from '@api/RemoteControlRuntime'
 import { createDeviceClient } from '@api/DeviceClient'
-import { isSkillRouteLocation } from '@jiaorong/skills/routes'
+import { isJiaorongExclusiveChromeRoute, listJiaorongSidebarItems } from '@jiaorong/runtime/sidebar'
+import type { JiaorongSidebarItem } from '@jiaorong/runtime/types'
+import { forceRevalidateAuthSession } from '@jiaorong/auth/host'
 import { useAgentStore } from '@/stores/ui/agent'
 import { useSessionStore, type SessionGroup, type UISession } from '@/stores/ui/session'
 import { useSpotlightStore } from '@/stores/ui/spotlight'
@@ -472,7 +476,6 @@ import WindowSideBarSessionItem from './WindowSideBarSessionItem.vue'
 import { useI18n } from 'vue-i18n'
 import { useSidebarStore } from '@/stores/ui/sidebar'
 import { useThemeStore } from '@/stores/theme'
-import { forceRevalidateAuthSession } from '@jiaorong/auth/lib/session'
 
 type PinFeedbackMode = 'pinning' | 'unpinning'
 
@@ -503,7 +506,17 @@ const deviceClient = createDeviceClient()
 const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
-const isSkillsRoute = computed(() => isSkillRouteLocation(route.name, route.path))
+const jiaorongAfterDeepchatItems = listJiaorongSidebarItems('after-deepchat')
+const isSkillsRoute = computed(() => isJiaorongExclusiveChromeRoute(route.name, route.path))
+const isJiaorongSidebarItemActive = (item: JiaorongSidebarItem) => {
+  if (typeof route.name !== 'string') {
+    return false
+  }
+  if (item.matchRouteNames?.length) {
+    return item.matchRouteNames.includes(route.name)
+  }
+  return route.name === item.routeName
+}
 const agentStore = useAgentStore()
 const sessionStore = useSessionStore()
 const sidebarStore = useSidebarStore()
@@ -995,12 +1008,12 @@ const handleAgentSelect = async (id: string | null) => {
   await agentSwitchQueue
 }
 
-const openSkillsCenter = async () => {
+const openJiaorongSidebarItem = async (item: JiaorongSidebarItem) => {
   const allowed = await ensureAuthOnMenuSwitch()
   if (!allowed) {
     return
   }
-  await router.push({ name: 'skills' })
+  await router.push({ name: item.routeName })
 }
 
 const handleSessionClick = (session: UISession) => {

@@ -1,6 +1,5 @@
 import { createRouter, createWebHashHistory, type RouteRecordRaw } from 'vue-router'
-import { setupAuthGuard } from '@jiaorong/auth/lib/guard'
-import { getToken } from '@jiaorong/auth/lib/local-user'
+import { getToken, loadLoginPage, setupAuthGuard } from '@jiaorong/auth/host'
 import { SKILL_ROUTE_DEFS, type SkillRouteName } from '@jiaorong/skills/routes'
 
 /**
@@ -41,7 +40,7 @@ const router = createRouter({
     {
       path: '/login',
       name: 'login',
-      component: () => import('@jiaorong/auth/pages/LoginPage/LoginPage.vue'),
+      component: loadLoginPage,
       meta: {
         titleKey: 'routes.login',
         icon: 'lucide:log-in',

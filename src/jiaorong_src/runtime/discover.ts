@@ -1,13 +1,5 @@
 import type { JiaorongHostPorts, JiaorongModule, JiaorongRegistry } from './types'
-
-/**
- * 显式引入已知模块，避免 import.meta.glob({ eager: true }) 在首屏同步扫盘/求值。
- * 新增模块时在此追加一行 import 即可。
- */
-import authModule from '../auth/module'
-import skillsModule from '../skills/module'
-
-const BUILTIN_MODULES: JiaorongModule[] = [authModule, skillsModule]
+import { BUILTIN_MODULES } from './modules'
 
 function buildRegistry(modules: JiaorongModule[]): JiaorongRegistry {
   return {
