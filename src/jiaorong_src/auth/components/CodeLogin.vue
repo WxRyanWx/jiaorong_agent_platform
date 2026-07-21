@@ -77,7 +77,7 @@ onMounted(() => {
   font-weight: 600;
   font-size: 14px;
   line-height: 22px;
-  background: url('@/assets/login/not-code.png');
+  background: url('@jiaorong/auth/assets/not-code.png');
   background-position: center center;
   border-radius: 6px;
 }

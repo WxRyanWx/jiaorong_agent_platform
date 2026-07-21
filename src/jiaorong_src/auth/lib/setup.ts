@@ -1,6 +1,6 @@
 import type { Router } from 'vue-router'
 import { Message } from '@arco-design/web-vue'
-import { api, responseFn, responseErrorFn } from '@api/auth'
+import { api, responseFn, responseErrorFn } from '@jiaorong/api/auth'
 import { resetAuthSessionValidation } from './session'
 
 export function setupAuthInterceptors(router: Router) {

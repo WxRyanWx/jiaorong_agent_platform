@@ -13,10 +13,10 @@
             <Button
               data-testid="sidebar-agent-all-button"
               data-agent-id="__all__"
-              :data-selected="String(sidebarSelectedAgentId === null)"
+              :data-selected="String(!isSkillsRoute && sidebarSelectedAgentId === null)"
               class="flex items-center justify-center w-9 h-9 rounded-xl border transition-all duration-150"
               :class="
-                sidebarSelectedAgentId === null
+                !isSkillsRoute && sidebarSelectedAgentId === null
                   ? 'bg-card/50 border-white/70 dark:border-white/20 ring-1 ring-black/10 hover:bg-white/30 dark:hover:bg-white/10'
                   : 'bg-transparent border-none hover:bg-white/30 dark:hover:bg-white/10 shadow-none'
               "
@@ -41,12 +41,14 @@
                 agentStore.sidebarAgents.deepchat.type
               "
               :data-selected="
-                String(sidebarSelectedAgentId === agentStore.sidebarAgents.deepchat.id)
+                String(
+                  !isSkillsRoute && sidebarSelectedAgentId === agentStore.sidebarAgents.deepchat.id
+                )
               "
               size="icon"
               class="flex items-center justify-center w-9 h-9 rounded-xl border transition-all duration-150"
               :class="
-                sidebarSelectedAgentId === agentStore.sidebarAgents.deepchat.id
+                !isSkillsRoute && sidebarSelectedAgentId === agentStore.sidebarAgents.deepchat.id
                   ? 'bg-card/50 border-white/80 dark:border-white/20 ring-1 ring-black/10 hover:bg-white/30 dark:hover:bg-white/10'
                   : 'bg-transparent border-none hover:bg-white/30 dark:hover:bg-white/10 shadow-none'
               "
@@ -58,17 +60,38 @@
           <TooltipContent side="right">{{ agentStore.sidebarAgents.deepchat.name }}</TooltipContent>
         </Tooltip>
 
+        <!-- 交融私有：技能中心入口（通用对话后） -->
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <Button
+              data-testid="sidebar-skills-button"
+              :data-selected="String(isSkillsRoute)"
+              size="icon"
+              class="flex items-center justify-center w-9 h-9 rounded-xl border transition-all duration-150"
+              :class="
+                isSkillsRoute
+                  ? 'bg-card/50 border-white/80 dark:border-white/20 ring-1 ring-black/10 hover:bg-white/30 dark:hover:bg-white/10'
+                  : 'bg-transparent border-none hover:bg-white/30 dark:hover:bg-white/10 shadow-none'
+              "
+              @click="openSkillsCenter"
+            >
+              <Icon icon="lucide:wand-sparkles" class="w-4 h-4 text-foreground/80" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="right">{{ t('routes.skills') }}</TooltipContent>
+        </Tooltip>
+
         <Tooltip v-for="agent in agentStore.sidebarAgents.userAgents" :key="agent.id">
           <TooltipTrigger as-child>
             <Button
               data-testid="sidebar-agent-button"
               :data-agent-id="agent.id"
               :data-agent-type="agent.agentType ?? agent.type"
-              :data-selected="String(sidebarSelectedAgentId === agent.id)"
+              :data-selected="String(!isSkillsRoute && sidebarSelectedAgentId === agent.id)"
               size="icon"
               class="flex items-center justify-center w-9 h-9 rounded-xl border transition-all duration-150"
               :class="
-                sidebarSelectedAgentId === agent.id
+                !isSkillsRoute && sidebarSelectedAgentId === agent.id
                   ? 'bg-card/50 border-white/80 dark:border-white/20 ring-1 ring-black/10 hover:bg-white/30 dark:hover:bg-white/10'
                   : 'bg-transparent border-none hover:bg-white/30 dark:hover:bg-white/10 shadow-none'
               "
@@ -143,8 +166,8 @@
           </TooltipContent>
         </Tooltip>
 
-        <!-- Collapse toggle -->
-        <Tooltip>
+        <!-- Collapse toggle（技能中心无会话栏，不展示展开/收起） -->
+        <Tooltip v-if="!isSkillsRoute">
           <TooltipTrigger as-child>
             <Button
               data-testid="window-sidebar-toggle"
@@ -177,8 +200,9 @@
         </Tooltip>
       </div>
 
-      <!-- Right Column: Session List (240px) -->
+      <!-- Right Column: Session List（技能中心无会话，不展示） -->
       <div
+        v-if="!isSkillsRoute"
         data-testid="window-sidebar-session-column"
         class="window-sidebar-session-column window-no-drag-region flex flex-col w-0 flex-1 min-w-0 transition-[opacity,transform] duration-[var(--dc-motion-default)] ease-[var(--dc-ease-out-express)]"
         :class="
@@ -412,7 +436,7 @@
 
 <script setup lang="ts">
 import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import {
   Tooltip,
@@ -433,6 +457,7 @@ import {
 import { createSettingsClient } from '@api/SettingsClient'
 import { createRemoteControlRuntime } from '@api/RemoteControlRuntime'
 import { createDeviceClient } from '@api/DeviceClient'
+import { isSkillRouteLocation } from '@jiaorong/skills/routes'
 import { useAgentStore } from '@/stores/ui/agent'
 import { useSessionStore, type SessionGroup, type UISession } from '@/stores/ui/session'
 import { useSpotlightStore } from '@/stores/ui/spotlight'
@@ -447,7 +472,7 @@ import WindowSideBarSessionItem from './WindowSideBarSessionItem.vue'
 import { useI18n } from 'vue-i18n'
 import { useSidebarStore } from '@/stores/ui/sidebar'
 import { useThemeStore } from '@/stores/theme'
-import { forceRevalidateAuthSession } from '@/lib/auth/session'
+import { forceRevalidateAuthSession } from '@jiaorong/auth/lib/session'
 
 type PinFeedbackMode = 'pinning' | 'unpinning'
 
@@ -476,7 +501,9 @@ const settingsClient = createSettingsClient()
 const remoteControlRuntime = createRemoteControlRuntime()
 const deviceClient = createDeviceClient()
 const { t } = useI18n()
+const route = useRoute()
 const router = useRouter()
+const isSkillsRoute = computed(() => isSkillRouteLocation(route.name, route.path))
 const agentStore = useAgentStore()
 const sessionStore = useSessionStore()
 const sidebarStore = useSidebarStore()
@@ -592,7 +619,8 @@ const sidebarSelectedAgentId = computed(() => {
 })
 
 const sidebarShellWidthClass = computed(() => {
-  if (collapsed.value) {
+  // 技能模块无对话列表，仅保留左侧图标栏
+  if (collapsed.value || isSkillsRoute.value) {
     return 'w-12'
   }
 
@@ -906,13 +934,20 @@ const handleAgentSelect = async (id: string | null) => {
     sidebarStore.setCollapsed(false)
   }
 
+  // 离开技能中心：强制选中点击目标（禁止 toggle）；先关不匹配会话再进 /chat，避免闪「所有 agents」或错选高亮
+  const leavingSkills = isSkillsRoute.value
   const requestSeq = ++agentSwitchSeq
 
   agentSwitchQueue = agentSwitchQueue
     .then(async () => {
+      if (requestSeq !== agentSwitchSeq) {
+        return
+      }
+
       const currentAgentId = sidebarSelectedAgentId.value
-      const nextAgentId = currentAgentId === id ? null : id
-      if (nextAgentId === currentAgentId) {
+      const nextAgentId = leavingSkills ? id : currentAgentId === id ? null : id
+
+      if (!leavingSkills && nextAgentId === currentAgentId) {
         return
       }
 
@@ -921,7 +956,12 @@ const handleAgentSelect = async (id: string | null) => {
         return
       }
 
-      if (sessionStore.hasActiveSession) {
+      const sessionAgentId = sessionStore.activeSession?.agentId?.trim() || null
+      const needsCloseSession = leavingSkills
+        ? sessionStore.hasActiveSession && (nextAgentId === null || sessionAgentId !== nextAgentId)
+        : sessionStore.hasActiveSession
+
+      if (needsCloseSession) {
         try {
           await sessionStore.closeSession()
         } catch (error) {
@@ -937,13 +977,30 @@ const handleAgentSelect = async (id: string | null) => {
         return
       }
 
+      // 先写选中再跳路由，避免 ChatTabView 重挂载期间短暂落到 null
       agentStore.setSelectedAgent(nextAgentId)
+
+      if (leavingSkills) {
+        await router.push({ name: 'chat' })
+        if (requestSeq !== agentSwitchSeq) {
+          return
+        }
+        agentStore.setSelectedAgent(nextAgentId)
+      }
     })
     .catch((error) => {
       console.warn('[WindowSideBar] Agent switch pipeline failed:', error)
     })
 
   await agentSwitchQueue
+}
+
+const openSkillsCenter = async () => {
+  const allowed = await ensureAuthOnMenuSwitch()
+  if (!allowed) {
+    return
+  }
+  await router.push({ name: 'skills' })
 }
 
 const handleSessionClick = (session: UISession) => {

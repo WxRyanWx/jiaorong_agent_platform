@@ -2,6 +2,8 @@
   "login": "登录",
   "chat": "聊天",
   "welcome": "欢迎",
+  "skills": "技能中心",
+  "skillsDetail": "技能详情",
   "settings": "设置",
   "settings-common": "通用设置",
   "settings-provider": "服务商设置",

@@ -2,6 +2,8 @@
   "login": "Login",
   "chat": "Sohbet",
   "welcome": "Hoş geldin",
+  "skills": "Skills",
+  "skillsDetail": "Skill Detail",
   "settings": "Ayarlar",
   "settings-common": "Ortak Ayarlar",
   "settings-provider": "Sağlayıcılar",

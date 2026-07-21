@@ -36,6 +36,7 @@ export default defineConfig({
             { find: '@api', replacement: resolve('src/renderer/api') },
             { find: '@browser', replacement: resolve('src/renderer/browser/') },
             { find: '@shared', replacement: resolve('src/shared') },
+            { find: '@jiaorong', replacement: resolve('src/jiaorong_src') },
             { find: '@shadcn', replacement: resolve('src/shadcn') },
             { find: 'electron', replacement: resolve('test/mocks/electron.ts') },
             { find: '@electron-toolkit/utils', replacement: resolve('test/mocks/electron-toolkit-utils.ts') }
@@ -56,6 +57,7 @@ export default defineConfig({
             // Main process aliases (match electron.vite.config.ts main config)
             { find: '@/', replacement: resolve('src/main/') + '/' },
             { find: '@shared', replacement: resolve('src/shared') },
+            { find: '@jiaorong', replacement: resolve('src/jiaorong_src') },
             { find: 'electron', replacement: resolve('test/mocks/electron.ts') },
             { find: '@electron-toolkit/utils', replacement: resolve('test/mocks/electron-toolkit-utils.ts') }
           ]

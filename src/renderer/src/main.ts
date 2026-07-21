@@ -5,8 +5,8 @@ import { PiniaColada } from '@pinia/colada'
 import { createApp } from 'vue'
 import App from './App.vue'
 import router from './router'
-import { setupAuthInterceptors } from '@/lib/auth/setup'
-import { saveTokenFromUrl } from '@/lib/auth/auth-from-url'
+import { setupAuthInterceptors } from '@jiaorong/auth/lib/setup'
+import { saveTokenFromUrl } from '@jiaorong/auth/lib/auth-from-url'
 import { createI18n } from 'vue-i18n'
 import locales, { pluralRules } from './i18n'
 import 'vue-virtual-scroller/dist/vue-virtual-scroller.css'
@@ -48,6 +48,17 @@ app.use(PiniaColada, {
 app.use(router)
 app.use(i18n)
 app.mount('#app')
+
+// 私有模块改为空闲时动态 import，避免静态 import 在首屏就求值 @jiaorong
+const scheduleJiaorongMount =
+  typeof window !== 'undefined' && 'requestIdleCallback' in window
+    ? (cb: () => void) => window.requestIdleCallback(cb, { timeout: 2000 })
+    : (cb: () => void) => window.setTimeout(cb, 0)
+scheduleJiaorongMount(() => {
+  void import('@jiaorong').then(({ mountJiaorong }) => {
+    mountJiaorong()
+  })
+})
 
 // Preload icons asynchronously after app mount to improve perceived startup time
 setTimeout(() => {

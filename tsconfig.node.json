@@ -20,6 +20,12 @@
       ],
       "@shared/*": [
         "./src/shared/*"
+      ],
+      "@jiaorong": [
+        "./src/jiaorong_src/index.ts"
+      ],
+      "@jiaorong/*": [
+        "./src/jiaorong_src/*"
       ]
     }
   }

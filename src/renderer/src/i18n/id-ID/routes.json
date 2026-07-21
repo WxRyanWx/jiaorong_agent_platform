@@ -2,6 +2,8 @@
   "login": "Login",
   "chat": "mengobrol",
   "welcome": "selamat datang",
+  "skills": "Skills",
+  "skillsDetail": "Skill Detail",
   "settings": "pengaturan",
   "settings-common": "Pengaturan umum",
   "settings-provider": "Pengaturan penyedia layanan",

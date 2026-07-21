@@ -2,6 +2,8 @@
   "login": "Login",
   "chat": "Charla",
   "welcome": "Bienvenido",
+  "skills": "Skills",
+  "skillsDetail": "Skill Detail",
   "settings": "Configuración",
   "settings-common": "Configuraciones comunes",
   "settings-provider": "Proveedores",

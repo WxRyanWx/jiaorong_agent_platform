@@ -38,8 +38,8 @@
 import { ref, onMounted, nextTick } from 'vue'
 import { IconClose } from '@arco-design/web-vue/es/icon'
 import { Modal, Checkbox, Tooltip } from '@arco-design/web-vue'
-import { clearAuthSession } from '@/lib/auth/session'
-import { FeatchExit } from '@api/auth'
+import { clearAuthSession } from '../lib/session'
+import { FeatchExit } from '@jiaorong/api/auth'
 import { useRouter } from 'vue-router'
 import mammoth from 'mammoth'
 

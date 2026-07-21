@@ -2,6 +2,8 @@
   "login": "Login",
   "chat": "Chat",
   "welcome": "Willkommen",
+  "skills": "Skills",
+  "skillsDetail": "Skill Detail",
   "settings": "Einstellungen",
   "settings-common": "Allgemeine Einstellungen",
   "settings-provider": "Anbietereinstellungen",

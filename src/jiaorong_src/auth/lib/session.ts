@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { FeatchUserInfo } from '@api/auth'
+import { FeatchUserInfo } from '@jiaorong/api/auth'
 import { clearOutLocal, getToken } from './local-user'
 
 let sessionValidated = false

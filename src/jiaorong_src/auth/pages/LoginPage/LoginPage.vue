@@ -440,8 +440,8 @@ import {
   Spin
 } from '@arco-design/web-vue'
 import { IconLock, IconMobile, IconSafe, IconEdit } from '@arco-design/web-vue/es/icon'
-import CodeLogin from '@/components/login/CodeLogin.vue'
-import UserCompact from '@/components/login/UserCompact.vue'
+import CodeLogin from '../../components/CodeLogin.vue'
+import UserCompact from '../../components/UserCompact.vue'
 import { nextTick, onMounted, reactive, ref } from 'vue'
 import {
   FeatchLogin,
@@ -451,13 +451,13 @@ import {
   FeatchUpdatePwd,
   FeatchRetrievePwd,
   FeatchUsageRecord
-} from '@api/auth'
+} from '@jiaorong/api/auth'
 import { useRouter } from 'vue-router'
 import type { FormInstance } from '@arco-design/web-vue/es/form'
 import type { ValidatedError } from '@arco-design/web-vue/es/form/interface'
-import beforeLoginAuto from '@/lib/auth/bootstrap-before'
-import { markAuthSessionValidated } from '@/lib/auth/session'
-import { useLoginPageScale } from '@/composables/useLoginPageScale'
+import beforeLoginAuto from '../../lib/bootstrap-before'
+import { markAuthSessionValidated } from '../../lib/session'
+import { useLoginPageScale } from '../../composables/useLoginPageScale'
 
 const { loginScaleStyle, loginPageStyle, loginPageClass } = useLoginPageScale()
 
@@ -830,5 +830,5 @@ onMounted(async () => {
 </script>
 
 <style lang="less" scoped>
-@import url('./login/index.less');
+@import url('./login.less');
 </style>
