@@ -14,6 +14,7 @@ import {
 } from '@shadcn/components/ui/tooltip'
 import MarkdownRenderer from '@/components/markdown/MarkdownRenderer.vue'
 import { useToast } from '@/components/use-toast'
+import { getSkillDetail, type SkillDetailResponse } from '@jiaorong/api/skills'
 import {
   disableSkill,
   enableSkill,
@@ -42,6 +43,7 @@ const skillMarkdown = ref('')
 const skillMarkdownLoading = ref(false)
 const skillMarkdownError = ref('')
 const skill = ref<JiaorongSkillItem | null>(readJiaorongSkillFromSession())
+const remoteSkillDetail = ref<SkillDetailResponse | null>(null)
 const installed = ref(false)
 const enabled = ref(true)
 const USE_MOCK_SKILL_UNINSTALL = true
@@ -49,12 +51,45 @@ const MOCK_UNINSTALL_DELAY_MS = 300
 
 const skillId = computed(() => String(route.params.skillId ?? ''))
 const currentSkillName = computed(() => skill.value?.name || skillId.value)
+const canUninstall = computed(
+  () => Boolean(skill.value) && skill.value?.skill_source !== SkillSource.LocalBuiltin
+)
 const skillDisplayName = computed(() => {
+  if (remoteSkillDetail.value?.name.trim()) {
+    return remoteSkillDetail.value.name.trim()
+  }
   const displayName = skill.value?.metadata?.displayName
   return typeof displayName === 'string' && displayName.trim()
     ? displayName.trim()
     : skill.value?.name || ''
 })
+const skillDescription = computed(
+  () => remoteSkillDetail.value?.description || skill.value?.description || ''
+)
+const skillTryPrompts = computed(() => remoteSkillDetail.value?.tryPrompts ?? [])
+const hasSkillDetail = computed(() => Boolean(skill.value || remoteSkillDetail.value))
+
+watch(
+  skillId,
+  async (currentSkillId, _previousSkillId, onCleanup) => {
+    let cancelled = false
+    onCleanup(() => {
+      cancelled = true
+    })
+
+    remoteSkillDetail.value = null
+    const id = currentSkillId.trim()
+    if (!id) return
+
+    try {
+      const detail = await getSkillDetail(id)
+      if (!cancelled) remoteSkillDetail.value = detail
+    } catch (error) {
+      console.error(`[SkillDetailPage] Failed to load remote skill detail for ${id}:`, error)
+    }
+  },
+  { immediate: true }
+)
 
 watch(
   skillId,
@@ -65,11 +100,14 @@ watch(
     })
 
     const storedSkill = readJiaorongSkillFromSession()
-    skill.value = storedSkill?.name === currentSkillId ? storedSkill : null
+    skill.value = currentSkillId
+      ? storedSkill?.name === currentSkillId
+        ? storedSkill
+        : null
+      : storedSkill
     const name = skill.value?.name || currentSkillId
     installed.value = isSkillInstalled(name)
     enabled.value = getSkillSwitchStatus(name) === SkillSwitchStatus.On
-
     const result = await isSkillInstalledAsync(name)
     if (!cancelled) installed.value = result
   },
@@ -124,12 +162,13 @@ const updateEnabled = async (nextEnabled: boolean) => {
   }
 }
 
-const useSkill = async () => {
-  if (!skill.value) return
+const useSkill = async (prompt = '') => {
+  const name = currentSkillName.value
+  if (!name) return
   await startGeneralChatWithSkills({
     router,
-    prompt: '',
-    skillNames: [skill.value.name]
+    prompt,
+    skillNames: [name]
   })
 }
 
@@ -149,7 +188,7 @@ const handleOpenSkillFolder = async () => {
 
 const uninstallSkill = async () => {
   const currentSkill = skill.value
-  if (!currentSkill || uninstalling.value) return
+  if (!currentSkill || !canUninstall.value || uninstalling.value) return
 
   uninstalling.value = true
   if (USE_MOCK_SKILL_UNINSTALL) {
@@ -187,7 +226,7 @@ const uninstallSkill = async () => {
           {{ t('routes.skillsBackToList') }}
         </Button>
 
-        <div v-if="!skill" class="rounded-xl border bg-card p-10 text-center shadow-sm">
+        <div v-if="!hasSkillDetail" class="rounded-xl border bg-card p-10 text-center shadow-sm">
           <Icon icon="lucide:circle-help" class="mx-auto h-10 w-10 text-muted-foreground" />
           <h1 class="mt-4 text-xl font-semibold">{{ t('routes.skillsNotFound') }}</h1>
           <Button class="mt-6" @click="goBack">{{ t('routes.skillsBackToList') }}</Button>
@@ -205,7 +244,7 @@ const uninstallSkill = async () => {
                 <div class="min-w-0">
                   <h1 class="text-2xl font-semibold tracking-tight">{{ skillDisplayName }}</h1>
                   <p class="mt-3 max-w-3xl text-sm leading-7 text-muted-foreground">
-                    {{ skill.description }}
+                    {{ skillDescription }}
                   </p>
                 </div>
               </div>
@@ -219,7 +258,7 @@ const uninstallSkill = async () => {
             </div>
 
             <div v-if="installed" class="mt-7 flex flex-wrap items-center gap-3 border-t pt-6">
-              <Button class="gap-2" :disabled="!enabled" @click="useSkill">
+              <Button class="gap-2" :disabled="!enabled" @click="useSkill()">
                 <Icon icon="lucide:message-square" class="h-4 w-4" />
                 {{ t('routes.skillsUse') }}
               </Button>
@@ -238,7 +277,7 @@ const uninstallSkill = async () => {
                   <Button
                     variant="outline"
                     size="icon"
-                    :disabled="uninstalling"
+                    :disabled="!canUninstall || uninstalling"
                     @click="uninstallSkill"
                   >
                     <Icon
@@ -249,6 +288,25 @@ const uninstallSkill = async () => {
                 </TooltipTrigger>
                 <TooltipContent>{{ t('routes.skillsUninstallTip') }}</TooltipContent>
               </Tooltip>
+            </div>
+          </section>
+
+          <section
+            v-if="skillTryPrompts.length"
+            class="mt-6 rounded-xl border bg-card p-6 shadow-sm md:p-8"
+          >
+            <h2 class="mb-4 text-lg font-semibold">{{ t('routes.skillsTryTitle') }}</h2>
+            <div class="flex flex-col gap-3">
+              <button
+                v-for="prompt in skillTryPrompts"
+                :key="prompt"
+                type="button"
+                class="flex items-center justify-between gap-4 rounded-lg border px-4 py-3 text-left text-sm transition-colors hover:bg-muted/50"
+                @click="useSkill(prompt)"
+              >
+                <span>{{ prompt }}</span>
+                <Icon icon="lucide:arrow-up-right" class="h-4 w-4 shrink-0 text-muted-foreground" />
+              </button>
             </div>
           </section>
 
@@ -294,8 +352,8 @@ const uninstallSkill = async () => {
                   <div v-else class="min-h-40 rounded-lg border bg-background p-5">
                     <MarkdownRenderer
                       :content="skillMarkdown"
-                      :message-id="`skill-preview-${skill.name}`"
-                      :thread-id="`skill-preview-${skill.name}`"
+                      :message-id="`skill-preview-${currentSkillName}`"
+                      :thread-id="`skill-preview-${currentSkillName}`"
                       :smooth-streaming="false"
                     />
                   </div>
