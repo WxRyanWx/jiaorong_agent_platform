@@ -1254,10 +1254,14 @@ export class SkillPresenter implements ISkillPresenter {
       }
     }
 
-    await this.syncBuiltinSkillFrontmatter(builtinDir)
+    await this.syncBuiltinSkills(builtinDir)
   }
 
-  private async syncBuiltinSkillFrontmatter(builtinDir: string): Promise<void> {
+  /**
+   * Keep installed builtin skills aligned with the packaged copies.
+   * Previously only synced description/displayName, so prompt body updates never reached upgrades.
+   */
+  private async syncBuiltinSkills(builtinDir: string): Promise<void> {
     const entries = fs.readdirSync(builtinDir, { withFileTypes: true })
     let updated = false
 
@@ -1265,74 +1269,64 @@ export class SkillPresenter implements ISkillPresenter {
       if (!entry.isDirectory()) continue
 
       const skillName = entry.name
-      const builtinMdPath = path.join(builtinDir, skillName, 'SKILL.md')
-      const userMdPath = path.join(this.skillsDir, skillName, 'SKILL.md')
+      const builtinSkillDir = path.join(builtinDir, skillName)
+      const builtinMdPath = path.join(builtinSkillDir, 'SKILL.md')
+      const userSkillDir = path.join(this.skillsDir, skillName)
+      const userMdPath = path.join(userSkillDir, 'SKILL.md')
       if (!fs.existsSync(builtinMdPath) || !fs.existsSync(userMdPath)) {
         continue
       }
 
-      const builtinParsed = matter(fs.readFileSync(builtinMdPath, 'utf-8'))
-      const userParsed = matter(fs.readFileSync(userMdPath, 'utf-8'))
-      let changed = false
-
-      if (
-        typeof builtinParsed.data.description === 'string' &&
-        builtinParsed.data.description !== userParsed.data.description
-      ) {
-        userParsed.data.description = builtinParsed.data.description
-        changed = true
-      }
-
-      const builtinMetadata =
-        builtinParsed.data.metadata && typeof builtinParsed.data.metadata === 'object'
-          ? (builtinParsed.data.metadata as Record<string, unknown>)
-          : undefined
-      const userMetadata =
-        userParsed.data.metadata && typeof userParsed.data.metadata === 'object'
-          ? (userParsed.data.metadata as Record<string, unknown>)
-          : undefined
-      const nextDisplayName = builtinMetadata?.displayName
-      if (
-        typeof nextDisplayName === 'string' &&
-        nextDisplayName.trim() &&
-        nextDisplayName !== userMetadata?.displayName
-      ) {
-        userParsed.data.metadata = {
-          ...(userMetadata ?? {}),
-          displayName: nextDisplayName
-        }
-        changed = true
-      } else if (typeof userMetadata?.displayName === 'string') {
-        const nextMetadata = { ...(userMetadata ?? {}) }
-        delete nextMetadata.displayName
-        if (Object.keys(nextMetadata).length > 0) {
-          userParsed.data.metadata = nextMetadata
-        } else {
-          delete userParsed.data.metadata
-        }
-        changed = true
-      }
-
-      if (!changed) {
+      if (!this.builtinSkillContentDiffers(builtinSkillDir, userSkillDir)) {
         continue
       }
 
-      fs.writeFileSync(userMdPath, matter.stringify(userParsed.content, userParsed.data), 'utf-8')
-      updated = true
-
-      const metadata = await this.parseSkillMetadata(userMdPath, skillName)
-      if (metadata) {
-        this.metadataCache.set(skillName, metadata)
+      const result = await this.installFromDirectory(builtinSkillDir, { overwrite: true })
+      if (!result.success) {
+        console.warn(`[SkillPresenter] Failed to sync builtin skill "${skillName}":`, result.error)
+        continue
       }
+
+      updated = true
     }
 
     if (updated) {
       eventBus.sendToRenderer(SKILL_EVENTS.METADATA_UPDATED, SendTarget.ALL_WINDOWS, {})
       publishDeepchatEvent('skills.catalog.changed', {
-        reason: 'metadata-updated',
+        reason: 'builtin-synced',
         version: Date.now()
       })
     }
+  }
+
+  /** Compare packaged builtin files against the installed copy (prompt + scripts etc.). */
+  private builtinSkillContentDiffers(builtinSkillDir: string, userSkillDir: string): boolean {
+    const walk = (dir: string, base: string, files: Map<string, Buffer>) => {
+      if (!fs.existsSync(dir)) return
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        if (entry.isSymbolicLink() || entry.name === SKILL_CONFIG.SIDECAR_DIR) continue
+        const fullPath = path.join(dir, entry.name)
+        const relativePath = path.relative(base, fullPath)
+        if (entry.isDirectory()) {
+          walk(fullPath, base, files)
+          continue
+        }
+        files.set(relativePath, fs.readFileSync(fullPath))
+      }
+    }
+
+    const builtinFiles = new Map<string, Buffer>()
+    walk(builtinSkillDir, builtinSkillDir, builtinFiles)
+    for (const [relativePath, builtinContent] of builtinFiles) {
+      const userPath = path.join(userSkillDir, relativePath)
+      if (!fs.existsSync(userPath)) {
+        return true
+      }
+      if (!fs.readFileSync(userPath).equals(builtinContent)) {
+        return true
+      }
+    }
+    return false
   }
 
   private supportsCurrentPlatform(platforms?: string[]): boolean {
@@ -2064,18 +2058,18 @@ export class SkillPresenter implements ISkillPresenter {
     if (await this.isNewAgentSession(conversationId)) {
       const rawSkills = await this.loadNewSessionSkills(conversationId)
       const repairedSkills = this.repairLegacySkillNames(rawSkills)
-      const validSkills = this.filterJiaorongEnabledSkills(
-        await this.validateSkillNames(repairedSkills)
-      )
+      const validatedSkills = await this.validateSkillNames(repairedSkills)
+      // 开关过滤只影响本次返回，不写回会话，避免关闭后再开启时会话里技能丢失
+      const activeSkills = this.filterJiaorongEnabledSkills(validatedSkills)
 
       if (
-        JSON.stringify(rawSkills) !== JSON.stringify(validSkills) ||
-        JSON.stringify(repairedSkills) !== JSON.stringify(validSkills)
+        JSON.stringify(rawSkills) !== JSON.stringify(validatedSkills) ||
+        JSON.stringify(repairedSkills) !== JSON.stringify(validatedSkills)
       ) {
-        this.setPersistedNewSessionSkills(conversationId, validSkills)
+        this.setPersistedNewSessionSkills(conversationId, validatedSkills)
       }
 
-      return validSkills
+      return activeSkills
     }
 
     return []

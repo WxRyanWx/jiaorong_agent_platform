@@ -28,3 +28,5 @@
 | H22 | `useSkillsData.ts` | 过滤关闭技能；监听开关事件 | skill switch | 低 | `@jiaorong/utils` |
 | H23 | `useChatInputMentions.ts` | slash 技能列表过滤关闭项 | skill switch | 低 | `@jiaorong/utils` |
 | H24 | `skillPresenter/index.ts` | `get/setActiveSkills` 按开关 map 过滤 | skill switch | 中 | 读 `jiaorong_skill_switch_map`；纯逻辑在 `@jiaorong/utils/skillSwitchCore` |
+| H25 | `skillPresenter/index.ts` | 内置技能升级时整包覆盖同步 | builtin sync | 中 | 内置文件有差异则 `overwrite: true`；内置由应用管理 |
+| H26 | `tsconfig.node.json` | include `skillSwitchCore.ts` | skill switch | 低 | 主进程可 typecheck 纯逻辑工具 |

@@ -1,5 +1,8 @@
 export { isSkillInstalled, isSkillInstalledAsync } from './skillInstall'
 
+export { installSkillFromZipUrl, confirmSkillOverwrite } from './downloadSkill'
+export type { InstallSkillFromZipUrlResult } from './downloadSkill'
+
 export {
   SkillSwitchStatus,
   getSkillSwitchStatus,

@@ -7,7 +7,8 @@
     "src/shared/**/*",
     "src/jiaorong_src/prompts/**/*",
     "src/jiaorong_src/config/**/*",
-    "src/jiaorong_src/brand/**/*"
+    "src/jiaorong_src/brand/**/*",
+    "src/jiaorong_src/utils/skillSwitchCore.ts"
   ],
   "compilerOptions": {
     "composite": true,
