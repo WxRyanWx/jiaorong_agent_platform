@@ -11,6 +11,7 @@ import type {
   SendMessageInput
 } from '@shared/types/agent-interface'
 import type { DeepChatMessageStore } from './messageStore'
+import { applyStoredAttachmentPreprocessToUserInput } from '../../jiaorong_staging/attachmentPreprocess'
 
 const IMAGE_TOKEN_ESTIMATE = 512
 const AUDIO_TOKEN_ESTIMATE = 512
@@ -343,6 +344,8 @@ export function buildUserMessageContent(
   supportsVision: boolean,
   supportsAudioInput: boolean = false
 ): ChatMessage['content'] {
+  // Jiaorong staging S02: rehydrate vision descriptions from file metadata for history turns.
+  input = applyStoredAttachmentPreprocessToUserInput(input)
   const text = input.text ?? ''
   const files = Array.isArray(input.files) ? input.files : []
 

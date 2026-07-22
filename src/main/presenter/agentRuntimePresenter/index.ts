@@ -110,6 +110,10 @@ import type { ProviderRequestTracePayload } from '../llmProviderPresenter/reques
 import type { NewSessionHooksBridge } from '../hooksNotifications/newSessionBridge'
 import { providerDbLoader } from '../configPresenter/providerDbLoader'
 import { resolveSessionVisionTarget } from '../vision/sessionVisionResolver'
+import {
+  estimateAttachmentPreprocessReserveTokens,
+  runAttachmentPreprocessTurn
+} from '../../jiaorong_staging/attachmentPreprocess'
 import type { ProviderCatalogPort, SessionPermissionPort, SessionUiPort } from '../runtimePorts'
 import { publishDeepchatEvent } from '@/routes/publishDeepchatEvent'
 import { extractToolCallImagePreviews } from '@/lib/toolCallImagePreviews'
@@ -642,7 +646,6 @@ export class AgentRuntimePresenter implements IAgentImplementation {
     content: string | SendMessageInput,
     context?: {
       projectDir?: string | null
-      emitRefreshBeforeStream?: boolean
       pendingQueueItemId?: string
       pendingQueueItemSource?: ProcessPendingInputSource
     }
@@ -653,10 +656,13 @@ export class AgentRuntimePresenter implements IAgentImplementation {
       throw new Error('Pending tool interactions must be resolved before sending a new message.')
     }
 
-    const normalizedInput = this.normalizeUserMessageInput(content)
-    if (!normalizedInput.text.trim() && (normalizedInput.files?.length ?? 0) === 0) {
+    const displayInput = this.normalizeUserMessageInput(content)
+    if (!displayInput.text.trim() && (displayInput.files?.length ?? 0) === 0) {
       throw new Error('Message cannot be empty.')
     }
+    // modelInput may be augmented by staging preprocess; displayInput stays user-visible.
+    let normalizedInput = displayInput
+    let visionInitialBlocks: AssistantMessageBlock[] = []
     const supportsVision = this.supportsVision(state.providerId, state.modelId)
     const supportsAudioInput = this.supportsAudioInput(state.providerId, state.modelId)
     const projectDir = this.resolveProjectDir(sessionId, context?.projectDir)
@@ -671,6 +677,7 @@ export class AgentRuntimePresenter implements IAgentImplementation {
     let consumedPendingQueueItem = false
     let userMessageId: string | null = null
     let assistantMessageId: string | null = null
+    let preprocessGenerationRunId: string | null = null
 
     try {
       this.throwIfAbortRequested(preStreamAbortSignal)
@@ -695,7 +702,12 @@ export class AgentRuntimePresenter implements IAgentImplementation {
         projectDir,
         activeSkillNames
       )
-      const toolReserveTokens = estimateToolReserveTokens(tools)
+      const toolOnlyReserveTokens = estimateToolReserveTokens(tools)
+      const visionReserveTokens = supportsVision
+        ? 0
+        : estimateAttachmentPreprocessReserveTokens(displayInput)
+      // Compaction runs before preprocess; reserve room for upcoming image descriptions.
+      const toolReserveTokens = toolOnlyReserveTokens + visionReserveTokens
       this.throwIfAbortRequested(preStreamAbortSignal)
       const baseSystemPrompt = await this.buildSystemPromptWithSkills(
         sessionId,
@@ -707,8 +719,8 @@ export class AgentRuntimePresenter implements IAgentImplementation {
       const tapeReady = this.tapeService.ensureSessionTapeReady(sessionId, this.messageStore)
       const historyRecords = tapeReady.historyRecords.filter(isContextHistoryRecord)
       const userContent: UserMessageContent = {
-        text: normalizedInput.text,
-        files: normalizedInput.files || [],
+        text: displayInput.text,
+        files: displayInput.files || [],
         links: [],
         search: false,
         think: false
@@ -728,7 +740,7 @@ export class AgentRuntimePresenter implements IAgentImplementation {
             preserveInterleavedReasoning: interleavedReasoning.preserveReasoningContent,
             preserveEmptyInterleavedReasoning:
               interleavedReasoning.preserveEmptyReasoningContent === true,
-            newUserContent: normalizedInput,
+            newUserContent: displayInput,
             historyRecords,
             signal: preStreamAbortSignal
           })
@@ -774,11 +786,119 @@ export class AgentRuntimePresenter implements IAgentImplementation {
       this.dispatchHook('UserPromptSubmit', {
         sessionId,
         messageId: userMessageId,
-        promptPreview: normalizedInput.text,
+        promptPreview: displayInput.text,
         providerId: state.providerId,
         modelId: state.modelId,
         projectDir
       })
+
+      // Create assistant immediately so the chat is not blank while vision preprocess runs.
+      const assistantOrderSeq = this.messageStore.getNextOrderSeq(sessionId)
+      assistantMessageId = this.messageStore.createAssistantMessage(sessionId, assistantOrderSeq)
+      this.throwIfAbortRequested(preStreamAbortSignal)
+      this.emitMessageRefresh(sessionId, assistantMessageId)
+
+      // Jiaorong staging (scheme 4): product logic lives in jiaorong_staging (host touch S01).
+      let contextExtraReserveTokens = toolReserveTokens
+      const preprocessGeneration = this.registerActiveGeneration(
+        sessionId,
+        assistantMessageId,
+        preStreamAbortController
+      )
+      preprocessGenerationRunId = preprocessGeneration.runId
+      try {
+        const turn = await runAttachmentPreprocessTurn({
+          displayInput,
+          sessionSupportsVision: supportsVision,
+          providerId: state.providerId,
+          modelId: state.modelId,
+          agentId: this.getSessionAgentId(sessionId) ?? 'deepchat',
+          configPresenter: this.configPresenter,
+          signal: preStreamAbortSignal,
+          logWarn: (message, meta) => logger.warn(message, meta),
+          throwIfAborted: () => this.throwIfAbortRequested(preStreamAbortSignal),
+          executeWithRateLimit: async (providerId) => {
+            await this.llmProviderPresenter.executeWithRateLimit(providerId, {
+              signal: preStreamAbortSignal
+            })
+          },
+          getModelConfig: (modelId, providerId) =>
+            this.configPresenter.getModelConfig(modelId, providerId),
+          openVisionStream: ({
+            providerId,
+            modelId,
+            messages: visionMessages,
+            temperature,
+            maxTokens: visionMaxTokens,
+            modelConfig: visionModelConfig
+          }) => {
+            const provider = (
+              this.llmProviderPresenter as unknown as {
+                getProviderInstance: (id: string) => {
+                  coreStream: (
+                    messages: ChatMessage[],
+                    modelId: string,
+                    modelConfig: ModelConfig,
+                    temperature: number,
+                    maxTokens: number,
+                    tools: MCPToolDefinition[]
+                  ) => AsyncGenerator<import('@shared/types/core/llm-events').LLMCoreStreamEvent>
+                }
+              }
+            ).getProviderInstance(providerId)
+            return provider.coreStream(
+              visionMessages,
+              modelId,
+              visionModelConfig,
+              temperature,
+              visionMaxTokens,
+              []
+            )
+          },
+          publishVisionBlocks: (blocks) => {
+            visionInitialBlocks = blocks
+            if (blocks.length === 0) {
+              this.messageStore.updateAssistantContent(assistantMessageId!, [])
+            } else {
+              this.messageStore.updateAssistantContent(assistantMessageId!, blocks)
+            }
+            this.emitMessageRefresh(sessionId, assistantMessageId!)
+          }
+        })
+        normalizedInput = turn.modelInput
+        visionInitialBlocks = turn.visionInitialBlocks
+        if (turn.persistUserContent && userMessageId) {
+          this.messageStore.updateMessageContent(
+            userMessageId,
+            JSON.stringify(turn.persistUserContent)
+          )
+          this.emitMessageRefresh(sessionId, userMessageId)
+        }
+        // Descriptions are now in modelInput text — drop vision reserve to avoid double-count.
+        contextExtraReserveTokens = turn.didAugmentModelInput
+          ? toolOnlyReserveTokens
+          : toolReserveTokens
+      } catch (preprocessError) {
+        if (this.isAbortError(preprocessError)) {
+          // Keep cancelable until stream starts on success; only clear on abort here.
+          this.clearActiveGeneration(sessionId, preprocessGeneration.runId)
+          preprocessGenerationRunId = null
+          throw preprocessError
+        }
+        logger.warn(
+          '[DeepChatAgent] Attachment preprocess failed; continuing with original input',
+          {
+            sessionId,
+            error:
+              preprocessError instanceof Error ? preprocessError.message : String(preprocessError)
+          }
+        )
+        visionInitialBlocks = []
+        this.messageStore.updateAssistantContent(assistantMessageId, [])
+        this.emitMessageRefresh(sessionId, assistantMessageId)
+      }
+      // Success / soft-fail: leave activeGeneration so Stop still works until runStream overwrites it.
+      this.throwIfAbortRequested(preStreamAbortSignal)
 
       const systemPrompt = appendReconstructionAnchorStateSection(
         appendSummarySection(baseSystemPrompt, summaryState.summaryText),
@@ -796,25 +916,21 @@ export class AgentRuntimePresenter implements IAgentImplementation {
           summaryCursorOrderSeq: summaryState.summaryCursorOrderSeq,
           historyRecords,
           supportsAudioInput,
-          extraReserveTokens: toolReserveTokens,
+          extraReserveTokens: contextExtraReserveTokens,
           preserveInterleavedReasoning: interleavedReasoning.preserveReasoningContent,
           preserveEmptyInterleavedReasoning:
             interleavedReasoning.preserveEmptyReasoningContent === true
         }
       )
 
-      const assistantOrderSeq = this.messageStore.getNextOrderSeq(sessionId)
-      assistantMessageId = this.messageStore.createAssistantMessage(sessionId, assistantOrderSeq)
+      // Re-check after buildContext: Stop during the preprocess→stream gap must not start a new run.
       this.throwIfAbortRequested(preStreamAbortSignal)
 
+      // Consume pending send only after the final abort gate so cancel in the gap does not drop the queue.
       if (context?.pendingQueueItemId && pendingInputSource === 'send') {
         this.pendingInputCoordinator.consumeQueuedInput(sessionId, context.pendingQueueItemId)
         this.clearPendingQueuePauseIfEmpty(sessionId)
         consumedPendingQueueItem = true
-      }
-
-      if (context?.emitRefreshBeforeStream) {
-        this.emitMessageRefresh(sessionId, assistantMessageId)
       }
 
       const { runId, result } = await this.runStreamForMessage({
@@ -825,7 +941,8 @@ export class AgentRuntimePresenter implements IAgentImplementation {
         promptPreview: normalizedInput.text,
         tools,
         baseSystemPrompt,
-        interleavedReasoning
+        interleavedReasoning,
+        initialBlocks: visionInitialBlocks.length > 0 ? visionInitialBlocks : undefined
       })
       if (context?.pendingQueueItemId && !consumedPendingQueueItem) {
         if (pendingInputSource === 'queue' || pendingInputSource === 'steer') {
@@ -864,6 +981,10 @@ export class AgentRuntimePresenter implements IAgentImplementation {
         messageId: assistantMessageId
       }
     } catch (err) {
+      if (preprocessGenerationRunId) {
+        this.clearActiveGeneration(sessionId, preprocessGenerationRunId)
+        preprocessGenerationRunId = null
+      }
       console.error('[DeepChatAgent] processMessage error:', err)
       if (context?.pendingQueueItemId && !consumedPendingQueueItem) {
         try {
@@ -943,6 +1064,11 @@ export class AgentRuntimePresenter implements IAgentImplementation {
         messageId: assistantMessageId
       }
     } finally {
+      // If stream never took over (or failed before register), drop preprocess generation.
+      // After runStream registers a new runId this is a no-op.
+      if (preprocessGenerationRunId) {
+        this.clearActiveGeneration(sessionId, preprocessGenerationRunId)
+      }
       this.clearSessionAbortController(sessionId, preStreamAbortController)
     }
   }
@@ -2170,15 +2296,14 @@ export class AgentRuntimePresenter implements IAgentImplementation {
     }
 
     const retryInput = this.extractUserMessageInput(sourceUserMessage.content)
-    if (!retryInput.text.trim()) {
+    if (!retryInput.text.trim() && (retryInput.files?.length ?? 0) === 0) {
       throw new Error('Cannot retry an empty user message.')
     }
 
     this.invalidateSummaryIfNeeded(sessionId, sourceUserMessage.orderSeq)
     this.messageStore.deleteFromOrderSeq(sessionId, sourceUserMessage.orderSeq)
     await this.processMessage(sessionId, retryInput, {
-      projectDir: this.resolveProjectDir(sessionId),
-      emitRefreshBeforeStream: true
+      projectDir: this.resolveProjectDir(sessionId)
     })
   }
 

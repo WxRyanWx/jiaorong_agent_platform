@@ -129,7 +129,6 @@ export interface IAgentImplementation {
     content: string | SendMessageInput,
     context?: {
       projectDir?: string | null
-      emitRefreshBeforeStream?: boolean
       pendingQueueItemId?: string
       pendingQueueItemSource?: PendingInputEnqueueSource
     }
