@@ -6,6 +6,7 @@ import { Button } from '@shadcn/components/ui/button'
 import { Input } from '@shadcn/components/ui/input'
 import { useSkillsStore } from '@/stores/skillsStore'
 import type { SkillMetadata } from '@shared/types/skill'
+import { startGeneralChatWithSkills } from '@jiaorong/utils'
 import {
   BUILTIN_SKILL_NAMES,
   type JiaorongSkillItem,
@@ -114,6 +115,15 @@ const closeCreateMenu = () => {
   createMenuOpen.value = false
 }
 
+const createSkill = async () => {
+  closeCreateMenu()
+  await startGeneralChatWithSkills({
+    router,
+    prompt: '创建一个新的技能，这个技能的功能是：',
+    skillNames: ['skill-creator']
+  })
+}
+
 const openUploadDialog = () => {
   closeCreateMenu()
   uploadDialogOpen.value = true
@@ -189,7 +199,7 @@ onMounted(() => {
           <button
             type="button"
             class="flex w-full flex-col items-start gap-0.5 px-3 py-2.5 text-left hover:bg-muted/60"
-            @click="closeCreateMenu"
+            @click="createSkill"
           >
             <span class="text-sm font-medium text-foreground">创建技能</span>
             <span class="text-xs text-muted-foreground">通过对话描述创建</span>

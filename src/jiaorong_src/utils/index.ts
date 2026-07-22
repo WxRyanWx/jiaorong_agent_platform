@@ -1,8 +1,27 @@
-export { isSkillInstalled, isSkillInstalledAsync } from './skillInstall'
+import {
+  startGeneralChatWithSkills,
+  type StartGeneralChatWithSkillsOptions
+} from './startGeneralChatWithSkills'
+import { openSkillFolder, readSkillMarkdown, uninstallSkill } from './skillFileOperations'
+import { showGlobalSuccessToast, type GlobalSuccessToastOptions } from './globalToast'
 
-export { installSkillFromZipUrl, confirmSkillOverwrite } from './downloadSkill'
+export type { GlobalSuccessToastOptions, StartGeneralChatWithSkillsOptions }
+export type {
+  SkillSwitchResult,
+  SetSkillSwitchOptions,
+  SkillSwitchEventDetail
+} from './skillSwitch'
 export type { InstallSkillFromZipUrlResult } from './downloadSkill'
 
+export { isSkillInstalled, isSkillInstalledAsync } from './skillInstall'
+export { installSkillFromZipUrl, confirmSkillOverwrite } from './downloadSkill'
+export {
+  openSkillFolder,
+  readSkillMarkdown,
+  showGlobalSuccessToast,
+  startGeneralChatWithSkills,
+  uninstallSkill
+}
 export {
   SkillSwitchStatus,
   getSkillSwitchStatus,
@@ -16,10 +35,4 @@ export {
   JIAORONG_SKILL_SWITCH_STORAGE_KEY,
   JIAORONG_SKILL_SWITCH_SETTING_KEY,
   JIAORONG_SKILL_SWITCH_EVENT
-} from './skillSwitch'
-
-export type {
-  SkillSwitchResult,
-  SetSkillSwitchOptions,
-  SkillSwitchEventDetail
 } from './skillSwitch'
