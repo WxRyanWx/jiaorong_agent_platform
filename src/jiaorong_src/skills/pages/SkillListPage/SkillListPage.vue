@@ -100,8 +100,14 @@ const openDetail = (skill: JiaorongSkillItem) => {
   void router.push({ name: 'skills-detail', params: { skillId: skill.name } })
 }
 
-/** 「使用」暂留空，后续接对话激活 */
-const handleUse = (_skill: JiaorongSkillItem) => {}
+/** 「使用」：携带该技能进入新的通用对话（与详情页一致） */
+const handleUse = async (skill: JiaorongSkillItem) => {
+  await startGeneralChatWithSkills({
+    router,
+    prompt: '',
+    skillNames: [skill.name]
+  })
+}
 
 const handleInstall = (_skill: JiaorongSkillItem) => {
   // 远程市场接入后：调安装接口再刷新。本地内置技能已是已安装态。
