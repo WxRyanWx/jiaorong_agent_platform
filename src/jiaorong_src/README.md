@@ -19,7 +19,7 @@ jiaorong_src/
     assets/
   config/            # 设置侧栏白名单等私有配置
   prompts/           # 默认系统提示词文案（非设置页 UI）
-  brand/             # APP_NAME / UA / 水印等品牌常量
+  brand/             # APP_NAME / UA / 水印；theme.less 主题覆盖
   router/            # 私有路由唯一维护处（子模块不维护 routes）
     index.ts         # createJiaorongRoutes()
     auth.ts skills.ts skills.meta.ts
@@ -46,7 +46,9 @@ import { FeatchUserInfo } from '@jiaorong/api/auth'
 import { bootstrapJiaorongRendererAuth, getToken, loadLoginPage } from '@jiaorong/auth/host'
 import { listJiaorongSidebarItems } from '@jiaorong/runtime/sidebar'
 import { APP_NAME } from '@jiaorong/brand'
+import '@jiaorong/brand/theme.less' // 宿主 main.ts 静态加载主题覆盖
 ```
+
 
 兼容：`import … from '@api/auth'` → HTTP 薄 re-export（`src/renderer/api/auth`）。  
 宿主登录相关请走 `@jiaorong/auth/host`；**私有页面路由请走 `@jiaorong/router`**，勿在宿主散落各子模块 loader。

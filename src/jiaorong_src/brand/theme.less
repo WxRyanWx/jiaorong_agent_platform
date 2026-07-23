@@ -1,0 +1,68 @@
+/* 交融主题覆盖：宿主静态 import '@jiaorong/brand/theme.less'
+ * 约定：宿主只加对应 class，样式全部写在本文件，避免抽象结构选择器。
+ */
+
+:root {
+  --bg-window-background: #eff5ff;
+}
+
+/* AppBar.vue → .app-bar */
+.app-bar {
+  background: #eff5ff;
+}
+
+/* WindowSideBar.vue → .window-sidebar-shell */
+.window-sidebar-shell {
+  background: #eff5ff;
+}
+
+/* ChatInputBox.vue → .chat-input-box */
+.chat-input-box {
+  background: #ffffff;
+  box-shadow: 0px 1px 4px 0px rgba(0, 110, 255, 0.1);
+  border-radius: 16px;
+  border: 1px solid #b9d0f2;
+}
+
+/* WindowSideBar.vue → .window-sidebar-search-input */
+.window-sidebar-search-input {
+  background: #e8f0fc;
+  border-radius: 12px;
+  border: 1px solid #d4e3f8;
+
+  &::placeholder {
+    color: #748db0;
+  }
+}
+
+/* WindowSideBar.vue → .window-sidebar-action-btn（按时间分组 / 新会话） */
+.window-sidebar-action-btn {
+  color: #4d76ad;
+}
+
+/* ChatInputToolbar.vue → .chat-input-toolbar-icon（默认态 icon） */
+.chat-input-toolbar-icon {
+  color: #4d76ad;
+}
+
+/* WindowSideBar.vue 空状态 */
+.window-sidebar-empty-icon {
+  width: 64px;
+  height: 64px;
+  color: #9cb8dd;
+}
+
+.window-sidebar-empty-title {
+  color: #8aa4c6;
+}
+
+.window-sidebar-empty-desc {
+  color: #6f8caf;
+  margin-top: 21px;
+}
+
+/*
+ * 主题切换入口隐藏（宿主注释，非本文件 CSS）：
+ * - H36 WindowSideBar：左侧 cycleTheme 按钮
+ * - H37 DisplaySettings：设置 → 外观「主题」选择块
+ */

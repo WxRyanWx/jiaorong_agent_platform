@@ -2,7 +2,7 @@
   <div
     data-testid="chat-input-box"
     :class="[
-      'w-full overflow-hidden rounded-xl border bg-card/30 shadow-sm backdrop-blur-lg',
+      'chat-input-box w-full overflow-hidden rounded-xl border bg-card/30 shadow-sm backdrop-blur-lg',
       props.maxWidthClass
     ]"
     @dragover="onDragOver"
