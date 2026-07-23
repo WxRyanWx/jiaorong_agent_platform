@@ -1,9 +1,26 @@
+/** 远程技能市场列表项（后端契约确定前先占位）。 */
+export interface RemoteSkillListItem {
+  id: string
+  name: string
+  description: string
+}
+
 /** 远程技能详情接口的页面消费模型。 */
 export interface SkillDetailResponse {
   id: string
   name: string
   description: string
   tryPrompts: string[]
+}
+
+/**
+ * 拉取远程技能市场列表。
+ *
+ * 后端 URL / 响应格式未定时返回空数组，不阻断本地内置 + 上传的展示。
+ * 契约确定后仅改本函数即可。
+ */
+export async function listRemoteSkills(): Promise<RemoteSkillListItem[]> {
+  return []
 }
 
 /**

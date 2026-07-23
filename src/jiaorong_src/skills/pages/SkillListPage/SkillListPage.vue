@@ -4,6 +4,8 @@ import { useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { Button } from '@shadcn/components/ui/button'
 import { Input } from '@shadcn/components/ui/input'
+import { createSkillClient } from '@api/SkillClient'
+import { listRemoteSkills } from '@jiaorong/api/skills'
 import { useSkillsStore } from '@/stores/skillsStore'
 import type { SkillMetadata } from '@shared/types/skill'
 import { startGeneralChatWithSkills } from '@jiaorong/utils'
@@ -16,20 +18,50 @@ import {
   SkillSource,
   toJiaorongSkillItem
 } from '../../lib/sessionSkill'
+import { loadSkillMarketCatalog } from '../../lib/loadSkillCatalog'
 import SkillUploadDialog from '../../components/SkillUploadDialog/SkillUploadDialog.vue'
 
 type MarketTab = 'market' | 'installed'
 
 const router = useRouter()
 const skillsStore = useSkillsStore()
+const skillClient = createSkillClient()
 
 const activeTab = ref<MarketTab>('market')
 const searchQuery = ref('')
 const activeCategory = ref('全部')
 const createMenuOpen = ref(false)
 const uploadDialogOpen = ref(false)
+/** 三合一结果：远程 + 内置 + 用户上传 */
+const catalogSkills = ref<SkillMetadata[]>([])
+const catalogLoading = ref(false)
+
+let loadGeneration = 0
 
 const CATEGORY_FALLBACK = '通用'
+
+/** 进页转圈 → 远程占位 + 本地（内置/上传）齐了再展示 */
+async function refreshMarket() {
+  const generation = ++loadGeneration
+  catalogLoading.value = true
+  try {
+    const { local, merged } = await loadSkillMarketCatalog({
+      fetchLocal: () => skillClient.getMetadataList(),
+      fetchRemote: () => listRemoteSkills(),
+      shouldAbort: () => generation !== loadGeneration
+    })
+    if (generation !== loadGeneration) return
+    catalogSkills.value = merged
+    skillsStore.skills = local
+  } catch (e) {
+    if (generation !== loadGeneration) return
+    console.error('[SkillListPage] Failed to load skill market:', e)
+  } finally {
+    if (generation === loadGeneration) {
+      catalogLoading.value = false
+    }
+  }
+}
 
 function getSkillDisplayName(skill: SkillMetadata): string {
   const displayName = skill.metadata?.displayName
@@ -59,14 +91,20 @@ function getSkillIcon(skill: SkillMetadata): string {
   return 'lucide:wand-sparkles'
 }
 
-/** 本地已发现技能一律视为已安装（内置技能启动时已写入 skills 目录） */
-function isInstalled(_skill: SkillMetadata): boolean {
-  return true
+/** 本地已发现技能一律视为已安装；纯远程未安装条目后续接安装态 */
+function isInstalled(skill: SkillMetadata): boolean {
+  return Boolean(skill.skillRoot)
 }
 
-/** 按持久化来源 / 内置名集合解析 skill_source（1 内置 2 远程 3 文件夹 4 zip 5 md） */
 const skillItems = computed((): JiaorongSkillItem[] =>
-  skillsStore.skills.map((skill) => toJiaorongSkillItem(skill))
+  catalogSkills.value.map((skill) => {
+    const item = toJiaorongSkillItem(skill)
+    // 无本地根目录的为远程未安装条目（勿被 resolveSkillSource 默认成 Zip）
+    if (!skill.skillRoot) {
+      return { ...item, skill_source: SkillSource.RemoteApi }
+    }
+    return item
+  })
 )
 
 const categories = computed(() => {
@@ -77,10 +115,12 @@ const categories = computed(() => {
   return ['全部', ...Array.from(set).sort((a, b) => a.localeCompare(b, 'zh-CN'))]
 })
 
-/** 按分类 + 搜索关键字过滤；不负责改写 skill 字段 */
 const filteredSkills = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
   return skillItems.value.filter((skill) => {
+    if (activeTab.value === 'installed' && !isInstalled(skill)) {
+      return false
+    }
     if (activeCategory.value !== '全部' && getSkillCategory(skill) !== activeCategory.value) {
       return false
     }
@@ -93,14 +133,13 @@ const filteredSkills = computed(() => {
   })
 })
 
-const installedCount = computed(() => skillItems.value.length)
+const installedCount = computed(() => skillItems.value.filter((skill) => isInstalled(skill)).length)
 
 const openDetail = (skill: JiaorongSkillItem) => {
   saveJiaorongSkillToSession(skill)
   void router.push({ name: 'skills-detail', params: { skillId: skill.name } })
 }
 
-/** 「使用」：携带该技能进入新的通用对话（与详情页一致） */
 const handleUse = async (skill: JiaorongSkillItem) => {
   await startGeneralChatWithSkills({
     router,
@@ -110,7 +149,7 @@ const handleUse = async (skill: JiaorongSkillItem) => {
 }
 
 const handleInstall = (_skill: JiaorongSkillItem) => {
-  // 远程市场接入后：调安装接口再刷新。本地内置技能已是已安装态。
+  // 远程市场接入后：调安装接口再刷新。
 }
 
 const toggleCreateMenu = () => {
@@ -136,17 +175,16 @@ const openUploadDialog = () => {
 }
 
 const onSkillUploaded = () => {
-  void skillsStore.loadSkills()
+  void refreshMarket()
 }
 
 onMounted(() => {
-  // 把系统内置技能名写入来源表（不覆盖用户已记录的上传来源）
   for (const name of BUILTIN_SKILL_NAMES) {
     if (getRememberedSkillSource(name) == null) {
       rememberSkillSource(name, SkillSource.LocalBuiltin)
     }
   }
-  void skillsStore.loadSkills()
+  void refreshMarket()
 })
 </script>
 
@@ -252,14 +290,11 @@ onMounted(() => {
     <!-- Grid -->
     <div class="min-h-0 flex-1 overflow-y-auto px-6 pb-6">
       <div
-        v-if="skillsStore.loading"
-        class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+        v-if="catalogLoading"
+        class="flex h-56 flex-col items-center justify-center gap-3 text-muted-foreground"
       >
-        <div
-          v-for="i in 8"
-          :key="`sk-${i}`"
-          class="h-40 animate-pulse rounded-xl border border-border/60 bg-muted/30"
-        />
+        <Icon icon="lucide:loader-2" class="h-8 w-8 animate-spin text-primary" />
+        <p class="text-sm">加载技能中…</p>
       </div>
 
       <div
@@ -268,7 +303,7 @@ onMounted(() => {
       >
         <Icon icon="lucide:wand-sparkles" class="mb-3 h-10 w-10 opacity-40" />
         <p class="text-sm">
-          {{ searchQuery ? '未找到匹配的技能' : '暂无本地技能' }}
+          {{ searchQuery ? '未找到匹配的技能' : '暂无技能' }}
         </p>
       </div>
 
