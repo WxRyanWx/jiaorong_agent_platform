@@ -1,9 +1,10 @@
-/** 远程技能市场列表项（后端契约确定前先占位）。 */
-export interface RemoteSkillListItem {
-  id: string
-  name: string
-  description: string
-}
+import {
+  buildSkillMarketCatalog,
+  type RemoteSkillListItem,
+  type SkillMarketCatalogResult
+} from '../../skills/lib/skillMarketCatalog'
+
+export type { RemoteSkillListItem, SkillMarketCatalogResult }
 
 /** 远程技能详情接口的页面消费模型。 */
 export interface SkillDetailResponse {
@@ -21,6 +22,16 @@ export interface SkillDetailResponse {
  */
 export async function listRemoteSkills(): Promise<RemoteSkillListItem[]> {
   return []
+}
+
+/**
+ * 技能市场列表数据请求：扫描本地安装目录 + 拉取远程，合并后返回。
+ * 页面进入、上传技能成功后调用即可。
+ */
+export async function fetchSkillMarketCatalog(): Promise<SkillMarketCatalogResult> {
+  return buildSkillMarketCatalog({
+    fetchRemote: listRemoteSkills
+  })
 }
 
 /**

@@ -1,13 +1,12 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { Button } from '@shadcn/components/ui/button'
 import { Input } from '@shadcn/components/ui/input'
-import { createSkillClient } from '@api/SkillClient'
-import { listRemoteSkills } from '@jiaorong/api/skills'
 import { useSkillsStore } from '@/stores/skillsStore'
 import type { SkillMetadata } from '@shared/types/skill'
+import { fetchSkillMarketCatalog } from '@jiaorong/api/skills'
 import { startGeneralChatWithSkills } from '@jiaorong/utils'
 import {
   BUILTIN_SKILL_NAMES,
@@ -18,21 +17,19 @@ import {
   SkillSource,
   toJiaorongSkillItem
 } from '../../lib/sessionSkill'
-import { loadSkillMarketCatalog } from '../../lib/loadSkillCatalog'
 import SkillUploadDialog from '../../components/SkillUploadDialog/SkillUploadDialog.vue'
 
 type MarketTab = 'market' | 'installed'
 
 const router = useRouter()
 const skillsStore = useSkillsStore()
-const skillClient = createSkillClient()
 
 const activeTab = ref<MarketTab>('market')
 const searchQuery = ref('')
 const activeCategory = ref('全部')
 const createMenuOpen = ref(false)
 const uploadDialogOpen = ref(false)
-/** 三合一结果：远程 + 内置 + 用户上传 */
+/** 市场列表（远程 + 本地合并结果） */
 const catalogSkills = ref<SkillMetadata[]>([])
 const catalogLoading = ref(false)
 
@@ -40,16 +37,12 @@ let loadGeneration = 0
 
 const CATEGORY_FALLBACK = '通用'
 
-/** 进页转圈 → 远程占位 + 本地（内置/上传）齐了再展示 */
+/** 进入页面 / 上传成功后刷新列表 */
 async function refreshMarket() {
   const generation = ++loadGeneration
   catalogLoading.value = true
   try {
-    const { local, merged } = await loadSkillMarketCatalog({
-      fetchLocal: () => skillClient.getMetadataList(),
-      fetchRemote: () => listRemoteSkills(),
-      shouldAbort: () => generation !== loadGeneration
-    })
+    const { local, merged } = await fetchSkillMarketCatalog()
     if (generation !== loadGeneration) return
     catalogSkills.value = merged
     skillsStore.skills = local
@@ -185,6 +178,11 @@ onMounted(() => {
     }
   }
   void refreshMarket()
+})
+
+onUnmounted(() => {
+  // 作废进行中的请求，避免离开页面后回写
+  loadGeneration += 1
 })
 </script>
 
