@@ -8,7 +8,7 @@ import { createWorkspaceClient } from '@api/WorkspaceClient'
 import type { MCPToolDefinition, PromptListEntry, WorkspaceFileNode } from '@shared/presenter'
 import { useMcpStore } from '@/stores/mcp'
 import { useSkillsStore } from '@/stores/skillsStore'
-import { isSkillSwitchOn } from '@jiaorong/utils'
+import { isSkillSwitchOn, refreshSkillsCatalog } from '@jiaorong/utils'
 import {
   buildChatInputWorkspaceReferenceText,
   resolveChatInputWorkspaceReferencePath
@@ -420,6 +420,22 @@ export function useChatInputMentions(options: UseChatInputMentionsOptions) {
     return filterSlashSuggestionItems(slashItems.value, query)
   }
 
+  /** 同一次 `/` 菜单只扫盘一次；关闭菜单后下次再扫 */
+  let slashCatalogRefresh: Promise<void> | null = null
+  /** 避免异步 items 乱序回写（先发起的空 query 晚到覆盖已过滤结果） */
+  let slashItemsSeq = 0
+
+  const ensureSlashSkillsFresh = async () => {
+    if (!slashCatalogRefresh) {
+      slashCatalogRefresh = refreshSkillsCatalog()
+        .then(() => undefined)
+        .catch((error) => {
+          console.warn('[ChatInputMentions] Failed to refresh skills for slash menu:', error)
+        })
+    }
+    await slashCatalogRefresh
+  }
+
   const createRenderer = () => {
     let component: VueRenderer | null = null
     let popup: ReturnType<typeof tippy> | null = null
@@ -478,6 +494,9 @@ export function useChatInputMentions(options: UseChatInputMentionsOptions) {
       },
       onExit: () => {
         isSuggestionMenuOpen.value = false
+        // 下次打开 / 时再扫盘
+        slashCatalogRefresh = null
+        slashItemsSeq += 1
         popup?.[0]?.destroy()
         popup = null
         component?.destroy()
@@ -510,7 +529,14 @@ export function useChatInputMentions(options: UseChatInputMentionsOptions) {
   const slashSuggestion = {
     char: '/',
     allowedPrefixes: null,
-    items: ({ query }: { query: string }) => filterSlashItems(query),
+    items: async ({ query }: { query: string }) => {
+      const seq = ++slashItemsSeq
+      await ensureSlashSkillsFresh()
+      if (seq !== slashItemsSeq) {
+        return []
+      }
+      return filterSlashItems(query)
+    },
     command: ({
       editor,
       range,

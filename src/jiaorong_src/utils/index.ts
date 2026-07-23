@@ -15,6 +15,7 @@ export type { InstallSkillFromZipUrlResult } from './downloadSkill'
 
 export { isSkillInstalled, isSkillInstalledAsync } from './skillInstall'
 export { installSkillFromZipUrl, confirmSkillOverwrite } from './downloadSkill'
+export { refreshSkillsCatalog } from './refreshSkillsCatalog'
 export {
   openSkillFolder,
   readSkillMarkdown,
