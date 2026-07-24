@@ -1,22 +1,7 @@
-<svg width="38" height="38" viewBox="0 0 38 38" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g id="Rail &#194;&#183; Skill &#230;&#138;&#128;&#232;&#131;&#189;" filter="url(#filter0_d_14390_31750)">
-<rect x="0.976562" y="0.488281" width="36" height="36" rx="10" fill="white"/>
-<rect x="1.21981" y="0.731524" width="35.5135" height="35.5135" rx="9.75676" stroke="#B8CFF3" stroke-width="0.486486"/>
+<svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
 <g id="Rail Icon &#194;&#183; Skill">
-<path id="Vector" d="M18.9766 10.6953L20.1224 13.6745L23.1016 14.8203L20.1224 15.9661L18.9766 18.9453L17.8307 15.9661L14.8516 14.8203L17.8307 13.6745L18.9766 10.6953Z" stroke="#4F6F98" stroke-linejoin="round"/>
-<path id="Vector_2" d="M13.0156 19.4062L13.7948 21.3771L15.7656 22.1562L13.7948 22.9354L13.0156 24.9062L12.2365 22.9354L10.2656 22.1562L12.2365 21.3771L13.0156 19.4062Z" stroke="#4F6F98" stroke-linejoin="round"/>
-<path id="Vector_3" d="M24.4766 18.9453L25.4391 21.4203L27.9141 22.3828L25.4391 23.3453L24.4766 25.8203L23.5141 23.3453L21.0391 22.3828L23.5141 21.4203L24.4766 18.9453Z" stroke="#4F6F98" stroke-linejoin="round"/>
+<path id="Vector" d="M11 3.20703L12.1458 6.1862L15.125 7.33203L12.1458 8.47786L11 11.457L9.85417 8.47786L6.875 7.33203L9.85417 6.1862L11 3.20703Z" stroke="#4F6F98" stroke-linejoin="round"/>
+<path id="Vector_2" d="M5.03906 11.918L5.81823 13.8888L7.78906 14.668L5.81823 15.4471L5.03906 17.418L4.2599 15.4471L2.28906 14.668L4.2599 13.8888L5.03906 11.918Z" stroke="#4F6F98" stroke-linejoin="round"/>
+<path id="Vector_3" d="M16.5 11.457L17.4625 13.932L19.9375 14.8945L17.4625 15.857L16.5 18.332L15.5375 15.857L13.0625 14.8945L15.5375 13.932L16.5 11.457Z" stroke="#4F6F98" stroke-linejoin="round"/>
 </g>
-</g>
-<defs>
-<filter id="filter0_d_14390_31750" x="0.00358957" y="0.00179479" width="37.9459" height="37.9459" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
-<feFlood flood-opacity="0" result="BackgroundImageFix"/>
-<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
-<feOffset dy="0.486486"/>
-<feGaussianBlur stdDeviation="0.486486"/>
-<feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0.431373 0 0 0 0 1 0 0 0 0.1 0"/>
-<feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_14390_31750"/>
-<feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_14390_31750" result="shape"/>
-</filter>
-</defs>
 </svg>

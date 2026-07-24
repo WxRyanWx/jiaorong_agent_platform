@@ -79,7 +79,7 @@
                 v-if="item.iconSrc"
                 :src="item.iconSrc"
                 alt=""
-                class="w-7 h-7 object-contain"
+                class="w-[22px] h-[22px] object-contain"
               />
               <Icon
                 v-else

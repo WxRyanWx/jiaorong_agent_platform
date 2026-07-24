@@ -44,3 +44,4 @@
 | H38 | `WindowSideBar.vue` | `window-sidebar-shell` / `window-sidebar-empty-*` / `window-sidebar-search-input` / `window-sidebar-action-btn` | brand theme | 低 | 仅挂 class，样式在 theme.less |
 | H39 | `ChatInputToolbar.vue` / `ChatInputBox.vue` | `chat-input-toolbar-icon` / `chat-input-box` | brand theme | 低 | 仅挂 class，样式在 theme.less |
 | H40 | `src/renderer/src/i18n/*/routes.json` | 技能详情文案键 | skills detail | 低 | skillsBack / Market / UseSkill / OpenFolder / Delete / Try* / DeleteConfirm* |
+| H41 | `src/main/presenter/configPresenter/index.ts` `initTheme` | 启动非 light 则强制 `setTheme('light')` | brand theme | 低 | 判定在 `@jiaorong/brand` `needsForceLightTheme` |

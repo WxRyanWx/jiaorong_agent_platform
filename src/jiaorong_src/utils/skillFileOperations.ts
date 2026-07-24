@@ -1,4 +1,5 @@
 import { createSkillClient } from '@api/SkillClient'
+import { forgetSkillInstallRecords } from '../skills/lib/sessionSkill'
 
 /**
  * 通过宿主 typed route 在系统文件管理器中打开技能目录。
@@ -14,7 +15,12 @@ export async function openSkillFolder(skillName: string): Promise<void> {
 
 /** 通过宿主技能服务卸载指定技能及其源文件。 */
 export async function uninstallSkill(skillName: string) {
-  return await createSkillClient().uninstallSkill(skillName)
+  const result = await createSkillClient().uninstallSkill(skillName)
+  if (result.success) {
+    // 同步清理市场安装映射 / 来源，避免列表仍显示「使用」
+    forgetSkillInstallRecords(skillName)
+  }
+  return result
 }
 
 /** 读取已安装技能目录中的真实 SKILL.md 原始内容。 */

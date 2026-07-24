@@ -94,6 +94,7 @@
     border-radius: var(--scp-radius-ctl) !important;
     font-size: 13px !important;
     font-weight: 500 !important;
+    cursor: pointer;
   }
 
   &__create-icon {
@@ -230,24 +231,22 @@
 
   /* ---------- Content / grid ---------- */
   &__content {
+    display: flex;
     flex: 1 1 auto;
     min-height: 0;
+    flex-direction: column;
     overflow-y: auto;
     padding: 0px 0px 24px;
   }
 
   &__state {
     display: flex;
-    height: 240px;
+    flex: 1 1 auto;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 12px;
     color: var(--scp-text-muted);
-  }
-
-  &__state--empty {
-    height: 200px;
   }
 
   &__state-icon {
