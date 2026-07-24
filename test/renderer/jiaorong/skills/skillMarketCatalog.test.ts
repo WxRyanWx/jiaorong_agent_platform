@@ -54,7 +54,11 @@ describe('fetchSkillMarketCatalog', () => {
       }
     ]
     const merged = mergeSkillMarketCatalog(local, remote)
-    expect(merged.find((s) => s.name === 'shared')?.description).toBe('local-desc')
+    const shared = merged.find((s) => s.name === 'shared')
+    expect(shared?.description).toBe('local-desc')
+    expect(shared?.skillRoot).toBe('/skills/shared')
+    expect(shared?.metadata?.remoteId).toBe('s1')
+    expect(shared?.metadata?.downloadUrl).toBe('https://example.com/a.zip')
     expect(merged.find((s) => s.name === 'Remote Only')?.description).toBe('only')
     expect(merged.find((s) => s.name === 'Remote Only')?.metadata?.remoteId).toBe('s2')
     expect(merged.find((s) => s.name === 'Remote Only')?.metadata?.downloadUrl).toBe(

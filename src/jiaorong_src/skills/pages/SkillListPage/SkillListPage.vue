@@ -142,7 +142,14 @@ async function refreshMarket() {
           displayName:
             (typeof skill.metadata?.displayName === 'string' && skill.metadata.displayName) ||
             skill.name,
-          installedSkillName: localName
+          installedSkillName: localName,
+          // 显式钉住远程字段，避免被本地 frontmatter 冲掉
+          ...(typeof skill.metadata?.remoteId === 'string' && skill.metadata.remoteId.trim()
+            ? { remoteId: skill.metadata.remoteId }
+            : {}),
+          ...(typeof skill.metadata?.downloadUrl === 'string' && skill.metadata.downloadUrl.trim()
+            ? { downloadUrl: skill.metadata.downloadUrl }
+            : {})
         }
       }
     })

@@ -12,6 +12,7 @@ export interface SkillDetailResponse {
   name: string
   description: string
   tryPrompts: string[]
+  downloadUrl: string
 }
 
 /**
@@ -67,6 +68,7 @@ export async function getSkillDetail(remoteId: string): Promise<SkillDetailRespo
     id: typeof raw.id === 'string' && raw.id.trim() ? raw.id.trim() : id,
     name,
     description,
-    tryPrompts
+    tryPrompts,
+    downloadUrl: typeof raw.downloadUrl === 'string' ? raw.downloadUrl.trim() : ''
   }
 }

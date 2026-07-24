@@ -32,7 +32,7 @@ async function scanLocalInstalledSkills(): Promise<SkillMetadata[]> {
   return next
 }
 
-/** 同名以本地为准 */
+/** 同名以本地路径/内容为准，但保留远程市场字段（再装依赖） */
 export function mergeSkillMarketCatalog(
   local: SkillMetadata[],
   remote: RemoteSkillListItem[]
@@ -57,7 +57,28 @@ export function mergeSkillMarketCatalog(
   }
 
   for (const item of local) {
-    byName.set(item.name, item)
+    const prev = byName.get(item.name)
+    if (!prev) {
+      byName.set(item.name, item)
+      continue
+    }
+    const prevMeta = prev.metadata ?? {}
+    const itemMeta = item.metadata ?? {}
+    byName.set(item.name, {
+      ...item,
+      description: item.description || prev.description,
+      category: item.category ?? prev.category,
+      metadata: {
+        ...itemMeta,
+        // 本地 frontmatter 不含市场字段；同名覆盖后必须保留，否则详情无法再装
+        remoteId: prevMeta.remoteId ?? itemMeta.remoteId,
+        downloadUrl: prevMeta.downloadUrl ?? itemMeta.downloadUrl,
+        displayName:
+          (typeof prevMeta.displayName === 'string' && prevMeta.displayName.trim()) ||
+          (typeof itemMeta.displayName === 'string' && itemMeta.displayName.trim()) ||
+          item.name
+      }
+    })
   }
 
   return Array.from(byName.values())

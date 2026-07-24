@@ -105,7 +105,28 @@ watch(
 
     try {
       const detail = await getSkillDetail(remoteId)
-      if (!cancelled) remoteSkillDetail.value = detail
+      if (cancelled || !detail) return
+      remoteSkillDetail.value = detail
+      // 把详情里的下载地址写回 session，避免列表合并丢字段后无法再装
+      const current = skill.value ?? stored
+      if (!current) return
+      const nextMeta = {
+        ...current.metadata,
+        remoteId: detail.id || remoteId,
+        ...(detail.downloadUrl ? { downloadUrl: detail.downloadUrl } : {}),
+        displayName:
+          (typeof current.metadata?.displayName === 'string' && current.metadata.displayName) ||
+          detail.name ||
+          current.name
+      }
+      const nextSkill: JiaorongSkillItem = {
+        ...current,
+        description: current.description || detail.description,
+        skill_source: SkillSource.RemoteApi,
+        metadata: nextMeta
+      }
+      skill.value = nextSkill
+      saveJiaorongSkillToSession(nextSkill)
     } catch (error) {
       console.error(`[SkillDetailPage] Failed to load remote skill detail for ${remoteId}:`, error)
     }
@@ -122,11 +143,16 @@ watch(
     })
 
     const storedSkill = readJiaorongSkillFromSession()
-    skill.value = currentSkillId
-      ? storedSkill?.name === currentSkillId
-        ? storedSkill
-        : null
-      : storedSkill
+    const routeId = currentSkillId.trim()
+    const installedName = storedSkill?.metadata?.installedSkillName
+    const displayName = storedSkill?.metadata?.displayName
+    const matchesStored =
+      Boolean(storedSkill) &&
+      (!routeId ||
+        storedSkill!.name === routeId ||
+        (typeof installedName === 'string' && installedName === routeId) ||
+        (typeof displayName === 'string' && displayName === routeId))
+    skill.value = matchesStored ? storedSkill : routeId ? null : storedSkill
     const name = skill.value?.name || currentSkillId
     installed.value = isSkillInstalled(name)
     enabled.value = getSkillSwitchStatus(name) === SkillSwitchStatus.On
@@ -195,8 +221,12 @@ const useSkill = async (prompt = '') => {
 }
 
 function getSessionDownloadUrl(stored: JiaorongSkillItem | null): string {
-  const url = stored?.metadata?.downloadUrl
-  return typeof url === 'string' ? url.trim() : ''
+  const fromSession = stored?.metadata?.downloadUrl
+  if (typeof fromSession === 'string' && fromSession.trim()) {
+    return fromSession.trim()
+  }
+  const fromDetail = remoteSkillDetail.value?.downloadUrl
+  return typeof fromDetail === 'string' ? fromDetail.trim() : ''
 }
 
 /** 与列表页 handleInstall 一致：zip URL 安装后打标并回写 session */
@@ -310,7 +340,43 @@ const uninstallSkill = async () => {
   installed.value = false
   showGlobalSuccessToast(t('routes.skillsUninstallSuccess'))
 
-  if (skill.value?.skill_source !== SkillSource.RemoteApi) {
+  // 卸载后保留远程字段，清本地安装态，便于同页再装
+  const stored = skill.value ?? readJiaorongSkillFromSession()
+  if (stored?.skill_source === SkillSource.RemoteApi || stored?.metadata?.remoteId) {
+    const displayName =
+      (typeof stored.metadata?.displayName === 'string' && stored.metadata.displayName.trim()) ||
+      remoteSkillDetail.value?.name ||
+      stored.name
+    const { installedSkillName: _removed, ...restMeta } = (stored.metadata ?? {}) as Record<
+      string,
+      unknown
+    > & { installedSkillName?: unknown }
+    const nextSkill: JiaorongSkillItem = {
+      ...stored,
+      name: displayName,
+      path: '',
+      skillRoot: '',
+      skill_source: SkillSource.RemoteApi,
+      metadata: {
+        ...restMeta,
+        displayName,
+        remoteId: restMeta.remoteId ?? remoteSkillDetail.value?.id,
+        downloadUrl:
+          (typeof restMeta.downloadUrl === 'string' && restMeta.downloadUrl) ||
+          remoteSkillDetail.value?.downloadUrl ||
+          undefined
+      }
+    }
+    skill.value = nextSkill
+    saveJiaorongSkillToSession(nextSkill)
+    // URL 与未安装态对齐（市场展示名），避免仍停在本地 slug
+    if (skillId.value !== displayName) {
+      await router.replace({
+        name: 'skills-detail',
+        params: { skillId: displayName }
+      })
+    }
+  } else {
     await router.push({ name: 'skills' })
   }
 }
