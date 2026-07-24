@@ -1,283 +1,454 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { Icon } from '@iconify/vue'
-import { Button } from '@shadcn/components/ui/button'
-import { Input } from '@shadcn/components/ui/input'
-import { useSkillsStore } from '@/stores/skillsStore'
-import type { SkillMetadata } from '@shared/types/skill'
-import { fetchSkillMarketCatalog } from '@jiaorong/api/skills'
-import { startGeneralChatWithSkills } from '@jiaorong/utils'
+import { computed, onMounted, onUnmounted, ref } from "vue";
+import { useRouter } from "vue-router";
+import { Icon } from "@iconify/vue";
+import { Button } from "@shadcn/components/ui/button";
+import { Input } from "@shadcn/components/ui/input";
+import { useSkillsStore } from "@/stores/skillsStore";
+import type { SkillMetadata } from "@shared/types/skill";
+import { fetchSkillMarketCatalog } from "@jiaorong/api/skills";
+import {
+  installSkillFromZipUrl,
+  isSkillSwitchOn,
+  startGeneralChatWithSkills,
+} from "@jiaorong/utils";
+import skillLogo from "@jiaorong/assets/skill.png";
+import { useToast } from "@/components/use-toast";
 import {
   BUILTIN_SKILL_NAMES,
   type JiaorongSkillItem,
   getRememberedSkillSource,
+  loadRemoteInstallMap,
+  rememberRemoteInstall,
   rememberSkillSource,
   saveJiaorongSkillToSession,
   SkillSource,
-  toJiaorongSkillItem
-} from '../../lib/sessionSkill'
-import SkillUploadDialog from '../../components/SkillUploadDialog/SkillUploadDialog.vue'
+  toJiaorongSkillItem,
+} from "../../lib/sessionSkill";
+import SkillUploadDialog from "../../components/SkillUploadDialog/SkillUploadDialog.vue";
+import "./index.less";
 
-type MarketTab = 'market' | 'installed'
+type MarketTab = "market" | "installed";
 
-const router = useRouter()
-const skillsStore = useSkillsStore()
+const router = useRouter();
+const skillsStore = useSkillsStore();
+const { toast } = useToast();
 
-const activeTab = ref<MarketTab>('market')
-const searchQuery = ref('')
-const activeCategory = ref('全部')
-const createMenuOpen = ref(false)
-const uploadDialogOpen = ref(false)
+const activeTab = ref<MarketTab>("market");
+const searchQuery = ref("");
+const activeCategory = ref("全部");
+const createMenuOpen = ref(false);
+const uploadDialogOpen = ref(false);
 /** 市场列表（远程 + 本地合并结果） */
-const catalogSkills = ref<SkillMetadata[]>([])
-const catalogLoading = ref(false)
+const catalogSkills = ref<SkillMetadata[]>([]);
+const catalogLoading = ref(false);
+/** 正在安装的技能 name */
+const installingNames = ref(new Set<string>());
+/** 远程卡片 name → 安装后本地技能名（zip 目录名可能与展示名不同） */
+const remoteInstalledLocalNames = ref<Record<string, string>>(
+  loadRemoteInstallMap(),
+);
 
-let loadGeneration = 0
+let loadGeneration = 0;
 
-const CATEGORY_FALLBACK = '通用'
+const CATEGORY_FALLBACK = "通用";
+
+function getDownloadUrl(skill: SkillMetadata): string {
+  const url = skill.metadata?.downloadUrl;
+  return typeof url === "string" ? url.trim() : "";
+}
+
+function getInstalledLocalName(skill: SkillMetadata): string {
+  return remoteInstalledLocalNames.value[skill.name] || skill.name;
+}
+
+/**
+ * 远程展示名与 zip 目录名不一致时，本地扫盘还会多出一条 slug 卡。
+ * 已由 remoteInstallMap 挂到市场卡上的本地名不再单独展示。
+ */
+function hideLocalSlugDuplicatedByRemoteInstall(
+  skills: SkillMetadata[],
+  marketToLocal: Record<string, string>,
+): SkillMetadata[] {
+  const claimedLocalNames = new Set(Object.values(marketToLocal));
+  return skills.filter((skill) => {
+    if (!claimedLocalNames.has(skill.name)) return true;
+    // 市场展示名恰好等于本地名时，这条就是市场卡本身，保留
+    if (skill.name in marketToLocal) return true;
+    return false;
+  });
+}
+
+/** 仅更新单个远程技能为已安装，避免整表刷新 */
+function markRemoteSkillInstalled(marketName: string, localSkillName: string) {
+  rememberRemoteInstall(marketName, localSkillName);
+  remoteInstalledLocalNames.value = {
+    ...remoteInstalledLocalNames.value,
+    [marketName]: localSkillName,
+  };
+
+  const updated = catalogSkills.value.map((item) => {
+    if (item.name !== marketName) return item;
+    return {
+      ...item,
+      skillRoot: item.skillRoot || localSkillName,
+      metadata: {
+        ...item.metadata,
+        installedSkillName: localSkillName,
+        displayName:
+          (typeof item.metadata?.displayName === "string" &&
+            item.metadata.displayName) ||
+          item.name,
+      },
+    };
+  });
+  catalogSkills.value = hideLocalSlugDuplicatedByRemoteInstall(
+    updated,
+    remoteInstalledLocalNames.value,
+  );
+}
 
 /** 进入页面 / 上传成功后刷新列表 */
 async function refreshMarket() {
-  const generation = ++loadGeneration
-  catalogLoading.value = true
+  const generation = ++loadGeneration;
+  catalogLoading.value = true;
+  // 详情页卸载可能已清 localStorage，回到列表时同步内存映射
+  remoteInstalledLocalNames.value = loadRemoteInstallMap();
   try {
-    const { local, merged } = await fetchSkillMarketCatalog()
-    if (generation !== loadGeneration) return
-    catalogSkills.value = merged
-    skillsStore.skills = local
+    const { local, merged } = await fetchSkillMarketCatalog();
+    if (generation !== loadGeneration) return;
+    // 远程已装但目录名与展示名不一致时，把本地元数据挂回远程卡片
+    const enriched = merged.map((skill) => {
+      const localName = remoteInstalledLocalNames.value[skill.name];
+      if (!localName) return skill;
+      const localMeta = local.find((item) => item.name === localName);
+      if (!localMeta) {
+        return {
+          ...skill,
+          skillRoot: skill.skillRoot || localName,
+          metadata: {
+            ...skill.metadata,
+            installedSkillName: localName,
+          },
+        };
+      }
+      return {
+        ...localMeta,
+        // 必须保留市场展示名，否则去重会把「已被 map 的 slug」连同这张市场卡一起滤掉
+        name: skill.name,
+        description: skill.description || localMeta.description,
+        path: localMeta.path,
+        skillRoot: localMeta.skillRoot,
+        category: skill.category ?? localMeta.category,
+        metadata: {
+          ...localMeta.metadata,
+          ...skill.metadata,
+          displayName:
+            (typeof skill.metadata?.displayName === "string" &&
+              skill.metadata.displayName) ||
+            skill.name,
+          installedSkillName: localName,
+        },
+      };
+    });
+    catalogSkills.value = hideLocalSlugDuplicatedByRemoteInstall(
+      enriched,
+      remoteInstalledLocalNames.value,
+    );
+    skillsStore.skills = local;
   } catch (e) {
-    if (generation !== loadGeneration) return
-    console.error('[SkillListPage] Failed to load skill market:', e)
+    if (generation !== loadGeneration) return;
+    console.error("[SkillListPage] Failed to load skill market:", e);
   } finally {
     if (generation === loadGeneration) {
-      catalogLoading.value = false
+      catalogLoading.value = false;
     }
   }
 }
 
 function getSkillDisplayName(skill: SkillMetadata): string {
-  const displayName = skill.metadata?.displayName
-  if (typeof displayName === 'string' && displayName.trim()) {
-    return displayName.trim()
+  const displayName = skill.metadata?.displayName;
+  if (typeof displayName === "string" && displayName.trim()) {
+    return displayName.trim();
   }
-  return skill.name
+  return skill.name;
 }
 
 function getSkillCategory(skill: SkillMetadata): string {
-  if (typeof skill.category === 'string' && skill.category.trim()) {
-    const leaf = skill.category.split(/[/\\]/).filter(Boolean).pop()
-    return leaf || CATEGORY_FALLBACK
+  if (typeof skill.category === "string" && skill.category.trim()) {
+    const leaf = skill.category.split(/[/\\]/).filter(Boolean).pop();
+    return leaf || CATEGORY_FALLBACK;
   }
-  const metaCategory = skill.metadata?.category
-  if (typeof metaCategory === 'string' && metaCategory.trim()) {
-    return metaCategory.trim()
+  const metaCategory = skill.metadata?.category;
+  if (typeof metaCategory === "string" && metaCategory.trim()) {
+    return metaCategory.trim();
   }
-  return CATEGORY_FALLBACK
+  return CATEGORY_FALLBACK;
 }
 
-function getSkillIcon(skill: SkillMetadata): string {
-  const icon = skill.metadata?.icon
-  if (typeof icon === 'string' && icon.trim()) {
-    return icon.trim()
-  }
-  return 'lucide:wand-sparkles'
-}
-
-/** 本地已发现技能一律视为已安装；纯远程未安装条目后续接安装态 */
+/** 本地已发现，或本页刚装过的远程技能 */
 function isInstalled(skill: SkillMetadata): boolean {
-  return Boolean(skill.skillRoot)
+  return (
+    Boolean(skill.skillRoot) ||
+    Boolean(remoteInstalledLocalNames.value[skill.name])
+  );
+}
+
+function isInstalling(skill: SkillMetadata): boolean {
+  return installingNames.value.has(skill.name);
+}
+
+function isSkillDisabled(skill: SkillMetadata): boolean {
+  return isInstalled(skill) && !isSkillSwitchOn(getInstalledLocalName(skill));
 }
 
 const skillItems = computed((): JiaorongSkillItem[] =>
   catalogSkills.value.map((skill) => {
-    const item = toJiaorongSkillItem(skill)
+    const item = toJiaorongSkillItem(skill);
     // 无本地根目录的为远程未安装条目（勿被 resolveSkillSource 默认成 Zip）
     if (!skill.skillRoot) {
-      return { ...item, skill_source: SkillSource.RemoteApi }
+      return { ...item, skill_source: SkillSource.RemoteApi };
     }
-    return item
-  })
-)
+    return item;
+  }),
+);
 
 const categories = computed(() => {
-  const set = new Set<string>()
+  const set = new Set<string>();
   for (const skill of skillItems.value) {
-    set.add(getSkillCategory(skill))
+    set.add(getSkillCategory(skill));
   }
-  return ['全部', ...Array.from(set).sort((a, b) => a.localeCompare(b, 'zh-CN'))]
-})
+  return [
+    "全部",
+    // ...Array.from(set).sort((a, b) => a.localeCompare(b, "zh-CN")),
+  ];
+});
 
 const filteredSkills = computed(() => {
-  const q = searchQuery.value.trim().toLowerCase()
+  const q = searchQuery.value.trim().toLowerCase();
   return skillItems.value.filter((skill) => {
-    if (activeTab.value === 'installed' && !isInstalled(skill)) {
-      return false
+    if (activeTab.value === "installed" && !isInstalled(skill)) {
+      return false;
     }
-    if (activeCategory.value !== '全部' && getSkillCategory(skill) !== activeCategory.value) {
-      return false
+    if (
+      activeCategory.value !== "全部" &&
+      getSkillCategory(skill) !== activeCategory.value
+    ) {
+      return false;
     }
     if (!q) {
-      return true
+      return true;
     }
     const haystack =
-      `${getSkillDisplayName(skill)} ${skill.name} ${skill.description}`.toLowerCase()
-    return haystack.includes(q)
-  })
-})
+      `${getSkillDisplayName(skill)} ${skill.name} ${skill.description}`.toLowerCase();
+    return haystack.includes(q);
+  });
+});
 
-const installedCount = computed(() => skillItems.value.filter((skill) => isInstalled(skill)).length)
+const installedCount = computed(
+  () => skillItems.value.filter((skill) => isInstalled(skill)).length,
+);
+
+const marketCount = computed(() => skillItems.value.length);
 
 const openDetail = (skill: JiaorongSkillItem) => {
-  saveJiaorongSkillToSession(skill)
-  void router.push({ name: 'skills-detail', params: { skillId: skill.name } })
-}
+  const localName = getInstalledLocalName(skill);
+  saveJiaorongSkillToSession({
+    ...skill,
+    name: isInstalled(skill) ? localName : skill.name,
+    metadata: {
+      ...skill.metadata,
+      displayName: getSkillDisplayName(skill),
+      ...(isInstalled(skill) ? { installedSkillName: localName } : {}),
+    },
+  });
+  void router.push({
+    name: "skills-detail",
+    params: { skillId: isInstalled(skill) ? localName : skill.name },
+  });
+};
 
 const handleUse = async (skill: JiaorongSkillItem) => {
+  const localName = getInstalledLocalName(skill);
+  const isRemoteCard =
+    skill.skill_source === SkillSource.RemoteApi ||
+    Boolean(skill.metadata?.remoteId) ||
+    Boolean(remoteInstalledLocalNames.value[skill.name]);
+
+  // 远程字段 + 安装后本地路径等一并写入，详情页直接读存储
+  saveJiaorongSkillToSession({
+    ...skill,
+    name: localName,
+    skill_source: isRemoteCard ? SkillSource.RemoteApi : skill.skill_source,
+    metadata: {
+      ...skill.metadata,
+      displayName: getSkillDisplayName(skill),
+      installedSkillName: localName,
+    },
+  });
   await startGeneralChatWithSkills({
     router,
-    prompt: '',
-    skillNames: [skill.name]
-  })
-}
+    prompt: "",
+    skillNames: [localName],
+  });
+};
 
-const handleInstall = (_skill: JiaorongSkillItem) => {
-  // 远程市场接入后：调安装接口再刷新。
-}
+const handleInstall = async (skill: JiaorongSkillItem) => {
+  const downloadUrl = getDownloadUrl(skill);
+  if (!downloadUrl) {
+    toast({
+      title: "安装失败",
+      description: "缺少下载地址",
+      variant: "destructive",
+    });
+    return;
+  }
+  if (isInstalling(skill)) return;
+
+  const next = new Set(installingNames.value);
+  next.add(skill.name);
+  installingNames.value = next;
+
+  try {
+    const result = await installSkillFromZipUrl(downloadUrl);
+    if (!result.success || !result.skillName) {
+      toast({
+        title: "安装失败",
+        description: result.error || "未知错误",
+        variant: "destructive",
+      });
+      return;
+    }
+    rememberSkillSource(result.skillName, SkillSource.RemoteApi);
+    markRemoteSkillInstalled(skill.name, result.skillName);
+  } finally {
+    const done = new Set(installingNames.value);
+    done.delete(skill.name);
+    installingNames.value = done;
+  }
+};
 
 const toggleCreateMenu = () => {
-  createMenuOpen.value = !createMenuOpen.value
-}
+  createMenuOpen.value = !createMenuOpen.value;
+};
 
 const closeCreateMenu = () => {
-  createMenuOpen.value = false
-}
+  createMenuOpen.value = false;
+};
 
 const createSkill = async () => {
-  closeCreateMenu()
+  closeCreateMenu();
   await startGeneralChatWithSkills({
     router,
-    prompt: '创建一个新的技能，这个技能的功能是：',
-    skillNames: ['skill-creator']
-  })
-}
+    prompt: "创建一个新的技能，这个技能的功能是：",
+    skillNames: ["skill-creator"],
+  });
+};
 
 const openUploadDialog = () => {
-  closeCreateMenu()
-  uploadDialogOpen.value = true
-}
+  closeCreateMenu();
+  uploadDialogOpen.value = true;
+};
 
 const onSkillUploaded = () => {
-  void refreshMarket()
-}
+  void refreshMarket();
+};
 
 onMounted(() => {
   for (const name of BUILTIN_SKILL_NAMES) {
     if (getRememberedSkillSource(name) == null) {
-      rememberSkillSource(name, SkillSource.LocalBuiltin)
+      rememberSkillSource(name, SkillSource.LocalBuiltin);
     }
   }
-  void refreshMarket()
-})
+  void refreshMarket();
+});
 
 onUnmounted(() => {
   // 作废进行中的请求，避免离开页面后回写
-  loadGeneration += 1
-})
+  loadGeneration += 1;
+});
 </script>
 
 <template>
-  <div
-    class="skill-center-page flex h-full min-h-0 w-full flex-col bg-background"
-    @click="closeCreateMenu"
-  >
+  <div class="skill-center-page" @click="closeCreateMenu">
     <!-- Header: tabs + create -->
-    <div
-      class="flex shrink-0 items-center justify-between gap-4 border-b border-border/60 px-6 pt-4"
-    >
-      <div class="flex items-end gap-6">
+    <div class="skill-center-page__header">
+      <div class="skill-center-page__tabs">
         <button
           type="button"
-          class="relative pb-3 text-sm font-medium transition-colors"
-          :class="
-            activeTab === 'market' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
-          "
+          class="skill-center-page__tab"
+          :class="{ 'is-active': activeTab === 'market' }"
           @click.stop="activeTab = 'market'"
         >
           技能市场
-          <span
-            v-if="activeTab === 'market'"
-            class="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-primary"
-          />
+          <span class="skill-center-page__tab_span">
+            {{ marketCount }}
+          </span>
         </button>
         <button
           type="button"
-          class="relative pb-3 text-sm font-medium transition-colors"
-          :class="
-            activeTab === 'installed'
-              ? 'text-primary'
-              : 'text-muted-foreground hover:text-foreground'
-          "
+          class="skill-center-page__tab"
+          :class="{ 'is-active': activeTab === 'installed' }"
           @click.stop="activeTab = 'installed'"
         >
-          已安装 {{ installedCount }}
-          <span
-            v-if="activeTab === 'installed'"
-            class="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-primary"
-          />
+          已安装
+          <span class="skill-center-page__tab_span">
+            {{ installedCount }}
+          </span>
         </button>
       </div>
 
-      <div class="relative mb-2" @click.stop>
-        <Button size="sm" class="gap-1.5" @click="toggleCreateMenu">
-          <Icon icon="lucide:plus" class="h-4 w-4" />
-          新建技能
-          <Icon icon="lucide:chevron-down" class="h-3.5 w-3.5 opacity-70" />
-        </Button>
-        <div
-          v-if="createMenuOpen"
-          class="absolute right-0 z-20 mt-1 w-56 overflow-hidden rounded-lg border border-border bg-popover shadow-md"
+      <div class="skill-center-page__create-wrap" @click.stop>
+        <Button
+          size="sm"
+          class="skill-center-page__create-btn"
+          @click="toggleCreateMenu"
         >
+          <Icon icon="lucide:plus" class="skill-center-page__create-icon" />
+          新建技能
+        </Button>
+        <div v-if="createMenuOpen" class="skill-center-page__create-menu">
           <button
             type="button"
-            class="flex w-full flex-col items-start gap-0.5 px-3 py-2.5 text-left hover:bg-muted/60"
+            class="skill-center-page__create-menu-item"
             @click="createSkill"
           >
-            <span class="text-sm font-medium text-foreground">创建技能</span>
-            <span class="text-xs text-muted-foreground">通过对话描述创建</span>
+            <span class="skill-center-page__create-menu-title">创建技能</span>
+            <span class="skill-center-page__create-menu-desc"
+              >通过对话描述创建</span
+            >
           </button>
           <button
             type="button"
-            class="flex w-full flex-col items-start gap-0.5 px-3 py-2.5 text-left hover:bg-muted/60"
+            class="skill-center-page__create-menu-item"
             @click="openUploadDialog"
           >
-            <span class="text-sm font-medium text-foreground">上传技能</span>
-            <span class="text-xs text-muted-foreground">导入 .zip 或 .md 文件</span>
+            <span class="skill-center-page__create-menu-title">上传技能</span>
+            <span class="skill-center-page__create-menu-desc"
+              >导入 zip 或 md 文件</span
+            >
           </button>
         </div>
       </div>
     </div>
 
     <!-- Search + categories -->
-    <div class="flex shrink-0 flex-wrap items-center gap-3 px-6 py-4">
-      <div class="relative min-w-[220px] flex-1 max-w-md">
-        <Icon
-          icon="lucide:search"
-          class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+    <div class="skill-center-page__toolbar">
+      <div class="skill-center-page__search">
+        <Icon icon="lucide:search" class="skill-center-page__search-icon" />
+        <Input
+          v-model="searchQuery"
+          class="skill-center-page__search-input"
+          placeholder="搜索技能名称、描述或作者"
         />
-        <Input v-model="searchQuery" class="h-9 pl-9" placeholder="请输入技能名称查询" />
       </div>
-      <div class="flex flex-wrap items-center gap-2">
+      <div class="skill-center-page__categories">
         <button
           v-for="category in categories"
           :key="category"
           type="button"
-          class="rounded-full border px-3 py-1 text-xs transition-colors"
-          :class="
-            activeCategory === category
-              ? 'border-primary bg-primary text-primary-foreground'
-              : 'border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground'
-          "
+          class="skill-center-page__category"
+          :class="{ 'is-active': activeCategory === category }"
           @click="activeCategory = category"
         >
           {{ category }}
@@ -286,63 +457,75 @@ onUnmounted(() => {
     </div>
 
     <!-- Grid -->
-    <div class="min-h-0 flex-1 overflow-y-auto px-6 pb-6">
-      <div
-        v-if="catalogLoading"
-        class="flex h-56 flex-col items-center justify-center gap-3 text-muted-foreground"
-      >
-        <Icon icon="lucide:loader-2" class="h-8 w-8 animate-spin text-primary" />
-        <p class="text-sm">加载技能中…</p>
+    <div class="skill-center-page__content">
+      <div v-if="catalogLoading" class="skill-center-page__state">
+        <Icon icon="lucide:loader-2" class="skill-center-page__state-icon" />
+        <p class="skill-center-page__state-text">加载技能中…</p>
       </div>
 
       <div
         v-else-if="filteredSkills.length === 0"
-        class="flex h-48 flex-col items-center justify-center text-muted-foreground"
+        class="skill-center-page__state skill-center-page__state--empty"
       >
-        <Icon icon="lucide:wand-sparkles" class="mb-3 h-10 w-10 opacity-40" />
-        <p class="text-sm">
-          {{ searchQuery ? '未找到匹配的技能' : '暂无技能' }}
+        <img :src="skillLogo" alt="" class="skill-center-page__state-logo" />
+        <p class="skill-center-page__state-text">
+          {{ searchQuery ? "未找到匹配的技能" : "暂无技能" }}
         </p>
       </div>
 
-      <div v-else class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div v-else class="skill-center-page__grid">
         <article
           v-for="skill in filteredSkills"
           :key="skill.name"
-          class="flex cursor-pointer flex-col rounded-xl border border-border/70 bg-card p-4 shadow-sm transition-shadow hover:shadow-md"
+          class="skill-center-page__card"
           @click="openDetail(skill)"
         >
-          <div class="mb-3 flex items-start gap-3">
-            <div
-              class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary"
-            >
-              <Icon :icon="getSkillIcon(skill)" class="h-5 w-5" />
-            </div>
-            <h3 class="line-clamp-2 text-sm font-semibold leading-snug text-foreground">
+          <div class="skill-center-page__card-head">
+            <img :src="skillLogo" alt="" class="skill-center-page__card-logo" />
+            <h3 class="skill-center-page__card-title">
               {{ getSkillDisplayName(skill) }}
             </h3>
           </div>
-          <p class="mb-4 line-clamp-3 flex-1 text-xs leading-relaxed text-muted-foreground">
-            {{ skill.description || '暂无描述' }}
+          <p class="skill-center-page__card-desc">
+            {{ skill.description || "暂无描述" }}
           </p>
-          <div class="flex justify-end" @click.stop>
-            <Button v-if="isInstalled(skill)" size="sm" class="min-w-16" @click="handleUse(skill)">
-              使用
-            </Button>
+          <div class="skill-center-page__card-actions" @click.stop>
+            <template v-if="isInstalled(skill)">
+              <Button
+                size="sm"
+                variant="outline"
+                v-if="isSkillDisabled(skill)"
+                class="skill-center-page__disabled-label"
+              >
+                已停用
+              </Button>
+              <Button
+                v-else
+                size="sm"
+                class="skill-center-page__action-btn"
+                @click="handleUse(skill)"
+              >
+                使用
+              </Button>
+            </template>
             <Button
               v-else
               size="sm"
               variant="outline"
-              class="min-w-16"
+              class="skill-center-page__action-btn"
+              :disabled="isInstalling(skill)"
               @click="handleInstall(skill)"
             >
-              安装
+              {{ isInstalling(skill) ? "安装中" : "安装" }}
             </Button>
           </div>
         </article>
       </div>
     </div>
 
-    <SkillUploadDialog v-model:open="uploadDialogOpen" @installed="onSkillUploaded" />
+    <SkillUploadDialog
+      v-model:open="uploadDialogOpen"
+      @installed="onSkillUploaded"
+    />
   </div>
 </template>

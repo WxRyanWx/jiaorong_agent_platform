@@ -21,6 +21,9 @@ api.interceptors.request.use(
 
 export type AuthResponseCallback = (code: number) => void
 
+/** 登录体系 8000000；技能市场等业务接口常用 200 */
+const API_SUCCESS_CODES = new Set([200, 8000000])
+
 export const responseFn = (response: AxiosResponse, callback: () => void) => {
   if (response.config?.headers?.dontShowMessage) {
     return response.data
@@ -28,7 +31,8 @@ export const responseFn = (response: AxiosResponse, callback: () => void) => {
   if (!response.data.status && isStandardUrl.includes(response.config?.url ?? '')) {
     callback()
   }
-  if (response?.data?.code && response.data.code !== 8000000) {
+  const code = response?.data?.code
+  if (code != null && code !== '' && !API_SUCCESS_CODES.has(Number(code))) {
     callback()
   }
   return response.data

@@ -25,6 +25,8 @@ export type JiaorongSkillItem = SkillMetadata & {
 
 export const JIAORONG_SKILL_STORAGE_KEY = 'jiaorongSkill'
 export const JIAORONG_SKILL_SOURCE_MAP_KEY = 'jiaorongSkillSourceMap'
+/** 远程市场展示名 → 安装后本地目录名 */
+export const JIAORONG_REMOTE_INSTALL_MAP_KEY = 'jiaorongRemoteInstalledMap'
 
 /**
  * 与 resources/skills 目录对齐的内置技能名。
@@ -89,8 +91,79 @@ export function rememberSkillSource(skillName: string, source: SkillSource): voi
   writeSourceMap(map)
 }
 
+export function forgetSkillSource(skillName: string): void {
+  const name = skillName.trim()
+  if (!name) return
+  const map = readSourceMap()
+  if (!(name in map)) return
+  delete map[name]
+  writeSourceMap(map)
+}
+
 export function getRememberedSkillSource(skillName: string): SkillSource | undefined {
   return readSourceMap()[skillName]
+}
+
+function readRemoteInstallMap(): Record<string, string> {
+  try {
+    const raw = localStorage.getItem(JIAORONG_REMOTE_INSTALL_MAP_KEY)
+    if (!raw) return {}
+    const parsed = JSON.parse(raw) as Record<string, unknown>
+    const map: Record<string, string> = {}
+    for (const [key, value] of Object.entries(parsed)) {
+      if (typeof value === 'string' && value.trim()) {
+        map[key] = value.trim()
+      }
+    }
+    return map
+  } catch {
+    return {}
+  }
+}
+
+function writeRemoteInstallMap(map: Record<string, string>): void {
+  localStorage.setItem(JIAORONG_REMOTE_INSTALL_MAP_KEY, JSON.stringify(map))
+}
+
+export function loadRemoteInstallMap(): Record<string, string> {
+  return readRemoteInstallMap()
+}
+
+export function rememberRemoteInstall(marketName: string, localSkillName: string): void {
+  const market = marketName.trim()
+  const local = localSkillName.trim()
+  if (!market || !local) return
+  const map = readRemoteInstallMap()
+  map[market] = local
+  writeRemoteInstallMap(map)
+}
+
+/**
+ * 卸载后清理市场名 → 本地名映射。
+ * 传入市场展示名或本地目录名均可。
+ */
+export function forgetRemoteInstall(skillNameOrMarketName: string): void {
+  const key = skillNameOrMarketName.trim()
+  if (!key) return
+  const map = readRemoteInstallMap()
+  let changed = false
+  if (key in map) {
+    delete map[key]
+    changed = true
+  }
+  for (const [market, local] of Object.entries(map)) {
+    if (local === key) {
+      delete map[market]
+      changed = true
+    }
+  }
+  if (changed) writeRemoteInstallMap(map)
+}
+
+/** 卸载时一并清理来源与远程安装映射 */
+export function forgetSkillInstallRecords(skillName: string): void {
+  forgetSkillSource(skillName)
+  forgetRemoteInstall(skillName)
 }
 
 /**

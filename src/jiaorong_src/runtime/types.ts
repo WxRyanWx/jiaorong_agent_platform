@@ -5,8 +5,10 @@ export type JiaorongSidebarItem = {
   titleKey?: string
   title?: string
   order?: number
-  /** Iconify 图标名，如 lucide:wand-sparkles */
+  /** Iconify 图标名，如 lucide:wand-sparkles；有 iconSrc 时优先用图片 */
   icon?: string
+  /** 本地图片/SVG URL（Vite import），优先于 icon */
+  iconSrc?: string
   /** vue-router name（点击跳转目标） */
   routeName: string
   /**

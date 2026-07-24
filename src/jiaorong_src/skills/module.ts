@@ -4,6 +4,7 @@
  */
 import type { JiaorongModule } from '../runtime/types'
 import { SKILL_ROUTE_NAMES } from '../router/skills.meta'
+import skillMarketMenuIcon from '../assets/skill-market-menu.svg?url'
 
 const skillsModule: JiaorongModule = {
   id: 'skills',
@@ -13,7 +14,7 @@ const skillsModule: JiaorongModule = {
       id: 'skills',
       titleKey: 'routes.skills',
       order: 10,
-      icon: 'lucide:wand-sparkles',
+      iconSrc: skillMarketMenuIcon,
       routeName: 'skills',
       matchRouteNames: [...SKILL_ROUTE_NAMES],
       testId: 'sidebar-skills-button',

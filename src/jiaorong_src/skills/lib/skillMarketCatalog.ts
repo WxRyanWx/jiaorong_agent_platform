@@ -5,6 +5,7 @@ export type RemoteSkillListItem = {
   id: string
   name: string
   description: string
+  downloadUrl: string
 }
 
 export type SkillMarketCatalogResult = {
@@ -39,7 +40,7 @@ export function mergeSkillMarketCatalog(
   const byName = new Map<string, SkillMetadata>()
 
   for (const item of remote) {
-    const key = (item.id || item.name).trim()
+    const key = item.name.trim()
     if (!key) continue
     byName.set(key, {
       name: key,
@@ -48,7 +49,9 @@ export function mergeSkillMarketCatalog(
       skillRoot: '',
       category: null,
       metadata: {
-        displayName: item.name?.trim() || key
+        displayName: key,
+        remoteId: item.id,
+        downloadUrl: item.downloadUrl
       }
     })
   }

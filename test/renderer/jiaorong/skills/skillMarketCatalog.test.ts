@@ -9,6 +9,12 @@ vi.mock('@api/legacy/presenters', () => ({
   })
 }))
 
+vi.mock('../../../../src/jiaorong_src/api/auth/interceptors', () => ({
+  default: {
+    get: vi.fn(async () => ({ data: [] }))
+  }
+}))
+
 import {
   buildSkillMarketCatalog,
   mergeSkillMarketCatalog
@@ -34,18 +40,37 @@ describe('fetchSkillMarketCatalog', () => {
     const local = [meta('shared')]
     local[0].description = 'local-desc'
     const remote = [
-      { id: 'shared', name: 'Shared Remote', description: 'remote-desc' },
-      { id: 'remote-only', name: 'Remote Only', description: 'only' }
+      {
+        id: 's1',
+        name: 'shared',
+        description: 'remote-desc',
+        downloadUrl: 'https://example.com/a.zip'
+      },
+      {
+        id: 's2',
+        name: 'Remote Only',
+        description: 'only',
+        downloadUrl: 'https://example.com/b.zip'
+      }
     ]
     const merged = mergeSkillMarketCatalog(local, remote)
     expect(merged.find((s) => s.name === 'shared')?.description).toBe('local-desc')
-    expect(merged.find((s) => s.name === 'remote-only')?.description).toBe('only')
+    expect(merged.find((s) => s.name === 'Remote Only')?.description).toBe('only')
+    expect(merged.find((s) => s.name === 'Remote Only')?.metadata?.remoteId).toBe('s2')
+    expect(merged.find((s) => s.name === 'Remote Only')?.metadata?.downloadUrl).toBe(
+      'https://example.com/b.zip'
+    )
   })
 
   it('loads remote and local in parallel then merges', async () => {
     const fetchLocal = vi.fn(async () => [meta('code-review'), meta('upload-a')])
     const fetchRemote = vi.fn(async () => [
-      { id: 'remote-b', name: 'Remote B', description: 'from api' }
+      {
+        id: 'remote-b',
+        name: 'Remote B',
+        description: 'from api',
+        downloadUrl: 'https://example.com/c.zip'
+      }
     ])
 
     const result = await buildSkillMarketCatalog({
@@ -55,7 +80,7 @@ describe('fetchSkillMarketCatalog', () => {
 
     expect(fetchLocal).toHaveBeenCalledTimes(1)
     expect(fetchRemote).toHaveBeenCalledTimes(1)
-    expect(result.merged.map((s) => s.name).sort()).toEqual(['code-review', 'remote-b', 'upload-a'])
+    expect(result.merged.map((s) => s.name).sort()).toEqual(['Remote B', 'code-review', 'upload-a'])
   })
 
   it('degrades remote failure to empty list', async () => {

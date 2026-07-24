@@ -26,6 +26,7 @@ import {
   normalizeLocalPath
 } from '../../lib/installLocalSkill'
 import { rememberSkillSource, SkillSource } from '../../lib/sessionSkill'
+import './index.less'
 
 type PendingKind = 'folder' | 'zip' | 'md'
 
@@ -318,58 +319,64 @@ const handleConflictOverwrite = async () => {
 
 <template>
   <Dialog v-model:open="isOpen">
-    <DialogContent class="sm:max-w-lg">
-      <DialogHeader>
-        <DialogTitle>上传文件</DialogTitle>
+    <DialogContent class="skill-upload-dialog">
+      <DialogHeader class="skill-upload-dialog__header">
+        <DialogTitle class="skill-upload-dialog__title">上传技能</DialogTitle>
       </DialogHeader>
 
-      <div
-        class="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-6 py-12 text-center transition-colors"
-        :class="
-          dragActive ? 'border-primary bg-primary/5' : 'border-border/80 hover:border-primary/50'
-        "
-        @click="pickSource"
-        @dragenter.prevent="dragActive = true"
-        @dragover.prevent="dragActive = true"
-        @dragleave.prevent="dragActive = false"
-        @drop.prevent="handleDrop"
-      >
-        <Icon
-          v-if="!installing"
-          icon="lucide:upload"
-          class="pointer-events-none mb-3 h-10 w-10 text-muted-foreground"
-        />
-        <Icon
-          v-else
-          icon="lucide:loader-2"
-          class="pointer-events-none mb-3 h-10 w-10 animate-spin text-muted-foreground"
-        />
-        <p class="pointer-events-none text-sm font-medium text-foreground">
-          点击上传或直接拖拽到此处上传
-        </p>
-        <p class="pointer-events-none mt-2 max-w-md text-xs leading-relaxed text-muted-foreground">
-          支持上传文件夹或 .zip，内容可包含一个或多个非嵌套目录；也可以上传单独的 .md
-          文件。系统并不能确保技能的可用性，请自行验证。
-        </p>
-        <p v-if="pending" class="pointer-events-none mt-4 max-w-full truncate text-xs text-primary">
-          已选择：{{ pending.label }}
-          <span class="text-muted-foreground">
-            （{{
-              pending.kind === 'folder' ? '文件夹' : pending.kind === 'zip' ? 'ZIP' : 'Markdown'
-            }}）
-          </span>
-        </p>
+      <div class="skill-upload-dialog__body">
+        <div
+          class="skill-upload-dialog__dropzone"
+          :class="{ 'is-drag-active': dragActive }"
+          @click="pickSource"
+          @dragenter.prevent="dragActive = true"
+          @dragover.prevent="dragActive = true"
+          @dragleave.prevent="dragActive = false"
+          @drop.prevent="handleDrop"
+        >
+          <Icon
+            v-if="installing"
+            icon="lucide:loader-2"
+            class="skill-upload-dialog__spinner"
+          />
+          <span v-else class="skill-upload-dialog__plus" aria-hidden="true">+</span>
+          <p class="skill-upload-dialog__hint">点击或拖拽文件到此处上传</p>
+          <p class="skill-upload-dialog__desc">
+            支持上传文件夹或.zip，内容可包含一个或多个非嵌套技能目录；也可以上传单独的.md文件。系统并不能确保技能的可用性，请自行验证。
+          </p>
+          <p v-if="pending" class="skill-upload-dialog__pending">
+            已选择：{{ pending.label }}
+            <span class="skill-upload-dialog__pending-kind">
+              （{{
+                pending.kind === 'folder' ? '文件夹' : pending.kind === 'zip' ? 'ZIP' : 'Markdown'
+              }}）
+            </span>
+          </p>
+        </div>
       </div>
 
-      <Button
-        class="mt-4 w-full"
-        size="lg"
-        :disabled="!pending || installing"
-        @click="runInstall(false)"
-      >
-        <Icon v-if="installing" icon="lucide:loader-2" class="mr-2 h-4 w-4 animate-spin" />
-        创建技能
-      </Button>
+      <div class="skill-upload-dialog__footer">
+        <Button
+          variant="outline"
+          class="skill-upload-dialog__btn-cancel"
+          :disabled="installing"
+          @click="isOpen = false"
+        >
+          取消
+        </Button>
+        <Button
+          class="skill-upload-dialog__btn-confirm"
+          :disabled="!pending || installing"
+          @click="runInstall(false)"
+        >
+          <Icon
+            v-if="installing"
+            icon="lucide:loader-2"
+            class="skill-upload-dialog__btn-spinner"
+          />
+          确认上传
+        </Button>
+      </div>
     </DialogContent>
   </Dialog>
 

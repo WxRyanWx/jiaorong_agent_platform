@@ -75,7 +75,17 @@
               "
               @click="openJiaorongSidebarItem(item)"
             >
-              <Icon :icon="item.icon || 'lucide:circle'" class="w-4 h-4 text-foreground/80" />
+              <img
+                v-if="item.iconSrc"
+                :src="item.iconSrc"
+                alt=""
+                class="w-7 h-7 object-contain"
+              />
+              <Icon
+                v-else
+                :icon="item.icon || 'lucide:circle'"
+                class="w-4 h-4 text-foreground/80"
+              />
             </Button>
           </TooltipTrigger>
           <TooltipContent side="right">{{

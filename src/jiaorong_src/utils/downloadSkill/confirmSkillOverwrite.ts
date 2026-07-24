@@ -1,4 +1,4 @@
-import { createApp } from 'vue'
+import { createApp, nextTick } from 'vue'
 import SkillOverwriteConfirmDialog from './SkillOverwriteConfirmDialog.vue'
 
 /**
@@ -24,5 +24,6 @@ export function confirmSkillOverwrite(skillName: string): Promise<boolean> {
       onResolved: finish
     })
     app.mount(container)
+    void nextTick()
   })
 }

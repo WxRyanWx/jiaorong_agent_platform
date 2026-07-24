@@ -548,11 +548,13 @@ export async function installSkillFromFolderCompat(
 export async function installSkillFromZipCompat(
   params: {
     zipPath: string
+    /** 覆盖从 zip 路径推导的目录名（远程 URL 临时文件名无意义时传入） */
+    fallbackName?: string
     overwrite?: boolean
   } & InstallDeps
 ): Promise<SkillInstallResult> {
   const zipPath = normalizeLocalPath(params.zipPath)
-  const fallbackName = pathBasename(zipPath).replace(/\.zip$/i, '')
+  const fallbackName = params.fallbackName?.trim() || pathBasename(zipPath).replace(/\.zip$/i, '')
 
   try {
     const bytes = await readLocalBinary(zipPath)
@@ -597,4 +599,36 @@ export async function installSkillFromZipCompat(
   } catch {
     return result
   }
+}
+
+/**
+ * 从远程 zip URL 基名推导安装目录名（去掉 .zip 与尾部 semver）。
+ * 例：24-bills-building-quantities-1.0.0.zip → 24-bills-building-quantities
+ */
+export function fallbackNameFromRemoteZipUrl(url: string): string {
+  try {
+    const base = new URL(url).pathname.split('/').pop() || 'skill'
+    return sanitizeSkillName(base.replace(/\.zip$/i, '').replace(/-\d+\.\d+\.\d+[a-z0-9.-]*$/i, ''))
+  } catch {
+    const base = url.split(/[\\/]/).pop() || 'skill'
+    return sanitizeSkillName(base.replace(/\.zip$/i, '').replace(/-\d+\.\d+\.\d+[a-z0-9.-]*$/i, ''))
+  }
+}
+
+/** 内存中的 zip 字节：规范化后安装（远程市场下载用） */
+export async function installSkillFromZipBytesCompat(
+  params: {
+    zipBytes: Uint8Array
+    fallbackName: string
+    overwrite?: boolean
+  } & InstallDeps
+): Promise<SkillInstallResult> {
+  return installNormalizedZipBytes({
+    zipBytes: params.zipBytes,
+    fallbackName: params.fallbackName,
+    overwrite: params.overwrite,
+    writeTemp: params.writeTemp,
+    installFromZip: params.installFromZip,
+    forceNormalize: false
+  })
 }

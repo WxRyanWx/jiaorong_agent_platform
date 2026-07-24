@@ -1,6 +1,10 @@
 import { useSkillsStore } from '@/stores/skillsStore'
 import { useLegacyPresenter } from '@api/legacy/presenters'
 import type { SkillInstallResult } from '@shared/types/skill'
+import {
+  fallbackNameFromRemoteZipUrl,
+  installSkillFromZipBytesCompat
+} from '../../skills/lib/installLocalSkill'
 import { rememberSkillSource, SkillSource } from '../../skills/lib/sessionSkill'
 import { confirmSkillOverwrite } from './confirmSkillOverwrite'
 
@@ -50,8 +54,8 @@ function resolveConflictSkillName(result: SkillInstallResult): string {
 const ZIP_MAX_SIZE = 200 * 1024 * 1024 // 与宿主 SkillPresenter 一致
 const DOWNLOAD_TIMEOUT_MS = 30 * 1000
 
-/** 下载 zip 一次，写入临时文件，供后续 installFromZip 复用 */
-async function downloadZipToTemp(url: string): Promise<string> {
+/** 下载远程 zip 字节（不落盘为 skill-url 临时名，避免丢失真实包名） */
+async function downloadZipBytes(url: string): Promise<Uint8Array> {
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), DOWNLOAD_TIMEOUT_MS)
 
@@ -75,17 +79,7 @@ async function downloadZipToTemp(url: string): Promise<string> {
         `Downloaded file too large: ${buffer.byteLength} bytes (max: ${ZIP_MAX_SIZE})`
       )
     }
-
-    const filePresenter = useLegacyPresenter('filePresenter', { safeCall: false })
-    const zipPath = await filePresenter.writeTemp({
-      name: `skill-url-${Date.now()}.zip`,
-      // IPC 会把 Uint8Array 弄丢，传 number[]
-      content: Array.from(buffer)
-    })
-    if (!zipPath) {
-      throw new Error('Failed to write temp zip')
-    }
-    return zipPath
+    return buffer
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
       throw new Error('Download timed out')
@@ -98,7 +92,8 @@ async function downloadZipToTemp(url: string): Promise<string> {
 
 /**
  * 从 zip 技能包下载地址安装技能。
- * 只下载一次：安装失败若为同名冲突，确认覆盖后复用同一临时 zip。
+ * 经 installLocalSkill 规范化 SKILL.md（兼容 **name:** / 中文名等），再交给开源安装。
+ * 只下载一次：安装失败若为同名冲突，确认覆盖后复用同一份字节。
  */
 export async function installSkillFromZipUrl(url: string): Promise<InstallSkillFromZipUrlResult> {
   const validationError = validateZipSkillUrl(url)
@@ -108,14 +103,52 @@ export async function installSkillFromZipUrl(url: string): Promise<InstallSkillF
 
   const trimmed = url.trim()
   const skillsStore = useSkillsStore()
+  const filePresenter = useLegacyPresenter('filePresenter', { safeCall: false })
+  const fallbackName = fallbackNameFromRemoteZipUrl(trimmed)
+
+  /** legacy IPC 会弄坏 Uint8Array，改传 number[] */
+  const toWriteTempContent = (
+    content: string | Buffer | ArrayBuffer | Uint8Array
+  ): string | Buffer | ArrayBuffer | number[] => {
+    if (typeof content === 'string') return content
+    if (content instanceof Uint8Array) return Array.from(content)
+    if (content instanceof ArrayBuffer) return Array.from(new Uint8Array(content))
+    return content
+  }
+
+  const deps = {
+    writeTemp: async (file: {
+      name: string
+      content: string | Buffer | ArrayBuffer | Uint8Array
+    }) => {
+      const tempPath = await filePresenter.writeTemp({
+        name: file.name,
+        content: toWriteTempContent(file.content)
+      })
+      if (typeof tempPath !== 'string' || !tempPath) {
+        throw new Error('写入临时文件失败，请重试')
+      }
+      return tempPath
+    },
+    installFromFolder: (folderPath: string, options?: { overwrite?: boolean }) =>
+      skillsStore.installFromFolder(folderPath, options),
+    installFromZip: (zipPath: string, options?: { overwrite?: boolean }) =>
+      skillsStore.installFromZip(zipPath, options)
+  }
 
   try {
-    const zipPath = await downloadZipToTemp(trimmed)
-    const first = await skillsStore.installFromZip(zipPath, { overwrite: false })
+    const zipBytes = await downloadZipBytes(trimmed)
+
+    const first = await installSkillFromZipBytesCompat({
+      zipBytes,
+      fallbackName,
+      overwrite: false,
+      ...deps
+    })
 
     if (first.success) {
       if (first.skillName) {
-        rememberSkillSource(first.skillName, SkillSource.Zip)
+        rememberSkillSource(first.skillName, SkillSource.RemoteApi)
       }
       return { success: true, skillName: first.skillName }
     }
@@ -138,7 +171,12 @@ export async function installSkillFromZipUrl(url: string): Promise<InstallSkillF
       }
     }
 
-    const second = await skillsStore.installFromZip(zipPath, { overwrite: true })
+    const second = await installSkillFromZipBytesCompat({
+      zipBytes,
+      fallbackName,
+      overwrite: true,
+      ...deps
+    })
     if (!second.success) {
       return {
         success: false,
@@ -148,7 +186,7 @@ export async function installSkillFromZipUrl(url: string): Promise<InstallSkillF
     }
 
     if (second.skillName) {
-      rememberSkillSource(second.skillName, SkillSource.Zip)
+      rememberSkillSource(second.skillName, SkillSource.RemoteApi)
     }
 
     return {

@@ -34,7 +34,7 @@ jiaorong_src/
 
 1. **新业务默认写这里**，不要散落到 `src/main` / `src/renderer` 开源路径。
 2. **新模块**：建 `xxx/module.ts`（侧栏等贡献）并在 `runtime/modules.ts` 登记；**路由只加 `router/`**，子模块不写 routes。
-3. **调自有后端**：放 `api/`，复用 `api/auth` 的 origin（`c4ai.ccccltd.cn` / `VITE_AUTH_API_ORIGIN`）。
+3. **调自有后端**：放 `api/`，地址在 `api/auth/config.ts` 按 Vite mode 全自动选择（dev/test→测试服，production→正式服）。
 4. **改开源主仓**：必须记入 `HOST_TOUCHPOINTS.md`。
 
 ## 引用

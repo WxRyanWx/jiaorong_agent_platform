@@ -3,7 +3,7 @@ import {
   type RemoteSkillListItem,
   type SkillMarketCatalogResult
 } from '../../skills/lib/skillMarketCatalog'
-
+import request from '../auth/interceptors'
 export type { RemoteSkillListItem, SkillMarketCatalogResult }
 
 /** 远程技能详情接口的页面消费模型。 */
@@ -16,21 +16,27 @@ export interface SkillDetailResponse {
 
 /**
  * 拉取远程技能市场列表。
- *
- * 后端 URL / 响应格式未定时返回空数组，不阻断本地内置 + 上传的展示。
- * 契约确定后仅改本函数即可。
+ * 拦截器已解成 body（{ code, data }），这里只取 data 数组。
  */
-export async function listRemoteSkills(): Promise<RemoteSkillListItem[]> {
-  return []
+export async function listRemoteSkills(): Promise<Record<string, unknown>[]> {
+  const res = await request.get('deepchat-ext/skill/list')
+  return Array.isArray(res?.data) ? res.data : []
 }
 
 /**
- * 技能市场列表数据请求：扫描本地安装目录 + 拉取远程，合并后返回。
- * 页面进入、上传技能成功后调用即可。
+ * 技能市场列表：扫本地 + 拉远程（按内置字段 map 后）合并。
  */
 export async function fetchSkillMarketCatalog(): Promise<SkillMarketCatalogResult> {
+  const raw = await listRemoteSkills().catch(() => [] as Record<string, unknown>[])
+  const remote: RemoteSkillListItem[] = raw.map((item) => ({
+    id: String(item.id ?? ''),
+    name: String(item.name ?? ''),
+    description: String(item.desc ?? ''),
+    downloadUrl: String(item.downloadUrl ?? '')
+  }))
+
   return buildSkillMarketCatalog({
-    fetchRemote: listRemoteSkills
+    fetchRemote: async () => remote
   })
 }
 
