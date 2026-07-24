@@ -454,6 +454,8 @@ const uninstallSkill = async () => {
   height: 100%;
   box-sizing: border-box;
   overflow: hidden;
+  container-type: inline-size;
+  container-name: skill-detail;
 
   .skill-detail-page-scroll {
     height: 100%;
@@ -483,7 +485,7 @@ const uninstallSkill = async () => {
     border: 1px solid var(--border, #e5e6eb);
     background: var(--background, #ffffff);
     padding: 24px;
-    box-shadow: 0 10px 30px rgb(0 0 0 / 18%);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
     -webkit-app-region: no-drag;
     pointer-events: auto;
   }
@@ -505,6 +507,7 @@ const uninstallSkill = async () => {
   .skill-detail-uninstall-footer {
     margin-top: 20px;
     display: flex;
+    flex-wrap: wrap;
     justify-content: flex-end;
     gap: 8px;
   }
@@ -529,9 +532,11 @@ const uninstallSkill = async () => {
   }
 
   .skill-detail-nav {
-    height: 40px;
+    min-height: 40px;
     display: flex;
     align-items: center;
+    gap: 12px;
+    min-width: 0;
 
     .skill-detail-back {
       display: inline-flex;
@@ -539,6 +544,7 @@ const uninstallSkill = async () => {
       gap: 8px;
       height: 32px;
       padding: 0 12px;
+      flex-shrink: 0;
       background: #ffffff;
       border-radius: 7px;
       border: 1px solid #d1deed;
@@ -568,7 +574,12 @@ const uninstallSkill = async () => {
     }
 
     .skill-detail-breadcrumb {
-      margin-left: 12px;
+      margin-left: 0;
+      min-width: 0;
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
       font-family: 'Noto Sans SC', sans-serif;
       font-weight: 400;
       font-size: 12px;
@@ -589,13 +600,18 @@ const uninstallSkill = async () => {
     box-sizing: border-box;
 
     .skill-detail-hero-top {
-      height: 44px;
+      min-height: 44px;
       display: flex;
+      align-items: center;
       justify-content: space-between;
+      gap: 12px;
+      min-width: 0;
 
       .skill-detail-hero-main {
         display: flex;
         align-items: center;
+        min-width: 0;
+        flex: 1;
 
         .skill-detail-hero-icon {
           width: 44px;
@@ -612,6 +628,7 @@ const uninstallSkill = async () => {
 
         .skill-detail-hero-copy {
           margin-left: 12px;
+          min-width: 0;
           font-family: 'Noto Sans SC', sans-serif;
           font-size: 20px;
           color: #1d2129;
@@ -619,12 +636,19 @@ const uninstallSkill = async () => {
           text-align: left;
           font-style: normal;
           text-transform: none;
+
+          .skill-detail-hero-title {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
         }
       }
 
       .skill-detail-switch {
         display: flex;
         align-items: center;
+        flex-shrink: 0;
 
         .skill-detail-switch-label {
           font-family: 'Noto Sans SC', sans-serif;
@@ -635,6 +659,10 @@ const uninstallSkill = async () => {
           text-align: left;
           font-style: normal;
           text-transform: none;
+
+          &.is-disabled {
+            color: #86919c;
+          }
         }
 
         .skill-detail-switch-control {
@@ -656,10 +684,14 @@ const uninstallSkill = async () => {
       text-align: left;
       font-style: normal;
       text-transform: none;
+      overflow-wrap: anywhere;
+      word-break: break-word;
     }
 
     .skill-detail-actions {
       display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
       padding-left: 60px;
       box-sizing: border-box;
 
@@ -668,7 +700,9 @@ const uninstallSkill = async () => {
       .skill-detail-btn-danger {
         display: inline-flex;
         align-items: center;
+        justify-content: center;
         gap: 8px;
+        margin-left: 0;
         cursor: pointer;
         transition:
           background-color 0.15s ease,
@@ -694,19 +728,17 @@ const uninstallSkill = async () => {
       .skill-detail-btn-primary {
         background: #006eff;
         color: #ffffff;
-        width: 108px;
+        min-width: 108px;
         border-color: #006eff;
       }
 
       .skill-detail-btn-secondary {
-        margin-left: 8px;
         background: #ffffff;
         color: #1f2a44;
         border: 1px solid #c9cdd4;
       }
 
       .skill-detail-btn-danger {
-        margin-left: 8px;
         background: #fff0f0;
         color: #e5484d;
         border: 1px solid transparent;
@@ -718,12 +750,13 @@ const uninstallSkill = async () => {
     margin-top: 20px;
 
     .skill-detail-try-title {
-      height: 24px;
+      min-height: 24px;
       font-family: 'Noto Sans SC', sans-serif;
       font-weight: bold;
       font-size: 16px;
       color: #0b2e57;
       margin-bottom: 10px;
+      line-height: 24px;
 
       .skill-detail-try-subtitle {
         font-weight: bold;
@@ -747,23 +780,33 @@ const uninstallSkill = async () => {
         background: #ffffff;
         border-radius: 8px;
         border: 1px solid #d8e2ee;
-        height: 134px;
+        min-height: 134px;
+        height: auto;
         display: flex;
         padding: 14px;
         box-sizing: border-box;
         flex-direction: column;
         justify-content: space-between;
         align-items: flex-start;
+        gap: 12px;
         cursor: pointer;
 
         .skill-detail-try-prompt {
+          display: -webkit-box;
+          -webkit-box-orient: vertical;
+          -webkit-line-clamp: 4;
+          line-clamp: 4;
+          overflow: hidden;
           text-align: left;
+          overflow-wrap: anywhere;
+          word-break: break-word;
         }
 
         .skill-detail-try-link {
           display: flex;
           align-items: center;
           color: #006eff;
+          flex-shrink: 0;
 
           .skill-detail-try-link-icon {
             margin-left: 2px;
@@ -792,11 +835,16 @@ const uninstallSkill = async () => {
         width: 100%;
         justify-content: space-between;
         align-items: center;
-        height: 52px;
+        gap: 12px;
+        min-height: 52px;
         padding: 0 16px;
         box-sizing: border-box;
 
         .skill-detail-source-title {
+          min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
           font-family: 'Noto Sans SC', sans-serif;
           font-weight: 500;
           font-size: 16px;
@@ -810,6 +858,7 @@ const uninstallSkill = async () => {
           display: flex;
           align-items: center;
           gap: 4px;
+          flex-shrink: 0;
 
           .skill-detail-source-tab {
             box-sizing: border-box;
@@ -885,6 +934,108 @@ const uninstallSkill = async () => {
           word-break: break-word;
         }
       }
+    }
+  }
+
+  @container skill-detail (max-width: 720px) {
+    .skill-detail-page-scroll {
+      padding: 16px 20px 24px;
+    }
+
+    .skill-detail-hero {
+      margin-top: 16px;
+      padding: 14px 16px;
+
+      .skill-detail-hero-top {
+        .skill-detail-hero-main {
+          .skill-detail-hero-copy {
+            font-size: 18px;
+          }
+        }
+      }
+
+      .skill-detail-hero-desc,
+      .skill-detail-actions {
+        padding-left: 0;
+      }
+    }
+
+    .skill-detail-try {
+      margin-top: 16px;
+
+      .skill-detail-try-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+    }
+
+    .skill-detail-source {
+      .skill-detail-source-tabs {
+        .skill-detail-source-content {
+          padding: 14px 16px;
+        }
+      }
+    }
+  }
+
+  @container skill-detail (max-width: 520px) {
+    .skill-detail-page-scroll {
+      padding: 12px 14px 20px;
+    }
+
+    .skill-detail-hero {
+      .skill-detail-hero-top {
+        flex-wrap: wrap;
+        align-items: flex-start;
+
+        .skill-detail-hero-main {
+          width: 100%;
+
+          .skill-detail-hero-copy {
+            font-size: 16px;
+          }
+        }
+      }
+
+      .skill-detail-actions {
+        .skill-detail-btn-primary,
+        .skill-detail-btn-secondary,
+        .skill-detail-btn-danger {
+          flex: 1 1 auto;
+          min-width: calc(50% - 4px);
+        }
+      }
+    }
+
+    .skill-detail-try {
+      .skill-detail-try-title {
+        height: auto;
+
+        .skill-detail-try-subtitle {
+          display: block;
+          margin-top: 4px;
+        }
+      }
+
+      .skill-detail-try-grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+
+    .skill-detail-source {
+      .skill-detail-source-tabs {
+        .skill-detail-source-header {
+          padding: 0 12px;
+        }
+
+        .skill-detail-source-content {
+          padding: 12px;
+        }
+      }
+    }
+
+    .skill-detail-uninstall-dialog {
+      padding: 20px 16px;
     }
   }
 }
