@@ -1,19 +1,19 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from "vue";
-import { useRouter } from "vue-router";
-import { Icon } from "@iconify/vue";
-import { Button } from "@shadcn/components/ui/button";
-import { Input } from "@shadcn/components/ui/input";
-import { useSkillsStore } from "@/stores/skillsStore";
-import type { SkillMetadata } from "@shared/types/skill";
-import { fetchSkillMarketCatalog } from "@jiaorong/api/skills";
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { Icon } from '@iconify/vue'
+import { Button } from '@shadcn/components/ui/button'
+import { Input } from '@shadcn/components/ui/input'
+import { useSkillsStore } from '@/stores/skillsStore'
+import type { SkillMetadata } from '@shared/types/skill'
+import { fetchSkillMarketCatalog } from '@jiaorong/api/skills'
 import {
   installSkillFromZipUrl,
   isSkillSwitchOn,
-  startGeneralChatWithSkills,
-} from "@jiaorong/utils";
-import skillLogo from "@jiaorong/assets/skill.png";
-import { useToast } from "@/components/use-toast";
+  startGeneralChatWithSkills
+} from '@jiaorong/utils'
+import skillLogo from '@jiaorong/assets/skill.png'
+import { useToast } from '@/components/use-toast'
 import {
   BUILTIN_SKILL_NAMES,
   type JiaorongSkillItem,
@@ -23,43 +23,41 @@ import {
   rememberSkillSource,
   saveJiaorongSkillToSession,
   SkillSource,
-  toJiaorongSkillItem,
-} from "../../lib/sessionSkill";
-import SkillUploadDialog from "../../components/SkillUploadDialog/SkillUploadDialog.vue";
-import "./index.less";
+  toJiaorongSkillItem
+} from '../../lib/sessionSkill'
+import SkillUploadDialog from '../../components/SkillUploadDialog/SkillUploadDialog.vue'
+import './index.less'
 
-type MarketTab = "market" | "installed";
+type MarketTab = 'market' | 'installed'
 
-const router = useRouter();
-const skillsStore = useSkillsStore();
-const { toast } = useToast();
+const router = useRouter()
+const skillsStore = useSkillsStore()
+const { toast } = useToast()
 
-const activeTab = ref<MarketTab>("market");
-const searchQuery = ref("");
-const activeCategory = ref("全部");
-const createMenuOpen = ref(false);
-const uploadDialogOpen = ref(false);
+const activeTab = ref<MarketTab>('market')
+const searchQuery = ref('')
+const activeCategory = ref('全部')
+const createMenuOpen = ref(false)
+const uploadDialogOpen = ref(false)
 /** 市场列表（远程 + 本地合并结果） */
-const catalogSkills = ref<SkillMetadata[]>([]);
-const catalogLoading = ref(false);
+const catalogSkills = ref<SkillMetadata[]>([])
+const catalogLoading = ref(false)
 /** 正在安装的技能 name */
-const installingNames = ref(new Set<string>());
+const installingNames = ref(new Set<string>())
 /** 远程卡片 name → 安装后本地技能名（zip 目录名可能与展示名不同） */
-const remoteInstalledLocalNames = ref<Record<string, string>>(
-  loadRemoteInstallMap(),
-);
+const remoteInstalledLocalNames = ref<Record<string, string>>(loadRemoteInstallMap())
 
-let loadGeneration = 0;
+let loadGeneration = 0
 
-const CATEGORY_FALLBACK = "通用";
+const CATEGORY_FALLBACK = '通用'
 
 function getDownloadUrl(skill: SkillMetadata): string {
-  const url = skill.metadata?.downloadUrl;
-  return typeof url === "string" ? url.trim() : "";
+  const url = skill.metadata?.downloadUrl
+  return typeof url === 'string' ? url.trim() : ''
 }
 
 function getInstalledLocalName(skill: SkillMetadata): string {
-  return remoteInstalledLocalNames.value[skill.name] || skill.name;
+  return remoteInstalledLocalNames.value[skill.name] || skill.name
 }
 
 /**
@@ -68,27 +66,27 @@ function getInstalledLocalName(skill: SkillMetadata): string {
  */
 function hideLocalSlugDuplicatedByRemoteInstall(
   skills: SkillMetadata[],
-  marketToLocal: Record<string, string>,
+  marketToLocal: Record<string, string>
 ): SkillMetadata[] {
-  const claimedLocalNames = new Set(Object.values(marketToLocal));
+  const claimedLocalNames = new Set(Object.values(marketToLocal))
   return skills.filter((skill) => {
-    if (!claimedLocalNames.has(skill.name)) return true;
+    if (!claimedLocalNames.has(skill.name)) return true
     // 市场展示名恰好等于本地名时，这条就是市场卡本身，保留
-    if (skill.name in marketToLocal) return true;
-    return false;
-  });
+    if (skill.name in marketToLocal) return true
+    return false
+  })
 }
 
 /** 仅更新单个远程技能为已安装，避免整表刷新 */
 function markRemoteSkillInstalled(marketName: string, localSkillName: string) {
-  rememberRemoteInstall(marketName, localSkillName);
+  rememberRemoteInstall(marketName, localSkillName)
   remoteInstalledLocalNames.value = {
     ...remoteInstalledLocalNames.value,
-    [marketName]: localSkillName,
-  };
+    [marketName]: localSkillName
+  }
 
   const updated = catalogSkills.value.map((item) => {
-    if (item.name !== marketName) return item;
+    if (item.name !== marketName) return item
     return {
       ...item,
       skillRoot: item.skillRoot || localSkillName,
@@ -96,41 +94,39 @@ function markRemoteSkillInstalled(marketName: string, localSkillName: string) {
         ...item.metadata,
         installedSkillName: localSkillName,
         displayName:
-          (typeof item.metadata?.displayName === "string" &&
-            item.metadata.displayName) ||
-          item.name,
-      },
-    };
-  });
+          (typeof item.metadata?.displayName === 'string' && item.metadata.displayName) || item.name
+      }
+    }
+  })
   catalogSkills.value = hideLocalSlugDuplicatedByRemoteInstall(
     updated,
-    remoteInstalledLocalNames.value,
-  );
+    remoteInstalledLocalNames.value
+  )
 }
 
 /** 进入页面 / 上传成功后刷新列表 */
 async function refreshMarket() {
-  const generation = ++loadGeneration;
-  catalogLoading.value = true;
+  const generation = ++loadGeneration
+  catalogLoading.value = true
   // 详情页卸载可能已清 localStorage，回到列表时同步内存映射
-  remoteInstalledLocalNames.value = loadRemoteInstallMap();
+  remoteInstalledLocalNames.value = loadRemoteInstallMap()
   try {
-    const { local, merged } = await fetchSkillMarketCatalog();
-    if (generation !== loadGeneration) return;
+    const { local, merged } = await fetchSkillMarketCatalog()
+    if (generation !== loadGeneration) return
     // 远程已装但目录名与展示名不一致时，把本地元数据挂回远程卡片
     const enriched = merged.map((skill) => {
-      const localName = remoteInstalledLocalNames.value[skill.name];
-      if (!localName) return skill;
-      const localMeta = local.find((item) => item.name === localName);
+      const localName = remoteInstalledLocalNames.value[skill.name]
+      if (!localName) return skill
+      const localMeta = local.find((item) => item.name === localName)
       if (!localMeta) {
         return {
           ...skill,
           skillRoot: skill.skillRoot || localName,
           metadata: {
             ...skill.metadata,
-            installedSkillName: localName,
-          },
-        };
+            installedSkillName: localName
+          }
+        }
       }
       return {
         ...localMeta,
@@ -144,136 +140,134 @@ async function refreshMarket() {
           ...localMeta.metadata,
           ...skill.metadata,
           displayName:
-            (typeof skill.metadata?.displayName === "string" &&
-              skill.metadata.displayName) ||
+            (typeof skill.metadata?.displayName === 'string' && skill.metadata.displayName) ||
             skill.name,
-          installedSkillName: localName,
-        },
-      };
-    });
+          installedSkillName: localName
+        }
+      }
+    })
     catalogSkills.value = hideLocalSlugDuplicatedByRemoteInstall(
       enriched,
-      remoteInstalledLocalNames.value,
-    );
-    skillsStore.skills = local;
+      remoteInstalledLocalNames.value
+    )
+    skillsStore.skills = local
   } catch (e) {
-    if (generation !== loadGeneration) return;
-    console.error("[SkillListPage] Failed to load skill market:", e);
+    if (generation !== loadGeneration) return
+    console.error('[SkillListPage] Failed to load skill market:', e)
   } finally {
     if (generation === loadGeneration) {
-      catalogLoading.value = false;
+      catalogLoading.value = false
     }
   }
 }
 
 function getSkillDisplayName(skill: SkillMetadata): string {
-  const displayName = skill.metadata?.displayName;
-  if (typeof displayName === "string" && displayName.trim()) {
-    return displayName.trim();
+  const displayName = skill.metadata?.displayName
+  if (typeof displayName === 'string' && displayName.trim()) {
+    return displayName.trim()
   }
-  return skill.name;
+  return skill.name
 }
 
 function getSkillCategory(skill: SkillMetadata): string {
-  if (typeof skill.category === "string" && skill.category.trim()) {
-    const leaf = skill.category.split(/[/\\]/).filter(Boolean).pop();
-    return leaf || CATEGORY_FALLBACK;
+  if (typeof skill.category === 'string' && skill.category.trim()) {
+    const leaf = skill.category.split(/[/\\]/).filter(Boolean).pop()
+    return leaf || CATEGORY_FALLBACK
   }
-  const metaCategory = skill.metadata?.category;
-  if (typeof metaCategory === "string" && metaCategory.trim()) {
-    return metaCategory.trim();
+  const metaCategory = skill.metadata?.category
+  if (typeof metaCategory === 'string' && metaCategory.trim()) {
+    return metaCategory.trim()
   }
-  return CATEGORY_FALLBACK;
+  return CATEGORY_FALLBACK
 }
 
 /** 本地已发现，或本页刚装过的远程技能 */
 function isInstalled(skill: SkillMetadata): boolean {
-  return (
-    Boolean(skill.skillRoot) ||
-    Boolean(remoteInstalledLocalNames.value[skill.name])
-  );
+  return Boolean(skill.skillRoot) || Boolean(remoteInstalledLocalNames.value[skill.name])
 }
 
 function isInstalling(skill: SkillMetadata): boolean {
-  return installingNames.value.has(skill.name);
+  return installingNames.value.has(skill.name)
 }
 
 function isSkillDisabled(skill: SkillMetadata): boolean {
-  return isInstalled(skill) && !isSkillSwitchOn(getInstalledLocalName(skill));
+  return isInstalled(skill) && !isSkillSwitchOn(getInstalledLocalName(skill))
 }
 
 const skillItems = computed((): JiaorongSkillItem[] =>
   catalogSkills.value.map((skill) => {
-    const item = toJiaorongSkillItem(skill);
+    const item = toJiaorongSkillItem(skill)
     // 无本地根目录的为远程未安装条目（勿被 resolveSkillSource 默认成 Zip）
     if (!skill.skillRoot) {
-      return { ...item, skill_source: SkillSource.RemoteApi };
+      return { ...item, skill_source: SkillSource.RemoteApi }
     }
-    return item;
-  }),
-);
+    return item
+  })
+)
 
 const categories = computed(() => {
-  const set = new Set<string>();
+  const set = new Set<string>()
   for (const skill of skillItems.value) {
-    set.add(getSkillCategory(skill));
+    set.add(getSkillCategory(skill))
   }
   return [
-    "全部",
+    '全部'
     // ...Array.from(set).sort((a, b) => a.localeCompare(b, "zh-CN")),
-  ];
-});
+  ]
+})
 
 const filteredSkills = computed(() => {
-  const q = searchQuery.value.trim().toLowerCase();
+  const q = searchQuery.value.trim().toLowerCase()
   return skillItems.value.filter((skill) => {
-    if (activeTab.value === "installed" && !isInstalled(skill)) {
-      return false;
+    if (activeTab.value === 'installed' && !isInstalled(skill)) {
+      return false
     }
-    if (
-      activeCategory.value !== "全部" &&
-      getSkillCategory(skill) !== activeCategory.value
-    ) {
-      return false;
+    if (activeCategory.value !== '全部' && getSkillCategory(skill) !== activeCategory.value) {
+      return false
     }
     if (!q) {
-      return true;
+      return true
     }
     const haystack =
-      `${getSkillDisplayName(skill)} ${skill.name} ${skill.description}`.toLowerCase();
-    return haystack.includes(q);
-  });
-});
+      `${getSkillDisplayName(skill)} ${skill.name} ${skill.description}`.toLowerCase()
+    return haystack.includes(q)
+  })
+})
 
-const installedCount = computed(
-  () => skillItems.value.filter((skill) => isInstalled(skill)).length,
-);
+const installedCount = computed(() => skillItems.value.filter((skill) => isInstalled(skill)).length)
 
-const marketCount = computed(() => skillItems.value.length);
+const marketCount = computed(() => skillItems.value.length)
 
 const openDetail = (skill: JiaorongSkillItem) => {
-  const localName = getInstalledLocalName(skill);
-  saveJiaorongSkillToSession({
-    ...skill,
-    name: isInstalled(skill) ? localName : skill.name,
-    metadata: {
-      ...skill.metadata,
-      displayName: getSkillDisplayName(skill),
-      ...(isInstalled(skill) ? { installedSkillName: localName } : {}),
-    },
-  });
-  void router.push({
-    name: "skills-detail",
-    params: { skillId: isInstalled(skill) ? localName : skill.name },
-  });
-};
-
-const handleUse = async (skill: JiaorongSkillItem) => {
-  const localName = getInstalledLocalName(skill);
+  const localName = getInstalledLocalName(skill)
   const isRemoteCard =
     skill.skill_source === SkillSource.RemoteApi ||
     Boolean(skill.metadata?.remoteId) ||
-    Boolean(remoteInstalledLocalNames.value[skill.name]);
+    Boolean(remoteInstalledLocalNames.value[skill.name])
+
+  // 远程字段（含 remoteId）写入 session，详情页按 remoteId 拉接口
+  saveJiaorongSkillToSession({
+    ...skill,
+    name: isInstalled(skill) ? localName : skill.name,
+    skill_source: isRemoteCard ? SkillSource.RemoteApi : skill.skill_source,
+    metadata: {
+      ...skill.metadata,
+      displayName: getSkillDisplayName(skill),
+      ...(isInstalled(skill) ? { installedSkillName: localName } : {})
+    }
+  })
+  void router.push({
+    name: 'skills-detail',
+    params: { skillId: isInstalled(skill) ? localName : skill.name }
+  })
+}
+
+const handleUse = async (skill: JiaorongSkillItem) => {
+  const localName = getInstalledLocalName(skill)
+  const isRemoteCard =
+    skill.skill_source === SkillSource.RemoteApi ||
+    Boolean(skill.metadata?.remoteId) ||
+    Boolean(remoteInstalledLocalNames.value[skill.name])
 
   // 远程字段 + 安装后本地路径等一并写入，详情页直接读存储
   saveJiaorongSkillToSession({
@@ -283,90 +277,90 @@ const handleUse = async (skill: JiaorongSkillItem) => {
     metadata: {
       ...skill.metadata,
       displayName: getSkillDisplayName(skill),
-      installedSkillName: localName,
-    },
-  });
+      installedSkillName: localName
+    }
+  })
   await startGeneralChatWithSkills({
     router,
-    prompt: "",
-    skillNames: [localName],
-  });
-};
+    prompt: '',
+    skillNames: [localName]
+  })
+}
 
 const handleInstall = async (skill: JiaorongSkillItem) => {
-  const downloadUrl = getDownloadUrl(skill);
+  const downloadUrl = getDownloadUrl(skill)
   if (!downloadUrl) {
     toast({
-      title: "安装失败",
-      description: "缺少下载地址",
-      variant: "destructive",
-    });
-    return;
+      title: '安装失败',
+      description: '缺少下载地址',
+      variant: 'destructive'
+    })
+    return
   }
-  if (isInstalling(skill)) return;
+  if (isInstalling(skill)) return
 
-  const next = new Set(installingNames.value);
-  next.add(skill.name);
-  installingNames.value = next;
+  const next = new Set(installingNames.value)
+  next.add(skill.name)
+  installingNames.value = next
 
   try {
-    const result = await installSkillFromZipUrl(downloadUrl);
+    const result = await installSkillFromZipUrl(downloadUrl)
     if (!result.success || !result.skillName) {
       toast({
-        title: "安装失败",
-        description: result.error || "未知错误",
-        variant: "destructive",
-      });
-      return;
+        title: '安装失败',
+        description: result.error || '未知错误',
+        variant: 'destructive'
+      })
+      return
     }
-    rememberSkillSource(result.skillName, SkillSource.RemoteApi);
-    markRemoteSkillInstalled(skill.name, result.skillName);
+    rememberSkillSource(result.skillName, SkillSource.RemoteApi)
+    markRemoteSkillInstalled(skill.name, result.skillName)
   } finally {
-    const done = new Set(installingNames.value);
-    done.delete(skill.name);
-    installingNames.value = done;
+    const done = new Set(installingNames.value)
+    done.delete(skill.name)
+    installingNames.value = done
   }
-};
+}
 
 const toggleCreateMenu = () => {
-  createMenuOpen.value = !createMenuOpen.value;
-};
+  createMenuOpen.value = !createMenuOpen.value
+}
 
 const closeCreateMenu = () => {
-  createMenuOpen.value = false;
-};
+  createMenuOpen.value = false
+}
 
 const createSkill = async () => {
-  closeCreateMenu();
+  closeCreateMenu()
   await startGeneralChatWithSkills({
     router,
-    prompt: "创建一个新的技能，这个技能的功能是：",
-    skillNames: ["skill-creator"],
-  });
-};
+    prompt: '创建一个新的技能，这个技能的功能是：',
+    skillNames: ['skill-creator']
+  })
+}
 
 const openUploadDialog = () => {
-  closeCreateMenu();
-  uploadDialogOpen.value = true;
-};
+  closeCreateMenu()
+  uploadDialogOpen.value = true
+}
 
 const onSkillUploaded = () => {
-  void refreshMarket();
-};
+  void refreshMarket()
+}
 
 onMounted(() => {
   for (const name of BUILTIN_SKILL_NAMES) {
     if (getRememberedSkillSource(name) == null) {
-      rememberSkillSource(name, SkillSource.LocalBuiltin);
+      rememberSkillSource(name, SkillSource.LocalBuiltin)
     }
   }
-  void refreshMarket();
-});
+  void refreshMarket()
+})
 
 onUnmounted(() => {
   // 作废进行中的请求，避免离开页面后回写
-  loadGeneration += 1;
-});
+  loadGeneration += 1
+})
 </script>
 
 <template>
@@ -399,24 +393,14 @@ onUnmounted(() => {
       </div>
 
       <div class="skill-center-page__create-wrap" @click.stop>
-        <Button
-          size="sm"
-          class="skill-center-page__create-btn"
-          @click="toggleCreateMenu"
-        >
+        <Button size="sm" class="skill-center-page__create-btn" @click="toggleCreateMenu">
           <Icon icon="lucide:plus" class="skill-center-page__create-icon" />
           新建技能
         </Button>
         <div v-if="createMenuOpen" class="skill-center-page__create-menu">
-          <button
-            type="button"
-            class="skill-center-page__create-menu-item"
-            @click="createSkill"
-          >
+          <button type="button" class="skill-center-page__create-menu-item" @click="createSkill">
             <span class="skill-center-page__create-menu-title">创建技能</span>
-            <span class="skill-center-page__create-menu-desc"
-              >通过对话描述创建</span
-            >
+            <span class="skill-center-page__create-menu-desc">通过对话描述创建</span>
           </button>
           <button
             type="button"
@@ -424,9 +408,7 @@ onUnmounted(() => {
             @click="openUploadDialog"
           >
             <span class="skill-center-page__create-menu-title">上传技能</span>
-            <span class="skill-center-page__create-menu-desc"
-              >导入 zip 或 md 文件</span
-            >
+            <span class="skill-center-page__create-menu-desc">导入 zip 或 md 文件</span>
           </button>
         </div>
       </div>
@@ -469,7 +451,7 @@ onUnmounted(() => {
       >
         <img :src="skillLogo" alt="" class="skill-center-page__state-logo" />
         <p class="skill-center-page__state-text">
-          {{ searchQuery ? "未找到匹配的技能" : "暂无技能" }}
+          {{ searchQuery ? '未找到匹配的技能' : '暂无技能' }}
         </p>
       </div>
 
@@ -487,7 +469,7 @@ onUnmounted(() => {
             </h3>
           </div>
           <p class="skill-center-page__card-desc">
-            {{ skill.description || "暂无描述" }}
+            {{ skill.description || '暂无描述' }}
           </p>
           <div class="skill-center-page__card-actions" @click.stop>
             <template v-if="isInstalled(skill)">
@@ -516,16 +498,13 @@ onUnmounted(() => {
               :disabled="isInstalling(skill)"
               @click="handleInstall(skill)"
             >
-              {{ isInstalling(skill) ? "安装中" : "安装" }}
+              {{ isInstalling(skill) ? '安装中' : '安装' }}
             </Button>
           </div>
         </article>
       </div>
     </div>
 
-    <SkillUploadDialog
-      v-model:open="uploadDialogOpen"
-      @installed="onSkillUploaded"
-    />
+    <SkillUploadDialog v-model:open="uploadDialogOpen" @installed="onSkillUploaded" />
   </div>
 </template>

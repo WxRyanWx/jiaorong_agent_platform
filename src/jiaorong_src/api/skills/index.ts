@@ -41,11 +41,32 @@ export async function fetchSkillMarketCatalog(): Promise<SkillMarketCatalogResul
 }
 
 /**
- * 按远程技能 ID 获取详情。
- *
- * 后端 URL、请求方法和响应包裹格式尚未确定，因此当前不发送网络请求。契约确定后在
- * 本函数内接入真实请求，页面无需再调整 skillId 判断和详情消费逻辑。
+ * 按远程技能 ID（如 s51 / s100）获取详情。
+ * 拦截器已解成 body（{ code, data }），这里只取 data 并映射页面字段。
  */
-export async function getSkillDetail(_skillId: string): Promise<SkillDetailResponse | null> {
-  return null
+export async function getSkillDetail(remoteId: string): Promise<SkillDetailResponse | null> {
+  const id = remoteId.trim()
+  if (!id) return null
+
+  const res = await request.get(`deepchat-ext/skill/${encodeURIComponent(id)}`)
+  const data = res?.data
+  if (!data || typeof data !== 'object') return null
+
+  const raw = data as Record<string, unknown>
+  const alias = typeof raw.alias === 'string' ? raw.alias.trim() : ''
+  const rawName = typeof raw.name === 'string' ? raw.name.trim() : ''
+  const name = alias || rawName
+  const description = typeof raw.desc === 'string' ? raw.desc : ''
+  const tryPrompts = Array.isArray(raw.exampleTemplateList)
+    ? raw.exampleTemplateList.filter(
+        (item): item is string => typeof item === 'string' && item.trim().length > 0
+      )
+    : []
+
+  return {
+    id: typeof raw.id === 'string' && raw.id.trim() ? raw.id.trim() : id,
+    name,
+    description,
+    tryPrompts
+  }
 }
