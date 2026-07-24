@@ -1,5 +1,6 @@
 import { zipSync, unzipSync, strFromU8, strToU8 } from 'fflate'
 import type { SkillInstallResult } from '@shared/types/skill'
+import { useLegacyPresenter } from '@api/legacy/presenters'
 
 /**
  * 后端原始技能 SKILL.md 格式（skills 2 扫描结果）：
@@ -391,14 +392,102 @@ async function writePatchedSkillZip(
   })
 }
 
+const MAX_FOLDER_PACK_FILES = 500
+
+type FolderFileEntry = { absPath: string; zipKey: string; isSkillMd: boolean }
+
+/**
+ * 通过已有 workspacePresenter 列目录（不改宿主），打包文件夹并规范化 SKILL.md，保留附属文件。
+ */
+async function writePatchedFolderZip(
+  folderPath: string,
+  writeTemp: InstallDeps['writeTemp']
+): Promise<string> {
+  const workspacePresenter = useLegacyPresenter('workspacePresenter', { safeCall: false })
+  const root = folderPath.replace(/[/\\]+$/, '')
+  const rootName = sanitizeSkillName(pathBasename(root))
+
+  await workspacePresenter.registerWorkspace(root)
+  try {
+    const files: FolderFileEntry[] = []
+
+    const walk = async (dir: string, relParts: string[]): Promise<void> => {
+      if (files.length >= MAX_FOLDER_PACK_FILES) return
+      const nodes = await workspacePresenter.readDirectory(dir)
+      for (const node of nodes) {
+        if (files.length >= MAX_FOLDER_PACK_FILES) break
+        if (node.isDirectory) {
+          await walk(node.path, [...relParts, node.name])
+          continue
+        }
+        const zipKey = [rootName, ...relParts, node.name].join('/')
+        files.push({
+          absPath: node.path,
+          zipKey,
+          isSkillMd: isSkillMdFileName(node.name)
+        })
+      }
+    }
+
+    await walk(root, [])
+
+    const skillMd = files.find((f) => f.isSkillMd)
+    if (!skillMd) {
+      throw new Error('SKILL.md not found in folder')
+    }
+
+    const entries: Record<string, Uint8Array> = {}
+    for (const file of files) {
+      if (file.isSkillMd) {
+        const original = await readLocalText(file.absPath)
+        entries[file.zipKey] = strToU8(ensureSkillMarkdown(original, rootName))
+      } else {
+        entries[file.zipKey] = await readLocalBinary(file.absPath)
+      }
+    }
+
+    const zipped = zipSync(entries)
+    return writeTemp({
+      name: `${rootName}.zip`,
+      content: zipped
+    })
+  } finally {
+    try {
+      await workspacePresenter.unregisterWorkspace(root)
+    } catch {
+      // ignore cleanup errors
+    }
+  }
+}
+
 function toFileUrl(filePath: string): string {
   if (filePath.startsWith('file:')) return filePath
-  const abs = filePath.startsWith('/') ? filePath : `/${filePath}`
-  // 编码空格等字符，兼容 "skills 2" 这类路径
-  return `file://${abs
+
+  // Windows: C:\a\b → C:/a/b；统一正斜杠后再拼 file URL
+  let normalized = filePath.replace(/\\/g, '/')
+  if (/^[a-zA-Z]:\//.test(normalized)) {
+    // file:///C:/Users/...
+    normalized = `/${normalized}`
+  } else if (!normalized.startsWith('/')) {
+    normalized = `/${normalized}`
+  }
+
+  const encoded = normalized
     .split('/')
-    .map((seg, i) => (i === 0 && seg === '' ? '' : encodeURIComponent(seg)))
-    .join('/')}`
+    .map((seg) => {
+      if (seg === '') return ''
+      // 保留盘符冒号，避免 C: 被编成 C%3A
+      if (/^[a-zA-Z]:$/.test(seg)) return seg
+      return encodeURIComponent(seg)
+    })
+    .join('/')
+
+  return `file://${encoded}`
+}
+
+/** @internal 导出供单测 */
+export function toFileUrlForTest(filePath: string): string {
+  return toFileUrl(filePath)
 }
 
 /** 读取本机绝对路径文本（不走 file.readFile，避免 Absolute paths are not allowed） */
@@ -503,6 +592,12 @@ export async function installSkillFromMarkdown(
     return params.installFromFolder(parentDir, { overwrite: params.overwrite })
   }
 
+  // SKILL.md 需规范化：打包整个父目录，保留 scripts 等附属文件
+  if (isSkillMdFileName(fileName)) {
+    const tempZip = await writePatchedFolderZip(parentDir, params.writeTemp)
+    return params.installFromZip(tempZip, { overwrite: params.overwrite })
+  }
+
   const tempZip = await writePatchedSkillZip(folderHint, content, params.writeTemp)
   return params.installFromZip(tempZip, { overwrite: params.overwrite })
 }
@@ -519,11 +614,7 @@ export async function installSkillFromFolderCompat(
   try {
     const content = await readLocalText(skillMdPath)
     if (needsSkillMarkdownNormalize(content)) {
-      const tempZip = await writePatchedSkillZip(
-        pathBasename(folderPath),
-        content,
-        params.writeTemp
-      )
+      const tempZip = await writePatchedFolderZip(folderPath, params.writeTemp)
       return params.installFromZip(tempZip, { overwrite: params.overwrite })
     }
   } catch {
@@ -536,8 +627,7 @@ export async function installSkillFromFolderCompat(
   }
 
   try {
-    const content = await readLocalText(skillMdPath)
-    const tempZip = await writePatchedSkillZip(pathBasename(folderPath), content, params.writeTemp)
+    const tempZip = await writePatchedFolderZip(folderPath, params.writeTemp)
     return params.installFromZip(tempZip, { overwrite: params.overwrite })
   } catch {
     return result

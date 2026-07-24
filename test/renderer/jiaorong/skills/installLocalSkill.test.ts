@@ -1,8 +1,9 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   ensureSkillMarkdown,
   fallbackNameFromRemoteZipUrl,
-  needsSkillMarkdownNormalize
+  needsSkillMarkdownNormalize,
+  toFileUrlForTest
 } from '../../../../src/jiaorong_src/skills/lib/installLocalSkill'
 
 describe('installLocalSkill frontmatter compat', () => {
@@ -31,5 +32,15 @@ describe('installLocalSkill frontmatter compat', () => {
         'https://huabei-2.zos.ctyun.cn/deepchat-service/24-bills-building-quantities-1.0.0.zip'
       )
     ).toBe('24-bills-building-quantities')
+  })
+
+  it('builds file URLs for posix and windows paths', () => {
+    expect(toFileUrlForTest('/Users/me/skills 2/a.md')).toBe('file:///Users/me/skills%202/a.md')
+    expect(toFileUrlForTest('C:\\Users\\me\\skill\\SKILL.md')).toBe(
+      'file:///C:/Users/me/skill/SKILL.md'
+    )
+    expect(toFileUrlForTest('C:/Users/me/skill/SKILL.md')).toBe(
+      'file:///C:/Users/me/skill/SKILL.md'
+    )
   })
 })

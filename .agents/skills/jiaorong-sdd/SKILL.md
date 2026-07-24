@@ -1,5 +1,5 @@
 ---
-name: deepchat-sdd
+name: jiaorong-sdd
 description: Use for any JiaorongAI code, configuration, documentation, feature, issue fix, refactor, or architecture change before implementation. This skill enforces the project SDD workflow: classify the goal, create or update spec.md, plan.md, and tasks.md under docs/features, docs/issues, or docs/architecture, resolve NEEDS CLARIFICATION items, then implement and validate.
 ---
 

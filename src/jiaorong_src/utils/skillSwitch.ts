@@ -44,7 +44,9 @@ export type SkillSwitchEventDetail = {
   status: SkillSwitchStatusType
 }
 
-function readLocalMap(): SkillSwitchMap {
+let didHydrateFromConfig = false
+
+function readRawLocalMap(): SkillSwitchMap {
   try {
     const raw = localStorage.getItem(JIAORONG_SKILL_SWITCH_STORAGE_KEY)
     if (!raw) return {}
@@ -52,6 +54,44 @@ function readLocalMap(): SkillSwitchMap {
   } catch {
     return {}
   }
+}
+
+/**
+ * 首次读取时与主进程 config 对齐：
+ * - config 有数据 → 写入 local（UI 与主进程过滤一致）
+ * - config 空而 local 有 → 回写 config（修复曾写入失败）
+ */
+function hydrateSkillSwitchMapFromConfig(): void {
+  if (didHydrateFromConfig) return
+  didHydrateFromConfig = true
+  if (typeof localStorage === 'undefined') return
+
+  try {
+    const configPresenter = useLegacyPresenter('configPresenter')
+    const fromConfig = normalizeSkillSwitchMap(
+      configPresenter.getSetting(JIAORONG_SKILL_SWITCH_SETTING_KEY)
+    )
+    const local = readRawLocalMap()
+    const configEmpty = Object.keys(fromConfig).length === 0
+    const localEmpty = Object.keys(local).length === 0
+
+    if (configEmpty && localEmpty) return
+
+    if (configEmpty && !localEmpty) {
+      persistToConfig(local)
+      return
+    }
+
+    // config 为准，覆盖 local，保证与主进程注入过滤一致
+    writeLocalMap(fromConfig)
+  } catch (error) {
+    console.warn('[jiaorong/skillSwitch] Failed to hydrate switch map from config:', error)
+  }
+}
+
+function readLocalMap(): SkillSwitchMap {
+  hydrateSkillSwitchMapFromConfig()
+  return readRawLocalMap()
 }
 
 function writeLocalMap(map: SkillSwitchMap): void {

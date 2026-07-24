@@ -24,6 +24,9 @@ export type AuthResponseCallback = (code: number) => void
 /** 登录体系 8000000；技能市场等业务接口常用 200 */
 const API_SUCCESS_CODES = new Set([200, 8000000])
 
+/** 需跳转登录但不强制清 token 的业务码（账号禁用等） */
+const AUTH_REDIRECT_CODES = new Set([-8000150])
+
 export const responseFn = (response: AxiosResponse, callback: () => void) => {
   if (response.config?.headers?.dontShowMessage) {
     return response.data
@@ -51,14 +54,21 @@ export const responseErrorFn = (error: AxiosError, callback: AuthResponseCallbac
     clearAuthStorage()
     return Promise.reject(error)
   }
-  const responseData = error.response?.data as { code?: number; message?: string } | undefined
-  if (error.response && responseData?.code && responseData.code !== 800000) {
-    if (responseData.code === -8000150) {
+  const responseData = error.response?.data as
+    | { code?: number | string; message?: string }
+    | undefined
+  const bizCode = responseData?.code
+  if (
+    error.response &&
+    bizCode != null &&
+    bizCode !== '' &&
+    !API_SUCCESS_CODES.has(Number(bizCode))
+  ) {
+    if (AUTH_REDIRECT_CODES.has(Number(bizCode))) {
+      // 账号类业务码：跳登录，不清本地 token（与历史 -8000150 行为一致）
       callback(1)
-    } else {
-      callback(2)
-      clearAuthStorage()
     }
+    // 其它业务/HTTP 错误：仅提示，避免误清登录态
     callback(3)
   } else {
     callback(4)
