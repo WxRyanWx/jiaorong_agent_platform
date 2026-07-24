@@ -43,3 +43,4 @@
 | H37 | `src/renderer/settings/components/DisplaySettings.vue` | 注释隐藏外观页「主题」设置块 | brand theme | 低 | 合上游时需保留 |
 | H38 | `WindowSideBar.vue` | `window-sidebar-shell` / `window-sidebar-empty-*` / `window-sidebar-search-input` / `window-sidebar-action-btn` | brand theme | 低 | 仅挂 class，样式在 theme.less |
 | H39 | `ChatInputToolbar.vue` / `ChatInputBox.vue` | `chat-input-toolbar-icon` / `chat-input-box` | brand theme | 低 | 仅挂 class，样式在 theme.less |
+| H40 | `src/renderer/src/i18n/*/routes.json` | 技能详情文案键 | skills detail | 低 | skillsBack / Market / UseSkill / OpenFolder / Delete / Try* / DeleteConfirm* |
