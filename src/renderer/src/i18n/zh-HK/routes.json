@@ -26,8 +26,6 @@
   "settings-plugins": "插件",
   "settings-overview": "設定概覽",
   "skillsCreateButton": "新建技能",
-  "skillsCreateAction": "創建技能",
-  "skillsCreateButton": "新建技能",
   "skillsCreateAction": "建立技能",
   "skillsPageTitle": "技能中心",
   "skillsPageSubtitle": "探索並管理可在通用對話中使用的技能。",
@@ -56,5 +54,14 @@
   "skillsLocalSource": "使用者安裝",
   "skillsNoDescription": "該技能暫無描述",
   "skillsUninstallSuccess": "已解除安裝",
-  "skillsUninstallFailed": "解除安裝失敗"
+  "skillsUninstallFailed": "解除安裝失敗",
+  "skillsBack": "返回",
+  "skillsUseSkill": "使用技能",
+  "skillsOpenFolder": "開啟資料夾",
+  "skillsDelete": "刪除技能",
+  "skillsTrySubtitle": "用本技能解決一下問題",
+  "skillsTryLink": "試一試",
+  "skillsMarket": "技能市場",
+  "skillsDeleteConfirmTitle": "確認刪除",
+  "skillsDeleteConfirmDescription": "確定刪除技能「{name}」嗎？刪除後不可恢復。"
 }

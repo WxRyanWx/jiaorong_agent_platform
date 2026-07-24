@@ -27,8 +27,6 @@
   "settings-scheduled-tasks": "Attività pianificate",
   "skillsCreateButton": "New skill",
   "skillsCreateAction": "Create skill",
-  "skillsCreateButton": "New skill",
-  "skillsCreateAction": "Create skill",
   "skillsPageTitle": "Skill Center",
   "skillsPageSubtitle": "Discover and manage skills available in general chat.",
   "skillsInstalled": "Installed",
@@ -56,5 +54,14 @@
   "skillsLocalSource": "User installed",
   "skillsNoDescription": "No description available",
   "skillsUninstallSuccess": "Uninstalled",
-  "skillsUninstallFailed": "Uninstall failed"
+  "skillsUninstallFailed": "Uninstall failed",
+  "skillsBack": "Back",
+  "skillsUseSkill": "Use skill",
+  "skillsOpenFolder": "Open folder",
+  "skillsDelete": "Delete skill",
+  "skillsTrySubtitle": "Solve a problem with this skill",
+  "skillsTryLink": "Try it",
+  "skillsMarket": "Skill market",
+  "skillsDeleteConfirmTitle": "Confirm deletion",
+  "skillsDeleteConfirmDescription": "Delete skill \"{name}\"? This cannot be undone."
 }

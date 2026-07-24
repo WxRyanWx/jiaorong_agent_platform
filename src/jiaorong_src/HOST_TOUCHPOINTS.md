@@ -37,3 +37,10 @@
 | H31 | `src/shared/contracts/routes/skills.routes.ts` / `types/skill.ts` / `src/main/presenter/skillPresenter/index.ts` / `src/main/routes/index.ts` / `src/renderer/api/SkillClient.ts` | 按已发现技能元数据打开或卸载实际 `skillRoot`，并读取真实 `SKILL.md` | skills | 中 | `skills.openFolder` 不传名称时兼容原有打开技能根目录行为；卸载校验目录位于受管技能根目录内；读取复用 Presenter 的文件大小限制 |
 | H32 | `skillPresenter/index.ts` | 内置技能升级时整包覆盖同步 | builtin sync | 中 | 内置文件有差异则 `overwrite: true`；内置由应用管理 |
 | H33 | `tsconfig.node.json` | include `skillSwitchCore.ts` | skill switch | 低 | 主进程可 typecheck 纯逻辑工具 |
+| H34 | `src/renderer/src/main.ts` | 静态 `import '@jiaorong/brand/theme.less'` | brand theme | 低 | 私有主题覆盖；勿经 idle mount |
+| H35 | `src/renderer/src/components/AppBar.vue` | `app-bar` class | brand theme | 低 | theme.less 标题栏背景 |
+| H36 | `src/renderer/src/components/WindowSideBar.vue` | 注释隐藏左侧主题切换按钮 | brand theme | 低 | 合上游时需保留 |
+| H37 | `src/renderer/settings/components/DisplaySettings.vue` | 注释隐藏外观页「主题」设置块 | brand theme | 低 | 合上游时需保留 |
+| H38 | `WindowSideBar.vue` | `window-sidebar-shell` / `window-sidebar-empty-*` / `window-sidebar-search-input` / `window-sidebar-action-btn` | brand theme | 低 | 仅挂 class，样式在 theme.less |
+| H39 | `ChatInputToolbar.vue` / `ChatInputBox.vue` | `chat-input-toolbar-icon` / `chat-input-box` | brand theme | 低 | 仅挂 class，样式在 theme.less |
+| H40 | `src/renderer/src/i18n/*/routes.json` | 技能详情文案键 | skills detail | 低 | skillsBack / Market / UseSkill / OpenFolder / Delete / Try* / DeleteConfirm* |

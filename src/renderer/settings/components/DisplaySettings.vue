@@ -12,13 +12,13 @@
             class="flex items-center gap-2 text-sm font-medium shrink-0 min-w-[220px]"
             :dir="languageStore.dir"
           >
-            <Icon icon="lucide:languages" class="w-4 h-4 text-muted-foreground" />
+            <Icon icon="lucide:languages" class="w-4 h-4 text-muted-foreground"/>
             <span class="truncate">{{ t('settings.common.language') }}</span>
           </span>
           <div class="ml-auto w-auto">
             <Select v-model="selectedLanguage">
               <SelectTrigger data-testid="language-select" class="h-8!">
-                <SelectValue :placeholder="t('settings.common.languageSelect')" />
+                <SelectValue :placeholder="t('settings.common.languageSelect')"/>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem
@@ -36,143 +36,143 @@
       </div>
 
       <!-- Theme settings -->
-      <div class="flex flex-col gap-2 px-2 py-2">
-        <div class="flex items-center gap-3">
-          <span
-            class="flex items-center gap-2 text-sm font-medium shrink-0 min-w-[220px]"
-            :dir="languageStore.dir"
-          >
-            <Icon icon="lucide:sun-moon" class="w-4 h-4 text-muted-foreground" />
-            <span class="truncate">{{ t('settings.common.theme') }}</span>
-          </span>
-          <span class="ml-auto text-xs text-muted-foreground">
-            {{ t('settings.common.themeSelect') }}
-          </span>
-        </div>
-        <div class="flex flex-wrap gap-3">
-          <button
-            v-for="option in themeOptions"
-            :key="option.value"
-            type="button"
-            data-testid="theme-toggle"
-            :data-theme-mode="option.value"
-            class="group relative flex w-full max-w-[120px] basis-[120px] flex-col items-center text-left outline-none transition disabled:cursor-not-allowed disabled:opacity-80"
-            :aria-pressed="themeMode === option.value"
-            :disabled="isUpdatingTheme"
-            @click="selectThemeMode(option.value)"
-          >
-            <div
-              :class="[
-                'relative h-28 w-full rounded-xl border transition-all duration-200',
-                themeMode === option.value
-                  ? 'border-primary shadow-[0_18px_36px_-20px_rgba(59,130,246,0.7)] ring-2 ring-primary/30'
-                  : 'border-border/70 bg-background/30 group-hover:border-muted-foreground/60 group-hover:bg-background/50'
-              ]"
-            >
-              <span
-                v-if="themeMode === option.value"
-                class="absolute right-4 top-4 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm shadow-primary/30"
-              >
-                <Icon icon="lucide:check" class="h-3.5 w-3.5" />
-              </span>
-              <div class="absolute inset-2 rounded-[14px]">
-                <template v-if="option.value !== 'system'">
-                  <div
-                    :class="[
-                      'flex h-full w-full flex-col overflow-hidden rounded-[12px] border',
-                      themePreviewStyles[option.value].window
-                    ]"
-                  >
-                    <div
-                      :class="[
-                        'flex items-center gap-1 rounded-t-[12px] border-b px-2.5 py-1.5',
-                        themePreviewStyles[option.value].toolbar
-                      ]"
-                    >
-                      <span class="h-2 w-2 rounded-full bg-red-400/90"></span>
-                      <span class="h-2 w-2 rounded-full bg-amber-400/90"></span>
-                      <span class="h-2 w-2 rounded-full bg-emerald-400/90"></span>
-                    </div>
-                    <div class="flex flex-1">
-                      <div
-                        :class="[
-                          'flex w-14 shrink-0 flex-col gap-1.5 border-r p-2',
-                          themePreviewStyles[option.value].sidebar
-                        ]"
-                      >
-                        <span
-                          v-for="index in 3"
-                          :key="'sidebar-' + index"
-                          :class="[
-                            'h-2 rounded-full',
-                            index === 1
-                              ? themePreviewStyles[option.value].accent
-                              : themePreviewStyles[option.value].muted
-                          ]"
-                        ></span>
-                      </div>
-                      <div
-                        :class="[
-                          'flex flex-1 flex-col gap-1.5 p-2.5',
-                          themePreviewStyles[option.value].content
-                        ]"
-                      >
-                        <span
-                          v-for="index in 3"
-                          :key="'content-' + index"
-                          :class="[
-                            'h-2.5 rounded-full',
-                            index === 1
-                              ? themePreviewStyles[option.value].accent
-                              : themePreviewStyles[option.value].text
-                          ]"
-                        ></span>
-                        <div
-                          :class="[
-                            'mt-auto h-2 w-1/2 rounded-full',
-                            themePreviewStyles[option.value].muted
-                          ]"
-                        ></div>
-                      </div>
-                    </div>
-                  </div>
-                </template>
-                <template v-else>
-                  <div
-                    class="grid h-full w-full grid-cols-2 overflow-hidden rounded-[12px] bg-gradient-to-br from-slate-900/70 via-background/80 to-white/90"
-                  >
-                    <div class="flex flex-col gap-1.5 bg-slate-950/80 p-2">
-                      <span
-                        class="flex items-center gap-1 text-[10px] font-medium text-slate-200/90"
-                      >
-                        <span class="h-2 w-2 rounded-full bg-sky-400/80"></span>
-                        Dark
-                      </span>
-                      <span class="h-2 rounded-full bg-sky-400/70"></span>
-                      <span class="h-2 rounded-full bg-slate-700/70"></span>
-                      <span class="h-2 rounded-full bg-slate-700/70"></span>
-                      <div class="mt-auto h-2 w-1/2 rounded-full bg-slate-800/70"></div>
-                    </div>
-                    <div class="flex flex-col gap-1.5 bg-white/95 p-2">
-                      <span class="flex items-center gap-1 text-[10px] font-medium text-slate-600">
-                        <span class="h-2 w-2 rounded-full bg-blue-500/70"></span>
-                        Light
-                      </span>
-                      <span class="h-2 rounded-full bg-blue-500/60"></span>
-                      <span class="h-2 rounded-full bg-slate-200/80"></span>
-                      <span class="h-2 rounded-full bg-slate-200/80"></span>
-                      <div class="mt-auto h-2 w-1/2 rounded-full bg-slate-300/80"></div>
-                    </div>
-                  </div>
-                </template>
-              </div>
-            </div>
-            <div class="mt-2 text-xs font-medium text-foreground">
-              {{ option.label }}
-            </div>
-          </button>
-        </div>
-      </div>
+      <!--      <div class="flex flex-col gap-2 px-2 py-2">-->
+      <!--        <div class="flex items-center gap-3">-->
+      <!--          <span-->
+      <!--            class="flex items-center gap-2 text-sm font-medium shrink-0 min-w-[220px]"-->
+      <!--            :dir="languageStore.dir"-->
+      <!--          >-->
+      <!--            <Icon icon="lucide:sun-moon" class="w-4 h-4 text-muted-foreground" />-->
+      <!--            <span class="truncate">{{ t('settings.common.theme') }}</span>-->
+      <!--          </span>-->
+      <!--          <span class="ml-auto text-xs text-muted-foreground">-->
+      <!--            {{ t('settings.common.themeSelect') }}-->
+      <!--          </span>-->
+      <!--        </div>-->
+      <!--        <div class="flex flex-wrap gap-3">-->
+      <!--          <button-->
+      <!--            v-for="option in themeOptions"-->
+      <!--            :key="option.value"-->
+      <!--            type="button"-->
+      <!--            data-testid="theme-toggle"-->
+      <!--            :data-theme-mode="option.value"-->
+      <!--            class="group relative flex w-full max-w-[120px] basis-[120px] flex-col items-center text-left outline-none transition disabled:cursor-not-allowed disabled:opacity-80"-->
+      <!--            :aria-pressed="themeMode === option.value"-->
+      <!--            :disabled="isUpdatingTheme"-->
+      <!--            @click="selectThemeMode(option.value)"-->
+      <!--          >-->
+      <!--            <div-->
+      <!--              :class="[-->
+      <!--                'relative h-28 w-full rounded-xl border transition-all duration-200',-->
+      <!--                themeMode === option.value-->
+      <!--                  ? 'border-primary shadow-[0_18px_36px_-20px_rgba(59,130,246,0.7)] ring-2 ring-primary/30'-->
+      <!--                  : 'border-border/70 bg-background/30 group-hover:border-muted-foreground/60 group-hover:bg-background/50'-->
+      <!--              ]"-->
+      <!--            >-->
+      <!--              <span-->
+      <!--                v-if="themeMode === option.value"-->
+      <!--                class="absolute right-4 top-4 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm shadow-primary/30"-->
+      <!--              >-->
+      <!--                <Icon icon="lucide:check" class="h-3.5 w-3.5" />-->
+      <!--              </span>-->
+      <!--              <div class="absolute inset-2 rounded-[14px]">-->
+      <!--                <template v-if="option.value !== 'system'">-->
+      <!--                  <div-->
+      <!--                    :class="[-->
+      <!--                      'flex h-full w-full flex-col overflow-hidden rounded-[12px] border',-->
+      <!--                      themePreviewStyles[option.value].window-->
+      <!--                    ]"-->
+      <!--                  >-->
+      <!--                    <div-->
+      <!--                      :class="[-->
+      <!--                        'flex items-center gap-1 rounded-t-[12px] border-b px-2.5 py-1.5',-->
+      <!--                        themePreviewStyles[option.value].toolbar-->
+      <!--                      ]"-->
+      <!--                    >-->
+      <!--                      <span class="h-2 w-2 rounded-full bg-red-400/90"></span>-->
+      <!--                      <span class="h-2 w-2 rounded-full bg-amber-400/90"></span>-->
+      <!--                      <span class="h-2 w-2 rounded-full bg-emerald-400/90"></span>-->
+      <!--                    </div>-->
+      <!--                    <div class="flex flex-1">-->
+      <!--                      <div-->
+      <!--                        :class="[-->
+      <!--                          'flex w-14 shrink-0 flex-col gap-1.5 border-r p-2',-->
+      <!--                          themePreviewStyles[option.value].sidebar-->
+      <!--                        ]"-->
+      <!--                      >-->
+      <!--                        <span-->
+      <!--                          v-for="index in 3"-->
+      <!--                          :key="'sidebar-' + index"-->
+      <!--                          :class="[-->
+      <!--                            'h-2 rounded-full',-->
+      <!--                            index === 1-->
+      <!--                              ? themePreviewStyles[option.value].accent-->
+      <!--                              : themePreviewStyles[option.value].muted-->
+      <!--                          ]"-->
+      <!--                        ></span>-->
+      <!--                      </div>-->
+      <!--                      <div-->
+      <!--                        :class="[-->
+      <!--                          'flex flex-1 flex-col gap-1.5 p-2.5',-->
+      <!--                          themePreviewStyles[option.value].content-->
+      <!--                        ]"-->
+      <!--                      >-->
+      <!--                        <span-->
+      <!--                          v-for="index in 3"-->
+      <!--                          :key="'content-' + index"-->
+      <!--                          :class="[-->
+      <!--                            'h-2.5 rounded-full',-->
+      <!--                            index === 1-->
+      <!--                              ? themePreviewStyles[option.value].accent-->
+      <!--                              : themePreviewStyles[option.value].text-->
+      <!--                          ]"-->
+      <!--                        ></span>-->
+      <!--                        <div-->
+      <!--                          :class="[-->
+      <!--                            'mt-auto h-2 w-1/2 rounded-full',-->
+      <!--                            themePreviewStyles[option.value].muted-->
+      <!--                          ]"-->
+      <!--                        ></div>-->
+      <!--                      </div>-->
+      <!--                    </div>-->
+      <!--                  </div>-->
+      <!--                </template>-->
+      <!--                <template v-else>-->
+      <!--                  <div-->
+      <!--                    class="grid h-full w-full grid-cols-2 overflow-hidden rounded-[12px] bg-gradient-to-br from-slate-900/70 via-background/80 to-white/90"-->
+      <!--                  >-->
+      <!--                    <div class="flex flex-col gap-1.5 bg-slate-950/80 p-2">-->
+      <!--                      <span-->
+      <!--                        class="flex items-center gap-1 text-[10px] font-medium text-slate-200/90"-->
+      <!--                      >-->
+      <!--                        <span class="h-2 w-2 rounded-full bg-sky-400/80"></span>-->
+      <!--                        Dark-->
+      <!--                      </span>-->
+      <!--                      <span class="h-2 rounded-full bg-sky-400/70"></span>-->
+      <!--                      <span class="h-2 rounded-full bg-slate-700/70"></span>-->
+      <!--                      <span class="h-2 rounded-full bg-slate-700/70"></span>-->
+      <!--                      <div class="mt-auto h-2 w-1/2 rounded-full bg-slate-800/70"></div>-->
+      <!--                    </div>-->
+      <!--                    <div class="flex flex-col gap-1.5 bg-white/95 p-2">-->
+      <!--                      <span class="flex items-center gap-1 text-[10px] font-medium text-slate-600">-->
+      <!--                        <span class="h-2 w-2 rounded-full bg-blue-500/70"></span>-->
+      <!--                        Light-->
+      <!--                      </span>-->
+      <!--                      <span class="h-2 rounded-full bg-blue-500/60"></span>-->
+      <!--                      <span class="h-2 rounded-full bg-slate-200/80"></span>-->
+      <!--                      <span class="h-2 rounded-full bg-slate-200/80"></span>-->
+      <!--                      <div class="mt-auto h-2 w-1/2 rounded-full bg-slate-300/80"></div>-->
+      <!--                    </div>-->
+      <!--                  </div>-->
+      <!--                </template>-->
+      <!--              </div>-->
+      <!--            </div>-->
+      <!--            <div class="mt-2 text-xs font-medium text-foreground">-->
+      <!--              {{ option.label }}-->
+      <!--            </div>-->
+      <!--          </button>-->
+      <!--        </div>-->
+      <!--      </div>-->
 
       <!-- System notifications -->
       <div class="flex flex-col gap-2 px-2 py-2">
@@ -181,7 +181,7 @@
             class="flex items-center gap-2 text-sm font-medium shrink-0 min-w-[220px]"
             :dir="languageStore.dir"
           >
-            <Icon icon="lucide:bell" class="w-4 h-4 text-muted-foreground" />
+            <Icon icon="lucide:bell" class="w-4 h-4 text-muted-foreground"/>
             <span class="truncate">{{ t('settings.common.notifications') }}</span>
           </span>
           <div class="ml-auto">
@@ -203,7 +203,7 @@
           class="flex items-center gap-2 text-sm font-medium shrink-0 min-w-[220px]"
           :dir="languageStore.dir"
         >
-          <Icon icon="lucide:a-large-small" class="w-4 h-4 text-muted-foreground" />
+          <Icon icon="lucide:a-large-small" class="w-4 h-4 text-muted-foreground"/>
           <span class="truncate">{{ t('settings.display.fontSize') }}</span>
         </span>
         <ButtonGroup class="flex-wrap">
@@ -220,7 +220,7 @@
         </ButtonGroup>
       </div>
 
-      <FontSettingsSection />
+      <FontSettingsSection/>
 
       <!-- Content protection toggle -->
       <div class="flex items-center gap-3 px-2 py-2">
@@ -228,7 +228,7 @@
           class="flex items-center gap-2 text-sm font-medium shrink-0 min-w-[220px]"
           :dir="languageStore.dir"
         >
-          <Icon icon="lucide:monitor" class="w-4 h-4 text-muted-foreground" />
+          <Icon icon="lucide:monitor" class="w-4 h-4 text-muted-foreground"/>
           <span class="truncate">{{ t('settings.common.contentProtection') }}</span>
         </span>
         <div class="ml-auto">
@@ -247,7 +247,7 @@
             class="flex items-center gap-2 text-sm font-medium shrink-0 min-w-[220px]"
             :dir="languageStore.dir"
           >
-            <Icon icon="lucide:mouse-pointer-click" class="w-4 h-4 text-muted-foreground" />
+            <Icon icon="lucide:mouse-pointer-click" class="w-4 h-4 text-muted-foreground"/>
             <span class="truncate">{{ t('settings.display.floatingButton') }}</span>
           </span>
           <div class="ml-auto">
@@ -298,8 +298,8 @@
 </template>
 
 <script setup lang="ts">
-import { useI18n } from 'vue-i18n'
-import { Icon } from '@iconify/vue'
+import {useI18n} from 'vue-i18n'
+import {Icon} from '@iconify/vue'
 import {
   Select,
   SelectContent,
@@ -307,14 +307,14 @@ import {
   SelectTrigger,
   SelectValue
 } from '@shadcn/components/ui/select'
-import { ref, onMounted, watch, computed } from 'vue'
-import { storeToRefs } from 'pinia'
+import {ref, onMounted, watch, computed} from 'vue'
+import {storeToRefs} from 'pinia'
 
-import { FLOATING_BUTTON_AVAILABLE } from '@shared/featureFlags'
-import { useUiSettingsStore } from '@/stores/uiSettingsStore'
-import { useLanguageStore } from '@/stores/language'
-import { useFloatingButtonStore } from '@/stores/floatingButton'
-import { useThemeStore, type ThemeMode } from '@/stores/theme'
+import {FLOATING_BUTTON_AVAILABLE} from '@shared/featureFlags'
+import {useUiSettingsStore} from '@/stores/uiSettingsStore'
+import {useLanguageStore} from '@/stores/language'
+import {useFloatingButtonStore} from '@/stores/floatingButton'
+import {useThemeStore, type ThemeMode} from '@/stores/theme'
 import {
   Dialog,
   DialogContent,
@@ -323,9 +323,9 @@ import {
   DialogHeader,
   DialogTitle
 } from '@shadcn/components/ui/dialog'
-import { Button } from '@shadcn/components/ui/button'
-import { ButtonGroup } from '@shadcn/components/ui/button-group'
-import { Switch } from '@shadcn/components/ui/switch'
+import {Button} from '@shadcn/components/ui/button'
+import {ButtonGroup} from '@shadcn/components/ui/button-group'
+import {Switch} from '@shadcn/components/ui/switch'
 import FontSettingsSection from './display/FontSettingsSection.vue'
 import SettingsPageShell from './control-center/SettingsPageShell.vue'
 
@@ -333,33 +333,33 @@ const languageStore = useLanguageStore()
 const uiSettingsStore = useUiSettingsStore()
 const floatingButtonStore = useFloatingButtonStore()
 const themeStore = useThemeStore()
-const { t } = useI18n()
-const { themeMode } = storeToRefs(themeStore)
+const {t} = useI18n()
+const {themeMode} = storeToRefs(themeStore)
 
 // --- Language Settings ---
 const selectedLanguage = ref('system')
 const languageOptions = [
-  { value: 'system', label: t('common.languageSystem') || 'System' },
-  { value: 'zh-CN', label: '简体中文' },
-  { value: 'en-US', label: 'English (US)' },
-  { value: 'zh-TW', label: '繁體中文（台灣）' },
-  { value: 'zh-HK', label: '繁體中文（香港）' },
-  { value: 'ko-KR', label: '한국어' },
-  { value: 'ru-RU', label: 'Русский' },
-  { value: 'ja-JP', label: '日本語' },
-  { value: 'fr-FR', label: 'Français' },
-  { value: 'fa-IR', label: 'فارسی (ایران)' },
-  { value: 'pt-BR', label: 'Português (Brasil)' },
-  { value: 'da-DK', label: 'Dansk' },
-  { value: 'he-IL', label: 'עברית (ישראל)' },
-  { value: 'es-ES', label: 'Español (España)' },
-  { value: 'de-DE', label: 'Deutsch (Deutschland)' },
-  { value: 'tr-TR', label: 'Türkçe' },
-  { value: 'id-ID', label: 'Bahasa Indonesia' },
-  { value: 'ms-MY', label: 'Bahasa Melayu' },
-  { value: 'it-IT', label: 'Italiano' },
-  { value: 'pl-PL', label: 'Polski' },
-  { value: 'vi-VN', label: 'Tiếng Việt' }
+  {value: 'system', label: t('common.languageSystem') || 'System'},
+  {value: 'zh-CN', label: '简体中文'},
+  {value: 'en-US', label: 'English (US)'},
+  {value: 'zh-TW', label: '繁體中文（台灣）'},
+  {value: 'zh-HK', label: '繁體中文（香港）'},
+  {value: 'ko-KR', label: '한국어'},
+  {value: 'ru-RU', label: 'Русский'},
+  {value: 'ja-JP', label: '日本語'},
+  {value: 'fr-FR', label: 'Français'},
+  {value: 'fa-IR', label: 'فارسی (ایران)'},
+  {value: 'pt-BR', label: 'Português (Brasil)'},
+  {value: 'da-DK', label: 'Dansk'},
+  {value: 'he-IL', label: 'עברית (ישראל)'},
+  {value: 'es-ES', label: 'Español (España)'},
+  {value: 'de-DE', label: 'Deutsch (Deutschland)'},
+  {value: 'tr-TR', label: 'Türkçe'},
+  {value: 'id-ID', label: 'Bahasa Indonesia'},
+  {value: 'ms-MY', label: 'Bahasa Melayu'},
+  {value: 'it-IT', label: 'Italiano'},
+  {value: 'pl-PL', label: 'Polski'},
+  {value: 'vi-VN', label: 'Tiếng Việt'}
 ]
 
 watch(selectedLanguage, async (newValue) => {
@@ -403,9 +403,9 @@ const themePreviewStyles: Record<
 }
 
 const themeOptions = computed(() => [
-  { value: 'light' as ThemeMode, label: t('settings.common.themeLight') },
-  { value: 'dark' as ThemeMode, label: t('settings.common.themeDark') },
-  { value: 'system' as ThemeMode, label: t('settings.common.themeSystem') }
+  {value: 'light' as ThemeMode, label: t('settings.common.themeLight')},
+  {value: 'dark' as ThemeMode, label: t('settings.common.themeDark')},
+  {value: 'system' as ThemeMode, label: t('settings.common.themeSystem')}
 ])
 
 const isUpdatingTheme = ref(false)

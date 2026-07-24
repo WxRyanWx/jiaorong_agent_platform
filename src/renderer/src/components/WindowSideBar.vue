@@ -159,24 +159,24 @@
         </Tooltip>
 
         <!-- Theme toggle -->
-        <Tooltip>
-          <TooltipTrigger as-child>
-            <Button
-              data-testid="window-sidebar-theme-toggle"
-              class="flex items-center justify-center w-9 h-9 rounded-xl bg-transparent border-none hover:bg-white/30 dark:hover:bg-white/10 shadow-none"
-              @click="themeStore.cycleTheme()"
-            >
-              <span class="theme-icon-wrap">
-                <Transition name="theme-icon">
-                  <Icon :key="themeIcon" :icon="themeIcon" class="theme-icon text-foreground/90" />
-                </Transition>
-              </span>
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="right">
-            {{ t('chat.sidebar.themeToggle') }} · {{ themeModeLabel }}
-          </TooltipContent>
-        </Tooltip>
+<!--        <Tooltip>-->
+<!--          <TooltipTrigger as-child>-->
+<!--            <Button-->
+<!--              data-testid="window-sidebar-theme-toggle"-->
+<!--              class="flex items-center justify-center w-9 h-9 rounded-xl bg-transparent border-none hover:bg-white/30 dark:hover:bg-white/10 shadow-none"-->
+<!--              @click="themeStore.cycleTheme()"-->
+<!--            >-->
+<!--              <span class="theme-icon-wrap">-->
+<!--                <Transition name="theme-icon">-->
+<!--                  <Icon :key="themeIcon" :icon="themeIcon" class="theme-icon text-foreground/90" />-->
+<!--                </Transition>-->
+<!--              </span>-->
+<!--            </Button>-->
+<!--          </TooltipTrigger>-->
+<!--          <TooltipContent side="right">-->
+<!--            {{ t('chat.sidebar.themeToggle') }} · {{ themeModeLabel }}-->
+<!--          </TooltipContent>-->
+<!--        </Tooltip>-->
 
         <!-- Collapse toggle（技能中心无会话栏，不展示展开/收起） -->
         <Tooltip v-if="!isSkillsRoute">
@@ -232,7 +232,7 @@
             <Tooltip>
               <TooltipTrigger as-child>
                 <button
-                  class="flex items-center justify-center w-7 h-7 rounded-md transition-all duration-150"
+                  class="window-sidebar-action-btn flex items-center justify-center w-7 h-7 rounded-md transition-all duration-150"
                   :class="
                     sessionStore.groupMode === 'project'
                       ? 'text-foreground bg-accent/80'
@@ -253,7 +253,7 @@
               <TooltipTrigger as-child>
                 <button
                   data-testid="app-new-chat-button"
-                  class="flex items-center justify-center w-7 h-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-all duration-150"
+                  class="window-sidebar-action-btn flex items-center justify-center w-7 h-7 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-all duration-150"
                   @click="handleNewChat"
                 >
                   <Icon icon="lucide:plus" class="w-4 h-4" />
@@ -276,7 +276,7 @@
             />
             <Input
               v-model="sessionSearchQuery"
-              class="h-8 rounded-xl border-0 bg-muted/60 pl-8 pr-8 text-xs shadow-none focus-visible:ring-1 focus-visible:ring-primary/30"
+              class="window-sidebar-search-input h-8 rounded-xl border-0 bg-muted/60 pl-8 pr-8 text-xs shadow-none focus-visible:ring-1 focus-visible:ring-primary/30"
               :placeholder="t('chat.sidebar.searchPlaceholder')"
               :aria-label="t('chat.sidebar.searchAriaLabel')"
               autocapitalize="off"
@@ -315,15 +315,18 @@
             pinnedSessions.length === 0 &&
             filteredGroups.length === 0
           "
-          class="flex flex-col items-center justify-center h-full px-4 text-center"
+          class="window-sidebar-empty flex flex-col items-center justify-center h-full px-4 text-center"
         >
-          <Icon icon="lucide:message-square-plus" class="w-8 h-8 text-muted-foreground/40 mb-3" />
-          <p class="text-sm text-muted-foreground/60">
+          <Icon
+            icon="lucide:message-square-plus"
+            class="window-sidebar-empty-icon w-8 h-8 text-muted-foreground/40 mb-3"
+          />
+          <p class="window-sidebar-empty-title text-sm text-muted-foreground/60">
             {{
               sessionSearchQuery ? t('chat.sidebar.searchEmptyTitle') : t('chat.sidebar.emptyTitle')
             }}
           </p>
-          <p class="text-xs text-muted-foreground/40 mt-1">
+          <p class="window-sidebar-empty-desc text-xs text-muted-foreground/40 mt-1">
             {{
               sessionSearchQuery
                 ? t('chat.sidebar.searchEmptyDescription')
