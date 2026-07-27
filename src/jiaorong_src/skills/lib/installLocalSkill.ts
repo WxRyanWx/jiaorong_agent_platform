@@ -597,6 +597,16 @@ async function readLocalBinary(filePath: string): Promise<Uint8Array> {
   return new Uint8Array(await response.arrayBuffer())
 }
 
+/** 解压并把条目路径统一为 /（兼容 Windows 打包的 \） */
+function unzipEntriesNormalized(zipBytes: Uint8Array): Record<string, Uint8Array> {
+  const raw = unzipSync(zipBytes)
+  const entries: Record<string, Uint8Array> = {}
+  for (const [key, value] of Object.entries(raw)) {
+    entries[key.replace(/\\/g, '/')] = value
+  }
+  return entries
+}
+
 /** 解压 zip → 规范化 SKILL.md（保留其它文件）→ 再安装 */
 async function installNormalizedZipBytes(params: {
   zipBytes: Uint8Array
@@ -608,7 +618,7 @@ async function installNormalizedZipBytes(params: {
 }): Promise<SkillInstallResult> {
   let entries: Record<string, Uint8Array>
   try {
-    entries = unzipSync(params.zipBytes)
+    entries = unzipEntriesNormalized(params.zipBytes)
   } catch {
     return { success: false, error: 'Invalid zip archive', errorCode: 'invalid_skill' }
   }
@@ -632,10 +642,10 @@ async function installNormalizedZipBytes(params: {
   const original = strFromU8(entries[skillMdKey])
 
   if (!params.forceNormalize && !needsSkillMarkdownNormalize(original)) {
-    // 已是标准格式，直接装原 zip 内容（仍写临时 zip 以统一路径）
+    // 已是标准格式：重打包为统一 / 分隔的 zip，避免 Windows \ 条目干扰宿主解压
     const tempZip = await params.writeTemp({
       name: `${folderName}.zip`,
-      content: params.zipBytes
+      content: zipSync(entries)
     })
     return params.installFromZip(tempZip, { overwrite: params.overwrite })
   }
@@ -710,7 +720,8 @@ export async function installSkillFromFolderCompat(
   } & InstallDeps
 ): Promise<SkillInstallResult> {
   const folderPath = normalizeLocalPath(params.folderPath)
-  const skillMdPath = `${folderPath.replace(/[/\\]$/, '')}/SKILL.md`
+  // 即使用 / 拼接 Win 路径，toFileUrl 也会把 \ 统一掉
+  const skillMdPath = `${folderPath.replace(/[/\\]+$/, '')}/SKILL.md`
 
   try {
     const content = await readLocalText(skillMdPath)
@@ -750,7 +761,7 @@ export async function installSkillFromZipCompat(
   try {
     const bytes = await readLocalBinary(zipPath)
     // 先看包内 SKILL.md 是否需要转换
-    const entries = unzipSync(bytes)
+    const entries = unzipEntriesNormalized(bytes)
     const skillMdKey = Object.keys(entries).find((k) => {
       const base = k.split('/').pop() || ''
       return isSkillMdFileName(base) && !k.endsWith('/')
