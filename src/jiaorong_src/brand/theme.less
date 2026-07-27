@@ -11,6 +11,174 @@
   background: #eff5ff;
 }
 
+/* settings/App.vue → 设置页头部、左侧导航、选中项与图标 */
+.settings-page-header,
+.settings-navigation {
+  background: #eff5ff;
+}
+
+.settings-navigation-item:hover,
+.settings-navigation-item-active,
+.settings-navigation-item-active:hover {
+  background: #e5efff;
+  color: #000000;
+}
+
+.settings-navigation-icon {
+  color: #5c78a0;
+}
+
+/* settings/components/CommonSettings.vue → 常规设置页 */
+.settings-general-page {
+  .settings-page-eyebrow {
+    color: #5c78a0;
+  }
+
+  .iconify {
+    color: #5c78a0;
+  }
+
+  button:not([data-slot='switch']) {
+    border: 1px solid #d5e0ed;
+  }
+
+  [data-slot='switch'][data-state='unchecked'] {
+    background: #d5e0ed;
+  }
+}
+
+/* settings/components/DisplaySettings.vue → 显示设置页 */
+.settings-display-page {
+  .settings-page-eyebrow,
+  .text-muted-foreground {
+    color: #5c78a0;
+  }
+
+  .iconify {
+    color: #5c78a0;
+  }
+
+  button:not([data-slot='switch']) {
+    border: 1px solid #d5e0ed;
+  }
+
+  [data-slot='switch'][data-state='unchecked'] {
+    background: #dde5ef;
+  }
+
+  .settings-display-font-reset {
+    background: #f7fafe;
+  }
+
+  .settings-display-select {
+    background: #f7fafe;
+  }
+}
+
+/* settings/components/EnvironmentsSettings.vue → 目录环境页 */
+.settings-environments-page {
+  .settings-page-eyebrow,
+  .settings-page-description,
+  .settings-environment-path {
+    color: #5c78a0;
+  }
+
+  .iconify {
+    color: #5c78a0;
+  }
+
+  button:not([data-slot='switch']) {
+    border: 1px solid #d5e0ed;
+  }
+}
+
+/* settings/components/DeepChatAgentsSettings.vue → 智能体设置页 */
+.settings-agents-page,
+.settings-agents-page * {
+  border-color: #d5e0ed;
+}
+
+.settings-agents-page {
+  .settings-agent-card-selected {
+    background: #f7fafe;
+    border-radius: 12px;
+    border: 2px solid #006eff;
+  }
+
+  .settings-agent-avatar-option-selected {
+    background: #f7fafe;
+    border: 2px solid #006eff;
+
+    .settings-agent-avatar-option-label {
+      color: #006eff;
+    }
+  }
+
+  [data-slot='input']:focus,
+  [data-slot='textarea']:focus,
+  .settings-agent-select:focus,
+  .settings-agent-select:focus-visible,
+  .settings-agent-select[data-state='open'] {
+    background: #f7fafe;
+    border: 1px solid #d5e0ed;
+  }
+
+  .settings-agent-switch[data-slot='switch'][data-state='unchecked'] {
+    background: #f7fafe;
+    border: 1px solid #d5e0ed;
+  }
+
+  .settings-agent-switch[data-slot='switch'][data-state='checked'] {
+    background: #006eff;
+    border: 1px solid #d5e0ed;
+  }
+
+  .settings-agent-status-enabled {
+    color: #33b737;
+  }
+
+  .settings-agent-avatar-container {
+    background: #e8f1ff;
+  }
+}
+
+/* settings/components/ShortcutSettings.vue → 快捷键设置页 */
+.settings-shortcuts-page {
+  .settings-page-eyebrow,
+  .iconify,
+  .lucide {
+    color: #5c78a0;
+  }
+
+  .settings-shortcut-input {
+    background: #f7fafe;
+    border: 1px solid #d5e0ed;
+  }
+}
+
+/* settings/components/AboutUsSettings.vue → 关于设置页 */
+.settings-about-page {
+  .settings-page-eyebrow,
+  .settings-about-description {
+    color: #5c78a0;
+  }
+
+  button {
+    background: #f7fafe;
+    border: 1px solid #d5e0ed;
+  }
+
+  .settings-about-update-button:disabled {
+    background: #f7fafe;
+    border: 1px solid #d5e0ed;
+    opacity: 1;
+  }
+
+  .settings-about-update-icon {
+    color: #5c78a0;
+  }
+}
+
 /* WindowSideBar.vue → .window-sidebar-shell */
 .window-sidebar-shell {
   background: #eff5ff;
@@ -64,6 +232,12 @@
 .window-sidebar-empty-desc {
   color: #6f8caf;
   margin-top: 21px;
+}
+.environments-settings-line{
+  height: 1px;
+  background: #D5E0ED;
+  border-radius: 0px 0px 0px 0px;
+  opacity: 0.75;
 }
 
 /*

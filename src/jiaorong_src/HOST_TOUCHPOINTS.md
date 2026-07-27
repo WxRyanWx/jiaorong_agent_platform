@@ -46,3 +46,13 @@
 | H40 | `src/renderer/src/i18n/*/routes.json` | 技能详情文案键 | skills detail | 低 | skillsBack / Market / UseSkill / OpenFolder / Delete / Try* / DeleteConfirm* |
 | H41 | `src/main/presenter/configPresenter/index.ts` `initTheme` | 启动非 light 则强制 `setTheme('light')` | brand theme | 低 | 判定在 `@jiaorong/brand` `needsForceLightTheme` |
 | H42 | `agentRuntimePresenter/index.ts` | 调用 `@jiaorong/prompts/systemPromptFinalize`（尾注/Skills 中文说明）；宿主仅接线 | prompts | 中 | 文案在私有目录；尾注须在 summary/handoff 之后 |
+| H43 | `src/renderer/settings/main.ts` | 静态 `import '@jiaorong/brand/theme.less'` | brand theme | 低 | 设置窗口加载私有主题覆盖 |
+| H44 | `src/renderer/settings/App.vue` | `settings-page-*` / `settings-navigation-*` class | brand theme | 低 | 仅挂 class，样式在 theme.less |
+| H45 | `src/renderer/settings/components/CommonSettings.vue` | `settings-general-page` class | brand theme | 低 | 仅挂 class，样式在 theme.less |
+| H46 | `src/renderer/settings/components/control-center/SettingsPageShell.vue` | `settings-page-eyebrow` / `settings-page-description` class | brand theme | 低 | 仅挂 class，样式在 theme.less |
+| H47 | `src/renderer/settings/components/DisplaySettings.vue` | `settings-display-page` class | brand theme | 低 | 仅挂 class，样式在 theme.less |
+| H48 | `src/renderer/settings/components/display/FontSettingsSection.vue` | `settings-display-font-reset` class | brand theme | 低 | 仅挂 class，样式在 theme.less |
+| H49 | `src/renderer/settings/components/EnvironmentsSettings.vue` | `settings-environments-page` / `settings-environment-path` class | brand theme | 低 | 仅挂 class，样式在 theme.less |
+| H50 | `src/renderer/settings/components/DeepChatAgentsSettings.vue` | `settings-agents-page` / `settings-agent-card-selected` / `settings-agent-avatar-*` / `settings-agent-select` / `settings-agent-switch` / `settings-agent-status-enabled` class | brand theme | 低 | 仅挂 class，样式在 theme.less |
+| H51 | `src/renderer/settings/components/ShortcutSettings.vue` | `settings-shortcuts-page` / `settings-shortcut-input` class | brand theme | 低 | 仅挂 class，样式在 theme.less |
+| H52 | `src/renderer/settings/components/AboutUsSettings.vue` | `settings-about-page` / `settings-about-description` / `settings-about-update-*` class | brand theme | 低 | 仅挂 class，样式在 theme.less |

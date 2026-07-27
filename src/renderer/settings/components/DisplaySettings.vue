@@ -1,5 +1,6 @@
 <template>
   <SettingsPageShell
+    class="settings-display-page"
     :title="t('routes.settings-display')"
     :eyebrow="t('settings.controlCenter.groups.setup')"
     data-testid="settings-appearance-page"
@@ -17,7 +18,7 @@
           </span>
           <div class="ml-auto w-auto">
             <Select v-model="selectedLanguage">
-              <SelectTrigger data-testid="language-select" class="h-8!">
+              <SelectTrigger data-testid="language-select" class="settings-display-select h-8!">
                 <SelectValue :placeholder="t('settings.common.languageSelect')"/>
               </SelectTrigger>
               <SelectContent>

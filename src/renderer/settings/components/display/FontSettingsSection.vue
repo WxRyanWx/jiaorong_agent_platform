@@ -11,7 +11,7 @@
       <Button
         variant="ghost"
         size="sm"
-        class="h-9 md:h-8 px-3 w-full md:w-auto justify-center"
+        class="settings-display-font-reset h-9 md:h-8 px-3 w-full md:w-auto justify-center"
         :disabled="isResetting || (!uiSettingsStore.fontFamily && !uiSettingsStore.codeFontFamily)"
         @click="handleReset"
       >
@@ -44,7 +44,7 @@
               <PopoverTrigger as-child>
                 <Button
                   variant="outline"
-                  class="w-full justify-between h-9"
+                  class="settings-display-select w-full justify-between h-9"
                   :style="{ fontFamily: textPreviewFont }"
                 >
                   <span class="truncate">{{ textFontLabel }}</span>
@@ -132,7 +132,7 @@
               <PopoverTrigger as-child>
                 <Button
                   variant="outline"
-                  class="w-full justify-between h-9"
+                  class="settings-display-select w-full justify-between h-9"
                   :style="{ fontFamily: codePreviewFont }"
                 >
                   <span class="truncate">{{ codeFontLabel }}</span>

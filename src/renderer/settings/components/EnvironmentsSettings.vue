@@ -1,5 +1,6 @@
 <template>
   <SettingsPageShell
+    class="settings-environments-page"
     :title="t('settings.environments.title')"
     :description="t('settings.environments.description')"
     :eyebrow="t('settings.controlCenter.groups.models')"
@@ -15,11 +16,11 @@
         {{ t('settings.environments.actions.refresh') }}
       </Button>
     </template>
-
+    <div class="environments-settings-line"></div>
     <div class="flex w-full flex-col gap-1.5">
       <div class="flex items-center gap-3 px-2 py-2">
         <span class="flex items-center gap-2 text-sm font-medium text-foreground">
-          <Icon icon="lucide:folder-x" class="h-4 w-4 text-muted-foreground" />
+          <Icon icon="lucide:folder-x" class="h-4 w-4 text-muted-foreground"/>
           {{ t('settings.environments.actions.showMissing') }}
         </span>
         <div class="ml-auto">
@@ -52,7 +53,7 @@
                 <div
                   class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted/30 text-muted-foreground"
                 >
-                  <Icon icon="lucide:folder" class="h-4 w-4" />
+                  <Icon icon="lucide:folder" class="h-4 w-4"/>
                 </div>
                 <div class="min-w-0 flex-1">
                   <div class="flex flex-wrap items-center gap-2">
@@ -76,7 +77,7 @@
                       {{ t('settings.environments.badges.notInHistory') }}
                     </span>
                   </div>
-                  <p class="mt-1 break-all text-xs text-muted-foreground">
+                  <p class="settings-environment-path mt-1 break-all text-xs text-muted-foreground">
                     {{ environment.path }}
                   </p>
                   <p class="mt-1 text-xs text-muted-foreground">
@@ -133,25 +134,25 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { Icon } from '@iconify/vue'
-import { Button } from '@shadcn/components/ui/button'
-import { Switch } from '@shadcn/components/ui/switch'
-import { useToast } from '@/components/use-toast'
-import { useLegacyPresenter } from '@api/legacy/presenters'
-import { useProjectStore } from '@/stores/ui/project'
-import type { EnvironmentSummary } from '@shared/types/agent-interface'
+import {computed, onMounted, ref, watch} from 'vue'
+import {useI18n} from 'vue-i18n'
+import {Icon} from '@iconify/vue'
+import {Button} from '@shadcn/components/ui/button'
+import {Switch} from '@shadcn/components/ui/switch'
+import {useToast} from '@/components/use-toast'
+import {useLegacyPresenter} from '@api/legacy/presenters'
+import {useProjectStore} from '@/stores/ui/project'
+import type {EnvironmentSummary} from '@shared/types/agent-interface'
 import SettingsPageShell from './control-center/SettingsPageShell.vue'
 
 type EnvironmentListItem = EnvironmentSummary & {
   isSyntheticDefault?: boolean
 }
 
-const { t, locale } = useI18n()
-const { toast } = useToast()
+const {t, locale} = useI18n()
+const {toast} = useToast()
 const projectStore = useProjectStore()
-const projectPresenter = useLegacyPresenter('projectPresenter', { safeCall: false })
+const projectPresenter = useLegacyPresenter('projectPresenter', {safeCall: false})
 
 const isLoading = ref(false)
 const showMissing = ref(false)
@@ -289,6 +290,6 @@ watch(
   () => {
     void syncSyntheticDefaultExists()
   },
-  { immediate: true, deep: true }
+  {immediate: true, deep: true}
 )
 </script>

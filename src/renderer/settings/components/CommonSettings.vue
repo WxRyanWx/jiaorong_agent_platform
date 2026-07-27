@@ -1,5 +1,6 @@
 <template>
   <SettingsPageShell
+    class="settings-general-page"
     :title="t('routes.settings-common')"
     :eyebrow="t('settings.controlCenter.groups.setup')"
     data-testid="settings-general-page"
