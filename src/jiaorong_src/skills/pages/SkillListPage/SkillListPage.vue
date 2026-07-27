@@ -246,6 +246,9 @@ const installedCount = computed(() => skillItems.value.filter((skill) => isInsta
 const marketCount = computed(() => skillItems.value.length)
 
 const openDetail = (skill: JiaorongSkillItem) => {
+  // 安装中不允许进入详情，避免中断安装或读到半成品状态
+  if (isInstalling(skill)) return
+
   const localName = getInstalledLocalName(skill)
   const isRemoteCard =
     skill.skill_source === SkillSource.RemoteApi ||
@@ -467,6 +470,7 @@ onUnmounted(() => {
           v-for="skill in filteredSkills"
           :key="skill.name"
           class="skill-center-page__card"
+          :class="{ 'is-installing': isInstalling(skill) }"
           @click="openDetail(skill)"
         >
           <div class="skill-center-page__card-head">
