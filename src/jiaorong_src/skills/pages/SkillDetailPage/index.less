@@ -441,8 +441,19 @@
             }
 
             .skill-detail-source-tab-icon {
-              width: 16px;
-              height: 16px;
+              display: block;
+              object-fit: contain;
+              pointer-events: none;
+
+              &.is-preview {
+                width: 16px;
+                height: 16px;
+              }
+
+              &.is-code {
+                width: 16px;
+                height: 16px;
+              }
             }
           }
         }
