@@ -1,8 +1,12 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import {
+  deriveTechnicalSkillName,
   ensureSkillMarkdown,
   fallbackNameFromRemoteZipUrl,
+  isGenericSkillParentDirName,
   needsSkillMarkdownNormalize,
+  peekSkillDisplayName,
+  stableAsciiSkillId,
   toFileUrlForTest
 } from '../../../../src/jiaorong_src/skills/lib/installLocalSkill'
 
@@ -42,5 +46,65 @@ describe('installLocalSkill frontmatter compat', () => {
     expect(toFileUrlForTest('C:/Users/me/skill/SKILL.md')).toBe(
       'file:///C:/Users/me/skill/SKILL.md'
     )
+  })
+
+  it('ignores generic parent dir names when deriving tech name', () => {
+    expect(isGenericSkillParentDirName('Downloads')).toBe(true)
+    expect(isGenericSkillParentDirName('desktop')).toBe(true)
+    expect(isGenericSkillParentDirName('24-bills-building-quantities')).toBe(false)
+  })
+
+  it('derives stable tech name from delayed Chinese YAML instead of Downloads', () => {
+    const raw = `# 建设工程工程量清单计价标准111
+
+---
+
+name: 建设工程工程量清单计价标准123
+description: |
+  基于《建设工程工程量清单计价标准》（GB/T 50500-2024）的专业Skill。
+
+---
+
+## 适用范围
+`
+    expect(needsSkillMarkdownNormalize(raw)).toBe(true)
+    expect(peekSkillDisplayName(raw)).toBe('建设工程工程量清单计价标准123')
+
+    // md 上传不传父目录 hint；即使误传 Downloads 也不应采用
+    const tech = deriveTechnicalSkillName(raw, 'Downloads')
+    expect(tech).toBe(stableAsciiSkillId('建设工程工程量清单计价标准123'))
+    expect(tech).toMatch(/^skill-[a-z0-9]+$/)
+    expect(tech).not.toBe('downloads')
+    expect(deriveTechnicalSkillName(raw)).toBe(tech)
+
+    const out = ensureSkillMarkdown(raw, tech)
+    expect(out).toContain(`name: ${tech}`)
+    expect(out).toContain('displayName: "建设工程工程量清单计价标准123"')
+  })
+
+  it('prefers valid path hint over display hash', () => {
+    const raw = `# Demo
+
+**name:** 中文技能
+**description:** demo
+
+---`
+    expect(deriveTechnicalSkillName(raw, 'my-bill-skill')).toBe('my-bill-skill')
+  })
+
+  it('keeps legal english name and uses it as displayName fallback', () => {
+    const raw = `---
+name: my-cool-skill
+description: A valid skill
+license: MIT
+---
+
+body only
+`
+    expect(needsSkillMarkdownNormalize(raw)).toBe(false)
+    // 规范化路径下也不应把合法 name 的展示名落成 hash
+    const out = ensureSkillMarkdown(raw, 'skill-deadbeef')
+    expect(out).toContain('name: my-cool-skill')
+    expect(out).toContain('displayName: my-cool-skill')
   })
 })

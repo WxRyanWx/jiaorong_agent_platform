@@ -18,6 +18,24 @@ import { useLegacyPresenter } from '@api/legacy/presenters'
 
 const SKILL_NAME_PATTERN = /^[a-z0-9][a-z0-9._-]*$/
 
+/** 常见落盘目录名：不宜当作技能技术 name */
+const GENERIC_PARENT_DIR_NAMES = new Set([
+  'downloads',
+  'download',
+  'desktop',
+  'documents',
+  'document',
+  'tmp',
+  'temp',
+  'pics',
+  'pictures',
+  'movies',
+  'music',
+  'videos',
+  'images',
+  'screenshots'
+])
+
 export function normalizeLocalPath(input: string): string {
   let p = input.trim()
   if (p.startsWith('@/')) {
@@ -39,17 +57,88 @@ function pathBasename(filePath: string): string {
   return filePath.split(/[/\\]/).filter(Boolean).pop() || 'skill'
 }
 
-function pathDirname(filePath: string): string {
-  const normalized = filePath.replace(/\\/g, '/')
-  const idx = normalized.lastIndexOf('/')
-  if (idx <= 0) {
-    return normalized.startsWith('/') ? '/' : '.'
-  }
-  return normalized.slice(0, idx) || '/'
-}
-
 function isSkillMdFileName(name: string): boolean {
   return name.toLowerCase() === 'skill.md'
+}
+
+export function isGenericSkillParentDirName(name: string): boolean {
+  return GENERIC_PARENT_DIR_NAMES.has(name.trim().toLowerCase())
+}
+
+/** 从原始 SKILL.md 窥探展示名（不写盘） */
+export function peekSkillDisplayName(content: string): string {
+  const text = normalizeNewlines(content)
+  const heading = text.match(/^#\s+(.+)$/m)?.[1]?.trim() || ''
+  const bold = parseBoldFields(text)
+  if (bold.displayName) return bold.displayName
+  const delayed = parseDelayedYaml(text)
+  if (delayed?.displayName) return delayed.displayName
+  const bare = parseBareYamlHeader(text)
+  if (bare?.displayName) return bare.displayName
+  const leading = extractLeadingYaml(text)
+  if (leading) {
+    const rawName = parseYamlField(leading.fm, 'name')
+    const fromMeta =
+      parseYamlField(leading.fm, 'displayName') ||
+      parseYamlField(leading.fm, 'title') ||
+      (rawName && !SKILL_NAME_PATTERN.test(rawName) ? rawName : '')
+    if (fromMeta) return fromMeta
+  }
+  return heading
+}
+
+/** 中文等无法进 name 时，用展示名生成稳定 ascii 技术 id */
+export function stableAsciiSkillId(seed: string): string {
+  const text = seed.trim() || 'skill'
+  let hash = 2166136261
+  for (let i = 0; i < text.length; i++) {
+    hash ^= text.charCodeAt(i)
+    hash = Math.imul(hash, 16777619)
+  }
+  return `skill-${(hash >>> 0).toString(36)}`.slice(0, 64)
+}
+
+/** sanitize 后过短、纯数字、或中文被剥成碎片时视为弱 id */
+function isWeakSanitizedSkillName(original: string, sanitized: string): boolean {
+  if (!sanitized || !SKILL_NAME_PATTERN.test(sanitized)) return true
+  if (sanitized === 'skill-import' || sanitized.startsWith('skill-import')) return true
+  if (sanitized.length < 3 || /^\d+$/.test(sanitized)) return true
+  // 原文含非 ascii，sanitize 后只剩短碎片（如「…标准123」→ 123）
+  if (/[^\x00-\x7F]/.test(original) && sanitized.length < 8) return true
+  return false
+}
+
+/**
+ * 推导安装用技术 name。
+ * - 路径提示已是合法且非 Downloads 等落盘目录时优先用路径
+ * - 否则用展示名 sanitize；中文等无效/弱 id 时用稳定 hash
+ */
+export function deriveTechnicalSkillName(content: string, pathHint?: string): string {
+  const rawHint = pathHint?.trim() || ''
+  const hintBase = rawHint ? pathBasename(rawHint) : ''
+  if (hintBase && !isGenericSkillParentDirName(hintBase)) {
+    const fromPath = sanitizeSkillName(hintBase)
+    if (!isWeakSanitizedSkillName(hintBase, fromPath)) {
+      return fromPath
+    }
+  }
+
+  const display = peekSkillDisplayName(content)
+  if (display) {
+    const fromDisplay = sanitizeSkillName(display)
+    if (!isWeakSanitizedSkillName(display, fromDisplay)) {
+      return fromDisplay
+    }
+    return stableAsciiSkillId(display)
+  }
+
+  if (hintBase && !isGenericSkillParentDirName(hintBase)) {
+    const fallback = sanitizeSkillName(hintBase)
+    if (!isWeakSanitizedSkillName(hintBase, fallback)) {
+      return fallback
+    }
+  }
+  return stableAsciiSkillId(content.slice(0, 200) || 'skill')
 }
 
 function looksLikeInstallFrontmatterError(error?: string): boolean {
@@ -343,15 +432,15 @@ export function ensureSkillMarkdown(content: string, fallbackName: string): stri
     .replace(/\*\*description:\*\*\s*[\s\S]*?(?=\n\n|\n---|\n#)/gi, '')
     .replace(/^\n+/, '')
 
-  displayName = displayName || heading || technicalName
+  const name = rawName && SKILL_NAME_PATTERN.test(rawName) ? rawName : technicalName
+  // 已有合法 name 时优先用作展示回退，避免仅因缺标题而落入 hash 技术名
+  displayName = displayName || heading || name || technicalName
   description =
     description ||
     bold.description ||
     heading ||
     firstProseParagraph(body) ||
     `Skill: ${technicalName}`
-
-  const name = rawName && SKILL_NAME_PATTERN.test(rawName) ? rawName : technicalName
 
   return buildStandardSkillMarkdown({
     name,
@@ -405,7 +494,8 @@ async function writePatchedFolderZip(
 ): Promise<string> {
   const workspacePresenter = useLegacyPresenter('workspacePresenter', { safeCall: false })
   const root = folderPath.replace(/[/\\]+$/, '')
-  const rootName = sanitizeSkillName(pathBasename(root))
+  // 先用占位扫描；读到 SKILL.md 后再用内容推导最终目录名
+  let rootName = sanitizeSkillName(pathBasename(root))
 
   await workspacePresenter.registerWorkspace(root)
   try {
@@ -420,7 +510,7 @@ async function writePatchedFolderZip(
           await walk(node.path, [...relParts, node.name])
           continue
         }
-        const zipKey = [rootName, ...relParts, node.name].join('/')
+        const zipKey = [...relParts, node.name].join('/')
         files.push({
           absPath: node.path,
           zipKey,
@@ -436,13 +526,16 @@ async function writePatchedFolderZip(
       throw new Error('SKILL.md not found in folder')
     }
 
+    const skillMdContent = await readLocalText(skillMd.absPath)
+    rootName = deriveTechnicalSkillName(skillMdContent, pathBasename(root))
+
     const entries: Record<string, Uint8Array> = {}
     for (const file of files) {
+      const zipKey = `${rootName}/${file.zipKey}`
       if (file.isSkillMd) {
-        const original = await readLocalText(file.absPath)
-        entries[file.zipKey] = strToU8(ensureSkillMarkdown(original, rootName))
+        entries[zipKey] = strToU8(ensureSkillMarkdown(skillMdContent, rootName))
       } else {
-        entries[file.zipKey] = await readLocalBinary(file.absPath)
+        entries[zipKey] = await readLocalBinary(file.absPath)
       }
     }
 
@@ -581,23 +674,31 @@ export async function installSkillFromMarkdown(
   }
 
   const fileName = pathBasename(mdPath)
-  const parentDir = pathDirname(mdPath)
-  const folderHint = isSkillMdFileName(fileName)
-    ? pathBasename(parentDir)
-    : fileName.replace(/\.md$/i, '')
-
   const content = await readLocalText(mdPath)
 
-  if (isSkillMdFileName(fileName) && !needsSkillMarkdownNormalize(content)) {
-    return params.installFromFolder(parentDir, { overwrite: params.overwrite })
-  }
+  // 上传 md：永远只装这一个文件。有附属资源时应走「上传文件夹 / zip」。
+  // SKILL.md 不用父目录名当技术 id（避免 Downloads → downloads）。
+  const pathHint = isSkillMdFileName(fileName) ? undefined : fileName.replace(/\.md$/i, '')
 
-  // SKILL.md 需规范化：打包整个父目录，保留 scripts 等附属文件
-  if (isSkillMdFileName(fileName)) {
-    const tempZip = await writePatchedFolderZip(parentDir, params.writeTemp)
+  // 已是开源可识别格式：原样单文件打包，避免 ensureSkillMarkdown 丢掉其它 frontmatter
+  if (!needsSkillMarkdownNormalize(content)) {
+    const leading = extractLeadingYaml(normalizeNewlines(content).trimStart())
+    const fmName = leading ? parseYamlField(leading.fm, 'name') : ''
+    const folderName =
+      fmName && SKILL_NAME_PATTERN.test(fmName)
+        ? fmName
+        : deriveTechnicalSkillName(content, pathHint)
+    const safeFolder = sanitizeSkillName(folderName)
+    const tempZip = await params.writeTemp({
+      name: `${safeFolder}.zip`,
+      content: zipSync({
+        [`${safeFolder}/SKILL.md`]: strToU8(normalizeNewlines(content))
+      })
+    })
     return params.installFromZip(tempZip, { overwrite: params.overwrite })
   }
 
+  const folderHint = deriveTechnicalSkillName(content, pathHint)
   const tempZip = await writePatchedSkillZip(folderHint, content, params.writeTemp)
   return params.installFromZip(tempZip, { overwrite: params.overwrite })
 }
