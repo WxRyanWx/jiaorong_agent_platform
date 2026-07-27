@@ -31,6 +31,10 @@ import {
   type JiaorongSkillItem
 } from '../../lib/sessionSkill'
 import skillIcon from '@jiaorong/assets/skill.png'
+import codeIcon from '@jiaorong/brand/icons/skill-detail/code@2x.png'
+import codeActiveIcon from '@jiaorong/brand/icons/skill-detail/code-active@2x.png'
+import previewIcon from '@jiaorong/brand/icons/skill-detail/preview@2x.png'
+import previewActiveIcon from '@jiaorong/brand/icons/skill-detail/preview-active@2x.png'
 import './index.less'
 
 const route = useRoute()
@@ -498,7 +502,12 @@ const uninstallSkill = async () => {
                   :aria-label="t('routes.skillsRendered')"
                   @click="sourceViewMode = 'preview'"
                 >
-                  <Icon icon="lucide:eye" class="skill-detail-source-tab-icon" />
+                  <img
+                    :src="sourceViewMode === 'preview' ? previewActiveIcon : previewIcon"
+                    alt=""
+                    class="skill-detail-source-tab-icon is-preview"
+                    draggable="false"
+                  />
                 </button>
                 <button
                   type="button"
@@ -507,7 +516,12 @@ const uninstallSkill = async () => {
                   :aria-label="t('routes.skillsSourceCode')"
                   @click="sourceViewMode = 'source'"
                 >
-                  <Icon icon="lucide:code-xml" class="skill-detail-source-tab-icon" />
+                  <img
+                    :src="sourceViewMode === 'source' ? codeActiveIcon : codeIcon"
+                    alt=""
+                    class="skill-detail-source-tab-icon is-code"
+                    draggable="false"
+                  />
                 </button>
               </div>
             </div>

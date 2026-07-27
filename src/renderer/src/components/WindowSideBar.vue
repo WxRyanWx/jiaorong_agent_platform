@@ -22,7 +22,7 @@
               "
               @click="handleAgentSelect(null)"
             >
-              <Icon icon="lucide:layers" class="w-4 h-4 text-foreground/80" />
+              <Icon icon="lucide:layers" class="window-sidebar-primary-icon w-4 h-4" />
             </Button>
           </TooltipTrigger>
           <TooltipContent side="right">{{ t('chat.sidebar.allAgents') }}</TooltipContent>
@@ -188,7 +188,7 @@
             >
               <Icon
                 :icon="collapsed ? 'lucide:panel-left-open' : 'lucide:panel-left-close'"
-                class="w-4 h-4 text-foreground/80"
+                class="window-sidebar-primary-icon w-4 h-4"
               />
             </Button>
           </TooltipTrigger>
@@ -205,7 +205,7 @@
               :title="t('routes.settings')"
               @click="openSettings"
             >
-              <Icon icon="lucide:ellipsis" class="w-4 h-4 text-foreground/80" />
+              <Icon icon="lucide:ellipsis" class="window-sidebar-primary-icon w-4 h-4" />
             </Button>
           </TooltipTrigger>
           <TooltipContent side="right">{{ t('routes.settings') }}</TooltipContent>
