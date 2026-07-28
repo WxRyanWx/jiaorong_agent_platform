@@ -1,113 +1,111 @@
 /**
  * 技能市场分类筛选（交融私有）。
- * 筛选栏固定 5 类 +「全部」；内置靠名称映射，远程靠 tagList。
- * 远程 tagList 可含多余标签；筛选只认下方 5 个固定分类名（需与接口文案完全一致）。
+ * 筛选栏：「全部」本地前置 + deepchat-ext/skillCategory/list。
+ * 匹配：技能 metadata.categoryId（或内置名→id 映射）=== 选中分类 id。
  */
 
 export const SKILL_CATEGORY_ALL = '全部'
+/** 「全部」筛选项的稳定 id（非后端 id） */
+export const SKILL_CATEGORY_ALL_ID = ''
 
-/** 固定筛选栏（含「全部」） */
-export const SKILL_FILTER_CATEGORIES = [
-  SKILL_CATEGORY_ALL,
-  '综合办公',
-  '软件研发',
-  '工程建设',
-  '合同法务',
-  '经营投标'
-] as const
-
-export type SkillFilterCategory = (typeof SKILL_FILTER_CATEGORIES)[number]
-export type SkillFilterCategoryTag = Exclude<SkillFilterCategory, typeof SKILL_CATEGORY_ALL>
-
-const FILTER_CATEGORY_TAG_SET = new Set<string>(
-  SKILL_FILTER_CATEGORIES.filter((item) => item !== SKILL_CATEGORY_ALL)
-)
-
-/**
- * 内置技能 → 所属分类（可多标签；无分类则不进映射，仅「全部」可见）。
- * 与产品提供的内置分类表对齐。
- */
-export const BUILTIN_SKILL_CATEGORY_MAP: Readonly<
-  Record<string, readonly SkillFilterCategoryTag[]>
-> = {
-  'algorithmic-art': ['软件研发'],
-  'code-review': ['软件研发'],
-  'frontend-design': ['软件研发'],
-  'git-commit': ['软件研发'],
-  'infographic-syntax-creator': ['软件研发'],
-  'mcp-builder': ['软件研发'],
-  'web-artifacts-builder': ['软件研发'],
-  'doc-coauthoring': ['综合办公'],
-  docx: ['综合办公'],
-  pdf: ['综合办公'],
-  pptx: ['综合办公'],
-  xlsx: ['综合办公']
-  // jiaorong-settings / skill-creator：无分类，仅「全部」
+export type SkillCategory = {
+  id: string
+  categoryName: string
 }
 
-/** metadata 中存放远程标签的字段（与接口 tagList 对齐） */
-export const METADATA_TAG_LIST_KEY = 'tagList'
+/**
+ * 内置技能 → 分类 id（与 skillCategory/list 的 id 对齐；无映射则仅「全部」可见）。
+ */
+export const BUILTIN_SKILL_CATEGORY_ID_MAP: Readonly<Record<string, string>> = {
+  'algorithmic-art': 'rd',
+  'code-review': 'rd',
+  'frontend-design': 'rd',
+  'git-commit': 'rd',
+  'infographic-syntax-creator': 'rd',
+  'mcp-builder': 'rd',
+  'web-artifacts-builder': 'rd',
+  'doc-coauthoring': 'office',
+  docx: 'office',
+  pdf: 'office',
+  pptx: 'office',
+  xlsx: 'office'
+  // jiaorong-settings / skill-creator：无分类
+}
 
-/** 从远程/metadata 解析标签列表 */
-export function parseSkillTagList(raw: unknown): string[] {
+/** metadata 中的远程分类 id */
+export const METADATA_CATEGORY_ID_KEY = 'categoryId'
+
+/** 解析技能列表上的 categoryId 字段（字符串；其它类型忽略） */
+export function parseCategoryId(raw: unknown): string {
+  if (typeof raw === 'string') return raw.trim()
+  if (typeof raw === 'number' && Number.isFinite(raw)) return String(raw)
+  return ''
+}
+
+export function readCategoryIdFromMetadata(
+  metadata: Record<string, unknown> | undefined | null
+): string {
+  if (!metadata) return ''
+  return parseCategoryId(metadata[METADATA_CATEGORY_ID_KEY])
+}
+
+/**
+ * 解析 skillCategory/list 的 data。
+ * 真实形态：`{ id, categoryName, createTime, updateTime }[]`
+ */
+export function parseSkillCategories(raw: unknown): SkillCategory[] {
   if (!Array.isArray(raw)) return []
-  const tags: string[] = []
+  const categories: SkillCategory[] = []
+  const seen = new Set<string>()
+
   for (const item of raw) {
     if (typeof item === 'string') {
-      const t = item.trim()
-      if (t) tags.push(t)
+      // 无 id 的纯文案无法做 categoryId 匹配，跳过
       continue
     }
-    if (item && typeof item === 'object') {
-      const record = item as Record<string, unknown>
-      for (const key of ['name', 'label', 'tag', 'tabName', 'tab'] as const) {
-        const value = record[key]
-        if (typeof value === 'string' && value.trim()) {
-          tags.push(value.trim())
-          break
-        }
-      }
-    }
+    if (!item || typeof item !== 'object') continue
+    const record = item as Record<string, unknown>
+    const id = typeof record.id === 'string' ? record.id.trim() : ''
+    const categoryName =
+      (typeof record.categoryName === 'string' && record.categoryName.trim()) || ''
+    if (!id || !categoryName || seen.has(id)) continue
+    seen.add(id)
+    categories.push({ id, categoryName })
   }
-  return Array.from(new Set(tags))
+
+  return categories
 }
 
-export function readTagListFromMetadata(
-  metadata: Record<string, unknown> | undefined | null
-): string[] {
-  if (!metadata) return []
-  return parseSkillTagList(metadata[METADATA_TAG_LIST_KEY])
+/** 「全部」+ 接口分类（保序、按 id 去重） */
+export function buildFilterCategoryTabs(apiCategories: readonly SkillCategory[]): SkillCategory[] {
+  const rest: SkillCategory[] = []
+  const seen = new Set<string>()
+  for (const item of apiCategories) {
+    const id = item.id.trim()
+    const categoryName = item.categoryName.trim()
+    if (!id || !categoryName || id === SKILL_CATEGORY_ALL_ID || seen.has(id)) continue
+    seen.add(id)
+    rest.push({ id, categoryName })
+  }
+  return [{ id: SKILL_CATEGORY_ALL_ID, categoryName: SKILL_CATEGORY_ALL }, ...rest]
 }
 
-/** 只保留固定 5 类中的标签，供筛选匹配 */
-export function filterToKnownCategories(tags: string[]): SkillFilterCategoryTag[] {
-  return tags.filter((tag): tag is SkillFilterCategoryTag => FILTER_CATEGORY_TAG_SET.has(tag))
-}
-
-/**
- * 技能用于筛选的标签集合（仅固定 5 类）：
- * 1. metadata.tagList（远程）中与固定分类重合的部分
- * 2. 否则内置名称映射
- * 3. 都没有 → 空（仅「全部」可见）
- */
-export function getSkillFilterTags(skill: {
+/** 技能用于筛选的分类 id：优先远程 categoryId，否则内置映射 */
+export function getSkillCategoryId(skill: {
   name: string
   metadata?: Record<string, unknown> | null
-}): string[] {
-  const fromRemote = filterToKnownCategories(readTagListFromMetadata(skill.metadata ?? undefined))
-  if (fromRemote.length > 0) {
-    return fromRemote
-  }
-  const builtin = BUILTIN_SKILL_CATEGORY_MAP[skill.name]
-  return builtin ? [...builtin] : []
+}): string {
+  const fromRemote = readCategoryIdFromMetadata(skill.metadata ?? undefined)
+  if (fromRemote) return fromRemote
+  return BUILTIN_SKILL_CATEGORY_ID_MAP[skill.name] || ''
 }
 
 export function skillMatchesCategoryFilter(
   skill: { name: string; metadata?: Record<string, unknown> | null },
-  activeCategory: string
+  activeCategoryId: string
 ): boolean {
-  if (!activeCategory || activeCategory === SKILL_CATEGORY_ALL) {
+  if (!activeCategoryId || activeCategoryId === SKILL_CATEGORY_ALL_ID) {
     return true
   }
-  return getSkillFilterTags(skill).includes(activeCategory)
+  return getSkillCategoryId(skill) === activeCategoryId
 }

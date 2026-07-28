@@ -1,7 +1,7 @@
 # Plan
 
-1. `skills/lib/skillCategories.ts`：固定分类 + 内置映射 + `tabList` 解析/匹配
-2. `RemoteSkillListItem.tabList` → merge 进 `metadata.tabList`
-3. `api/skills` list 映射 `tabList`
-4. `SkillListPage` 用 `skillMatchesCategoryFilter`
-5. 单测覆盖映射、解析、merge 保留
+> 已由 `docs/features/skill-category-from-api` 取代。
+
+历史方案（已废弃）：固定 5 类 + `tagList` 文案匹配。
+
+现行方案：`skillCategory/list` 的 `id`/`categoryName` + 列表 `categoryId` 匹配。

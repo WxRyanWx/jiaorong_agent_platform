@@ -3,9 +3,13 @@ import {
   type RemoteSkillListItem,
   type SkillMarketCatalogResult
 } from '../../skills/lib/skillMarketCatalog'
-import { parseSkillTagList } from '../../skills/lib/skillCategories'
+import {
+  parseCategoryId,
+  parseSkillCategories,
+  type SkillCategory
+} from '../../skills/lib/skillCategories'
 import request from '../auth/interceptors'
-export type { RemoteSkillListItem, SkillMarketCatalogResult }
+export type { RemoteSkillListItem, SkillMarketCatalogResult, SkillCategory }
 
 /** 远程技能详情接口的页面消费模型。 */
 export interface SkillDetailResponse {
@@ -26,6 +30,15 @@ export async function listRemoteSkills(): Promise<Record<string, unknown>[]> {
 }
 
 /**
+ * 拉取技能市场分类类型列表。
+ * 拦截器已解成 body（{ code, data }），解析为 { id, categoryName }[]。
+ */
+export async function listSkillCategories(): Promise<SkillCategory[]> {
+  const res = await request.get('deepchat-ext/skillCategory/list')
+  return parseSkillCategories(res?.data)
+}
+
+/**
  * 技能市场列表：扫本地 + 拉远程（按内置字段 map 后）合并。
  */
 export async function fetchSkillMarketCatalog(): Promise<SkillMarketCatalogResult> {
@@ -35,7 +48,7 @@ export async function fetchSkillMarketCatalog(): Promise<SkillMarketCatalogResul
     name: String(item.name ?? ''),
     description: String(item.desc ?? ''),
     downloadUrl: String(item.downloadUrl ?? ''),
-    tagList: parseSkillTagList(item.tagList)
+    categoryId: parseCategoryId(item.categoryId)
   }))
 
   return buildSkillMarketCatalog({

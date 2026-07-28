@@ -1,71 +1,81 @@
 import { describe, expect, it } from 'vitest'
 import {
-  BUILTIN_SKILL_CATEGORY_MAP,
-  getSkillFilterTags,
-  parseSkillTagList,
+  BUILTIN_SKILL_CATEGORY_ID_MAP,
+  buildFilterCategoryTabs,
+  getSkillCategoryId,
+  parseSkillCategories,
   skillMatchesCategoryFilter,
   SKILL_CATEGORY_ALL,
-  SKILL_FILTER_CATEGORIES
+  SKILL_CATEGORY_ALL_ID
 } from '../../../../src/jiaorong_src/skills/lib/skillCategories'
 import { mergeSkillMarketCatalog } from '../../../../src/jiaorong_src/skills/lib/skillMarketCatalog'
 import type { SkillMetadata } from '@shared/types/skill'
 
 describe('skillCategories', () => {
-  it('exposes fixed filter categories including 全部', () => {
-    expect(SKILL_FILTER_CATEGORIES[0]).toBe(SKILL_CATEGORY_ALL)
-    expect(SKILL_FILTER_CATEGORIES).toContain('综合办公')
-    expect(SKILL_FILTER_CATEGORIES).toContain('软件研发')
-    expect(SKILL_FILTER_CATEGORIES).toContain('工程建设')
-    expect(SKILL_FILTER_CATEGORIES).toContain('合同法务')
-    expect(SKILL_FILTER_CATEGORIES).toContain('经营投标')
-  })
-
-  it('maps builtin skills from the product table', () => {
-    expect(BUILTIN_SKILL_CATEGORY_MAP['code-review']).toEqual(['软件研发'])
-    expect(BUILTIN_SKILL_CATEGORY_MAP.docx).toEqual(['综合办公'])
-    expect(BUILTIN_SKILL_CATEGORY_MAP['skill-creator']).toBeUndefined()
-  })
-
-  it('parses tagList from strings or objects', () => {
-    expect(parseSkillTagList(['综合办公', ' 软件研发 ', ''])).toEqual(['综合办公', '软件研发'])
-    expect(parseSkillTagList([{ name: '工程建设' }, { label: '合同法务' }])).toEqual([
-      '工程建设',
-      '合同法务'
+  it('parses real skillCategory/list payload by id + categoryName', () => {
+    const categories = parseSkillCategories([
+      { id: 'bidding', categoryName: '经营投标', createTime: null, updateTime: null },
+      { id: 'engineering', categoryName: '工程建设', createTime: null, updateTime: null },
+      { id: 'legal', categoryName: '合约法务', createTime: null, updateTime: null },
+      { id: 'office', categoryName: '综合办公', createTime: null, updateTime: null },
+      { id: 'rd', categoryName: '软件研发', createTime: null, updateTime: null }
+    ])
+    expect(categories).toEqual([
+      { id: 'bidding', categoryName: '经营投标' },
+      { id: 'engineering', categoryName: '工程建设' },
+      { id: 'legal', categoryName: '合约法务' },
+      { id: 'office', categoryName: '综合办公' },
+      { id: 'rd', categoryName: '软件研发' }
     ])
   })
 
-  it('only keeps known filter categories from remote tagList', () => {
-    const tags = getSkillFilterTags({
-      name: 'remote-skill',
-      metadata: {
-        tagList: ['审计', '项目管理', '合规', '经营投标', '乱七八糟']
-      }
-    })
-    expect(tags).toEqual(['经营投标'])
+  it('builds filter tabs with 全部 first', () => {
+    expect(
+      buildFilterCategoryTabs([
+        { id: 'office', categoryName: '综合办公' },
+        { id: 'rd', categoryName: '软件研发' },
+        { id: 'office', categoryName: '重复' }
+      ])
+    ).toEqual([
+      { id: SKILL_CATEGORY_ALL_ID, categoryName: SKILL_CATEGORY_ALL },
+      { id: 'office', categoryName: '综合办公' },
+      { id: 'rd', categoryName: '软件研发' }
+    ])
   })
 
-  it('prefers remote tagList over builtin map', () => {
-    const tags = getSkillFilterTags({
-      name: 'code-review',
-      metadata: { tagList: ['经营投标'] }
-    })
-    expect(tags).toEqual(['经营投标'])
+  it('maps builtin skills to category ids', () => {
+    expect(BUILTIN_SKILL_CATEGORY_ID_MAP['code-review']).toBe('rd')
+    expect(BUILTIN_SKILL_CATEGORY_ID_MAP.docx).toBe('office')
+    expect(BUILTIN_SKILL_CATEGORY_ID_MAP['skill-creator']).toBeUndefined()
   })
 
-  it('falls back to builtin map when tagList has no known categories', () => {
-    expect(getSkillFilterTags({ name: 'pdf' })).toEqual(['综合办公'])
+  it('prefers remote categoryId over builtin map', () => {
+    expect(
+      getSkillCategoryId({
+        name: 'code-review',
+        metadata: { categoryId: 'bidding' }
+      })
+    ).toBe('bidding')
   })
 
-  it('matches category filter: 全部 shows uncategorized', () => {
-    const skill = { name: 'skill-creator' }
-    expect(skillMatchesCategoryFilter(skill, SKILL_CATEGORY_ALL)).toBe(true)
-    expect(skillMatchesCategoryFilter(skill, '软件研发')).toBe(false)
-    expect(skillMatchesCategoryFilter({ name: 'xlsx' }, '综合办公')).toBe(true)
+  it('falls back to builtin category id when remote missing', () => {
+    expect(getSkillCategoryId({ name: 'pdf' })).toBe('office')
+    expect(getSkillCategoryId({ name: 'skill-creator' })).toBe('')
+  })
+
+  it('matches filter by category id (not display name)', () => {
+    const remote = { name: '合同助手', metadata: { categoryId: 'legal' } }
+    expect(skillMatchesCategoryFilter(remote, SKILL_CATEGORY_ALL_ID)).toBe(true)
+    expect(skillMatchesCategoryFilter(remote, 'legal')).toBe(true)
+    expect(skillMatchesCategoryFilter(remote, 'rd')).toBe(false)
+    // 展示名是「合约法务」，但筛选用 id
+    expect(skillMatchesCategoryFilter(remote, '合约法务')).toBe(false)
+    expect(skillMatchesCategoryFilter({ name: 'xlsx' }, 'office')).toBe(true)
   })
 })
 
-describe('mergeSkillMarketCatalog tagList', () => {
-  it('keeps remote tagList on remote-only and merged local cards', () => {
+describe('mergeSkillMarketCatalog categoryId', () => {
+  it('keeps remote categoryId on remote-only and merged local cards', () => {
     const local: SkillMetadata[] = [
       {
         name: 'shared',
@@ -81,21 +91,18 @@ describe('mergeSkillMarketCatalog tagList', () => {
         name: 'shared',
         description: 'remote',
         downloadUrl: 'https://example.com/a.zip',
-        tagList: ['工程建设', '合同法务']
+        categoryId: 'engineering'
       },
       {
         id: 's2',
         name: 'Remote Only',
         description: 'only',
         downloadUrl: 'https://example.com/b.zip',
-        tagList: ['经营投标']
+        categoryId: 'bidding'
       }
     ])
 
-    expect(merged.find((s) => s.name === 'shared')?.metadata?.tagList).toEqual([
-      '工程建设',
-      '合同法务'
-    ])
-    expect(merged.find((s) => s.name === 'Remote Only')?.metadata?.tagList).toEqual(['经营投标'])
+    expect(merged.find((s) => s.name === 'shared')?.metadata?.categoryId).toBe('engineering')
+    expect(merged.find((s) => s.name === 'Remote Only')?.metadata?.categoryId).toBe('bidding')
   })
 })

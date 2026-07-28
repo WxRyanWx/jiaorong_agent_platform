@@ -6,8 +6,8 @@ export type RemoteSkillListItem = {
   name: string
   description: string
   downloadUrl: string
-  /** 远程分类标签（接口字段 tagList） */
-  tagList?: string[]
+  /** 远程分类 id（与 skillCategory/list 的 id 对齐） */
+  categoryId?: string
 }
 
 export type SkillMarketCatalogResult = {
@@ -54,7 +54,7 @@ export function mergeSkillMarketCatalog(
         displayName: key,
         remoteId: item.id,
         downloadUrl: item.downloadUrl,
-        ...(item.tagList && item.tagList.length > 0 ? { tagList: item.tagList } : {})
+        ...(item.categoryId ? { categoryId: item.categoryId } : {})
       }
     })
   }
@@ -80,11 +80,11 @@ export function mergeSkillMarketCatalog(
           (typeof prevMeta.displayName === 'string' && prevMeta.displayName.trim()) ||
           (typeof itemMeta.displayName === 'string' && itemMeta.displayName.trim()) ||
           item.name,
-        // 保留远程分类标签，供市场筛选
-        ...(Array.isArray(prevMeta.tagList) && prevMeta.tagList.length > 0
-          ? { tagList: prevMeta.tagList }
-          : Array.isArray(itemMeta.tagList) && itemMeta.tagList.length > 0
-            ? { tagList: itemMeta.tagList }
+        // 保留远程分类 id，供市场筛选
+        ...(typeof prevMeta.categoryId === 'string' && prevMeta.categoryId.trim()
+          ? { categoryId: prevMeta.categoryId.trim() }
+          : typeof itemMeta.categoryId === 'string' && itemMeta.categoryId.trim()
+            ? { categoryId: itemMeta.categoryId.trim() }
             : {})
       }
     })

@@ -6,7 +6,7 @@ import { Button } from '@shadcn/components/ui/button'
 import { Input } from '@shadcn/components/ui/input'
 import { useSkillsStore } from '@/stores/skillsStore'
 import type { SkillMetadata } from '@shared/types/skill'
-import { fetchSkillMarketCatalog } from '@jiaorong/api/skills'
+import { fetchSkillMarketCatalog, listSkillCategories } from '@jiaorong/api/skills'
 import {
   installSkillFromZipUrl,
   isSkillSwitchOn,
@@ -27,8 +27,10 @@ import {
 } from '../../lib/sessionSkill'
 import {
   SKILL_CATEGORY_ALL,
-  SKILL_FILTER_CATEGORIES,
-  skillMatchesCategoryFilter
+  SKILL_CATEGORY_ALL_ID,
+  buildFilterCategoryTabs,
+  skillMatchesCategoryFilter,
+  type SkillCategory
 } from '../../lib/skillCategories'
 import SkillUploadDialog from '../../components/SkillUploadDialog/SkillUploadDialog.vue'
 import './index.less'
@@ -41,7 +43,12 @@ const { toast } = useToast()
 
 const activeTab = ref<MarketTab>('market')
 const searchQuery = ref('')
-const activeCategory = ref(SKILL_CATEGORY_ALL)
+/** 当前选中分类 id；空字符串表示「全部」 */
+const activeCategoryId = ref(SKILL_CATEGORY_ALL_ID)
+/** 接口分类 +「全部」；失败时仅「全部」 */
+const categories = ref<SkillCategory[]>([
+  { id: SKILL_CATEGORY_ALL_ID, categoryName: SKILL_CATEGORY_ALL }
+])
 const createMenuOpen = ref(false)
 const uploadDialogOpen = ref(false)
 /** 市场列表（远程 + 本地合并结果） */
@@ -107,15 +114,24 @@ function markRemoteSkillInstalled(marketName: string, localSkillName: string) {
   )
 }
 
-/** 进入页面 / 上传成功后刷新列表 */
+/** 进入页面 / 上传成功后刷新列表与分类 */
 async function refreshMarket() {
   const generation = ++loadGeneration
   catalogLoading.value = true
   // 详情页卸载可能已清 localStorage，回到列表时同步内存映射
   remoteInstalledLocalNames.value = loadRemoteInstallMap()
+
+  // 分类与列表解耦：列表失败时仍尽量刷新 pill
+  const categoryPromise = listSkillCategories().catch((e) => {
+    console.error('[SkillListPage] Failed to load skill categories:', e)
+    return [] as SkillCategory[]
+  })
+
   try {
-    const { local, merged } = await fetchSkillMarketCatalog()
+    const catalog = await fetchSkillMarketCatalog()
     if (generation !== loadGeneration) return
+
+    const { local, merged } = catalog
     // 远程已装但目录名与展示名不一致时，把本地元数据挂回远程卡片
     const enriched = merged.map((skill) => {
       const localName = remoteInstalledLocalNames.value[skill.name]
@@ -153,8 +169,8 @@ async function refreshMarket() {
           ...(typeof skill.metadata?.downloadUrl === 'string' && skill.metadata.downloadUrl.trim()
             ? { downloadUrl: skill.metadata.downloadUrl }
             : {}),
-          ...(Array.isArray(skill.metadata?.tagList) && skill.metadata.tagList.length > 0
-            ? { tagList: skill.metadata.tagList }
+          ...(typeof skill.metadata?.categoryId === 'string' && skill.metadata.categoryId.trim()
+            ? { categoryId: skill.metadata.categoryId.trim() }
             : {})
         }
       }
@@ -169,7 +185,15 @@ async function refreshMarket() {
     console.error('[SkillListPage] Failed to load skill market:', e)
   } finally {
     if (generation === loadGeneration) {
-      catalogLoading.value = false
+      const categoryList = await categoryPromise
+      if (generation === loadGeneration) {
+        const nextTabs = buildFilterCategoryTabs(categoryList)
+        categories.value = nextTabs
+        if (!nextTabs.some((item) => item.id === activeCategoryId.value)) {
+          activeCategoryId.value = SKILL_CATEGORY_ALL_ID
+        }
+        catalogLoading.value = false
+      }
     }
   }
 }
@@ -206,15 +230,13 @@ const skillItems = computed((): JiaorongSkillItem[] =>
   })
 )
 
-const categories = computed(() => [...SKILL_FILTER_CATEGORIES])
-
 const filteredSkills = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
   return skillItems.value.filter((skill) => {
     if (activeTab.value === 'installed' && !isInstalled(skill)) {
       return false
     }
-    if (!skillMatchesCategoryFilter(skill, activeCategory.value)) {
+    if (!skillMatchesCategoryFilter(skill, activeCategoryId.value)) {
       return false
     }
     if (!q) {
@@ -422,13 +444,13 @@ onUnmounted(() => {
       <div class="skill-center-page__categories">
         <button
           v-for="category in categories"
-          :key="category"
+          :key="category.id || 'all'"
           type="button"
           class="skill-center-page__category"
-          :class="{ 'is-active': activeCategory === category }"
-          @click="activeCategory = category"
+          :class="{ 'is-active': activeCategoryId === category.id }"
+          @click="activeCategoryId = category.id"
         >
-          {{ category }}
+          {{ category.categoryName }}
         </button>
       </div>
     </div>
