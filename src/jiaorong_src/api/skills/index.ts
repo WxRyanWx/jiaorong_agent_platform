@@ -3,6 +3,7 @@ import {
   type RemoteSkillListItem,
   type SkillMarketCatalogResult
 } from '../../skills/lib/skillMarketCatalog'
+import { parseSkillTagList } from '../../skills/lib/skillCategories'
 import request from '../auth/interceptors'
 export type { RemoteSkillListItem, SkillMarketCatalogResult }
 
@@ -33,7 +34,8 @@ export async function fetchSkillMarketCatalog(): Promise<SkillMarketCatalogResul
     id: String(item.id ?? ''),
     name: String(item.name ?? ''),
     description: String(item.desc ?? ''),
-    downloadUrl: String(item.downloadUrl ?? '')
+    downloadUrl: String(item.downloadUrl ?? ''),
+    tagList: parseSkillTagList(item.tagList)
   }))
 
   return buildSkillMarketCatalog({

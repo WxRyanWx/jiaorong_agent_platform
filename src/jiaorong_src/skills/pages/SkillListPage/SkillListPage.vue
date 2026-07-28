@@ -25,6 +25,11 @@ import {
   SkillSource,
   toJiaorongSkillItem
 } from '../../lib/sessionSkill'
+import {
+  SKILL_CATEGORY_ALL,
+  SKILL_FILTER_CATEGORIES,
+  skillMatchesCategoryFilter
+} from '../../lib/skillCategories'
 import SkillUploadDialog from '../../components/SkillUploadDialog/SkillUploadDialog.vue'
 import './index.less'
 
@@ -36,7 +41,7 @@ const { toast } = useToast()
 
 const activeTab = ref<MarketTab>('market')
 const searchQuery = ref('')
-const activeCategory = ref('全部')
+const activeCategory = ref(SKILL_CATEGORY_ALL)
 const createMenuOpen = ref(false)
 const uploadDialogOpen = ref(false)
 /** 市场列表（远程 + 本地合并结果） */
@@ -48,8 +53,6 @@ const installingNames = ref(new Set<string>())
 const remoteInstalledLocalNames = ref<Record<string, string>>(loadRemoteInstallMap())
 
 let loadGeneration = 0
-
-const CATEGORY_FALLBACK = '通用'
 
 function getDownloadUrl(skill: SkillMetadata): string {
   const url = skill.metadata?.downloadUrl
@@ -149,6 +152,9 @@ async function refreshMarket() {
             : {}),
           ...(typeof skill.metadata?.downloadUrl === 'string' && skill.metadata.downloadUrl.trim()
             ? { downloadUrl: skill.metadata.downloadUrl }
+            : {}),
+          ...(Array.isArray(skill.metadata?.tagList) && skill.metadata.tagList.length > 0
+            ? { tagList: skill.metadata.tagList }
             : {})
         }
       }
@@ -176,18 +182,6 @@ function getSkillDisplayName(skill: SkillMetadata): string {
   return skill.name
 }
 
-function getSkillCategory(skill: SkillMetadata): string {
-  if (typeof skill.category === 'string' && skill.category.trim()) {
-    const leaf = skill.category.split(/[/\\]/).filter(Boolean).pop()
-    return leaf || CATEGORY_FALLBACK
-  }
-  const metaCategory = skill.metadata?.category
-  if (typeof metaCategory === 'string' && metaCategory.trim()) {
-    return metaCategory.trim()
-  }
-  return CATEGORY_FALLBACK
-}
-
 /** 本地已发现，或本页刚装过的远程技能 */
 function isInstalled(skill: SkillMetadata): boolean {
   return Boolean(skill.skillRoot) || Boolean(remoteInstalledLocalNames.value[skill.name])
@@ -212,16 +206,7 @@ const skillItems = computed((): JiaorongSkillItem[] =>
   })
 )
 
-const categories = computed(() => {
-  const set = new Set<string>()
-  for (const skill of skillItems.value) {
-    set.add(getSkillCategory(skill))
-  }
-  return [
-    '全部'
-    // ...Array.from(set).sort((a, b) => a.localeCompare(b, "zh-CN")),
-  ]
-})
+const categories = computed(() => [...SKILL_FILTER_CATEGORIES])
 
 const filteredSkills = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
@@ -229,7 +214,7 @@ const filteredSkills = computed(() => {
     if (activeTab.value === 'installed' && !isInstalled(skill)) {
       return false
     }
-    if (activeCategory.value !== '全部' && getSkillCategory(skill) !== activeCategory.value) {
+    if (!skillMatchesCategoryFilter(skill, activeCategory.value)) {
       return false
     }
     if (!q) {
@@ -431,7 +416,7 @@ onUnmounted(() => {
         <Input
           v-model="searchQuery"
           class="skill-center-page__search-input"
-          placeholder="搜索技能名称或描述"
+          placeholder="请输入技能名称或描述"
         />
       </div>
       <div class="skill-center-page__categories">

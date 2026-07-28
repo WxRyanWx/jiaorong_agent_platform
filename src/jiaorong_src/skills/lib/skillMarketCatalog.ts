@@ -6,6 +6,8 @@ export type RemoteSkillListItem = {
   name: string
   description: string
   downloadUrl: string
+  /** 远程分类标签（接口字段 tagList） */
+  tagList?: string[]
 }
 
 export type SkillMarketCatalogResult = {
@@ -51,7 +53,8 @@ export function mergeSkillMarketCatalog(
       metadata: {
         displayName: key,
         remoteId: item.id,
-        downloadUrl: item.downloadUrl
+        downloadUrl: item.downloadUrl,
+        ...(item.tagList && item.tagList.length > 0 ? { tagList: item.tagList } : {})
       }
     })
   }
@@ -76,7 +79,13 @@ export function mergeSkillMarketCatalog(
         displayName:
           (typeof prevMeta.displayName === 'string' && prevMeta.displayName.trim()) ||
           (typeof itemMeta.displayName === 'string' && itemMeta.displayName.trim()) ||
-          item.name
+          item.name,
+        // 保留远程分类标签，供市场筛选
+        ...(Array.isArray(prevMeta.tagList) && prevMeta.tagList.length > 0
+          ? { tagList: prevMeta.tagList }
+          : Array.isArray(itemMeta.tagList) && itemMeta.tagList.length > 0
+            ? { tagList: itemMeta.tagList }
+            : {})
       }
     })
   }
