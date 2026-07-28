@@ -80,7 +80,8 @@
       border-color: ~'color-mix(in srgb, var(--sud-primary) 40%, var(--sud-border))';
     }
 
-    &.is-drag-active {
+    &.is-drag-active,
+    &.is-menu-open {
       border-color: var(--sud-primary);
       background: ~'color-mix(in srgb, var(--sud-primary) 6%, white)';
     }
@@ -121,6 +122,96 @@
     line-height: 20px;
     color: var(--sud-text-muted);
     pointer-events: none;
+  }
+
+  &__pick-menu {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    max-width: 22rem;
+    padding: 0 12px;
+    pointer-events: auto;
+  }
+
+  &__pick-title {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 22px;
+    color: #191b1f;
+    text-align: center;
+  }
+
+  &__pick-row {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    gap: 12px;
+    width: 100%;
+  }
+
+  &__pick-item {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-width: 0;
+    padding: 16px 10px;
+    border: 1px solid var(--sud-border);
+    border-radius: 6px;
+    background: var(--sud-bg);
+    text-align: center;
+    cursor: pointer;
+    transition:
+      border-color 0.15s ease,
+      background 0.15s ease,
+      box-shadow 0.15s ease;
+
+    &:hover {
+      border-color: #006eff;
+      background: ~'color-mix(in srgb, #006eff 4%, white)';
+      box-shadow: 0 1px 4px ~'color-mix(in srgb, #006eff 12%, transparent)';
+    }
+  }
+
+  &__pick-icon {
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    color: #006eff;
+  }
+
+  &__pick-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 20px;
+    color: #191b1f;
+  }
+
+  &__pick-hint {
+    display: block;
+    font-size: 12px;
+    line-height: 18px;
+    color: var(--sud-text-muted);
+  }
+
+  &__pick-cancel {
+    padding: 4px 8px;
+    border: none;
+    background: transparent;
+    font-size: 12px;
+    line-height: 18px;
+    color: var(--sud-text-muted);
+    cursor: pointer;
+
+    &:hover {
+      color: #191b1f;
+    }
   }
 
   &__pending {

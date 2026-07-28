@@ -16,6 +16,7 @@ import {
 import { useToast } from '@/components/use-toast'
 import { useSkillsStore } from '@/stores/skillsStore'
 import { useLegacyPresenter } from '@api/legacy/presenters'
+import { createDeviceClient } from '@api/DeviceClient'
 import { createFileClient } from '@api/FileClient'
 import { getRuntimePathForFile } from '@api/runtime'
 import type { SkillInstallResult } from '@shared/types/skill'
@@ -54,6 +55,7 @@ const emit = defineEmits<{
 const { toast } = useToast()
 const skillsStore = useSkillsStore()
 const devicePresenter = useLegacyPresenter('devicePresenter')
+const deviceClient = createDeviceClient()
 // safeCall:false — writeTemp 失败时不要吞成 null（否则 installFromZip 会报 zipPath null）
 const filePresenter = useLegacyPresenter('filePresenter', { safeCall: false })
 const fileClient = createFileClient()
@@ -66,20 +68,41 @@ const isOpen = computed({
 const dragActive = ref(false)
 const installing = ref(false)
 const pending = ref<PendingSelection | null>(null)
+/** Win/Linux 无法同框选文件+文件夹；默认按拆分模式，避免平台探测完成前误走 mac 同框逻辑 */
+const splitFileFolderPicker = ref(true)
+const pickMenuOpen = ref(false)
 
 const conflictDialogOpen = ref(false)
 const conflictSkillName = ref('')
 const pendingOverwrite = ref<(() => Promise<void>) | null>(null)
+
+const SKILL_FILE_FILTERS = [
+  { name: 'Skill packages', extensions: ['zip', 'md'] },
+  { name: 'All files', extensions: ['*'] }
+]
+
+async function refreshPickerMode() {
+  try {
+    const info = await deviceClient.getDeviceInfo()
+    // Electron：仅 darwin 可同框 openFile+openDirectory；其余平台拆分
+    splitFileFolderPicker.value = info.platform !== 'darwin'
+  } catch {
+    splitFileFolderPicker.value = true
+  }
+}
 
 watch(isOpen, (open) => {
   if (!open) {
     pending.value = null
     dragActive.value = false
     installing.value = false
+    pickMenuOpen.value = false
     conflictDialogOpen.value = false
     conflictSkillName.value = ''
     pendingOverwrite.value = null
+    return
   }
+  void refreshPickerMode()
 })
 
 function isZipPath(filePath: string): boolean {
@@ -173,16 +196,23 @@ async function classifyPath(filePath: string, isDirectoryHint: boolean) {
   rejectFormat()
 }
 
-/** 单一入口：同一对话框可选 zip / md / 文件夹 */
-async function pickSource() {
+/** 点击上传区：macOS 直接同框选；Win/Linux 先弹出类型菜单（系统限制） */
+async function onDropzoneClick() {
+  if (installing.value) return
+  if (splitFileFolderPicker.value) {
+    pickMenuOpen.value = !pickMenuOpen.value
+    return
+  }
+  await pickFiles({ allowDirectory: true })
+}
+
+async function pickFiles(options: { allowDirectory: boolean }) {
+  pickMenuOpen.value = false
   if (installing.value) return
   try {
     const result = await devicePresenter.selectFiles({
-      allowDirectory: true,
-      filters: [
-        { name: 'Skill packages', extensions: ['zip', 'md'] },
-        { name: 'All files', extensions: ['*'] }
-      ]
+      allowDirectory: options.allowDirectory,
+      filters: SKILL_FILE_FILTERS
     })
     if (result.canceled || result.filePaths.length === 0) return
     if (result.filePaths.length > 1) {
@@ -199,8 +229,37 @@ async function pickSource() {
   }
 }
 
+async function pickFolder() {
+  pickMenuOpen.value = false
+  if (installing.value) return
+  try {
+    const result = await deviceClient.selectDirectory()
+    if (result.canceled || result.filePaths.length === 0) return
+    if (result.filePaths.length > 1) {
+      rejectFormat('一次只能选择一个文件或文件夹')
+      return
+    }
+    await classifyPath(result.filePaths[0], true)
+  } catch (error) {
+    toast({
+      title: '选择失败',
+      description: String(error),
+      variant: 'destructive'
+    })
+  }
+}
+
+function onPickMenuFiles() {
+  void pickFiles({ allowDirectory: false })
+}
+
+function onPickMenuFolder() {
+  void pickFolder()
+}
+
 async function handleDrop(event: DragEvent) {
   dragActive.value = false
+  pickMenuOpen.value = false
   if (installing.value) return
 
   const items = event.dataTransfer?.items
@@ -327,8 +386,8 @@ const handleConflictOverwrite = async () => {
       <div class="skill-upload-dialog__body">
         <div
           class="skill-upload-dialog__dropzone"
-          :class="{ 'is-drag-active': dragActive }"
-          @click="pickSource"
+          :class="{ 'is-drag-active': dragActive, 'is-menu-open': pickMenuOpen }"
+          @click="onDropzoneClick"
           @dragenter.prevent="dragActive = true"
           @dragover.prevent="dragActive = true"
           @dragleave.prevent="dragActive = false"
@@ -339,19 +398,57 @@ const handleConflictOverwrite = async () => {
             icon="lucide:loader-2"
             class="skill-upload-dialog__spinner"
           />
-          <span v-else class="skill-upload-dialog__plus" aria-hidden="true">+</span>
-          <p class="skill-upload-dialog__hint">点击或拖拽文件到此处上传</p>
-          <p class="skill-upload-dialog__desc">
-            支持上传文件夹或.zip，内容可包含一个或多个非嵌套技能目录；也可以上传单独的.md文件。系统并不能确保技能的可用性，请自行验证。
-          </p>
-          <p v-if="pending" class="skill-upload-dialog__pending">
-            已选择：{{ pending.label }}
-            <span class="skill-upload-dialog__pending-kind">
-              （{{
-                pending.kind === 'folder' ? '文件夹' : pending.kind === 'zip' ? 'ZIP' : 'Markdown'
-              }}）
-            </span>
-          </p>
+          <template v-else-if="pickMenuOpen && splitFileFolderPicker">
+            <div class="skill-upload-dialog__pick-menu" @click.stop>
+              <p class="skill-upload-dialog__pick-title">请选择上传类型</p>
+              <div class="skill-upload-dialog__pick-row">
+                <button
+                  type="button"
+                  class="skill-upload-dialog__pick-item"
+                  @click="onPickMenuFiles"
+                >
+                  <Icon icon="lucide:file" class="skill-upload-dialog__pick-icon" />
+                  <span class="skill-upload-dialog__pick-label">选择文件</span>
+                  <span class="skill-upload-dialog__pick-hint">.zip / .md</span>
+                </button>
+                <button
+                  type="button"
+                  class="skill-upload-dialog__pick-item"
+                  @click="onPickMenuFolder"
+                >
+                  <Icon icon="lucide:folder" class="skill-upload-dialog__pick-icon" />
+                  <span class="skill-upload-dialog__pick-label">选择文件夹</span>
+                  <span class="skill-upload-dialog__pick-hint">技能目录</span>
+                </button>
+              </div>
+              <button
+                type="button"
+                class="skill-upload-dialog__pick-cancel"
+                @click="pickMenuOpen = false"
+              >
+                取消
+              </button>
+            </div>
+          </template>
+          <template v-else>
+            <span class="skill-upload-dialog__plus" aria-hidden="true">+</span>
+            <p class="skill-upload-dialog__hint">点击或拖拽文件到此处上传</p>
+            <p class="skill-upload-dialog__desc">
+              支持上传文件夹或.zip，内容可包含一个或多个非嵌套技能目录；也可以上传单独的.md文件。系统并不能确保技能的可用性，请自行验证。
+            </p>
+            <p v-if="pending" class="skill-upload-dialog__pending">
+              已选择：{{ pending.label }}
+              <span class="skill-upload-dialog__pending-kind">
+                （{{
+                  pending.kind === 'folder'
+                    ? '文件夹'
+                    : pending.kind === 'zip'
+                      ? 'ZIP'
+                      : 'Markdown'
+                }}）
+              </span>
+            </p>
+          </template>
         </div>
       </div>
 
