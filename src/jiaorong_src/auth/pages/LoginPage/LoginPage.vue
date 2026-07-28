@@ -703,6 +703,10 @@ async function handLogin(values: Record<string, string>): Promise<void> {
         resName.value = res1.data.userName
         await FeatchUsageRecord({}, 'login', res1.data.id)
         markAuthSessionValidated()
+        // 登录成功后触发默认技能补装（版本闸门；已成功跑过则跳过）
+        void import('../../../skills/lib/ensureDefaultSkills')
+          .then((m) => m.scheduleEnsureDefaultSkills())
+          .catch(() => undefined)
       }
       router.push('/chat')
     }

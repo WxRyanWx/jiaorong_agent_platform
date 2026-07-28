@@ -6,6 +6,8 @@ export type RemoteSkillListItem = {
   name: string
   description: string
   downloadUrl: string
+  /** 市场别名（用于默认技能匹配旧名/短名） */
+  alias?: string
   /** 远程分类 id（与 skillCategory/list 的 id 对齐） */
   categoryId?: string
 }

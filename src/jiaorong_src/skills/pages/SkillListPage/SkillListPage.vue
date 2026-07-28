@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { Button } from '@shadcn/components/ui/button'
 import { Input } from '@shadcn/components/ui/input'
@@ -32,17 +32,31 @@ import {
   skillMatchesCategoryFilter,
   type SkillCategory
 } from '../../lib/skillCategories'
+import {
+  JIAORONG_DEFAULT_SKILL_INSTALL_EVENT,
+  getDefaultSkillsInstallingNames,
+  type DefaultSkillInstallEventDetail
+} from '../../lib/defaultSkillInstallEvents'
+import { parseSkillMarketTab, type SkillMarketTab } from '../../lib/skillMarketTab'
 import SkillUploadDialog from '../../components/SkillUploadDialog/SkillUploadDialog.vue'
 import './index.less'
 
-type MarketTab = 'market' | 'installed'
-
 const router = useRouter()
+const route = useRoute()
 const skillsStore = useSkillsStore()
 const { toast } = useToast()
 
-const activeTab = ref<MarketTab>('market')
+const activeTab = ref<SkillMarketTab>(parseSkillMarketTab(route.query.tab))
 const searchQuery = ref('')
+
+function setActiveTab(tab: SkillMarketTab) {
+  activeTab.value = tab
+  if (parseSkillMarketTab(route.query.tab) === tab) return
+  void router.replace({
+    name: 'skills',
+    query: { ...route.query, tab }
+  })
+}
 /** 当前选中分类 id；空字符串表示「全部」 */
 const activeCategoryId = ref(SKILL_CATEGORY_ALL_ID)
 /** 接口分类 +「全部」；失败时仅「全部」 */
@@ -60,6 +74,7 @@ const installingNames = ref(new Set<string>())
 const remoteInstalledLocalNames = ref<Record<string, string>>(loadRemoteInstallMap())
 
 let loadGeneration = 0
+let defaultInstallEventHandler: ((event: Event) => void) | null = null
 
 function getDownloadUrl(skill: SkillMetadata): string {
   const url = skill.metadata?.downloadUrl
@@ -275,9 +290,17 @@ const openDetail = (skill: JiaorongSkillItem) => {
   })
   void router.push({
     name: 'skills-detail',
-    params: { skillId: isInstalled(skill) ? localName : skill.name }
+    params: { skillId: isInstalled(skill) ? localName : skill.name },
+    query: { tab: activeTab.value }
   })
 }
+
+watch(
+  () => route.query.tab,
+  (tab) => {
+    activeTab.value = parseSkillMarketTab(tab)
+  }
+)
 
 const handleUse = async (skill: JiaorongSkillItem) => {
   const localName = getInstalledLocalName(skill)
@@ -371,12 +394,41 @@ onMounted(() => {
       rememberSkillSource(name, SkillSource.LocalBuiltin)
     }
   }
+  // 合并默认技能静默安装中的「安装中」态
+  for (const name of getDefaultSkillsInstallingNames()) {
+    installingNames.value.add(name)
+  }
+  installingNames.value = new Set(installingNames.value)
+
+  defaultInstallEventHandler = (event: Event) => {
+    const detail = (event as CustomEvent<DefaultSkillInstallEventDetail>).detail
+    if (!detail?.marketName) return
+    const next = new Set(installingNames.value)
+    if (detail.phase === 'start') {
+      next.add(detail.marketName)
+      installingNames.value = next
+      return
+    }
+    next.delete(detail.marketName)
+    installingNames.value = next
+    // 以默认安装队列为准（勿用 next.size：可能还含用户手动安装项）
+    if (getDefaultSkillsInstallingNames().length === 0) {
+      remoteInstalledLocalNames.value = loadRemoteInstallMap()
+      void refreshMarket()
+    }
+  }
+  window.addEventListener(JIAORONG_DEFAULT_SKILL_INSTALL_EVENT, defaultInstallEventHandler)
+
   void refreshMarket()
 })
 
 onUnmounted(() => {
   // 作废进行中的请求，避免离开页面后回写
   loadGeneration += 1
+  if (defaultInstallEventHandler) {
+    window.removeEventListener(JIAORONG_DEFAULT_SKILL_INSTALL_EVENT, defaultInstallEventHandler)
+    defaultInstallEventHandler = null
+  }
 })
 </script>
 
@@ -389,7 +441,7 @@ onUnmounted(() => {
           type="button"
           class="skill-center-page__tab"
           :class="{ 'is-active': activeTab === 'market' }"
-          @click.stop="activeTab = 'market'"
+          @click.stop="setActiveTab('market')"
         >
           技能市场
           <span class="skill-center-page__tab_span">
@@ -400,7 +452,7 @@ onUnmounted(() => {
           type="button"
           class="skill-center-page__tab"
           :class="{ 'is-active': activeTab === 'installed' }"
-          @click.stop="activeTab = 'installed'"
+          @click.stop="setActiveTab('installed')"
         >
           已安装
           <span class="skill-center-page__tab_span">

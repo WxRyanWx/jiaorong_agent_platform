@@ -30,6 +30,7 @@ import {
   SkillSource,
   type JiaorongSkillItem
 } from '../../lib/sessionSkill'
+import { parseSkillMarketTab } from '../../lib/skillMarketTab'
 import skillIcon from '@jiaorong/assets/skill.png'
 import codeIcon from '@jiaorong/brand/icons/skill-detail/code@2x.png'
 import codeActiveIcon from '@jiaorong/brand/icons/skill-detail/code-active@2x.png'
@@ -119,8 +120,8 @@ watch(
         remoteId: detail.id || remoteId,
         ...(detail.downloadUrl ? { downloadUrl: detail.downloadUrl } : {}),
         displayName:
-          (typeof current.metadata?.displayName === 'string' && current.metadata.displayName) ||
           detail.name ||
+          (typeof current.metadata?.displayName === 'string' && current.metadata.displayName) ||
           current.name
       }
       const nextSkill: JiaorongSkillItem = {
@@ -195,8 +196,15 @@ watch(
   { immediate: true }
 )
 
+function skillsListLocation() {
+  return {
+    name: 'skills' as const,
+    query: { tab: parseSkillMarketTab(route.query.tab) }
+  }
+}
+
 const goBack = () => {
-  void router.push({ name: 'skills' })
+  void router.push(skillsListLocation())
 }
 
 const updateEnabled = async (nextEnabled: boolean) => {
@@ -292,7 +300,8 @@ const handleInstall = async () => {
     if (skillId.value !== result.skillName) {
       await router.replace({
         name: 'skills-detail',
-        params: { skillId: result.skillName }
+        params: { skillId: result.skillName },
+        query: route.query
       })
     }
   } finally {
@@ -377,11 +386,12 @@ const uninstallSkill = async () => {
     if (skillId.value !== displayName) {
       await router.replace({
         name: 'skills-detail',
-        params: { skillId: displayName }
+        params: { skillId: displayName },
+        query: route.query
       })
     }
   } else {
-    await router.push({ name: 'skills' })
+    await router.push(skillsListLocation())
   }
 }
 </script>

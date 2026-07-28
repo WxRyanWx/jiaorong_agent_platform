@@ -48,6 +48,7 @@ export async function fetchSkillMarketCatalog(): Promise<SkillMarketCatalogResul
     name: String(item.name ?? ''),
     description: String(item.desc ?? ''),
     downloadUrl: String(item.downloadUrl ?? ''),
+    alias: typeof item.alias === 'string' ? item.alias.trim() : '',
     categoryId: parseCategoryId(item.categoryId)
   }))
 
@@ -69,9 +70,10 @@ export async function getSkillDetail(remoteId: string): Promise<SkillDetailRespo
   if (!data || typeof data !== 'object') return null
 
   const raw = data as Record<string, unknown>
-  const alias = typeof raw.alias === 'string' ? raw.alias.trim() : ''
+  // 市场改名后 name 为中文展示名；alias 多为旧英文名，不能优先生效
   const rawName = typeof raw.name === 'string' ? raw.name.trim() : ''
-  const name = alias || rawName
+  const alias = typeof raw.alias === 'string' ? raw.alias.trim() : ''
+  const name = rawName || alias
   const description = typeof raw.desc === 'string' ? raw.desc : ''
   const tryPrompts = Array.isArray(raw.exampleTemplateList)
     ? raw.exampleTemplateList.filter(

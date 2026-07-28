@@ -28,6 +28,10 @@ export function mountJiaorong(_host?: JiaorongHostPorts): JiaorongRegistry {
       registry.modules.map((m) => m.id).join(', ') || '(无)'
     )
   }
+  // 应用安装/升级后补装默认市场技能（按版本只跑一次）
+  void import('../skills/lib/ensureDefaultSkills').then(({ scheduleEnsureDefaultSkills }) => {
+    scheduleEnsureDefaultSkills()
+  })
   return registry
 }
 

@@ -95,12 +95,16 @@ async function downloadZipBytes(url: string): Promise<Uint8Array> {
  * 经 installLocalSkill 规范化 SKILL.md（兼容 **name:** / 中文名等），再交给开源安装。
  * 只下载一次：安装失败若为同名冲突，确认覆盖后复用同一份字节。
  */
-export async function installSkillFromZipUrl(url: string): Promise<InstallSkillFromZipUrlResult> {
+export async function installSkillFromZipUrl(
+  url: string,
+  options?: { silent?: boolean }
+): Promise<InstallSkillFromZipUrlResult> {
   const validationError = validateZipSkillUrl(url)
   if (validationError) {
     return { success: false, error: validationError }
   }
 
+  const silent = Boolean(options?.silent)
   const trimmed = url.trim()
   const skillsStore = useSkillsStore()
   const filePresenter = useLegacyPresenter('filePresenter', { safeCall: false })
@@ -162,6 +166,11 @@ export async function installSkillFromZipUrl(url: string): Promise<InstallSkillF
     }
 
     const conflictName = resolveConflictSkillName(first)
+    // 静默模式：同名已存在视为已装，不弹覆盖确认
+    if (silent) {
+      return { success: true, skillName: conflictName || undefined }
+    }
+
     const shouldOverwrite = await confirmSkillOverwrite(conflictName)
     if (!shouldOverwrite) {
       return {
