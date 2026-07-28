@@ -56,7 +56,7 @@ import { Icon } from '@iconify/vue'
 import { useI18n } from 'vue-i18n'
 import { createSettingsClient } from '@api/SettingsClient'
 import { useAgentStore, type UIAgent } from '@/stores/ui/agent'
-import { forceRevalidateAuthSession } from '@jiaorong/auth/host'
+import { forceRevalidateAuthSession, getToken } from '@jiaorong/auth/host'
 import AgentAvatar from '@/components/icons/AgentAvatar.vue'
 
 type AgentWelcomeCard = {
@@ -102,11 +102,16 @@ const displayedAgentCards = computed<AgentWelcomeCard[]>(() => {
 })
 
 const selectAgentCard = async (card: AgentWelcomeCard) => {
-  const valid = await forceRevalidateAuthSession()
-  if (!valid) {
+  // 有本地 token 立即进入；后台短超时探活，避免首页卡片点击被 userInfo 卡住
+  if (!getToken()) {
     void router.push({ name: 'login' })
     return
   }
+  void forceRevalidateAuthSession().then((valid) => {
+    if (!valid) {
+      void router.push({ name: 'login' })
+    }
+  })
   agentStore.setSelectedAgent(card.id)
 }
 

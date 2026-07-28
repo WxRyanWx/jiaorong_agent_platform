@@ -56,3 +56,5 @@
 | H50 | `src/renderer/settings/components/DeepChatAgentsSettings.vue` | `settings-agents-page` / `settings-agent-card-selected` / `settings-agent-avatar-*` / `settings-agent-select` / `settings-agent-switch` / `settings-agent-status-enabled` class | brand theme | 低 | 仅挂 class，样式在 theme.less |
 | H51 | `src/renderer/settings/components/ShortcutSettings.vue` | `settings-shortcuts-page` / `settings-shortcut-input` class | brand theme | 低 | 仅挂 class，样式在 theme.less |
 | H52 | `src/renderer/settings/components/AboutUsSettings.vue` | `settings-about-page` / `settings-about-description` / `settings-about-update-*` class | brand theme | 低 | 仅挂 class，样式在 theme.less |
+| H53 | `WindowSideBar.vue` / `AgentWelcomePage.vue` | 菜单/选 Agent 鉴权改为不阻塞导航 | auth | 中 | `scheduleAuthRevalidateOnMenuSwitch`；userInfo 探活超时 5s |
+| H54 | `src/renderer/src/stores/ui/session.ts` | 激活会话时按摘要 id 决定是否清空模型 | session UI | 低 | 再点当前会话/activate 竞态不丢 provider·model；私有目录无法覆盖 store |

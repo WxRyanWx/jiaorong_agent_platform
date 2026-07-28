@@ -13,6 +13,7 @@ export { useAuthLoginDeeplinkHandler } from './lib/auth-deeplink'
 export {
   ensureAuthSessionValidated,
   forceRevalidateAuthSession,
+  scheduleAuthRevalidateOnMenuSwitch,
   markAuthSessionValidated,
   clearAuthSession,
   resetAuthSessionValidation

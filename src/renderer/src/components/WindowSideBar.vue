@@ -474,7 +474,7 @@ import { createRemoteControlRuntime } from '@api/RemoteControlRuntime'
 import { createDeviceClient } from '@api/DeviceClient'
 import { isJiaorongExclusiveChromeRoute, listJiaorongSidebarItems } from '@jiaorong/runtime/sidebar'
 import type { JiaorongSidebarItem } from '@jiaorong/runtime/types'
-import { forceRevalidateAuthSession } from '@jiaorong/auth/host'
+import { scheduleAuthRevalidateOnMenuSwitch } from '@jiaorong/auth/host'
 import { useAgentStore } from '@/stores/ui/agent'
 import { useSessionStore, type SessionGroup, type UISession } from '@/stores/ui/session'
 import { useSpotlightStore } from '@/stores/ui/spotlight'
@@ -945,14 +945,9 @@ const redirectToLogin = () => {
   void router.push({ name: 'login' })
 }
 
-/** 左侧菜单切换时静默强制校验。401 时拦截器会跳登录；此处 false 时再兜底跳转（含无 token） */
-const ensureAuthOnMenuSwitch = async (): Promise<boolean> => {
-  const valid = await forceRevalidateAuthSession()
-  if (!valid) {
-    redirectToLogin()
-    return false
-  }
-  return true
+/** 左侧菜单切换：本地有 token 立即放行；后台静默校验，401 再跳登录（避免 userInfo 慢请求卡住点击） */
+const ensureAuthOnMenuSwitch = (): boolean => {
+  return scheduleAuthRevalidateOnMenuSwitch(redirectToLogin)
 }
 
 const handleAgentSelect = async (id: string | null) => {
@@ -977,7 +972,7 @@ const handleAgentSelect = async (id: string | null) => {
         return
       }
 
-      const allowed = await ensureAuthOnMenuSwitch()
+      const allowed = ensureAuthOnMenuSwitch()
       if (!allowed || requestSeq !== agentSwitchSeq) {
         return
       }
@@ -1022,7 +1017,7 @@ const handleAgentSelect = async (id: string | null) => {
 }
 
 const openJiaorongSidebarItem = async (item: JiaorongSidebarItem) => {
-  const allowed = await ensureAuthOnMenuSwitch()
+  const allowed = ensureAuthOnMenuSwitch()
   if (!allowed) {
     return
   }

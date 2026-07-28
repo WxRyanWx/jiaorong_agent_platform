@@ -20,10 +20,11 @@ export function oauthExitRes() {
   return request.post(`/auth/logout`)
 }
 
-export function getUserInfo(options?: { silent?: boolean }) {
+export function getUserInfo(options?: { silent?: boolean; timeout?: number }) {
   return request({
     url: '/sys-user/userInfo',
     method: 'GET',
+    ...(typeof options?.timeout === 'number' ? { timeout: options.timeout } : {}),
     headers: options?.silent ? { dontShowMessage: true } : undefined
   })
 }

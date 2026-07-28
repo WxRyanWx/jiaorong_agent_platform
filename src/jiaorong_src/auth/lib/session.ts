@@ -5,6 +5,9 @@ import { clearOutLocal, getToken } from './local-user'
 let sessionValidated = false
 let validating: Promise<boolean> | null = null
 
+/** 菜单切换 / 冷启动会话探活：短超时，避免鉴权接口拖死 UI（全局 axios 默认 150s） */
+export const AUTH_SESSION_CHECK_TIMEOUT_MS = 5000
+
 export function resetAuthSessionValidation() {
   sessionValidated = false
   validating = null
@@ -50,7 +53,10 @@ export async function ensureAuthSessionValidated(): Promise<boolean> {
 
   validating = (async () => {
     try {
-      const res = await FeatchUserInfo(undefined, { silent: true })
+      const res = await FeatchUserInfo(undefined, {
+        silent: true,
+        timeout: AUTH_SESSION_CHECK_TIMEOUT_MS
+      })
       if (res?.code === 8000000 && res.data) {
         persistUserInfo(res.data)
         sessionValidated = true
@@ -94,4 +100,23 @@ export async function forceRevalidateAuthSession(): Promise<boolean> {
   sessionValidated = false
   validating = null
   return ensureAuthSessionValidated()
+}
+
+/**
+ * 侧栏切换：有本地 token 立即放行，后台静默强校验；401 再跳登录。
+ * 避免 await userInfo 把点击卡住数十秒。
+ */
+export function scheduleAuthRevalidateOnMenuSwitch(onUnauthorized: () => void): boolean {
+  const token = getToken()
+  if (!token) {
+    onUnauthorized()
+    return false
+  }
+
+  void forceRevalidateAuthSession().then((valid) => {
+    if (!valid) {
+      onUnauthorized()
+    }
+  })
+  return true
 }

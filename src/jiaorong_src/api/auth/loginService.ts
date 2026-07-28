@@ -48,7 +48,10 @@ export const FeatchExit = async () => {
   return oauthExitRes()
 }
 
-export const FeatchUserInfo = async (_userName?: string, options?: { silent?: boolean }) => {
+export const FeatchUserInfo = async (
+  _userName?: string,
+  options?: { silent?: boolean; timeout?: number }
+) => {
   return getUserInfo(options) as unknown as Promise<AuthApiResponse<UserInfoData>>
 }
 

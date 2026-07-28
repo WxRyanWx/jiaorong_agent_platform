@@ -318,7 +318,8 @@ const setup = async (options: SetupOptions = {}) => {
     })
   }))
   vi.doMock('@jiaorong/auth/host', () => ({
-    forceRevalidateAuthSession: vi.fn(async () => true)
+    forceRevalidateAuthSession: vi.fn(async () => true),
+    scheduleAuthRevalidateOnMenuSwitch: vi.fn(() => true)
   }))
   const route = reactive({
     name: options.routeName ?? 'chat',

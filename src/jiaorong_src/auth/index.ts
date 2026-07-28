@@ -13,6 +13,7 @@ export {
   useAuthLoginDeeplinkHandler,
   ensureAuthSessionValidated,
   forceRevalidateAuthSession,
+  scheduleAuthRevalidateOnMenuSwitch,
   markAuthSessionValidated,
   clearAuthSession,
   resetAuthSessionValidation,

@@ -626,11 +626,14 @@ export const useSessionStore = defineStore('session', () => {
   async function selectSession(sessionId: string): Promise<void> {
     error.value = null
     try {
-      if (activeSessionId.value && activeSessionId.value !== sessionId) {
+      const isSameSession = activeSessionId.value === sessionId
+      if (activeSessionId.value && !isSameSession) {
         messageStore.clearStreamingState()
       }
       await sessionClient.activate(sessionId)
-      clearActiveSessionSummary()
+      if (activeSessionSummary.value?.id !== sessionId) {
+        clearActiveSessionSummary()
+      }
       syncSelectedAgentToSession(sessionId)
       setActiveSessionId(sessionId)
       pageRouter.goToChat(sessionId)
@@ -943,10 +946,14 @@ export const useSessionStore = defineStore('session', () => {
     refreshSessionsByIds,
     removeSessions,
     onActivated: (sessionId) => {
-      if (activeSessionId.value && activeSessionId.value !== sessionId) {
+      const isSameSession = activeSessionId.value === sessionId
+      if (activeSessionId.value && !isSameSession) {
         messageStore.clearStreamingState()
       }
-      clearActiveSessionSummary()
+      // Same as selectSession: preserve when summary already matches the target.
+      if (activeSessionSummary.value?.id !== sessionId) {
+        clearActiveSessionSummary()
+      }
       syncSelectedAgentToSession(sessionId)
       setActiveSessionId(sessionId)
       pageRouter.goToChat(sessionId)
