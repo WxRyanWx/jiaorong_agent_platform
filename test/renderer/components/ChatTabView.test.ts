@@ -11,6 +11,8 @@ type SetupOptions = {
   sessionError?: string | null
   activeSessionId?: string | null
   bootstrapReject?: boolean
+  /** Stale shell bootstrap session id (may differ from sessionStore.activeSessionId). */
+  staleBootstrapActiveSessionId?: string | null
 }
 
 const setup = async (options: SetupOptions = {}) => {
@@ -114,6 +116,17 @@ const setup = async (options: SetupOptions = {}) => {
       return () => {}
     })
   }))
+  if (options.staleBootstrapActiveSessionId !== undefined) {
+    vi.doMock('@/lib/shellBootstrap', () => ({
+      ensureShellBootstrap: vi.fn().mockResolvedValue({
+        startupRunId: 'run-stale',
+        activeSessionId: options.staleBootstrapActiveSessionId,
+        activeSession: null,
+        agents: [],
+        defaultProjectPath: 'C:/repo'
+      })
+    }))
+  }
   vi.doMock('@api/ConfigClient', () => ({
     createConfigClient: () => ({
       getSetting: vi.fn().mockResolvedValue(undefined)
@@ -226,7 +239,8 @@ describe('ChatTabView startup and routing', () => {
       activeSessionId: 'session-42'
     })
     expect(markStartupInteractive).toHaveBeenCalledTimes(1)
-    expect(agentStore.fetchAgents).toHaveBeenCalledTimes(1)
+    // shell.bootstrap refreshes agents, then ChatTabView critical hydration fetches again
+    expect(agentStore.fetchAgents).toHaveBeenCalledTimes(2)
     expect(projectStore.fetchProjects).toHaveBeenCalledTimes(1)
   })
 
@@ -257,6 +271,23 @@ describe('ChatTabView startup and routing', () => {
     expect(sessionStore.fetchSessions).toHaveBeenCalledTimes(1)
     expect(pageRouter.initialize).toHaveBeenCalledWith({
       activeSessionId: null
+    })
+  })
+
+  it('does not restore a stale bootstrap session after the live store cleared it', async () => {
+    const { pageRouter } = await setup({
+      collapsed: false,
+      currentRoute: 'newThread',
+      activeSessionId: null,
+      selectedAgentId: 'deepchat',
+      staleBootstrapActiveSessionId: 'stale-session-from-first-boot'
+    })
+
+    expect(pageRouter.initialize).toHaveBeenCalledWith({
+      activeSessionId: null
+    })
+    expect(pageRouter.initialize).not.toHaveBeenCalledWith({
+      activeSessionId: 'stale-session-from-first-boot'
     })
   })
 

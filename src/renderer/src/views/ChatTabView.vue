@@ -74,11 +74,12 @@ onMounted(async () => {
     // 与 App 壳层共用同一 bootstrap，避免早进 /skills 时 agents 未加载
     const bootstrap = await ensureShellBootstrap()
     if (bootstrap) {
-      console.info(
-        `[Startup][Renderer] ChatTabView reuse shell.bootstrap run=${bootstrap.startupRunId}`
-      )
+      // Prefer live session store over bootstrap.activeSessionId: the shell
+      // promise is cached from first load, so remounting ChatTabView (e.g.
+      // skills → "use" → /chat) would otherwise restore a session the user
+      // already closed via startNewConversation.
       await pageRouter.initialize({
-        activeSessionId: bootstrap.activeSessionId
+        activeSessionId: sessionStore.activeSessionId ?? null
       })
     } else {
       await initializeRouteFromFallbackState()
