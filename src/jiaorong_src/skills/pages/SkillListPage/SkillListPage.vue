@@ -431,7 +431,7 @@ onUnmounted(() => {
         <Input
           v-model="searchQuery"
           class="skill-center-page__search-input"
-          placeholder="搜索技能名称、描述或作者"
+          placeholder="搜索技能名称或描述"
         />
       </div>
       <div class="skill-center-page__categories">
