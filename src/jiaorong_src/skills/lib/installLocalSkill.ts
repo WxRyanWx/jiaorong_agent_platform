@@ -79,7 +79,7 @@ export function peekSkillDisplayName(content: string): string {
   if (leading) {
     const rawName = parseYamlField(leading.fm, 'name')
     const fromMeta =
-      parseYamlField(leading.fm, 'displayName') ||
+      parseYamlFieldAllowIndent(leading.fm, 'displayName') ||
       parseYamlField(leading.fm, 'title') ||
       (rawName && !SKILL_NAME_PATTERN.test(rawName) ? rawName : '')
     if (fromMeta) return fromMeta
@@ -196,7 +196,14 @@ function parseYamlDescription(fm: string): string {
 }
 
 function parseYamlField(fm: string, key: string): string {
+  // 仅匹配顶层 key，避免误读 metadata 内嵌同名键
   const m = fm.match(new RegExp(`^${key}:\\s*(.*)$`, 'm'))
+  return m ? unquote(m[1]) : ''
+}
+
+/** 允许缩进，用于读取 metadata.displayName 等嵌套字段 */
+function parseYamlFieldAllowIndent(fm: string, key: string): string {
+  const m = fm.match(new RegExp(`^[ \\t]*${key}:\\s*(.*)$`, 'm'))
   return m ? unquote(m[1]) : ''
 }
 
@@ -333,6 +340,150 @@ function firstProseParagraph(body: string): string {
   return buf.join(' ').slice(0, 300)
 }
 
+function formatDisplayNameYamlValue(displayName: string): string {
+  return /[^\x00-\x7F]|[:#"']/.test(displayName) ? JSON.stringify(displayName) : displayName
+}
+
+/**
+ * 在已有 leading YAML 上写入 metadata.displayName（尽量保留其它字段）。
+ * 已有同值则原样返回。
+ * 兼容 `metadata: {...}` 单行 JSON（勿拆成非法 YAML，否则宿主会报 name not found）。
+ */
+export function applyPreferredDisplayName(
+  content: string,
+  preferredDisplayName: string,
+  fallbackName = 'skill'
+): string {
+  const preferred = preferredDisplayName.trim()
+  if (!preferred) return content
+
+  const text = normalizeNewlines(content)
+  const leading = extractLeadingYaml(text.trimStart())
+  // 仅当 frontmatter 里已有 metadata/顶层 displayName 且等于市场名时跳过；
+  // 不可用正文 # 标题冒充已写入（否则标题=市场名时不会落盘 metadata.displayName）
+  if (leading) {
+    const existingMeta = parseYamlFieldAllowIndent(leading.fm, 'displayName').trim()
+    if (existingMeta === preferred) return text
+  }
+
+  if (!leading) {
+    return ensureSkillMarkdown(text, fallbackName, preferred)
+  }
+
+  const name = parseYamlField(leading.fm, 'name')
+  const desc = parseYamlDescription(leading.fm)
+  // 非法/缺字段仍走全量规范化，避免只补 displayName 却装不上
+  if (!name || !SKILL_NAME_PATTERN.test(name) || !desc) {
+    return ensureSkillMarkdown(text, fallbackName, preferred)
+  }
+
+  // JSON metadata 已含同值 displayName 时跳过改写，避免无谓 YAML 漂移
+  const jsonRegion = locateMetadataJsonRegion(leading.fm)
+  if (jsonRegion) {
+    try {
+      const parsed = JSON.parse(jsonRegion.jsonText) as Record<string, unknown>
+      if (
+        parsed &&
+        typeof parsed === 'object' &&
+        !Array.isArray(parsed) &&
+        typeof parsed.displayName === 'string' &&
+        parsed.displayName.trim() === preferred
+      ) {
+        return text
+      }
+    } catch {
+      // fall through to merge / normalize
+    }
+  }
+
+  const displayYaml = formatDisplayNameYamlValue(preferred)
+  let fm = leading.fm
+    // 去掉顶层或 metadata YAML 块下旧 displayName（不影响 JSON 内嵌字段）
+    .replace(/^[ \t]*displayName:[ \t]*.*(?:\n|$)/gm, '')
+
+  const jsonMerged = mergeDisplayNameIntoMetadataJson(fm, displayYaml)
+  if (jsonMerged != null) {
+    fm = jsonMerged
+  } else if (/^metadata:[ \t]*\{/m.test(fm) || /^metadata:[ \t]*\n[ \t]*\{/m.test(fm)) {
+    // JSON metadata 解析失败时勿再拆行，改走全量规范化
+    return ensureSkillMarkdown(text, fallbackName, preferred)
+  } else if (/^metadata:[ \t]*$/m.test(fm) || /^metadata:[ \t]*\n/m.test(fm)) {
+    // YAML 块：metadata:\n  key: value
+    fm = fm.replace(/^metadata:[ \t]*\n?/m, `metadata:\n  displayName: ${displayYaml}\n`)
+  } else {
+    fm = `${fm.replace(/\s+$/, '')}\nmetadata:\n  displayName: ${displayYaml}`
+  }
+
+  // 清理多余空行
+  fm = fm.replace(/\n{3,}/g, '\n\n').replace(/^\n+|\n+$/g, '')
+  const body = leading.body.replace(/^\n+/, '')
+  return `---\n${fm}\n---\n\n${body}${body.endsWith('\n') ? '' : '\n'}`
+}
+
+/**
+ * 定位 frontmatter 中 `metadata:` 后的 JSON 对象（单行或多行 flow）。
+ * 返回整段替换区间 [start, end) 与可 JSON.parse 的文本。
+ */
+function locateMetadataJsonRegion(
+  fm: string
+): { start: number; end: number; jsonText: string } | null {
+  const key = /^metadata:[ \t]*/m.exec(fm)
+  if (!key || key.index == null) return null
+  let i = key.index + key[0].length
+  while (i < fm.length && (fm[i] === ' ' || fm[i] === '\t' || fm[i] === '\n' || fm[i] === '\r')) {
+    i++
+  }
+  if (fm[i] !== '{') return null
+  let depth = 0
+  const jsonStart = i
+  for (; i < fm.length; i++) {
+    const ch = fm[i]
+    if (ch === '{') depth++
+    else if (ch === '}') {
+      depth--
+      if (depth === 0) {
+        return {
+          start: key.index,
+          end: i + 1,
+          jsonText: fm.slice(jsonStart, i + 1)
+        }
+      }
+    }
+  }
+  return null
+}
+
+/**
+ * `metadata: {...}` / 多行 flow JSON → 转为带 displayName 的 YAML 块，保留原字段。
+ * 无法解析时返回 null。
+ */
+function mergeDisplayNameIntoMetadataJson(fm: string, displayYaml: string): string | null {
+  const region = locateMetadataJsonRegion(fm)
+  if (!region) return null
+  try {
+    const parsed = JSON.parse(region.jsonText) as unknown
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null
+    const rest = { ...(parsed as Record<string, unknown>) }
+    delete rest.displayName
+    const lines = [`metadata:`, `  displayName: ${displayYaml}`]
+    for (const [key, value] of Object.entries(rest)) {
+      if (!/^[A-Za-z_][\w.-]*$/.test(key)) continue
+      if (value !== null && typeof value === 'object') {
+        lines.push(`  ${key}: ${JSON.stringify(value)}`)
+      } else if (typeof value === 'string') {
+        lines.push(`  ${key}: ${formatDisplayNameYamlValue(value)}`)
+      } else if (typeof value === 'number' || typeof value === 'boolean') {
+        lines.push(`  ${key}: ${value}`)
+      } else if (value === null) {
+        lines.push(`  ${key}: null`)
+      }
+    }
+    return fm.slice(0, region.start) + lines.join('\n') + fm.slice(region.end)
+  } catch {
+    return null
+  }
+}
+
 export function needsSkillMarkdownNormalize(content: string): boolean {
   const text = normalizeNewlines(content).trimStart()
   const leading = extractLeadingYaml(text)
@@ -358,9 +509,7 @@ function buildStandardSkillMarkdown(params: {
     description.includes('\n') || description.length > 120 || /[:#"']/.test(description)
       ? `|\n  ${description.replace(/\n/g, '\n  ')}`
       : description
-  const displayYaml = /[^\x00-\x7F]|[:#"']/.test(displayName)
-    ? JSON.stringify(displayName)
-    : displayName
+  const displayYaml = formatDisplayNameYamlValue(displayName)
   const bodyText = body.replace(/^\n+/, '')
   return (
     `---\nname: ${name}\ndescription: ${descYaml}\nmetadata:\n  displayName: ${displayYaml}\n---\n\n` +
@@ -372,9 +521,15 @@ function buildStandardSkillMarkdown(params: {
 /**
  * 将任意后端原始 SKILL.md 转为开源可识别的标准 YAML 头。
  * @param fallbackName 优先用目录名 / zip 名（稳定且合法）
+ * @param preferredDisplayName 市场中文名等外部展示名（传入时优先写入 displayName）
  */
-export function ensureSkillMarkdown(content: string, fallbackName: string): string {
+export function ensureSkillMarkdown(
+  content: string,
+  fallbackName: string,
+  preferredDisplayName?: string
+): string {
   const technicalName = sanitizeSkillName(fallbackName)
+  const preferred = preferredDisplayName?.trim() || ''
   const text = normalizeNewlines(content)
   const heading = text.match(/^#\s+(.+)$/m)?.[1]?.trim()
   const bold = parseBoldFields(text)
@@ -392,7 +547,7 @@ export function ensureSkillMarkdown(content: string, fallbackName: string): stri
     rawName = parseYamlField(leading.fm, 'name')
     description = parseYamlDescription(leading.fm)
     displayName =
-      parseYamlField(leading.fm, 'displayName') ||
+      parseYamlFieldAllowIndent(leading.fm, 'displayName') ||
       parseYamlField(leading.fm, 'title') ||
       (rawName && !SKILL_NAME_PATTERN.test(rawName) ? rawName : '') ||
       ''
@@ -433,8 +588,8 @@ export function ensureSkillMarkdown(content: string, fallbackName: string): stri
     .replace(/^\n+/, '')
 
   const name = rawName && SKILL_NAME_PATTERN.test(rawName) ? rawName : technicalName
-  // 已有合法 name 时优先用作展示回退，避免仅因缺标题而落入 hash 技术名
-  displayName = displayName || heading || name || technicalName
+  // 市场安装传入的 preferred 优先（盖住包内英文/旧中文 displayName），否则用包内 → 标题 → 技术 name
+  displayName = preferred || displayName || heading || name || technicalName
   description =
     description ||
     bold.description ||
@@ -615,6 +770,8 @@ async function installNormalizedZipBytes(params: {
   writeTemp: InstallDeps['writeTemp']
   installFromZip: InstallDeps['installFromZip']
   forceNormalize?: boolean
+  /** 市场中文名等：写入 metadata.displayName，供 / 菜单展示 */
+  preferredDisplayName?: string
 }): Promise<SkillInstallResult> {
   let entries: Record<string, Uint8Array>
   try {
@@ -640,8 +797,16 @@ async function installNormalizedZipBytes(params: {
     : params.fallbackName
   const folderName = sanitizeSkillName(folderFromPath || params.fallbackName || 'skill')
   const original = strFromU8(entries[skillMdKey])
+  const preferred = params.preferredDisplayName?.trim() || ''
 
-  if (!params.forceNormalize && !needsSkillMarkdownNormalize(original)) {
+  let patched = original
+  if (params.forceNormalize || needsSkillMarkdownNormalize(original)) {
+    patched = ensureSkillMarkdown(original, folderName, preferred || undefined)
+  } else if (preferred) {
+    patched = applyPreferredDisplayName(original, preferred, folderName)
+  }
+
+  if (patched === original) {
     // 已是标准格式：重打包为统一 / 分隔的 zip，避免 Windows \ 条目干扰宿主解压
     const tempZip = await params.writeTemp({
       name: `${folderName}.zip`,
@@ -650,15 +815,10 @@ async function installNormalizedZipBytes(params: {
     return params.installFromZip(tempZip, { overwrite: params.overwrite })
   }
 
-  const patched = ensureSkillMarkdown(original, folderName)
   const next: Record<string, Uint8Array> = { ...entries }
-  // 保持原 key 路径，避免打乱多文件结构；若在根目录则用 folder/SKILL.md
-  if (skillMdKey.includes('/')) {
-    next[skillMdKey] = strToU8(patched)
-  } else {
-    delete next[skillMdKey]
-    next[`${folderName}/SKILL.md`] = strToU8(patched)
-  }
+  // 就地替换 SKILL.md，勿把根级 md 单独挪进子目录——否则同层 docs/scripts 会留在 zip 根，
+  // 宿主 resolveSkillDirFromExtracted 只装含 SKILL.md 的子目录，附属文件全部丢失。
+  next[skillMdKey] = strToU8(patched)
 
   const zipped = zipSync(next)
   const tempZip = await params.writeTemp({
@@ -823,6 +983,8 @@ export async function installSkillFromZipBytesCompat(
     zipBytes: Uint8Array
     fallbackName: string
     overwrite?: boolean
+    /** 市场中文名，写入 metadata.displayName */
+    preferredDisplayName?: string
   } & InstallDeps
 ): Promise<SkillInstallResult> {
   return installNormalizedZipBytes({
@@ -831,6 +993,7 @@ export async function installSkillFromZipBytesCompat(
     overwrite: params.overwrite,
     writeTemp: params.writeTemp,
     installFromZip: params.installFromZip,
-    forceNormalize: false
+    forceNormalize: false,
+    preferredDisplayName: params.preferredDisplayName
   })
 }

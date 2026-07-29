@@ -568,11 +568,17 @@ export class SkillPresenter implements ISkillPresenter {
           : undefined
 
       const mergedMetadata = { ...(metadata.metadata ?? {}) }
-      const builtinDisplayName = builtinMetadata?.displayName
-      if (typeof builtinDisplayName === 'string' && builtinDisplayName.trim()) {
-        mergedMetadata.displayName = builtinDisplayName.trim()
-      } else {
-        delete mergedMetadata.displayName
+      const localDisplayName = mergedMetadata.displayName
+      const hasLocalDisplayName =
+        typeof localDisplayName === 'string' && localDisplayName.trim().length > 0
+      // 本地已有 displayName（如市场安装写入的中文名）时不覆盖，避免与内置同目录名冲突
+      if (!hasLocalDisplayName) {
+        const builtinDisplayName = builtinMetadata?.displayName
+        if (typeof builtinDisplayName === 'string' && builtinDisplayName.trim()) {
+          mergedMetadata.displayName = builtinDisplayName.trim()
+        } else {
+          delete mergedMetadata.displayName
+        }
       }
 
       return {
@@ -1756,12 +1762,10 @@ export class SkillPresenter implements ISkillPresenter {
         return { success: false, error: `Skill "${name}" not found` }
       }
 
-      // Remove from caches
+      // 先删盘再清 cache：删失败时仍可从 cache/discover 看到技能，避免「幽灵消失」
+      await this.removeManagedSkillDirectory(skillDir)
       this.metadataCache.delete(name)
       this.contentCache.delete(name)
-
-      // Delete the directory
-      fs.rmSync(skillDir, { recursive: true, force: true })
       this.deleteSkillExtension(name)
 
       eventBus.sendToRenderer(SKILL_EVENTS.UNINSTALLED, SendTarget.ALL_WINDOWS, { name })
@@ -1775,6 +1779,193 @@ export class SkillPresenter implements ISkillPresenter {
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error)
       return { success: false, error: errorMsg }
+    }
+  }
+
+  /**
+   * 删除已校验过的技能目录。Windows 下 chokidar/杀毒/索引易导致 ENOTEMPTY 留空目录。
+   * 策略：暂停 skills 监听 → 带重试的递归删除 → 专清空目录 → 仍失败则改名后再删。
+   * 成功返回时保证 skillDir 已不存在（不会留下空文件夹）。
+   */
+  private async removeManagedSkillDirectory(skillDir: string): Promise<void> {
+    const wasWatching = Boolean(this.watcher)
+    if (wasWatching) {
+      this.stopWatching()
+    }
+
+    try {
+      const maxAttempts = 6
+      let lastError: unknown
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        try {
+          if (!fs.existsSync(skillDir)) {
+            return
+          }
+          fs.rmSync(skillDir, {
+            recursive: true,
+            force: true,
+            maxRetries: 8,
+            retryDelay: 100
+          })
+          if (!fs.existsSync(skillDir)) {
+            return
+          }
+        } catch (error) {
+          lastError = error
+          const code = (error as NodeJS.ErrnoException)?.code
+          if (
+            code !== 'ENOTEMPTY' &&
+            code !== 'EBUSY' &&
+            code !== 'EPERM' &&
+            code !== 'EACCES' &&
+            code !== 'EAGAIN'
+          ) {
+            throw error
+          }
+        }
+
+        try {
+          if (fs.existsSync(skillDir)) {
+            this.emptyDirectoryBestEffort(skillDir)
+            if (await this.removeIfEmptyDirectory(skillDir)) {
+              return
+            }
+            if (fs.existsSync(skillDir)) {
+              fs.rmSync(skillDir, {
+                recursive: true,
+                force: true,
+                maxRetries: 5,
+                retryDelay: 120
+              })
+            }
+          }
+          if (!fs.existsSync(skillDir)) {
+            return
+          }
+        } catch (error) {
+          lastError = error
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 80 * (attempt + 1)))
+      }
+
+      if (!fs.existsSync(skillDir)) {
+        return
+      }
+
+      // 内容已空但父目录仍锁住：加长退避专清空目录
+      if (await this.removeIfEmptyDirectory(skillDir, 10)) {
+        return
+      }
+
+      // Windows 常见兜底：先改名到同级 pending，再删（释放原路径句柄）
+      if (this.tryRenameThenRemoveSkillDirectory(skillDir)) {
+        return
+      }
+
+      if (!fs.existsSync(skillDir)) {
+        return
+      }
+      if (lastError) {
+        throw lastError
+      }
+      throw new Error(`Failed to remove skill directory: ${skillDir}`)
+    } finally {
+      if (wasWatching) {
+        this.watchSkillFiles()
+      }
+    }
+  }
+
+  /**
+   * 目录已空（或只剩可忽略项）时反复 rmdir，避免留空文件夹。
+   * @returns 目录已不存在则为 true
+   */
+  private async removeIfEmptyDirectory(dirPath: string, attempts = 6): Promise<boolean> {
+    for (let i = 0; i < attempts; i++) {
+      if (!fs.existsSync(dirPath)) {
+        return true
+      }
+      let left: string[]
+      try {
+        left = fs.readdirSync(dirPath)
+      } catch {
+        return !fs.existsSync(dirPath)
+      }
+      if (left.length > 0) {
+        return false
+      }
+      try {
+        fs.rmSync(dirPath, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 })
+      } catch {
+        // retry after wait
+      }
+      if (!fs.existsSync(dirPath)) {
+        return true
+      }
+      await new Promise((resolve) => setTimeout(resolve, 100 * (i + 1)))
+    }
+    return !fs.existsSync(dirPath)
+  }
+
+  /**
+   * 将技能目录改名为同级 `.pending-delete-*` 后再删，规避 Windows 对原路径的短暂占用。
+   * 仅允许改到 skillsDir 下，防止越界。
+   */
+  private tryRenameThenRemoveSkillDirectory(skillDir: string): boolean {
+    const parent = path.resolve(path.dirname(skillDir))
+    if (parent !== path.resolve(this.skillsDir)) {
+      return false
+    }
+    const pending = path.join(
+      parent,
+      `.pending-delete-${path.basename(skillDir)}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    )
+    try {
+      fs.renameSync(skillDir, pending)
+    } catch (error) {
+      logger.warn('[SkillPresenter] Rename-before-delete failed', { skillDir, error })
+      return false
+    }
+    try {
+      fs.rmSync(pending, { recursive: true, force: true, maxRetries: 10, retryDelay: 150 })
+    } catch (error) {
+      logger.warn('[SkillPresenter] Pending skill dir delete failed', { pending, error })
+    }
+    // 原路径已改名；pending 若仍在，下次启动/发现可忽略 dot 目录，但尽量再清一次
+    if (fs.existsSync(pending)) {
+      try {
+        this.emptyDirectoryBestEffort(pending)
+        fs.rmSync(pending, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
+      } catch {
+        // ignore
+      }
+    }
+    return !fs.existsSync(skillDir) && !fs.existsSync(pending)
+  }
+
+  private emptyDirectoryBestEffort(dirPath: string): void {
+    let entries: fs.Dirent[]
+    try {
+      entries = fs.readdirSync(dirPath, { withFileTypes: true })
+    } catch {
+      return
+    }
+    for (const entry of entries) {
+      const entryPath = path.join(dirPath, entry.name)
+      try {
+        if (entry.isDirectory()) {
+          this.emptyDirectoryBestEffort(entryPath)
+          fs.rmSync(entryPath, { recursive: true, force: true, maxRetries: 3, retryDelay: 80 })
+        } else {
+          fs.rmSync(entryPath, { force: true, maxRetries: 3, retryDelay: 80 })
+        }
+      } catch (error) {
+        logger.warn('[SkillPresenter] Failed to remove skill entry during uninstall', {
+          entryPath,
+          error
+        })
+      }
     }
   }
 

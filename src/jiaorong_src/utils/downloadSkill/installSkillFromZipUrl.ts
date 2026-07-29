@@ -97,7 +97,7 @@ async function downloadZipBytes(url: string): Promise<Uint8Array> {
  */
 export async function installSkillFromZipUrl(
   url: string,
-  options?: { silent?: boolean }
+  options?: { silent?: boolean; displayName?: string }
 ): Promise<InstallSkillFromZipUrlResult> {
   const validationError = validateZipSkillUrl(url)
   if (validationError) {
@@ -105,6 +105,7 @@ export async function installSkillFromZipUrl(
   }
 
   const silent = Boolean(options?.silent)
+  const preferredDisplayName = options?.displayName?.trim() || ''
   const trimmed = url.trim()
   const skillsStore = useSkillsStore()
   const filePresenter = useLegacyPresenter('filePresenter', { safeCall: false })
@@ -147,6 +148,7 @@ export async function installSkillFromZipUrl(
       zipBytes,
       fallbackName,
       overwrite: false,
+      preferredDisplayName: preferredDisplayName || undefined,
       ...deps
     })
 
@@ -166,8 +168,24 @@ export async function installSkillFromZipUrl(
     }
 
     const conflictName = resolveConflictSkillName(first)
-    // 静默模式：同名已存在视为已装，不弹覆盖确认
+    // 静默模式：同名已存在时，若带了市场 displayName 则覆盖写入（补全展示名）；否则视为已装
     if (silent) {
+      if (!preferredDisplayName) {
+        return { success: true, skillName: conflictName || undefined }
+      }
+      const silentOverwrite = await installSkillFromZipBytesCompat({
+        zipBytes,
+        fallbackName,
+        overwrite: true,
+        preferredDisplayName,
+        ...deps
+      })
+      if (silentOverwrite.success) {
+        const name = silentOverwrite.skillName || conflictName
+        if (name) rememberSkillSource(name, SkillSource.RemoteApi)
+        return { success: true, skillName: name || undefined }
+      }
+      // 覆盖失败仍按已装返回，避免默认补装被单点失败打断
       return { success: true, skillName: conflictName || undefined }
     }
 
@@ -184,6 +202,7 @@ export async function installSkillFromZipUrl(
       zipBytes,
       fallbackName,
       overwrite: true,
+      preferredDisplayName: preferredDisplayName || undefined,
       ...deps
     })
     if (!second.success) {

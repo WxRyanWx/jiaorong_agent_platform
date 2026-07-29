@@ -249,11 +249,19 @@
     color: var(--scp-text-muted);
   }
 
+  &__state-spinner {
+    display: inline-flex;
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    animation: skill-center-spin 1s linear infinite;
+  }
+
   &__state-icon {
+    display: block;
     width: 32px;
     height: 32px;
     color: var(--scp-primary);
-    animation: skill-center-spin 1s linear infinite;
   }
 
   &__state-logo {

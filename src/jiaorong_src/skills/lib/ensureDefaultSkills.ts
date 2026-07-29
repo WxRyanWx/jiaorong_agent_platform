@@ -221,7 +221,8 @@ async function runEnsureDefaultSkills(options?: {
     emitDefaultSkillInstallPhase(marketName, 'start')
     try {
       const installResult = await installSkillFromZipUrl(remoteItem.downloadUrl, {
-        silent: true
+        silent: true,
+        displayName: marketName
       })
       if (!installResult.success) {
         result.failed.push({

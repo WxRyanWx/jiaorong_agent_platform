@@ -126,7 +126,8 @@ watch(
       }
       const nextSkill: JiaorongSkillItem = {
         ...current,
-        description: current.description || detail.description,
+        // 接口 desc 优先，没有再用本地文档 description
+        description: detail.description || current.description,
         skill_source: SkillSource.RemoteApi,
         metadata: nextMeta
       }
@@ -258,7 +259,13 @@ const handleInstall = async () => {
 
   installing.value = true
   try {
-    const result = await installSkillFromZipUrl(downloadUrl)
+    const result = await installSkillFromZipUrl(downloadUrl, {
+      displayName:
+        remoteSkillDetail.value?.name.trim() ||
+        (typeof stored?.metadata?.displayName === 'string' && stored.metadata.displayName.trim()) ||
+        skillDisplayName.value ||
+        undefined
+    })
     if (!result.success || !result.skillName) {
       toast({
         title: '安装失败',

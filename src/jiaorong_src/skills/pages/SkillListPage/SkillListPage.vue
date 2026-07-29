@@ -82,23 +82,40 @@ function getDownloadUrl(skill: SkillMetadata): string {
 }
 
 function getInstalledLocalName(skill: SkillMetadata): string {
-  return remoteInstalledLocalNames.value[skill.name] || skill.name
+  const fromMap = remoteInstalledLocalNames.value[skill.name]
+  if (fromMap) return fromMap
+  const fromMeta = skill.metadata?.installedSkillName
+  if (typeof fromMeta === 'string' && fromMeta.trim()) return fromMeta.trim()
+  return skill.name
 }
 
 /**
- * 远程展示名与 zip 目录名不一致时，本地扫盘还会多出一条 slug 卡。
- * 已由 remoteInstallMap 挂到市场卡上的本地名不再单独展示。
+ * 隐藏「已被市场卡吸收」的本地 slug 重复卡。
+ * 条件：其它卡的 installedSkillName === 本卡 name，或 map 绑定且本卡 displayName === 市场名。
  */
 function hideLocalSlugDuplicatedByRemoteInstall(
   skills: SkillMetadata[],
   marketToLocal: Record<string, string>
 ): SkillMetadata[] {
-  const claimedLocalNames = new Set(Object.values(marketToLocal))
+  const absorbedLocalNames = new Set<string>()
+  for (const skill of skills) {
+    const installed = skill.metadata?.installedSkillName
+    if (typeof installed === 'string' && installed.trim() && installed !== skill.name) {
+      absorbedLocalNames.add(installed.trim())
+    }
+  }
+
   return skills.filter((skill) => {
-    if (!claimedLocalNames.has(skill.name)) return true
-    // 市场展示名恰好等于本地名时，这条就是市场卡本身，保留
-    if (skill.name in marketToLocal) return true
-    return false
+    if (absorbedLocalNames.has(skill.name)) return false
+
+    for (const [marketName, localName] of Object.entries(marketToLocal)) {
+      if (localName !== skill.name) continue
+      if (skill.name === marketName) return true
+      const display =
+        typeof skill.metadata?.displayName === 'string' ? skill.metadata.displayName.trim() : ''
+      if (display === marketName) return false
+    }
+    return true
   })
 }
 
@@ -147,7 +164,8 @@ async function refreshMarket() {
     if (generation !== loadGeneration) return
 
     const { local, merged } = catalog
-    // 远程已装但目录名与展示名不一致时，把本地元数据挂回远程卡片
+    // 远程已装但目录名与展示名不一致时，把本地元数据挂回远程卡片。
+    // 仅当本地无 displayName，或 displayName 就是市场名时才绑定，避免误绑其它本地技能。
     const enriched = merged.map((skill) => {
       const localName = remoteInstalledLocalNames.value[skill.name]
       if (!localName) return skill
@@ -162,10 +180,18 @@ async function refreshMarket() {
           }
         }
       }
+      const localDisplay =
+        typeof localMeta.metadata?.displayName === 'string'
+          ? localMeta.metadata.displayName.trim()
+          : ''
+      if (localDisplay && localDisplay !== skill.name) {
+        return skill
+      }
       return {
         ...localMeta,
         // 必须保留市场展示名，否则去重会把「已被 map 的 slug」连同这张市场卡一起滤掉
         name: skill.name,
+        // 接口 desc 优先，没有再用本地文档 description
         description: skill.description || localMeta.description,
         path: localMeta.path,
         skillRoot: localMeta.skillRoot,
@@ -344,7 +370,9 @@ const handleInstall = async (skill: JiaorongSkillItem) => {
   installingNames.value = next
 
   try {
-    const result = await installSkillFromZipUrl(downloadUrl)
+    const result = await installSkillFromZipUrl(downloadUrl, {
+      displayName: getSkillDisplayName(skill)
+    })
     if (!result.success || !result.skillName) {
       toast({
         title: '安装失败',
@@ -510,7 +538,9 @@ onUnmounted(() => {
     <!-- Grid -->
     <div class="skill-center-page__content">
       <div v-if="catalogLoading" class="skill-center-page__state">
-        <Icon icon="lucide:loader-2" class="skill-center-page__state-icon" />
+        <span class="skill-center-page__state-spinner" aria-hidden="true">
+          <Icon icon="lucide:loader-2" class="skill-center-page__state-icon" />
+        </span>
         <p class="skill-center-page__state-text">加载技能中…</p>
       </div>
 

@@ -1,4 +1,5 @@
 import type { MCPToolDefinition, PromptListEntry } from '@shared/presenter'
+import { compareSlashSuggestionLabels } from '@jiaorong/utils/slashSuggestionSort'
 
 export interface AcpSessionCommand {
   name: string
@@ -140,7 +141,8 @@ export const sortSlashSuggestionItems = (items: SlashSuggestionItem[]): SlashSug
     if (SLASH_CATEGORY_RANK[a.category] !== SLASH_CATEGORY_RANK[b.category]) {
       return SLASH_CATEGORY_RANK[a.category] - SLASH_CATEGORY_RANK[b.category]
     }
-    return a.label.localeCompare(b.label)
+    // 技能等展示名：中文（拼音）优先，再英文首字母
+    return compareSlashSuggestionLabels(a.label, b.label)
   })
 }
 

@@ -6,7 +6,7 @@ export type RemoteSkillListItem = {
   name: string
   description: string
   downloadUrl: string
-  /** 市场别名（用于默认技能匹配旧名/短名） */
+  /** 市场别名（展示用，不参与合并去重） */
   alias?: string
   /** 远程分类 id（与 skillCategory/list 的 id 对齐） */
   categoryId?: string
@@ -36,7 +36,10 @@ async function scanLocalInstalledSkills(): Promise<SkillMetadata[]> {
   return next
 }
 
-/** 同名以本地路径/内容为准，但保留远程市场字段（再装依赖） */
+/**
+ * 同名以本地路径/内容为准，但保留远程市场字段（再装依赖）。
+ * 本地英文目录名通过 metadata.displayName（安装时写入的市场 name）挂到远程卡上，避免双卡。
+ */
 export function mergeSkillMarketCatalog(
   local: SkillMetadata[],
   remote: RemoteSkillListItem[]
@@ -62,27 +65,40 @@ export function mergeSkillMarketCatalog(
   }
 
   for (const item of local) {
-    const prev = byName.get(item.name)
-    if (!prev) {
+    const localDisplay =
+      typeof item.metadata?.displayName === 'string' ? item.metadata.displayName.trim() : ''
+    const remoteKey =
+      (byName.has(item.name) ? item.name : '') ||
+      (localDisplay && byName.has(localDisplay) ? localDisplay : '') ||
+      ''
+
+    if (!remoteKey) {
       byName.set(item.name, item)
       continue
     }
+
+    const prev = byName.get(remoteKey)
+    if (!prev) continue
+
     const prevMeta = prev.metadata ?? {}
     const itemMeta = item.metadata ?? {}
-    byName.set(item.name, {
+    byName.set(remoteKey, {
       ...item,
-      description: item.description || prev.description,
+      // 卡片身份用市场 name；本地目录名记在 installedSkillName
+      name: remoteKey,
+      // 市场列表优先接口 desc，没有再用本地 SKILL.md description
+      description:
+        (typeof prev.description === 'string' && prev.description.trim()) || item.description,
       category: item.category ?? prev.category,
       metadata: {
         ...itemMeta,
-        // 本地 frontmatter 不含市场字段；同名覆盖后必须保留，否则详情无法再装
         remoteId: prevMeta.remoteId ?? itemMeta.remoteId,
         downloadUrl: prevMeta.downloadUrl ?? itemMeta.downloadUrl,
         displayName:
           (typeof prevMeta.displayName === 'string' && prevMeta.displayName.trim()) ||
-          (typeof itemMeta.displayName === 'string' && itemMeta.displayName.trim()) ||
-          item.name,
-        // 保留远程分类 id，供市场筛选
+          localDisplay ||
+          remoteKey,
+        installedSkillName: item.name,
         ...(typeof prevMeta.categoryId === 'string' && prevMeta.categoryId.trim()
           ? { categoryId: prevMeta.categoryId.trim() }
           : typeof itemMeta.categoryId === 'string' && itemMeta.categoryId.trim()

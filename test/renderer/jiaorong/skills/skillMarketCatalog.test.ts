@@ -36,7 +36,7 @@ describe('fetchSkillMarketCatalog', () => {
     discoverSkills.mockReset()
   })
 
-  it('merges remote and local with local winning on name conflict', () => {
+  it('merges remote and local preferring remote desc over local description', () => {
     const local = [meta('shared')]
     local[0].description = 'local-desc'
     const remote = [
@@ -55,7 +55,7 @@ describe('fetchSkillMarketCatalog', () => {
     ]
     const merged = mergeSkillMarketCatalog(local, remote)
     const shared = merged.find((s) => s.name === 'shared')
-    expect(shared?.description).toBe('local-desc')
+    expect(shared?.description).toBe('remote-desc')
     expect(shared?.skillRoot).toBe('/skills/shared')
     expect(shared?.metadata?.remoteId).toBe('s1')
     expect(shared?.metadata?.downloadUrl).toBe('https://example.com/a.zip')
@@ -108,6 +108,44 @@ describe('fetchSkillMarketCatalog', () => {
     expect(discoverSkills).toHaveBeenCalledTimes(1)
     expect(result.local.map((s) => s.name).sort()).toEqual(['a', 'b'])
     expect(result.merged).toHaveLength(2)
+  })
+
+  it('merges local english slug onto remote chinese name via displayName', () => {
+    const local = [
+      {
+        ...meta('critical-code-reviewer'),
+        metadata: { displayName: '严格代码审查' }
+      }
+    ]
+    const remote = [
+      {
+        id: 's31',
+        name: '严格代码审查',
+        description: '远程描述',
+        downloadUrl: 'https://example.com/a.zip'
+      }
+    ]
+    const merged = mergeSkillMarketCatalog(local, remote)
+    expect(merged).toHaveLength(1)
+    expect(merged[0]?.name).toBe('严格代码审查')
+    expect(merged[0]?.skillRoot).toBe('/skills/critical-code-reviewer')
+    expect(merged[0]?.metadata?.displayName).toBe('严格代码审查')
+    expect(merged[0]?.metadata?.installedSkillName).toBe('critical-code-reviewer')
+    expect(merged[0]?.metadata?.remoteId).toBe('s31')
+  })
+
+  it('keeps separate cards when local has no displayName matching remote', () => {
+    const local = [meta('construction-plan-review-output-spec')]
+    const remote = [
+      {
+        id: 's9',
+        name: '施工方案审核输出规范',
+        description: '远程',
+        downloadUrl: 'https://example.com/out.zip'
+      }
+    ]
+    const merged = mergeSkillMarketCatalog(local, remote)
+    expect(merged).toHaveLength(2)
   })
 
   it('serializes concurrent catalog fetches that scan local', async () => {

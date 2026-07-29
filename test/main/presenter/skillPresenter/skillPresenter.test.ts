@@ -1523,8 +1523,11 @@ describe('SkillPresenter', () => {
     })
 
     it('should successfully uninstall a skill', async () => {
-      ;(fs.existsSync as Mock).mockReturnValue(true)
-      ;(fs.rmSync as Mock).mockReturnValue(undefined)
+      let removed = false
+      ;(fs.existsSync as Mock).mockImplementation(() => !removed)
+      ;(fs.rmSync as Mock).mockImplementation(() => {
+        removed = true
+      })
       ;(skillPresenter as any).metadataCache.set(
         'test-skill',
         createSkillMetadata('test-skill', 'test-skill')
@@ -1534,12 +1537,75 @@ describe('SkillPresenter', () => {
 
       expect(result.success).toBe(true)
       expect(result.skillName).toBe('test-skill')
-      expect(fs.rmSync).toHaveBeenCalled()
+      expect(fs.rmSync).toHaveBeenCalledWith(
+        expect.stringContaining('test-skill'),
+        expect.objectContaining({ recursive: true, force: true, maxRetries: expect.any(Number) })
+      )
       expect(eventBus.sendToRenderer).toHaveBeenCalledWith(
         SKILL_EVENTS.UNINSTALLED,
         'all',
         expect.objectContaining({ name: 'test-skill' })
       )
+    })
+
+    it('retries uninstall when rmSync hits ENOTEMPTY then succeeds', async () => {
+      const enoerr = Object.assign(new Error('ENOTEMPTY, Directory not empty'), {
+        code: 'ENOTEMPTY'
+      })
+      let removed = false
+      let firstRm = true
+      ;(fs.existsSync as Mock).mockImplementation(() => !removed)
+      ;(fs.rmSync as Mock).mockImplementation(() => {
+        if (firstRm) {
+          firstRm = false
+          throw enoerr
+        }
+        removed = true
+      })
+      ;(fs.readdirSync as Mock).mockReturnValue([])
+      ;(skillPresenter as any).metadataCache.set(
+        'algorithmic-art',
+        createSkillMetadata('algorithmic-art', 'algorithmic-art')
+      )
+      ;(skillPresenter as any).watcher = {
+        unwatch: vi.fn(),
+        close: vi.fn()
+      }
+
+      const result = await skillPresenter.uninstallSkill('algorithmic-art')
+
+      expect(result.success).toBe(true)
+      expect(fs.rmSync).toHaveBeenCalled()
+      expect((skillPresenter as any).watcher).toBeTruthy()
+    })
+
+    it('removes leftover empty skill directory after ENOTEMPTY', async () => {
+      const enoerr = Object.assign(new Error('ENOTEMPTY, Directory not empty'), {
+        code: 'ENOTEMPTY'
+      })
+      let phase: 'locked' | 'empty' | 'gone' = 'locked'
+      let rmCalls = 0
+      ;(fs.existsSync as Mock).mockImplementation(() => phase !== 'gone')
+      ;(fs.rmSync as Mock).mockImplementation(() => {
+        rmCalls += 1
+        if (phase === 'locked') {
+          phase = 'empty'
+          throw enoerr
+        }
+        // subsequent calls (empty dir cleanup) succeed
+        phase = 'gone'
+      })
+      ;(fs.readdirSync as Mock).mockImplementation(() => (phase === 'empty' ? [] : ['SKILL.md']))
+      ;(skillPresenter as any).metadataCache.set(
+        'algorithmic-art',
+        createSkillMetadata('algorithmic-art', 'algorithmic-art')
+      )
+
+      const result = await skillPresenter.uninstallSkill('algorithmic-art')
+
+      expect(result.success).toBe(true)
+      expect(rmCalls).toBeGreaterThan(1)
+      expect(phase).toBe('gone')
     })
   })
 
@@ -1821,7 +1887,20 @@ describe('SkillPresenter', () => {
     })
 
     it('should remove sidecar config when uninstalling a skill', async () => {
-      ;(fs.existsSync as Mock).mockReturnValue(true)
+      let skillDirRemoved = false
+      ;(fs.existsSync as Mock).mockImplementation((target: string) => {
+        const p = String(target)
+        if (p.includes(`${path.sep}test-skill`) && !p.includes('meta')) {
+          return !skillDirRemoved
+        }
+        return true
+      })
+      ;(fs.rmSync as Mock).mockImplementation((target: string) => {
+        const p = String(target)
+        if (p.endsWith(`${path.sep}test-skill`) || /[/\\]skills[/\\]test-skill$/.test(p)) {
+          skillDirRemoved = true
+        }
+      })
 
       await skillPresenter.uninstallSkill('test-skill')
 
