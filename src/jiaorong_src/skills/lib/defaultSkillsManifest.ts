@@ -13,7 +13,7 @@ export const DEFAULT_MARKET_SKILLS: readonly string[] = [
   '严格代码审查',
   '超级前端设计',
   'BigPlan · 产品调研（市场分析·技术评估·项目研发·产品方案）',
-  '产品经理',
+  '产品经理综合技能（PM Master）',
   '解决方案专家',
   '软件测试用例设计',
   '标书大师｜全行业AI标书生成助手',
