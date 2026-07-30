@@ -90,13 +90,15 @@ function getInstalledLocalName(skill: SkillMetadata): string {
 }
 
 /**
- * 隐藏「已被市场卡吸收」的本地 slug 重复卡。
- * 条件：其它卡的 installedSkillName === 本卡 name，或 map 绑定且本卡 displayName === 市场名。
+ * 隐藏「已被市场卡关联」的本地 slug 重复卡。
+ * 仅依据 name / remoteInstallMap / installedSkillName，不看 displayName。
+ * map 项仅当对应市场卡仍在当前列表中时才吸收，避免远程下架后本地卡被误藏。
  */
 function hideLocalSlugDuplicatedByRemoteInstall(
   skills: SkillMetadata[],
   marketToLocal: Record<string, string>
 ): SkillMetadata[] {
+  const presentNames = new Set(skills.map((s) => s.name))
   const absorbedLocalNames = new Set<string>()
   for (const skill of skills) {
     const installed = skill.metadata?.installedSkillName
@@ -104,19 +106,15 @@ function hideLocalSlugDuplicatedByRemoteInstall(
       absorbedLocalNames.add(installed.trim())
     }
   }
+  for (const [marketName, localName] of Object.entries(marketToLocal)) {
+    const local = localName.trim()
+    const market = marketName.trim()
+    if (!local || !market || local === market) continue
+    if (!presentNames.has(market)) continue
+    absorbedLocalNames.add(local)
+  }
 
-  return skills.filter((skill) => {
-    if (absorbedLocalNames.has(skill.name)) return false
-
-    for (const [marketName, localName] of Object.entries(marketToLocal)) {
-      if (localName !== skill.name) continue
-      if (skill.name === marketName) return true
-      const display =
-        typeof skill.metadata?.displayName === 'string' ? skill.metadata.displayName.trim() : ''
-      if (display === marketName) return false
-    }
-    return true
-  })
+  return skills.filter((skill) => !absorbedLocalNames.has(skill.name))
 }
 
 /** 仅更新单个远程技能为已安装，避免整表刷新 */
@@ -164,8 +162,7 @@ async function refreshMarket() {
     if (generation !== loadGeneration) return
 
     const { local, merged } = catalog
-    // 远程已装但目录名与展示名不一致时，把本地元数据挂回远程卡片。
-    // 仅当本地无 displayName，或 displayName 就是市场名时才绑定，避免误绑其它本地技能。
+    // 远程已装但目录名与市场 name 不一致时，凭 remoteInstallMap 把本地挂到市场卡，并隐藏本地 slug 卡
     const enriched = merged.map((skill) => {
       const localName = remoteInstalledLocalNames.value[skill.name]
       if (!localName) return skill
@@ -180,16 +177,9 @@ async function refreshMarket() {
           }
         }
       }
-      const localDisplay =
-        typeof localMeta.metadata?.displayName === 'string'
-          ? localMeta.metadata.displayName.trim()
-          : ''
-      if (localDisplay && localDisplay !== skill.name) {
-        return skill
-      }
       return {
         ...localMeta,
-        // 必须保留市场展示名，否则去重会把「已被 map 的 slug」连同这张市场卡一起滤掉
+        // 卡片身份保持市场 name（唯一键）；调用技能仍用 installedSkillName / 本地目录名
         name: skill.name,
         // 接口 desc 优先，没有再用本地文档 description
         description: skill.description || localMeta.description,

@@ -110,7 +110,7 @@ describe('fetchSkillMarketCatalog', () => {
     expect(result.merged).toHaveLength(2)
   })
 
-  it('merges local english slug onto remote chinese name via displayName', () => {
+  it('does not merge by displayName; only exact name match', () => {
     const local = [
       {
         ...meta('critical-code-reviewer'),
@@ -126,12 +126,52 @@ describe('fetchSkillMarketCatalog', () => {
       }
     ]
     const merged = mergeSkillMarketCatalog(local, remote)
+    expect(merged).toHaveLength(2)
+    expect(merged.map((s) => s.name).sort()).toEqual(['critical-code-reviewer', '严格代码审查'])
+  })
+
+  it('merges only when local name equals remote name', () => {
+    const local = [
+      {
+        ...meta('严格代码审查'),
+        description: 'local-desc',
+        metadata: { displayName: '严格代码审查' }
+      }
+    ]
+    const remote = [
+      {
+        id: 's31',
+        name: '严格代码审查',
+        description: '远程描述',
+        downloadUrl: 'https://example.com/a.zip'
+      }
+    ]
+    const merged = mergeSkillMarketCatalog(local, remote)
     expect(merged).toHaveLength(1)
     expect(merged[0]?.name).toBe('严格代码审查')
-    expect(merged[0]?.skillRoot).toBe('/skills/critical-code-reviewer')
-    expect(merged[0]?.metadata?.displayName).toBe('严格代码审查')
-    expect(merged[0]?.metadata?.installedSkillName).toBe('critical-code-reviewer')
+    expect(merged[0]?.description).toBe('远程描述')
     expect(merged[0]?.metadata?.remoteId).toBe('s31')
+    expect(merged[0]?.metadata?.installedSkillName).toBe('严格代码审查')
+  })
+
+  it('keeps builtin and market cards separate when displayName collides', () => {
+    const local = [
+      {
+        ...meta('frontend-design'),
+        metadata: { displayName: '前端设计' }
+      }
+    ]
+    const remote = [
+      {
+        id: 's32',
+        name: '前端设计',
+        description: '市场前端设计',
+        downloadUrl: 'https://example.com/frontend-design-3-0.1.0.zip'
+      }
+    ]
+    const merged = mergeSkillMarketCatalog(local, remote)
+    expect(merged).toHaveLength(2)
+    expect(merged.map((s) => s.name).sort()).toEqual(['frontend-design', '前端设计'])
   })
 
   it('keeps separate cards when local has no displayName matching remote', () => {

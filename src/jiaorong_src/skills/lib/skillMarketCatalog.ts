@@ -37,8 +37,9 @@ async function scanLocalInstalledSkills(): Promise<SkillMetadata[]> {
 }
 
 /**
- * 同名以本地路径/内容为准，但保留远程市场字段（再装依赖）。
- * 本地英文目录名通过 metadata.displayName（安装时写入的市场 name）挂到远程卡上，避免双卡。
+ * 按唯一 `name` 合并远程与本地。
+ * displayName 允许重复，不参与去重；市场安装后的「中文卡 + 英文目录」双卡
+ * 由列表层 remoteInstallMap / hideLocalSlugDuplicatedByRemoteInstall 处理。
  */
 export function mergeSkillMarketCatalog(
   local: SkillMetadata[],
@@ -65,27 +66,17 @@ export function mergeSkillMarketCatalog(
   }
 
   for (const item of local) {
-    const localDisplay =
-      typeof item.metadata?.displayName === 'string' ? item.metadata.displayName.trim() : ''
-    const remoteKey =
-      (byName.has(item.name) ? item.name : '') ||
-      (localDisplay && byName.has(localDisplay) ? localDisplay : '') ||
-      ''
-
-    if (!remoteKey) {
+    const prev = byName.get(item.name)
+    if (!prev) {
       byName.set(item.name, item)
       continue
     }
 
-    const prev = byName.get(remoteKey)
-    if (!prev) continue
-
     const prevMeta = prev.metadata ?? {}
     const itemMeta = item.metadata ?? {}
-    byName.set(remoteKey, {
+    const localDisplay = typeof itemMeta.displayName === 'string' ? itemMeta.displayName.trim() : ''
+    byName.set(item.name, {
       ...item,
-      // 卡片身份用市场 name；本地目录名记在 installedSkillName
-      name: remoteKey,
       // 市场列表优先接口 desc，没有再用本地 SKILL.md description
       description:
         (typeof prev.description === 'string' && prev.description.trim()) || item.description,
@@ -97,7 +88,7 @@ export function mergeSkillMarketCatalog(
         displayName:
           (typeof prevMeta.displayName === 'string' && prevMeta.displayName.trim()) ||
           localDisplay ||
-          remoteKey,
+          item.name,
         installedSkillName: item.name,
         ...(typeof prevMeta.categoryId === 'string' && prevMeta.categoryId.trim()
           ? { categoryId: prevMeta.categoryId.trim() }
