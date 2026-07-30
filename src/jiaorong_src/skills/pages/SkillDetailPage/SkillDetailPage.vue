@@ -23,6 +23,7 @@ import {
   uninstallSkill as uninstallRealSkill
 } from '@jiaorong/utils'
 import {
+  isProtectedSystemSkill,
   readJiaorongSkillFromSession,
   rememberRemoteInstall,
   rememberSkillSource,
@@ -30,6 +31,7 @@ import {
   SkillSource,
   type JiaorongSkillItem
 } from '../../lib/sessionSkill'
+import { formatSkillInstallError, formatSkillUninstallError } from '../../lib/formatSkillInstallError'
 import { parseSkillMarketTab } from '../../lib/skillMarketTab'
 import skillIcon from '@jiaorong/assets/skill.png'
 import codeIcon from '@jiaorong/brand/icons/skill-detail/code@2x.png'
@@ -69,6 +71,16 @@ const skillDescription = computed(
   () => remoteSkillDetail.value?.description || skill.value?.description || ''
 )
 const skillTryPrompts = computed(() => remoteSkillDetail.value?.tryPrompts ?? [])
+
+/** 内置 14 + 默认市场 19：详情页不展示删除 */
+const canDeleteSkill = computed(() => {
+  if (!installed.value) return false
+  return !isProtectedSystemSkill({
+    skillName: currentSkillName.value,
+    displayName: skillDisplayName.value,
+    skillSource: skill.value?.skill_source
+  })
+})
 
 /** session 中远程市场技能（skill_source=2）的 remoteId，用于详情接口 */
 function resolveSessionRemoteId(
@@ -269,7 +281,7 @@ const handleInstall = async () => {
     if (!result.success || !result.skillName) {
       toast({
         title: '安装失败',
-        description: result.error || '未知错误',
+        description: formatSkillInstallError(result.error || '未知错误', 'remote'),
         variant: 'destructive'
       })
       return
@@ -331,7 +343,7 @@ const handleOpenSkillFolder = async () => {
 }
 
 const openUninstallConfirm = () => {
-  if (!installed.value || !currentSkillName.value || uninstalling.value) return
+  if (!canDeleteSkill.value || !currentSkillName.value || uninstalling.value) return
   uninstallConfirmOpen.value = true
 }
 
@@ -342,7 +354,7 @@ const closeUninstallConfirm = () => {
 
 const uninstallSkill = async () => {
   const name = currentSkillName.value
-  if (!name || uninstalling.value) return
+  if (!name || uninstalling.value || !canDeleteSkill.value) return
 
   uninstallConfirmOpen.value = false
   uninstalling.value = true
@@ -351,7 +363,7 @@ const uninstallSkill = async () => {
     uninstalling.value = false
     toast({
       title: t('routes.skillsUninstallFailed'),
-      description: result.error || t('routes.skillsUnknownError'),
+      description: formatSkillUninstallError(result.error || t('routes.skillsUnknownError')),
       variant: 'destructive'
     })
     return
@@ -464,6 +476,7 @@ const uninstallSkill = async () => {
           </Button>
 
           <Button
+            v-if="canDeleteSkill"
             variant="outline"
             class="skill-detail-btn-danger"
             :disabled="uninstalling"

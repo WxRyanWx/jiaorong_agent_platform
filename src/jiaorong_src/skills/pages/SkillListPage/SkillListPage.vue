@@ -25,6 +25,7 @@ import {
   SkillSource,
   toJiaorongSkillItem
 } from '../../lib/sessionSkill'
+import { formatSkillInstallError } from '../../lib/formatSkillInstallError'
 import {
   SKILL_CATEGORY_ALL,
   SKILL_CATEGORY_ALL_ID,
@@ -366,7 +367,7 @@ const handleInstall = async (skill: JiaorongSkillItem) => {
     if (!result.success || !result.skillName) {
       toast({
         title: '安装失败',
-        description: result.error || '未知错误',
+        description: formatSkillInstallError(result.error || '未知错误', 'remote'),
         variant: 'destructive'
       })
       return

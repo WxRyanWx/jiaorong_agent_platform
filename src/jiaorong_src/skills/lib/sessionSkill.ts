@@ -1,4 +1,5 @@
 import type { SkillMetadata } from '@shared/types/skill'
+import { DEFAULT_MARKET_SKILLS } from './defaultSkillsManifest'
 
 /**
  * 技能数据来源：
@@ -48,6 +49,47 @@ export const BUILTIN_SKILL_NAMES = new Set<string>([
   'web-artifacts-builder',
   'xlsx'
 ])
+
+/** 默认预装市场技能名（大小写不敏感） */
+const DEFAULT_MARKET_SKILL_KEYS = new Set(
+  DEFAULT_MARKET_SKILLS.map((name) => name.trim().toLowerCase()).filter(Boolean)
+)
+
+function isDefaultMarketSkillName(value: string): boolean {
+  const key = value.trim().toLowerCase()
+  return key.length > 0 && DEFAULT_MARKET_SKILL_KEYS.has(key)
+}
+
+/**
+ * 系统保护技能（14 内置 + 19 默认市场预装）不可删除。
+ * 默认市场安装后目录可能是英文 slug，需结合 displayName / remoteInstallMap 识别。
+ */
+export function isProtectedSystemSkill(params: {
+  skillName?: string | null
+  displayName?: string | null
+  skillSource?: SkillSource | null
+}): boolean {
+  if (params.skillSource === SkillSource.LocalBuiltin) return true
+
+  const name = params.skillName?.trim() ?? ''
+  const display = params.displayName?.trim() ?? ''
+
+  if (name && BUILTIN_SKILL_NAMES.has(name)) return true
+  if (name && getRememberedSkillSource(name) === SkillSource.LocalBuiltin) return true
+  if (display && isDefaultMarketSkillName(display)) return true
+  if (name && isDefaultMarketSkillName(name)) return true
+
+  if (name) {
+    const map = loadRemoteInstallMap()
+    for (const [market, local] of Object.entries(map)) {
+      if (local === name && isDefaultMarketSkillName(market)) {
+        return true
+      }
+    }
+  }
+
+  return false
+}
 
 type SkillSourceMap = Record<string, SkillSource>
 

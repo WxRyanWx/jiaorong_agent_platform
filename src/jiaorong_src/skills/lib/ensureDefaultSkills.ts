@@ -1,4 +1,3 @@
-import { createDeviceClient } from '@api/DeviceClient'
 import { useSkillsStore } from '@/stores/skillsStore'
 import { listRemoteSkills } from '../../api/skills'
 import { installSkillFromZipUrl } from '../../utils/downloadSkill/installSkillFromZipUrl'
@@ -9,10 +8,14 @@ import {
   rememberSkillSource,
   SkillSource
 } from './sessionSkill'
-import { DEFAULT_MARKET_SKILLS } from './defaultSkillsManifest'
+import { DEFAULT_MARKET_SKILLS, DEFAULT_SKILLS_SEED_BUILD_ID } from './defaultSkillsManifest'
 import { emitDefaultSkillInstallPhase } from './defaultSkillInstallEvents'
 
+/** @deprecated 旧版按 appVersion 闸门；写入新闸门时清理 */
 export const JIAORONG_DEFAULT_SKILLS_SEED_VERSION_KEY = 'jiaorongDefaultSkillsSeedVersion'
+
+/** 已对某次 DEFAULT_SKILLS_SEED_BUILD_ID 跑过默认补装 */
+export const JIAORONG_DEFAULT_SKILLS_SEED_BUILD_KEY = 'jiaorongDefaultSkillsSeedBuildId'
 
 export type EnsureDefaultSkillsResult = {
   skipped: boolean
@@ -77,17 +80,18 @@ export function findRemoteSkillForDefault(
   return remote.find((item) => namesMatch(item.name, marketName)) ?? null
 }
 
-function readSeedVersion(): string {
+function readSeedBuildId(): string {
   try {
-    return localStorage.getItem(JIAORONG_DEFAULT_SKILLS_SEED_VERSION_KEY)?.trim() || ''
+    return localStorage.getItem(JIAORONG_DEFAULT_SKILLS_SEED_BUILD_KEY)?.trim() || ''
   } catch {
     return ''
   }
 }
 
-function writeSeedVersion(version: string): void {
+function writeSeedBuildId(buildId: string): void {
   try {
-    localStorage.setItem(JIAORONG_DEFAULT_SKILLS_SEED_VERSION_KEY, version)
+    localStorage.setItem(JIAORONG_DEFAULT_SKILLS_SEED_BUILD_KEY, buildId)
+    localStorage.removeItem(JIAORONG_DEFAULT_SKILLS_SEED_VERSION_KEY)
   } catch {
     // ignore quota
   }
@@ -124,8 +128,9 @@ function mapRemoteRaw(raw: Record<string, unknown>[]): RemoteSkillSeedItem[] {
 let inFlight: Promise<EnsureDefaultSkillsResult> | null = null
 
 /**
- * 应用安装/升级后补装默认市场技能（按 appVersion 只跑一轮）。
- * 未登录会等待 token；超时则跳过本轮且不写版本（下次启动可再试）。
+ * 新装 / 升级 / 同版本覆盖安装后补装默认市场技能。
+ * 闸门为私有构建号 DEFAULT_SKILLS_SEED_BUILD_ID（不依赖 appVersion，不改开源宿主）。
+ * 本地已存在的跳过；未登录等待 token，超时不写闸门。
  */
 export async function ensureDefaultSkills(options?: {
   force?: boolean
@@ -150,18 +155,13 @@ async function runEnsureDefaultSkills(options?: {
     missingInCatalog: []
   }
 
-  let appVersion = ''
-  try {
-    appVersion = await createDeviceClient().getAppVersion()
-  } catch (error) {
-    return { ...empty, reason: `getAppVersion failed: ${String(error)}` }
-  }
-  if (!appVersion) {
-    return { ...empty, reason: 'empty app version' }
+  const buildId = DEFAULT_SKILLS_SEED_BUILD_ID.trim()
+  if (!buildId) {
+    return { ...empty, reason: 'empty seed build id' }
   }
 
-  if (!options?.force && readSeedVersion() === appVersion) {
-    return { ...empty, reason: 'already seeded for this version' }
+  if (!options?.force && readSeedBuildId() === buildId) {
+    return { ...empty, reason: 'already seeded for this build' }
   }
 
   const hasToken = await waitForAuthToken(options?.authWaitMs ?? 120_000)
@@ -169,8 +169,8 @@ async function runEnsureDefaultSkills(options?: {
     return { ...empty, reason: 'auth token timeout' }
   }
 
-  if (!options?.force && readSeedVersion() === appVersion) {
-    return { ...empty, reason: 'already seeded for this version' }
+  if (!options?.force && readSeedBuildId() === buildId) {
+    return { ...empty, reason: 'already seeded for this build' }
   }
 
   const result: EnsureDefaultSkillsResult = {
@@ -192,7 +192,6 @@ async function runEnsureDefaultSkills(options?: {
       reason: `listRemoteSkills failed: ${String(error)}`
     }
   }
-  // 空目录多为接口异常/未就绪，不写版本闸门，避免本版本永久跳过补装
   if (remote.length === 0) {
     return { ...empty, reason: 'empty remote catalog' }
   }
@@ -248,7 +247,6 @@ async function runEnsureDefaultSkills(options?: {
     }
   }
 
-  // 有新装时刷新本地目录，供 / 菜单等消费
   if (result.installed.length > 0) {
     try {
       await refreshSkillsCatalog()
@@ -257,19 +255,18 @@ async function runEnsureDefaultSkills(options?: {
     }
   }
 
-  // 仍有失败项时不写版本闸门，下次启动可重试补装；
-  // missingInCatalog 视为本轮无法装（目录无此技能），不阻塞闸门
+  // 有失败不写闸门，下次启动可重试；missingInCatalog 不阻塞
   if (result.failed.length === 0) {
-    writeSeedVersion(appVersion)
+    writeSeedBuildId(buildId)
   }
 
   if (import.meta.env.DEV) {
-    console.info('[jiaorong] default skills seed', result)
+    console.info('[jiaorong] default skills seed', { buildId, ...result })
   }
   return result
 }
 
-/** 空闲调度；幂等 */
+/** 空闲调度；同构建号幂等 */
 export function scheduleEnsureDefaultSkills(): void {
   const run = () => {
     void ensureDefaultSkills().catch((error) => {

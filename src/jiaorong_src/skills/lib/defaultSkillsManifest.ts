@@ -1,7 +1,9 @@
 /**
- * 默认预装市场技能清单（应用安装/升级后补装一次）。
+ * 默认预装市场技能清单（安装/升级/同版本覆盖安装后补装一次）。
  * 项为市场当前 name，与远程 list 的 name 精确匹配（大小写不敏感）。
  */
+
+export { DEFAULT_SKILLS_SEED_BUILD_ID } from './defaultSkillsSeedBuildId.generated'
 
 /** 产品指定的 19 个默认技能（市场 name） */
 export const DEFAULT_MARKET_SKILLS: readonly string[] = [

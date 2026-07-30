@@ -26,6 +26,7 @@ import {
   installSkillFromZipCompat,
   normalizeLocalPath
 } from '../../lib/installLocalSkill'
+import { formatSkillInstallError } from '../../lib/formatSkillInstallError'
 import { rememberSkillSource, SkillSource } from '../../lib/sessionSkill'
 import './index.less'
 
@@ -223,7 +224,7 @@ async function pickFiles(options: { allowDirectory: boolean }) {
   } catch (error) {
     toast({
       title: '选择失败',
-      description: String(error),
+      description: formatSkillInstallError(error, 'pick'),
       variant: 'destructive'
     })
   }
@@ -243,7 +244,7 @@ async function pickFolder() {
   } catch (error) {
     toast({
       title: '选择失败',
-      description: String(error),
+      description: formatSkillInstallError(error, 'pick'),
       variant: 'destructive'
     })
   }
@@ -315,9 +316,17 @@ function handleInstallResult(
 
   toast({
     title: '安装失败',
-    description: result.error || '未知错误',
+    description: formatSkillInstallError(result.error || '未知错误', sourceKindForError(source)),
     variant: 'destructive'
   })
+}
+
+function sourceKindForError(
+  source: (typeof SkillSource)[keyof typeof SkillSource]
+): 'folder' | 'zip' | 'md' {
+  if (source === SkillSource.Folder) return 'folder'
+  if (source === SkillSource.Md) return 'md'
+  return 'zip'
 }
 
 async function runInstall(overwrite = false) {
@@ -352,7 +361,7 @@ async function runInstall(overwrite = false) {
   } catch (error) {
     toast({
       title: '安装失败',
-      description: String(error),
+      description: formatSkillInstallError(error, selection.kind),
       variant: 'destructive'
     })
   } finally {

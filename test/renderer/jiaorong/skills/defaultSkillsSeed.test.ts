@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_MARKET_SKILLS } from '../../../../src/jiaorong_src/skills/lib/defaultSkillsManifest'
+import {
+  DEFAULT_MARKET_SKILLS,
+  DEFAULT_SKILLS_SEED_BUILD_ID
+} from '../../../../src/jiaorong_src/skills/lib/defaultSkillsManifest'
 import {
   findRemoteSkillForDefault,
-  isDefaultSkillPresentLocally
+  isDefaultSkillPresentLocally,
+  JIAORONG_DEFAULT_SKILLS_SEED_BUILD_KEY,
+  JIAORONG_DEFAULT_SKILLS_SEED_VERSION_KEY
 } from '../../../../src/jiaorong_src/skills/lib/ensureDefaultSkills'
 
 describe('defaultSkillsManifest', () => {
@@ -16,6 +21,17 @@ describe('defaultSkillsManifest', () => {
     expect(DEFAULT_MARKET_SKILLS).toContain(
       'BigPlan · 产品调研（市场分析·技术评估·项目研发·产品方案）'
     )
+  })
+
+  it('defines a non-empty private seed build id', () => {
+    expect(DEFAULT_SKILLS_SEED_BUILD_ID.trim().length).toBeGreaterThan(0)
+  })
+})
+
+describe('default skills seed gate keys', () => {
+  it('uses build-id key and keeps legacy version key name for cleanup', () => {
+    expect(JIAORONG_DEFAULT_SKILLS_SEED_BUILD_KEY).toBe('jiaorongDefaultSkillsSeedBuildId')
+    expect(JIAORONG_DEFAULT_SKILLS_SEED_VERSION_KEY).toBe('jiaorongDefaultSkillsSeedVersion')
   })
 })
 

@@ -2,20 +2,16 @@
 
 ## Goal
 
-应用安装或版本更新后，自动检测并补装一批默认市场技能；已安装不重复装；不在每次打开技能菜单时扫描。
+安装事件后补装默认市场技能。打包时自动生成随机 `DEFAULT_SKILLS_SEED_BUILD_ID`，同版本覆盖安装也会触发补缺；日常启动（dev 用固定 `dev`）不重复跑。
 
 ## Acceptance
 
-- 目标清单共 19 个（见 manifest，项为市场 `name`）
-- 远程匹配：清单 name 与 list 接口 `name` 对应（大小写不敏感）；不依赖 alias / 旧英文名
-- 触发：当前 `app.getVersion()` 与本地记录不一致时跑一次（含首次安装）
-- 不因进入技能中心而触发
-- 静默安装：冲突视为已装，不弹覆盖框
-- 可选：安装过程通过事件同步市场页「安装中」态（实现成本低则做）
+- 清单 19 个市场技能；内置 14 由宿主同步
+- `pnpm run build` / `prebuild` 调用私有脚本生成随机 build id 写入 `defaultSkillsSeedBuildId.generated.ts`
+- 闸门：localStorage `jiaorongDefaultSkillsSeedBuildId` ↔ 包内常量
+- 已装跳过；失败不写闸门
 
 ## Non-Goals
 
-- 不改宿主 skillPresenter 内置 sync
-- 不在未登录时强装（无 token 则等登录后再跑本次版本任务）
-- 不覆盖用户已卸载策略以外的技能（仅补缺）
-- 不做改名前旧名 / alias 兼容
+- 不改开源宿主 IPC
+- 开发模式不强制每次 HMR 重装（generated 默认为 `dev`）

@@ -11,7 +11,7 @@
   },
   "packageManager": "pnpm@10.33.4+sha512.1c67b3b359b2d408119ba1ed289f34b8fc3c6873412bec6fd264fbdc82489e510fcbecb9ce9d22dae7f3b76269d8441046014bdca53b9979cd7a561ad631b800",
   "scripts": {
-    "prebuild": "node scripts/fetch-provider-db.mjs && node scripts/fetch-acp-registry.mjs",
+    "prebuild": "node scripts/fetch-provider-db.mjs && node scripts/fetch-acp-registry.mjs && node src/jiaorong_src/skills/scripts/generateDefaultSkillsSeedBuildId.mjs",
     "preinstall": "npx only-allow pnpm",
     "test": "vitest",
     "test:main": "vitest --config vitest.config.ts test/main",
@@ -35,7 +35,7 @@
     "dev:trace": "cross-env DEEPCHAT_VUE_DEVTOOLS_OVERLAY=0 electron-vite dev --watch",
     "dev:inspect": "electron-vite dev --watch --inspect=9229",
     "dev:linux": "electron-vite dev --watch --noSandbox",
-    "build": "pnpm run typecheck && electron-vite build",
+    "build": "node src/jiaorong_src/skills/scripts/generateDefaultSkillsSeedBuildId.mjs && pnpm run typecheck && electron-vite build",
     "build:test": "pnpm run prebuild && pnpm run typecheck && electron-vite build --mode test",
     "release:ff": "node scripts/release-fast-forward.mjs",
     "postinstall": "electron-builder install-app-deps && simple-git-hooks",

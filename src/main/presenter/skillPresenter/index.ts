@@ -1415,7 +1415,12 @@ export class SkillPresenter implements ISkillPresenter {
       const errorMsg = error instanceof Error ? error.message : String(error)
       return { success: false, error: errorMsg, errorCode: 'io_error' }
     } finally {
-      fs.rmSync(tempDir, { recursive: true, force: true })
+      // Windows 上杀毒/索引可能锁住解压文件，清理失败不应覆盖业务错误（如缺 SKILL.md）
+      try {
+        fs.rmSync(tempDir, { recursive: true, force: true })
+      } catch {
+        // ignore cleanup errors
+      }
     }
   }
 
@@ -1432,7 +1437,11 @@ export class SkillPresenter implements ISkillPresenter {
       return { success: false, error: errorMsg, errorCode: 'io_error' }
     } finally {
       if (fs.existsSync(tempZipPath)) {
-        fs.rmSync(tempZipPath, { force: true })
+        try {
+          fs.rmSync(tempZipPath, { force: true })
+        } catch {
+          // ignore cleanup errors
+        }
       }
     }
   }
