@@ -7,6 +7,7 @@ import {
   isGenericSkillParentDirName,
   needsSkillMarkdownNormalize,
   peekSkillDisplayName,
+  sanitizeSkillName,
   stableAsciiSkillId,
   toFileUrlForTest
 } from '../../../../src/jiaorong_src/skills/lib/installLocalSkill'
@@ -91,6 +92,24 @@ description: |
 
 ---`
     expect(deriveTechnicalSkillName(raw, 'my-bill-skill')).toBe('my-bill-skill')
+  })
+
+  it('unifies chinese folder and zip path hint when frontmatter name needs normalize', () => {
+    const raw = `---
+name: Agnes_duomotai
+description: Agnes AI handbook
+---
+
+# Agnes
+`
+    const pathHint = 'Agnes 多模态能力手册'
+    // 旧 zip 仅 sanitize 路径 → agnes；文件夹走 derive → agnes_duomotai，会装成两条
+    expect(sanitizeSkillName(pathHint)).toBe('agnes')
+    const fromFolder = deriveTechnicalSkillName(raw, pathHint)
+    const fromZip = deriveTechnicalSkillName(raw, pathHint)
+    expect(fromFolder).toBe(fromZip)
+    expect(fromFolder).toBe('agnes_duomotai')
+    expect(fromFolder).not.toBe(sanitizeSkillName(pathHint))
   })
 
   it('keeps legal english name and uses it as displayName fallback', () => {

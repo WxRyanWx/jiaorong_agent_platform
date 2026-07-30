@@ -703,9 +703,9 @@ async function handLogin(values: Record<string, string>): Promise<void> {
         resName.value = res1.data.userName
         await FeatchUsageRecord({}, 'login', res1.data.id)
         markAuthSessionValidated()
-        // 登录成功后触发默认技能补装（构建号闸门；本包已跑过则跳过）
+        // 登录成功后触发默认技能补装（随后进 chat 路由也会再兜底）
         void import('../../../skills/lib/ensureDefaultSkills')
-          .then((m) => m.scheduleEnsureDefaultSkills())
+          .then((m) => m.scheduleEnsureDefaultSkills({ authWaitMs: 0 }))
           .catch(() => undefined)
       }
       router.push('/chat')

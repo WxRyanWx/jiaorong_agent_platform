@@ -438,6 +438,13 @@ onMounted(() => {
   }
   window.addEventListener(JIAORONG_DEFAULT_SKILL_INSTALL_EVENT, defaultInstallEventHandler)
 
+  // 进入技能中心再兜底检测一次（构建号未变则立刻 skip）
+  void import('../../lib/ensureDefaultSkills')
+    .then(({ scheduleEnsureDefaultSkills }) => {
+      scheduleEnsureDefaultSkills({ authWaitMs: 0 })
+    })
+    .catch(() => undefined)
+
   void refreshMarket()
 })
 

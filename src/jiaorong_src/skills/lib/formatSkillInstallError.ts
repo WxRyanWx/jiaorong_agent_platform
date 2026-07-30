@@ -134,6 +134,10 @@ export function formatSkillInstallError(
     return '技能 name 不合法，需为小写英文、数字、点、下划线或连字符'
   }
 
+  if (lower.includes('failed to backup') || lower.includes('directory locked')) {
+    return '覆盖安装失败：原技能目录被占用，请关闭相关程序后重试'
+  }
+
   if (lower.includes('already exists') || lower.includes('conflict')) {
     return '同名技能已存在，可选择覆盖安装'
   }

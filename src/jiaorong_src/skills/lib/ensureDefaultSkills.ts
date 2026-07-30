@@ -267,9 +267,12 @@ async function runEnsureDefaultSkills(options?: {
 }
 
 /** 空闲调度；同构建号幂等 */
-export function scheduleEnsureDefaultSkills(): void {
+export function scheduleEnsureDefaultSkills(options?: {
+  force?: boolean
+  authWaitMs?: number
+}): void {
   const run = () => {
-    void ensureDefaultSkills().catch((error) => {
+    void ensureDefaultSkills(options).catch((error) => {
       console.error('[jiaorong] ensureDefaultSkills failed:', error)
     })
   }
@@ -278,4 +281,32 @@ export function scheduleEnsureDefaultSkills(): void {
   } else {
     setTimeout(run, 0)
   }
+}
+
+/** 进入这些路由时检测构建号并静默补缺（chat 默认落地，skills 兜底） */
+const DEFAULT_SKILLS_SEED_ROUTE_NAMES = new Set(['chat', 'skills', 'skills-detail'])
+
+let routeSeedHookInstalled = false
+
+/**
+ * 在 chat / 技能页挂载后检测补装。
+ * chat 静默后台装，切到技能页时多数已完成，减少卡顿。
+ */
+export function setupDefaultSkillsSeedRouteTriggers(router: {
+  currentRoute: { value: { name?: string | symbol | null } }
+  afterEach: (guard: (to: { name?: string | symbol | null }) => void) => unknown
+}): void {
+  if (routeSeedHookInstalled) return
+  routeSeedHookInstalled = true
+
+  const maybeSeed = (name: string | symbol | null | undefined) => {
+    if (typeof name !== 'string' || !DEFAULT_SKILLS_SEED_ROUTE_NAMES.has(name)) return
+    // 已进业务页通常已有 token；不再空等 120s
+    scheduleEnsureDefaultSkills({ authWaitMs: 0 })
+  }
+
+  maybeSeed(router.currentRoute.value.name)
+  router.afterEach((to) => {
+    maybeSeed(to.name)
+  })
 }

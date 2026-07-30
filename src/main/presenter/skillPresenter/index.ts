@@ -1620,7 +1620,40 @@ export class SkillPresenter implements ISkillPresenter {
       counter += 1
       backupDir = path.join(this.skillsDir, `${skillName}.backup-${timestamp}-${counter}`)
     }
-    fs.renameSync(sourceDir, backupDir)
+
+    // Windows 上 rename 易被杀毒/索引锁住；失败则 copy + 尽力删除原目录
+    try {
+      fs.renameSync(sourceDir, backupDir)
+      return backupDir
+    } catch (renameError) {
+      logger.warn(
+        '[SkillPresenter] rename backup failed, falling back to copy:',
+        renameError instanceof Error ? renameError.message : String(renameError)
+      )
+    }
+
+    this.copyDirectory(sourceDir, backupDir)
+    try {
+      fs.rmSync(sourceDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
+    } catch (rmError) {
+      logger.warn(
+        '[SkillPresenter] remove original after backup copy failed:',
+        rmError instanceof Error ? rmError.message : String(rmError)
+      )
+      // 尽量腾出目标名：改名 pending 后再删
+      try {
+        const pending = path.join(
+          this.skillsDir,
+          `.pending-overwrite-${skillName}-${Date.now().toString(36)}`
+        )
+        fs.renameSync(sourceDir, pending)
+        fs.rmSync(pending, { recursive: true, force: true, maxRetries: 8, retryDelay: 120 })
+      } catch {
+        throw new Error(
+          `Failed to backup existing skill "${skillName}" for overwrite (directory locked)`
+        )
+      }
+    }
     return backupDir
   }
 

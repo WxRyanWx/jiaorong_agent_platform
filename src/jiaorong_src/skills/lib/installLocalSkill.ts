@@ -795,9 +795,13 @@ async function installNormalizedZipBytes(params: {
   const folderFromPath = skillMdKey.includes('/')
     ? skillMdKey.split('/').slice(0, -1).filter(Boolean).pop()
     : params.fallbackName
-  const folderName = sanitizeSkillName(folderFromPath || params.fallbackName || 'skill')
   const original = strFromU8(entries[skillMdKey])
   const preferred = params.preferredDisplayName?.trim() || ''
+  // 与文件夹上传共用 deriveTechnicalSkillName，避免同内容 zip/文件夹装成两个技能
+  const folderName = deriveTechnicalSkillName(
+    original,
+    folderFromPath || params.fallbackName || 'skill'
+  )
 
   let patched = original
   if (params.forceNormalize || needsSkillMarkdownNormalize(original)) {

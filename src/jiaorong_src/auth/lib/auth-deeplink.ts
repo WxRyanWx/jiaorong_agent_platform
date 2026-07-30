@@ -32,6 +32,9 @@ export const useAuthLoginDeeplinkHandler = () => {
       if (router.currentRoute.value.name !== 'chat') {
         await router.push('/chat')
       }
+      void import('../../skills/lib/ensureDefaultSkills')
+        .then((m) => m.scheduleEnsureDefaultSkills({ authWaitMs: 0 }))
+        .catch(() => undefined)
     } finally {
       processing = false
     }

@@ -28,10 +28,18 @@ export function mountJiaorong(_host?: JiaorongHostPorts): JiaorongRegistry {
       registry.modules.map((m) => m.id).join(', ') || '(无)'
     )
   }
-  // 应用安装/升级后补装默认市场技能（按版本只跑一次）
-  void import('../skills/lib/ensureDefaultSkills').then(({ scheduleEnsureDefaultSkills }) => {
-    scheduleEnsureDefaultSkills()
-  })
+  // 启动时尝试补装；chat / 技能页路由再兜底（已登录直进 chat 也能静默补全）
+  void import('../skills/lib/ensureDefaultSkills').then(
+    ({ scheduleEnsureDefaultSkills, setupDefaultSkillsSeedRouteTriggers }) => {
+      scheduleEnsureDefaultSkills()
+      void import('@/router')
+        .then((mod) => {
+          const router = mod.default
+          if (router) setupDefaultSkillsSeedRouteTriggers(router)
+        })
+        .catch(() => undefined)
+    }
+  )
   return registry
 }
 

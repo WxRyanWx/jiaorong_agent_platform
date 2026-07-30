@@ -60,6 +60,16 @@ describe('formatSkillInstallError', () => {
     expect(formatSkillInstallError('File too large: 99999999 bytes', 'remote')).toContain('过大')
   })
 
+  it('maps backup / directory locked overwrite failures', () => {
+    const msg = formatSkillInstallError(
+      'Failed to backup existing skill "agnes_duomotai" for overwrite (directory locked)',
+      'zip'
+    )
+    expect(msg).toContain('覆盖安装失败')
+    expect(msg).toContain('占用')
+    expect(msg).not.toContain('Failed to backup')
+  })
+
   it('uses pick-oriented fallback for system errors while selecting files', () => {
     const msg = formatSkillInstallError('EACCES: permission denied', 'pick')
     expect(msg).toContain('选择')

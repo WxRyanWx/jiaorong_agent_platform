@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import { Button } from '@shadcn/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@shadcn/components/ui/dialog'
@@ -28,6 +28,7 @@ import {
 } from '../../lib/installLocalSkill'
 import { formatSkillInstallError } from '../../lib/formatSkillInstallError'
 import { rememberSkillSource, SkillSource } from '../../lib/sessionSkill'
+import { uninstallSkill } from '../../../utils/skillFileOperations'
 import './index.less'
 
 type PendingKind = 'folder' | 'zip' | 'md'
@@ -76,24 +77,46 @@ const pickMenuOpen = ref(false)
 const conflictDialogOpen = ref(false)
 const conflictSkillName = ref('')
 const pendingOverwrite = ref<(() => Promise<void>) | null>(null)
+/** Win：文件对话框关闭后的幽灵点击会再次打开类型菜单 */
+let ignoreDropzoneClickUntil = 0
+const ghostClickTimerIds: number[] = []
+/**
+ * 仅非 darwin 覆盖前先卸载（Win rename 易锁）。
+ * 默认 false：平台未探测完时不预卸载，避免 Mac 误走卸载丢备份。
+ */
+const preferPreUninstallOverwrite = ref(false)
 
 const SKILL_FILE_FILTERS = [
   { name: 'Skill packages', extensions: ['zip', 'md'] },
   { name: 'All files', extensions: ['*'] }
 ]
 
+function clearGhostClickTimers() {
+  for (const id of ghostClickTimerIds) {
+    window.clearTimeout(id)
+  }
+  ghostClickTimerIds.length = 0
+}
+
 async function refreshPickerMode() {
   try {
     const info = await deviceClient.getDeviceInfo()
     // Electron：仅 darwin 可同框 openFile+openDirectory；其余平台拆分
-    splitFileFolderPicker.value = info.platform !== 'darwin'
+    const nonDarwin = info.platform !== 'darwin'
+    splitFileFolderPicker.value = nonDarwin
+    preferPreUninstallOverwrite.value = nonDarwin
   } catch {
     splitFileFolderPicker.value = true
+    // 探测失败时按非 Mac 处理，优先保证 Win 覆盖可用
+    preferPreUninstallOverwrite.value = true
   }
 }
 
 watch(isOpen, (open) => {
   if (!open) {
+    clearGhostClickTimers()
+    ignoreDropzoneClickUntil = 0
+    preferPreUninstallOverwrite.value = false
     pending.value = null
     dragActive.value = false
     installing.value = false
@@ -104,6 +127,11 @@ watch(isOpen, (open) => {
     return
   }
   void refreshPickerMode()
+})
+
+onBeforeUnmount(() => {
+  clearGhostClickTimers()
+  ignoreDropzoneClickUntil = 0
 })
 
 function isZipPath(filePath: string): boolean {
@@ -200,6 +228,7 @@ async function classifyPath(filePath: string, isDirectoryHint: boolean) {
 /** 点击上传区：macOS 直接同框选；Win/Linux 先弹出类型菜单（系统限制） */
 async function onDropzoneClick() {
   if (installing.value) return
+  if (Date.now() < ignoreDropzoneClickUntil) return
   if (splitFileFolderPicker.value) {
     pickMenuOpen.value = !pickMenuOpen.value
     return
@@ -227,6 +256,9 @@ async function pickFiles(options: { allowDirectory: boolean }) {
       description: formatSkillInstallError(error, 'pick'),
       variant: 'destructive'
     })
+  } finally {
+    // 关闭系统文件框后，Win 常把一次点击打到 dropzone，再次弹出类型菜单
+    suppressPickMenuGhostClick()
   }
 }
 
@@ -247,7 +279,24 @@ async function pickFolder() {
       description: formatSkillInstallError(error, 'pick'),
       variant: 'destructive'
     })
+  } finally {
+    suppressPickMenuGhostClick()
   }
+}
+
+/** Win：系统对话框关闭后的幽灵 click 会再次打开类型菜单，盖住「已选择」 */
+function suppressPickMenuGhostClick() {
+  clearGhostClickTimers()
+  pickMenuOpen.value = false
+  ignoreDropzoneClickUntil = Date.now() + 1200
+  ghostClickTimerIds.push(
+    window.setTimeout(() => {
+      pickMenuOpen.value = false
+    }, 0),
+    window.setTimeout(() => {
+      pickMenuOpen.value = false
+    }, 150)
+  )
 }
 
 function onPickMenuFiles() {
@@ -307,7 +356,11 @@ function handleInstallResult(
     return
   }
 
-  if (result.errorCode === 'conflict' || result.error?.includes('already exists')) {
+  if (
+    result.errorCode === 'conflict' ||
+    result.error?.includes('already exists') ||
+    result.error?.toLowerCase().includes('conflict')
+  ) {
     conflictSkillName.value = result.existingSkillName || result.skillName || ''
     pendingOverwrite.value = retryWithOverwrite
     conflictDialogOpen.value = true
@@ -335,6 +388,18 @@ async function runInstall(overwrite = false) {
 
   installing.value = true
   try {
+    // 仅 Win/Linux：覆盖前先卸载；Mac 走宿主 backup，装失败更可恢复
+    if (overwrite && preferPreUninstallOverwrite.value) {
+      const existing = conflictSkillName.value.trim()
+      if (existing) {
+        const removed = await uninstallSkill(existing)
+        if (!removed.success && removed.error !== 'protected-system-skill') {
+          // 卸载失败仍继续走 overwrite，由宿主 backup 兜底
+          console.warn('[SkillUploadDialog] pre-overwrite uninstall failed:', removed.error)
+        }
+      }
+    }
+
     const deps = installDeps()
     const source = sourceFromKind(selection.kind)
     let result: SkillInstallResult
