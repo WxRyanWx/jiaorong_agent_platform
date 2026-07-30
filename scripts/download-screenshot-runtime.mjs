@@ -1,6 +1,7 @@
-import { createWriteStream, mkdirSync, rmSync } from 'node:fs'
+import { createWriteStream, mkdirSync, renameSync, rmSync, statSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
 import { join, resolve } from 'node:path'
-import { Readable } from 'node:stream'
+import { Readable, Transform } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 
 const args = process.argv.slice(2)
@@ -38,6 +39,39 @@ if (!response.ok || !response.body) throw new Error(`Unable to download ${asset}
 const destination = resolve('build', 'screenshot-download')
 mkdirSync(destination, { recursive: true })
 const output = join(destination, asset)
-rmSync(output, { force: true })
-await pipeline(Readable.fromWeb(response.body), createWriteStream(output))
+const partial = `${output}.part`
+const contentLength = Number(response.headers.get('content-length')) || 0
+let downloaded = 0
+let lastProgressAt = 0
+const progress = new Transform({
+  transform(chunk, _encoding, callback) {
+    downloaded += chunk.length
+    const now = Date.now()
+    if (now - lastProgressAt >= 1000) {
+      const total = contentLength ? ` / ${(contentLength / 1024 / 1024).toFixed(1)} MB` : ''
+      process.stderr.write(`\rDownloading ${asset}: ${(downloaded / 1024 / 1024).toFixed(1)} MB${total}`)
+      lastProgressAt = now
+    }
+    callback(null, chunk)
+  }
+})
+rmSync(partial, { force: true })
+try {
+  await pipeline(Readable.fromWeb(response.body), progress, createWriteStream(partial))
+  const actualSize = statSync(partial).size
+  if (contentLength && actualSize !== contentLength) {
+    throw new Error(`Incomplete download for ${asset}: expected ${contentLength} bytes, received ${actualSize}`)
+  }
+  const archiveCheck = spawnSync('tar', ['-tf', partial], { encoding: 'utf8' })
+  if (archiveCheck.status !== 0) {
+    throw new Error(`Downloaded archive is invalid: ${archiveCheck.stderr.trim()}`)
+  }
+  rmSync(output, { force: true })
+  renameSync(partial, output)
+  process.stderr.write('\n')
+} catch (error) {
+  rmSync(partial, { force: true })
+  process.stderr.write('\n')
+  throw error
+}
 process.stdout.write(`Downloaded ${repository}@${version}/${asset}\n`)
