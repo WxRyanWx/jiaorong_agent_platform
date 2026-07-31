@@ -112,21 +112,17 @@ async function main() {
 
   fs.unlinkSync(tempZip);
 
-  const secondZipName = getSecondZipFileName();
-  const secondZip = path.join(TARGET_DIR, secondZipName);
   if(process.platform === 'darwin' || process.platform === 'linux') {
+    const secondZipName = getSecondZipFileName();
+    const secondZip = path.join(TARGET_DIR, secondZipName);
     execSync(`unzip -o "${secondZip}" -d "${TARGET_DIR}"`, {
       stdio: 'inherit'
     });
-  }
-  else if(process.platform === 'win32') {
-    execSync(`tar -xf "${secondZip}" -C "${TARGET_DIR}"`, {
-      stdio: 'inherit'
-    });
-  }
-  console.log(`Unzip second screenshot asset`);
+    console.log(`Unzip second screenshot asset`);
 
-  fs.unlinkSync(secondZip);
+    fs.unlinkSync(secondZip);
+  }
+
   setExecutablePermission(TARGET_DIR);
   console.log(`Screenshot asset Ready: ${TARGET_DIR}`);
 }

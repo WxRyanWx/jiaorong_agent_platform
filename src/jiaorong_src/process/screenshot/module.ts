@@ -31,7 +31,11 @@ const getScreenshotExecutablePath = (): string => {
   if (process.platform == 'darwin') {
     return join(root, 'JiaorongScreenshot.app/Contents/MacOS/JiaorongScreenshot')
   } else if (process.platform == 'win32') {
-    return join(root, 'jiaorong-screenshot-win-arm64.exe')
+    if (process.arch == 'x64') {
+      return join(root, 'jiaorong-screenshot-win-x64.exe')
+    } else {
+      return join(root, 'jiaorong-screenshot-win-arm64.exe')
+    }
   }
   return root
 }
