@@ -7,7 +7,7 @@ const __fileName = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__fileName);
 
 const GITHUB_REPO = 'yanxia1999/screenshot-electron';
-const RELEASE_TAG = 'v0.1.1';
+const RELEASE_TAG = 'v0.1.3';
 const TARGET_DIR = path.resolve(__dirname, '../src/jiaorong_src/process/screenshot/resources/screenshot-runtime');
 
 function getFirstZipFileName() {
