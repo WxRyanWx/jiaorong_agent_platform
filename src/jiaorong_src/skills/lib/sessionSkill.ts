@@ -225,6 +225,36 @@ export function resolveSkillSource(skillName: string): SkillSource {
   return SkillSource.Zip
 }
 
+/**
+ * 技能市场 Tab 可见：远程接口技能，或 14 个系统内置。
+ * 用户上传 / 自建（Folder/Zip/Md 等）仅出现在「已安装」。
+ */
+export function isSkillVisibleInMarket(skill: {
+  name: string
+  skill_source?: SkillSource | null
+  metadata?: { remoteId?: unknown } | null
+}): boolean {
+  const remoteId = skill.metadata?.remoteId
+  if (typeof remoteId === 'string' && remoteId.trim()) {
+    return true
+  }
+  if (skill.skill_source === SkillSource.RemoteApi) {
+    return true
+  }
+
+  const name = skill.name?.trim() ?? ''
+  if (name && BUILTIN_SKILL_NAMES.has(name)) {
+    return true
+  }
+  if (skill.skill_source === SkillSource.LocalBuiltin) {
+    return true
+  }
+  if (name && getRememberedSkillSource(name) === SkillSource.LocalBuiltin) {
+    return true
+  }
+  return false
+}
+
 export function toJiaorongSkillItem(skill: SkillMetadata): JiaorongSkillItem {
   return {
     ...skill,

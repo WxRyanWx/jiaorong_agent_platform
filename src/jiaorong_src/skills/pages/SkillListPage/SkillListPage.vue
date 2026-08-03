@@ -18,6 +18,7 @@ import {
   BUILTIN_SKILL_NAMES,
   type JiaorongSkillItem,
   getRememberedSkillSource,
+  isSkillVisibleInMarket,
   loadRemoteInstallMap,
   rememberRemoteInstall,
   rememberSkillSource,
@@ -265,6 +266,10 @@ const skillItems = computed((): JiaorongSkillItem[] =>
 const filteredSkills = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
   return skillItems.value.filter((skill) => {
+    // 市场：仅远程接口 + 14 内置；上传/自建只在「已安装」
+    if (activeTab.value === 'market' && !isSkillVisibleInMarket(skill)) {
+      return false
+    }
     if (activeTab.value === 'installed' && !isInstalled(skill)) {
       return false
     }
@@ -282,7 +287,9 @@ const filteredSkills = computed(() => {
 
 const installedCount = computed(() => skillItems.value.filter((skill) => isInstalled(skill)).length)
 
-const marketCount = computed(() => skillItems.value.length)
+const marketCount = computed(
+  () => skillItems.value.filter((skill) => isSkillVisibleInMarket(skill)).length
+)
 
 const openDetail = (skill: JiaorongSkillItem) => {
   // 安装中不允许进入详情，避免中断安装或读到半成品状态
