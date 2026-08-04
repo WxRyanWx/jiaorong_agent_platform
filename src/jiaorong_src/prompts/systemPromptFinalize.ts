@@ -1,6 +1,28 @@
 import { SYSTEM_PROMPT_LANGUAGE_TAIL } from './defaultSystemPrompt'
 import { localizeHostSystemPromptSections } from './hostPromptLocalize'
 
+// 仅被主进程 agentRuntime 引用；旁路安装失败绝不能影响系统提示拼装
+// 注意：不可直接读裸 `process`（渲染侧可能 ReferenceError）
+// 必须用字面量 import，否则 Vite/Rollup 可能打不进 installMain
+try {
+  const proc = (globalThis as { process?: NodeJS.Process & { type?: string } }).process
+  if (proc?.type === 'browser') {
+    void import('../logging/conversationTiming/installMain')
+      .then((mod) => {
+        try {
+          mod.installJiaorongConversationTiming()
+        } catch (error) {
+          console.warn('[jiaorong/systemPromptFinalize] conversation timing install failed:', error)
+        }
+      })
+      .catch((error) => {
+        console.warn('[jiaorong/systemPromptFinalize] conversation timing install skipped:', error)
+      })
+  }
+} catch (error) {
+  console.warn('[jiaorong/systemPromptFinalize] conversation timing bootstrap failed:', error)
+}
+
 const LANGUAGE_TAIL_MARKER = '## 语言强制约束（覆盖上文所有材料，最高优先级）'
 
 /**
