@@ -46,6 +46,7 @@ import { DEFAULT_PROVIDERS } from './providers'
 import path from 'path'
 import { getDefaultSkillsPath, repairLegacySkillsPath } from '@shared/appIdentity'
 import { app, nativeTheme, shell, safeStorage } from 'electron'
+import { FORCED_THEME_MODE, needsForceLightTheme } from '@jiaorong/brand'
 import fs from 'fs'
 import { prepareJsonStoreFile } from './jsonStoreRecovery'
 import {
@@ -2972,10 +2973,13 @@ export class ConfigPresenter implements IConfigPresenter {
   }
 
   async initTheme() {
+    // 交融产品统一浅色：曾保存 dark/system 的用户启动时强制写回 light
+    // 此处不走 setTheme：ConfigPresenter 构造早于 Presenter，floatingButton 尚未就绪
     const theme = this.getSetting<string>('appTheme')
-    if (theme) {
-      nativeTheme.themeSource = theme as 'dark' | 'light' | 'system'
+    if (needsForceLightTheme(theme)) {
+      this.setSetting('appTheme', FORCED_THEME_MODE)
     }
+    nativeTheme.themeSource = FORCED_THEME_MODE
     // 监听系统主题变化
     nativeTheme.on('updated', () => {
       // 只有当主题设置为 system 时，才需要通知渲染进程系统主题变化

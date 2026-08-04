@@ -203,16 +203,24 @@ Claude reads REDLINING.md or OOXML.md only when the user needs those features.
 
 ## Skill Creation Process
 
+### Critical: where to create skills (JiaorongAI)
+
+- **MUST** create new skills only under `${SKILLS_DIR}/<skill-name>/` (the app default skills folder).
+- **MUST NOT** create them in the workspace, project folder, Desktop, temp, or any other path.
+- Prefer `scripts/init_skill.py <skill-name>` (output path is forced to `${SKILLS_DIR}`).
+- You may also write files directly under `${SKILLS_DIR}/<skill-name>/` (at least a valid `SKILL.md`).
+- For local use: **do not package or reinstall**. As soon as a valid `SKILL.md` exists under `${SKILLS_DIR}`, tell the user they can type `/<skill-name>` in chat immediately.
+
 Skill creation involves these steps:
 
 1. Understand the skill with concrete examples
 2. Plan reusable skill contents (scripts, references, assets)
-3. Initialize the skill (run init_skill.py)
+3. Initialize under `${SKILLS_DIR}` (run `init_skill.py` or write files there)
 4. Edit the skill (implement resources and write SKILL.md)
-5. Package the skill (run package_skill.py)
+5. Optionally package the skill for sharing only (run package_skill.py)
 6. Iterate based on real usage
 
-Follow these steps in order, skipping only if there is a clear reason why they are not applicable.
+Follow these steps in order, skipping only if there is a clear reason why they are not applicable. For local JiaorongAI use, skip step 5.
 
 ### Step 1: Understanding the Skill with Concrete Examples
 
@@ -261,22 +269,24 @@ At this point, it is time to actually create the skill.
 
 Skip this step only if the skill being developed already exists, and iteration or packaging is needed. In this case, continue to the next step.
 
-When creating a new skill from scratch, always run the `init_skill.py` script. The script conveniently generates a new template skill directory that automatically includes everything a skill requires, making the skill creation process much more efficient and reliable.
+When creating a new skill from scratch, run `init_skill.py` (or write directly under `${SKILLS_DIR}`). The skill must land in the default skills folder so it can appear in chat `/` as soon as `SKILL.md` exists.
 
 Usage:
 
 ```bash
-scripts/init_skill.py <skill-name> --path <output-directory>
+scripts/init_skill.py <skill-name>
 ```
+
+The script always writes to `${SKILLS_DIR}` (custom `--path` is ignored).
 
 The script:
 
-- Creates the skill directory at the specified path
+- Creates `${SKILLS_DIR}/<skill-name>/`
 - Generates a SKILL.md template with proper frontmatter and TODO placeholders
 - Creates example resource directories: `scripts/`, `references/`, and `assets/`
 - Adds example files in each directory that can be customized or deleted
 
-After initialization, customize or remove the generated SKILL.md and example files as needed.
+After initialization, customize or delete unneeded example files. Then tell the user: the skill is ready—type `/<skill-name>` in chat (no install/package step).
 
 ### Step 4: Edit the Skill
 
@@ -319,9 +329,11 @@ Do not include any other fields in YAML frontmatter.
 
 Write instructions for using the skill and its bundled resources.
 
-### Step 5: Packaging a Skill
+### Step 5: Packaging a Skill (optional, for sharing only)
 
-Once development of the skill is complete, it must be packaged into a distributable .skill file that gets shared with the user. The packaging process automatically validates the skill first to ensure it meets all requirements:
+For local use in JiaorongAI, packaging is **not required**. Once the skill exists under `${SKILLS_DIR}` with a valid `SKILL.md`, it is already available via chat `/`.
+
+Only package when you need a distributable `.skill` file to share with others:
 
 ```bash
 scripts/package_skill.py <path/to/skill-folder>

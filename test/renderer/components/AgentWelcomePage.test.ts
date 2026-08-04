@@ -69,8 +69,9 @@ describe('AgentWelcomePage', () => {
         template: '<span />'
       }
     }))
-    vi.doMock('@/lib/auth/session', () => ({
-      forceRevalidateAuthSession: vi.fn(async () => true)
+    vi.doMock('@jiaorong/auth/host', () => ({
+      forceRevalidateAuthSession: vi.fn(async () => true),
+      getToken: vi.fn(() => 'token')
     }))
 
     const AgentWelcomePage = (await import('@/pages/AgentWelcomePage.vue')).default

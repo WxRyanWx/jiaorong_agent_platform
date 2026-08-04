@@ -223,7 +223,7 @@ export interface ISkillPresenter {
     config: SkillExtensionConfig
   ): Promise<SkillInstallResult>
   getSkillFolderTree(name: string): Promise<SkillFolderNode[]>
-  openSkillsFolder(): Promise<void>
+  openSkillsFolder(name?: string): Promise<void>
   getSkillExtension(name: string): Promise<SkillExtensionConfig>
   saveSkillExtension(name: string, config: SkillExtensionConfig): Promise<void>
   listSkillScripts(name: string): Promise<SkillScriptDescriptor[]>

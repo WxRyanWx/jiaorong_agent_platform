@@ -6,13 +6,16 @@
     >
       <header class="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div class="min-w-0">
-          <div v-if="eyebrow" class="text-xs font-medium text-muted-foreground">
+          <div v-if="eyebrow" class="settings-page-eyebrow text-xs font-medium text-muted-foreground">
             {{ eyebrow }}
           </div>
           <h1 class="truncate text-xl font-semibold text-foreground">
             {{ title }}
           </h1>
-          <p v-if="description" class="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
+          <p
+            v-if="description"
+            class="settings-page-description mt-1 max-w-3xl text-sm leading-6 text-muted-foreground"
+          >
             {{ description }}
           </p>
         </div>

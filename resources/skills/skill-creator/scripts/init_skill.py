@@ -3,14 +3,19 @@
 Skill Initializer - Creates a new skill from template
 
 Usage:
-    init_skill.py <skill-name> --path <path>
+    init_skill.py <skill-name>
+    init_skill.py <skill-name> --path <ignored-or-skills-dir>
+
+新技能一律创建到默认技能目录（可用环境变量覆盖）：
+  SKILLS_DIR / JIAORONG_SKILLS_DIR / DEEPCHAT_SKILLS_DIR
+  否则 ~/.jiaorongchat/skills
 
 Examples:
-    init_skill.py my-new-skill --path skills/public
-    init_skill.py my-api-helper --path skills/private
-    init_skill.py custom-skill --path /custom/location
+    init_skill.py my-new-skill
+    init_skill.py my-api-helper --path /any/path   # 仍会落到默认 skills 目录
 """
 
+import os
 import sys
 from pathlib import Path
 
@@ -191,6 +196,15 @@ def title_case_skill_name(skill_name):
     return ' '.join(word.capitalize() for word in skill_name.split('-'))
 
 
+def resolve_default_skills_dir():
+    """Force skills into the app default skills directory."""
+    for key in ('SKILLS_DIR', 'JIAORONG_SKILLS_DIR', 'DEEPCHAT_SKILLS_DIR'):
+        value = os.environ.get(key, '').strip()
+        if value:
+            return Path(value).expanduser().resolve()
+    return (Path.home() / '.jiaorongchat' / 'skills').resolve()
+
+
 def init_skill(skill_name, path):
     """
     Initialize a new skill directory with template SKILL.md.
@@ -265,33 +279,47 @@ def init_skill(skill_name, path):
     print("\nNext steps:")
     print("1. Edit SKILL.md to complete the TODO items and update the description")
     print("2. Customize or delete the example files in scripts/, references/, and assets/")
-    print("3. Run the validator when ready to check the skill structure")
+    print("3. The skill is already in the default skills folder — it should appear in chat `/` shortly")
+    print("4. Packaging (.skill) is optional and only needed for sharing/distribution")
 
     return skill_dir
 
 
 def main():
-    if len(sys.argv) < 4 or sys.argv[2] != '--path':
-        print("Usage: init_skill.py <skill-name> --path <path>")
+    if len(sys.argv) < 2:
+        print("Usage: init_skill.py <skill-name> [--path <path>]")
         print("\nSkill name requirements:")
         print("  - Hyphen-case identifier (e.g., 'data-analyzer')")
         print("  - Lowercase letters, digits, and hyphens only")
         print("  - Max 40 characters")
         print("  - Must match directory name exactly")
-        print("\nExamples:")
-        print("  init_skill.py my-new-skill --path skills/public")
-        print("  init_skill.py my-api-helper --path skills/private")
-        print("  init_skill.py custom-skill --path /custom/location")
+        print("\nNote: output is ALWAYS the default skills directory.")
+        print("Examples:")
+        print("  init_skill.py my-new-skill")
+        print("  init_skill.py my-api-helper --path ${SKILLS_DIR}")
         sys.exit(1)
 
     skill_name = sys.argv[1]
-    path = sys.argv[3]
+    requested_path = None
+    if len(sys.argv) >= 4 and sys.argv[2] == '--path':
+        requested_path = sys.argv[3]
+
+    forced_path = resolve_default_skills_dir()
+    forced_path.mkdir(parents=True, exist_ok=True)
+
+    if requested_path:
+        requested_resolved = Path(requested_path).expanduser().resolve()
+        if requested_resolved != forced_path:
+            print("⚠️  Ignoring custom --path; skills must be created in the default skills folder.")
+            print(f"   requested: {requested_resolved}")
+            print(f"   forced:    {forced_path}")
+            print()
 
     print(f"🚀 Initializing skill: {skill_name}")
-    print(f"   Location: {path}")
+    print(f"   Location: {forced_path}")
     print()
 
-    result = init_skill(skill_name, path)
+    result = init_skill(skill_name, str(forced_path))
 
     if result:
         sys.exit(0)

@@ -1,0 +1,284 @@
+/* SkillUploadDialog 样式 — 可直接改这里调细节
+ * Less 会把 hsl(... / alpha) 里的 / 当成运算，带透明度时请写成：
+ *   color: ~'hsl(var(--muted-foreground) / 0.7)';
+ * 主题 --primary 已是完整 hsl(...)，不要再包一层 hsl()。
+ */
+
+.skill-upload-dialog {
+  --sud-primary: var(--primary);
+  --sud-primary-fg: var(--primary-foreground);
+  --sud-text: #1f2329;
+  --sud-text-secondary: #646a73;
+  --sud-text-muted: #8f959e;
+  --sud-border: #e5e6eb;
+  --sud-border-light: #eff0f1;
+  --sud-bg: #ffffff;
+  --sud-drop-bg: #f7f8fa;
+  --sud-radius: 8px;
+
+  gap: 0 !important;
+  padding: 0 !important;
+  max-width: 32rem !important;
+  overflow: hidden;
+  width: 500px;
+  height: 372px;
+  border-radius: var(--sud-radius) !important;
+  background: var(--sud-bg) !important;
+
+  /* 覆盖 DialogContent 默认 top-4，使关闭按钮在标题栏内垂直居中 */
+  > button {
+    top: 31.5px !important; /* header 高度 63px 的一半 */
+    right: 18px !important;
+    transform: translateY(-50%);
+  }
+
+  /* ---------- Header ---------- */
+  &__header {
+    height: 63px;
+    padding: 16px 18px 14px 18px;
+    border-bottom: 1px solid var(--sud-border-light);
+  }
+
+  &__title {
+    margin: 0;
+    font-size: 16px !important;
+    font-weight: 600 !important;
+    line-height: 32px;
+    align-items: center;
+    color: var(--sud-text);
+    font-size: 15px;
+    color: #191B1F;
+    text-align: left;
+    font-style: normal;
+    text-transform: none;
+  }
+
+  /* ---------- Body ---------- */
+  &__body {
+    padding: 16px 18px;
+    height: 236px;
+  }
+
+  &__dropzone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    
+    min-height: 204px;
+    // padding: 40px 24px;
+    border: 1px solid var(--sud-border);
+    border-radius: 2px;
+    background: var(--sud-drop-bg);
+    text-align: center;
+    cursor: pointer;
+    transition:
+      border-color 0.15s ease,
+      background 0.15s ease;
+
+    &:hover {
+      border-color: ~'color-mix(in srgb, var(--sud-primary) 40%, var(--sud-border))';
+    }
+
+    &.is-drag-active,
+    &.is-menu-open {
+      border-color: var(--sud-primary);
+      background: ~'color-mix(in srgb, var(--sud-primary) 6%, white)';
+    }
+  }
+
+  &__spinner {
+    width: 48px;
+    height: 48px;
+    margin-bottom: 16px;
+    color: var(--sud-text-muted);
+    pointer-events: none;
+    animation: skill-upload-spin 1s linear infinite;
+  }
+
+  &__plus {
+    margin-bottom: 16px;
+    font-size: 14px;
+    font-weight: 300;
+    line-height: 1;
+    color: ~'color-mix(in srgb, var(--sud-text-muted) 80%, white)';
+    pointer-events: none;
+    user-select: none;
+  }
+
+  &__hint {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 22px;
+    color: var(--sud-text);
+    pointer-events: none;
+  }
+
+  &__desc {
+    max-width: 28rem;
+    margin: 8px 0 0;
+    font-size: 12px;
+    line-height: 20px;
+    color: var(--sud-text-muted);
+    pointer-events: none;
+  }
+
+  &__pick-menu {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    max-width: 22rem;
+    padding: 0 12px;
+    pointer-events: auto;
+  }
+
+  &__pick-title {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 22px;
+    color: #191b1f;
+    text-align: center;
+  }
+
+  &__pick-row {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    gap: 12px;
+    width: 100%;
+  }
+
+  &__pick-item {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-width: 0;
+    padding: 16px 10px;
+    border: 1px solid var(--sud-border);
+    border-radius: 6px;
+    background: var(--sud-bg);
+    text-align: center;
+    cursor: pointer;
+    transition:
+      border-color 0.15s ease,
+      background 0.15s ease,
+      box-shadow 0.15s ease;
+
+    &:hover {
+      border-color: #006eff;
+      background: ~'color-mix(in srgb, #006eff 4%, white)';
+      box-shadow: 0 1px 4px ~'color-mix(in srgb, #006eff 12%, transparent)';
+    }
+  }
+
+  &__pick-icon {
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    color: #006eff;
+  }
+
+  &__pick-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 20px;
+    color: #191b1f;
+  }
+
+  &__pick-hint {
+    display: block;
+    font-size: 12px;
+    line-height: 18px;
+    color: var(--sud-text-muted);
+  }
+
+  &__pick-cancel {
+    padding: 4px 8px;
+    border: none;
+    background: transparent;
+    font-size: 12px;
+    line-height: 18px;
+    color: var(--sud-text-muted);
+    cursor: pointer;
+
+    &:hover {
+      color: #191b1f;
+    }
+  }
+
+  &__pending {
+    max-width: 100%;
+    margin: 16px 0 0;
+    overflow: hidden;
+    font-size: 12px;
+    line-height: 18px;
+    color: var(--sud-primary);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+
+  &__pending-kind {
+    color: var(--sud-text-muted);
+  }
+
+  /* ---------- Footer ---------- */
+  &__footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 16px 24px;
+    border-top: 1px solid var(--sud-border-light);
+  }
+
+  &__btn-cancel {
+    height: 36px !important;
+    min-width: 72px !important;
+    padding: 0 16px !important;
+    border-radius: 6px !important;
+    font-size: 13px !important;
+    width: 96px;
+    cursor: pointer;
+
+    &:disabled {
+      cursor: not-allowed;
+    }
+  }
+
+  &__btn-confirm {
+    height: 36px !important;
+    min-width: 96px !important;
+    padding: 0 16px !important;
+    border-radius: 6px !important;
+    font-size: 13px !important;
+    background: #006EFF;
+    width: 96px;
+    cursor: pointer;
+
+    &:disabled {
+      cursor: not-allowed;
+    }
+  }
+
+  &__btn-spinner {
+    width: 16px;
+    height: 16px;
+    margin-right: 8px;
+    animation: skill-upload-spin 1s linear infinite;
+  }
+}
+
+@keyframes skill-upload-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

@@ -81,6 +81,11 @@ import {
   buildRuntimeCapabilitiesPrompt,
   buildSystemEnvPrompt
 } from '@/lib/agentRuntime/systemEnvPromptBuilder'
+import {
+  buildJiaorongPinnedSkillsPrompt,
+  buildJiaorongSkillsMetadataPrompt,
+  finalizeJiaorongSystemPrompt
+} from '@jiaorong/prompts/systemPromptFinalize'
 import { buildContext, buildResumeContext, isContextHistoryRecord } from './contextBuilder'
 import {
   capAgentDefaultMaxTokens,
@@ -780,9 +785,11 @@ export class AgentRuntimePresenter implements IAgentImplementation {
         projectDir
       })
 
-      const systemPrompt = appendReconstructionAnchorStateSection(
-        appendSummarySection(baseSystemPrompt, summaryState.summaryText),
-        this.sessionStore.getReconstructionAnchorPromptState(sessionId)
+      const systemPrompt = finalizeJiaorongSystemPrompt(
+        appendReconstructionAnchorStateSection(
+          appendSummarySection(baseSystemPrompt, summaryState.summaryText),
+          this.sessionStore.getReconstructionAnchorPromptState(sessionId)
+        )
       )
       const messages = buildContext(
         sessionId,
@@ -2645,9 +2652,11 @@ export class AgentRuntimePresenter implements IAgentImplementation {
     const summaryState = await this.applyCompactionIntent(params.sessionId, intent, {
       signal: params.signal
     })
-    const systemPrompt = appendReconstructionAnchorStateSection(
-      appendSummarySection(systemPromptBase, summaryState.summaryText),
-      this.sessionStore.getReconstructionAnchorPromptState(params.sessionId)
+    const systemPrompt = finalizeJiaorongSystemPrompt(
+      appendReconstructionAnchorStateSection(
+        appendSummarySection(systemPromptBase, summaryState.summaryText),
+        this.sessionStore.getReconstructionAnchorPromptState(params.sessionId)
+      )
     )
     messages = this.replaceLeadingSystemPrompt(messages, systemPrompt)
 
@@ -3062,9 +3071,11 @@ export class AgentRuntimePresenter implements IAgentImplementation {
           })
         : this.sessionStore.getSummaryState(sessionId)
       this.throwIfAbortRequested(preStreamAbortSignal)
-      const systemPrompt = appendReconstructionAnchorStateSection(
-        appendSummarySection(baseSystemPrompt, summaryState.summaryText),
-        this.sessionStore.getReconstructionAnchorPromptState(sessionId)
+      const systemPrompt = finalizeJiaorongSystemPrompt(
+        appendReconstructionAnchorStateSection(
+          appendSummarySection(baseSystemPrompt, summaryState.summaryText),
+          this.sessionStore.getReconstructionAnchorPromptState(sessionId)
+        )
       )
       let resumeContext = buildResumeContext(
         sessionId,
@@ -3188,7 +3199,7 @@ export class AgentRuntimePresenter implements IAgentImplementation {
     const providerId = state?.providerId?.trim() || 'unknown-provider'
     const modelId = state?.modelId?.trim() || 'unknown-model'
     if (this.isAcpBackedSubagentSession(sessionId, providerId)) {
-      return normalizedBase
+      return finalizeJiaorongSystemPrompt(normalizedBase)
     }
 
     const workdir = this.resolveProjectDir(sessionId)
@@ -3283,7 +3294,7 @@ export class AgentRuntimePresenter implements IAgentImplementation {
       hasProcess: agentToolNames.has('process')
     })
     const skillsMetadataPrompt = skillsEnabled
-      ? this.buildSkillsMetadataPrompt(
+      ? buildJiaorongSkillsMetadataPrompt(
           normalizedAvailableSkills,
           {
             canListSkills: agentToolNames.has('skill_list'),
@@ -3312,7 +3323,7 @@ export class AgentRuntimePresenter implements IAgentImplementation {
           )
         }
       }
-      skillsPrompt = this.buildPinnedSkillsPrompt(skillSections)
+      skillsPrompt = buildJiaorongPinnedSkillsPrompt(skillSections)
     }
 
     let envPrompt = ''
@@ -3352,6 +3363,7 @@ export class AgentRuntimePresenter implements IAgentImplementation {
       toolingPrompt,
       this.buildPermissionRulesPrompt(agentToolNames),
       this.buildVerificationPolicyPrompt(workdir)
+      // 语言尾注不在此处追加：summary/tape handoff 还会再拼段，须在外层 finalizeJiaorongSystemPrompt
     ])
 
     this.systemPromptCache.set(sessionId, {
@@ -3434,99 +3446,6 @@ export class AgentRuntimePresenter implements IAgentImplementation {
     return lines.join('\n')
   }
 
-  private buildSkillsMetadataPrompt(
-    availableSkills: Array<{
-      name: string
-      description: string
-      category?: string | null
-      platforms?: string[]
-    }>,
-    capabilities: {
-      canListSkills: boolean
-      canViewSkills: boolean
-      canManageDraftSkills: boolean
-      canRunSkillScripts: boolean
-    },
-    skillDraftSuggestionsEnabled: boolean
-  ): string {
-    if (
-      !capabilities.canListSkills &&
-      !capabilities.canViewSkills &&
-      !capabilities.canManageDraftSkills &&
-      !capabilities.canRunSkillScripts
-    ) {
-      return ''
-    }
-
-    const lines = ['## Skills']
-    let hasContent = false
-
-    if (capabilities.canListSkills || capabilities.canViewSkills) {
-      lines.push(
-        'Before replying, always scan available skills. If any skill plausibly matches the task, call `skill_view` first.'
-      )
-      lines.push(
-        'Viewing a skill root `SKILL.md` pins it to the current conversation; viewing linked skill files is read-only and does not pin the skill.'
-      )
-      hasContent = true
-    }
-    if (capabilities.canRunSkillScripts) {
-      lines.push(
-        'Use `skill_run` only for pinned skills when a pinned skill provides bundled helper scripts.'
-      )
-      hasContent = true
-    }
-    if (capabilities.canManageDraftSkills && skillDraftSuggestionsEnabled) {
-      lines.push(
-        'After completing a complex task, solving a tricky bug, or discovering a non-trivial workflow, you may draft a reusable skill with `skill_manage`.'
-      )
-      lines.push(
-        'Only propose one draft per task, do it after the main answer is complete, and use `jiaorong_question` to ask whether the user wants to keep the draft.'
-      )
-      lines.push(
-        'Do not modify installed skills with `skill_manage`; it is draft-only in this version.'
-      )
-      hasContent = true
-    }
-
-    if (availableSkills.length > 0) {
-      lines.push('<available_skills>')
-      lines.push(
-        ...availableSkills.map((skill) => {
-          const details: string[] = []
-          if (skill.category) {
-            details.push(`category=${skill.category}`)
-          }
-          if (skill.platforms?.length) {
-            details.push(`platforms=${skill.platforms.join(',')}`)
-          }
-          const suffix = details.length > 0 ? ` [${details.join('; ')}]` : ''
-          return `- ${skill.name}: ${skill.description}${suffix}`
-        })
-      )
-      lines.push('</available_skills>')
-      hasContent = true
-    } else if (hasContent) {
-      lines.push('<available_skills>')
-      lines.push('(none)')
-      lines.push('</available_skills>')
-    }
-
-    return hasContent ? lines.join('\n') : ''
-  }
-
-  private buildPinnedSkillsPrompt(skillSections: string[]): string {
-    if (skillSections.length === 0) {
-      return ''
-    }
-    return [
-      '## Pinned Skills',
-      'These pinned skills are preloaded for this conversation. Follow them when relevant.',
-      '',
-      skillSections.join('\n\n')
-    ].join('\n')
-  }
-
   private normalizeSkillNames(skillNames: string[]): string[] {
     return Array.from(
       new Set(skillNames.map((name) => name.trim()).filter((name) => name.length > 0))
@@ -3588,7 +3507,9 @@ export class AgentRuntimePresenter implements IAgentImplementation {
       availableSkillNames: params.availableSkillNames,
       activeSkillNames: params.activeSkillNames,
       toolSignature: params.toolSignature,
-      skillDraftSuggestionsEnabled: params.skillDraftSuggestionsEnabled
+      skillDraftSuggestionsEnabled: params.skillDraftSuggestionsEnabled,
+      // 语言尾注/中文 Skills 说明变更时抬版本，避免命中旧缓存
+      languageTailVersion: 2
     })
   }
 

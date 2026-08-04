@@ -16,7 +16,8 @@ export default defineConfig({
     resolve: {
       alias: {
         '@': resolve('src/main/'),
-        '@shared': resolve('src/shared')
+        '@shared': resolve('src/shared'),
+        '@jiaorong': resolve('src/jiaorong_src')
       }
     },
     build: {
@@ -40,7 +41,8 @@ export default defineConfig({
   preload: {
     resolve: {
       alias: {
-        '@shared': resolve('src/shared')
+        '@shared': resolve('src/shared'),
+        '@jiaorong': resolve('src/jiaorong_src')
       }
     },
     build: {
@@ -69,6 +71,7 @@ export default defineConfig({
         '@': resolve('src/renderer/src'),
         '@api': resolve('src/renderer/api'),
         '@shared': resolve('src/shared'),
+        '@jiaorong': resolve('src/jiaorong_src'),
         "@shadcn": resolve('src/shadcn'),
         vue: 'vue/dist/vue.esm-bundler.js'
       }

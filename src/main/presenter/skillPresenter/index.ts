@@ -27,6 +27,10 @@ import { eventBus, SendTarget } from '@/eventbus'
 import { SKILL_EVENTS } from '@/events'
 import { publishDeepchatEvent } from '@/routes/publishDeepchatEvent'
 import logger from '@shared/logger'
+import {
+  filterEnabledSkillNamesFromSetting,
+  JIAORONG_SKILL_SWITCH_SETTING_KEY
+} from '@jiaorong/utils/skillSwitchCore'
 import { normalizeSkillAllowedTools } from './toolNameMapping'
 import {
   APP_HOME_DIR_NAME,
@@ -564,11 +568,17 @@ export class SkillPresenter implements ISkillPresenter {
           : undefined
 
       const mergedMetadata = { ...(metadata.metadata ?? {}) }
-      const builtinDisplayName = builtinMetadata?.displayName
-      if (typeof builtinDisplayName === 'string' && builtinDisplayName.trim()) {
-        mergedMetadata.displayName = builtinDisplayName.trim()
-      } else {
-        delete mergedMetadata.displayName
+      const localDisplayName = mergedMetadata.displayName
+      const hasLocalDisplayName =
+        typeof localDisplayName === 'string' && localDisplayName.trim().length > 0
+      // 本地已有 displayName（如市场安装写入的中文名）时不覆盖，避免与内置同目录名冲突
+      if (!hasLocalDisplayName) {
+        const builtinDisplayName = builtinMetadata?.displayName
+        if (typeof builtinDisplayName === 'string' && builtinDisplayName.trim()) {
+          mergedMetadata.displayName = builtinDisplayName.trim()
+        } else {
+          delete mergedMetadata.displayName
+        }
       }
 
       return {
@@ -1250,10 +1260,14 @@ export class SkillPresenter implements ISkillPresenter {
       }
     }
 
-    await this.syncBuiltinSkillFrontmatter(builtinDir)
+    await this.syncBuiltinSkills(builtinDir)
   }
 
-  private async syncBuiltinSkillFrontmatter(builtinDir: string): Promise<void> {
+  /**
+   * Keep installed builtin skills aligned with the packaged copies.
+   * Previously only synced description/displayName, so prompt body updates never reached upgrades.
+   */
+  private async syncBuiltinSkills(builtinDir: string): Promise<void> {
     const entries = fs.readdirSync(builtinDir, { withFileTypes: true })
     let updated = false
 
@@ -1261,74 +1275,64 @@ export class SkillPresenter implements ISkillPresenter {
       if (!entry.isDirectory()) continue
 
       const skillName = entry.name
-      const builtinMdPath = path.join(builtinDir, skillName, 'SKILL.md')
-      const userMdPath = path.join(this.skillsDir, skillName, 'SKILL.md')
+      const builtinSkillDir = path.join(builtinDir, skillName)
+      const builtinMdPath = path.join(builtinSkillDir, 'SKILL.md')
+      const userSkillDir = path.join(this.skillsDir, skillName)
+      const userMdPath = path.join(userSkillDir, 'SKILL.md')
       if (!fs.existsSync(builtinMdPath) || !fs.existsSync(userMdPath)) {
         continue
       }
 
-      const builtinParsed = matter(fs.readFileSync(builtinMdPath, 'utf-8'))
-      const userParsed = matter(fs.readFileSync(userMdPath, 'utf-8'))
-      let changed = false
-
-      if (
-        typeof builtinParsed.data.description === 'string' &&
-        builtinParsed.data.description !== userParsed.data.description
-      ) {
-        userParsed.data.description = builtinParsed.data.description
-        changed = true
-      }
-
-      const builtinMetadata =
-        builtinParsed.data.metadata && typeof builtinParsed.data.metadata === 'object'
-          ? (builtinParsed.data.metadata as Record<string, unknown>)
-          : undefined
-      const userMetadata =
-        userParsed.data.metadata && typeof userParsed.data.metadata === 'object'
-          ? (userParsed.data.metadata as Record<string, unknown>)
-          : undefined
-      const nextDisplayName = builtinMetadata?.displayName
-      if (
-        typeof nextDisplayName === 'string' &&
-        nextDisplayName.trim() &&
-        nextDisplayName !== userMetadata?.displayName
-      ) {
-        userParsed.data.metadata = {
-          ...(userMetadata ?? {}),
-          displayName: nextDisplayName
-        }
-        changed = true
-      } else if (typeof userMetadata?.displayName === 'string') {
-        const nextMetadata = { ...(userMetadata ?? {}) }
-        delete nextMetadata.displayName
-        if (Object.keys(nextMetadata).length > 0) {
-          userParsed.data.metadata = nextMetadata
-        } else {
-          delete userParsed.data.metadata
-        }
-        changed = true
-      }
-
-      if (!changed) {
+      if (!this.builtinSkillContentDiffers(builtinSkillDir, userSkillDir)) {
         continue
       }
 
-      fs.writeFileSync(userMdPath, matter.stringify(userParsed.content, userParsed.data), 'utf-8')
-      updated = true
-
-      const metadata = await this.parseSkillMetadata(userMdPath, skillName)
-      if (metadata) {
-        this.metadataCache.set(skillName, metadata)
+      const result = await this.installFromDirectory(builtinSkillDir, { overwrite: true })
+      if (!result.success) {
+        console.warn(`[SkillPresenter] Failed to sync builtin skill "${skillName}":`, result.error)
+        continue
       }
+
+      updated = true
     }
 
     if (updated) {
       eventBus.sendToRenderer(SKILL_EVENTS.METADATA_UPDATED, SendTarget.ALL_WINDOWS, {})
       publishDeepchatEvent('skills.catalog.changed', {
-        reason: 'metadata-updated',
+        reason: 'builtin-synced',
         version: Date.now()
       })
     }
+  }
+
+  /** Compare packaged builtin files against the installed copy (prompt + scripts etc.). */
+  private builtinSkillContentDiffers(builtinSkillDir: string, userSkillDir: string): boolean {
+    const walk = (dir: string, base: string, files: Map<string, Buffer>) => {
+      if (!fs.existsSync(dir)) return
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        if (entry.isSymbolicLink() || entry.name === SKILL_CONFIG.SIDECAR_DIR) continue
+        const fullPath = path.join(dir, entry.name)
+        const relativePath = path.relative(base, fullPath)
+        if (entry.isDirectory()) {
+          walk(fullPath, base, files)
+          continue
+        }
+        files.set(relativePath, fs.readFileSync(fullPath))
+      }
+    }
+
+    const builtinFiles = new Map<string, Buffer>()
+    walk(builtinSkillDir, builtinSkillDir, builtinFiles)
+    for (const [relativePath, builtinContent] of builtinFiles) {
+      const userPath = path.join(userSkillDir, relativePath)
+      if (!fs.existsSync(userPath)) {
+        return true
+      }
+      if (!fs.readFileSync(userPath).equals(builtinContent)) {
+        return true
+      }
+    }
+    return false
   }
 
   private supportsCurrentPlatform(platforms?: string[]): boolean {
@@ -1411,7 +1415,12 @@ export class SkillPresenter implements ISkillPresenter {
       const errorMsg = error instanceof Error ? error.message : String(error)
       return { success: false, error: errorMsg, errorCode: 'io_error' }
     } finally {
-      fs.rmSync(tempDir, { recursive: true, force: true })
+      // Windows 上杀毒/索引可能锁住解压文件，清理失败不应覆盖业务错误（如缺 SKILL.md）
+      try {
+        fs.rmSync(tempDir, { recursive: true, force: true })
+      } catch {
+        // ignore cleanup errors
+      }
     }
   }
 
@@ -1428,7 +1437,11 @@ export class SkillPresenter implements ISkillPresenter {
       return { success: false, error: errorMsg, errorCode: 'io_error' }
     } finally {
       if (fs.existsSync(tempZipPath)) {
-        fs.rmSync(tempZipPath, { force: true })
+        try {
+          fs.rmSync(tempZipPath, { force: true })
+        } catch {
+          // ignore cleanup errors
+        }
       }
     }
   }
@@ -1607,7 +1620,40 @@ export class SkillPresenter implements ISkillPresenter {
       counter += 1
       backupDir = path.join(this.skillsDir, `${skillName}.backup-${timestamp}-${counter}`)
     }
-    fs.renameSync(sourceDir, backupDir)
+
+    // Windows 上 rename 易被杀毒/索引锁住；失败则 copy + 尽力删除原目录
+    try {
+      fs.renameSync(sourceDir, backupDir)
+      return backupDir
+    } catch (renameError) {
+      logger.warn(
+        '[SkillPresenter] rename backup failed, falling back to copy:',
+        renameError instanceof Error ? renameError.message : String(renameError)
+      )
+    }
+
+    this.copyDirectory(sourceDir, backupDir)
+    try {
+      fs.rmSync(sourceDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
+    } catch (rmError) {
+      logger.warn(
+        '[SkillPresenter] remove original after backup copy failed:',
+        rmError instanceof Error ? rmError.message : String(rmError)
+      )
+      // 尽量腾出目标名：改名 pending 后再删
+      try {
+        const pending = path.join(
+          this.skillsDir,
+          `.pending-overwrite-${skillName}-${Date.now().toString(36)}`
+        )
+        fs.renameSync(sourceDir, pending)
+        fs.rmSync(pending, { recursive: true, force: true, maxRetries: 8, retryDelay: 120 })
+      } catch {
+        throw new Error(
+          `Failed to backup existing skill "${skillName}" for overwrite (directory locked)`
+        )
+      }
+    }
     return backupDir
   }
 
@@ -1739,18 +1785,29 @@ export class SkillPresenter implements ISkillPresenter {
    */
   async uninstallSkill(name: string): Promise<SkillInstallResult> {
     try {
-      const skillDir = path.join(this.skillsDir, name)
+      if (this.metadataCache.size === 0) {
+        await this.discoverSkills()
+      }
+
+      const metadata = this.metadataCache.get(name)
+      if (!metadata) {
+        return { success: false, error: `Skill "${name}" not found` }
+      }
+
+      const skillDir = path.resolve(metadata.skillRoot)
+      const relativePath = path.relative(this.skillsDir, skillDir)
+      if (!relativePath || relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
+        return { success: false, error: `Skill "${name}" is outside the managed skills directory` }
+      }
 
       if (!fs.existsSync(skillDir)) {
         return { success: false, error: `Skill "${name}" not found` }
       }
 
-      // Remove from caches
+      // 先删盘再清 cache：删失败时仍可从 cache/discover 看到技能，避免「幽灵消失」
+      await this.removeManagedSkillDirectory(skillDir)
       this.metadataCache.delete(name)
       this.contentCache.delete(name)
-
-      // Delete the directory
-      fs.rmSync(skillDir, { recursive: true, force: true })
       this.deleteSkillExtension(name)
 
       eventBus.sendToRenderer(SKILL_EVENTS.UNINSTALLED, SendTarget.ALL_WINDOWS, { name })
@@ -1764,6 +1821,193 @@ export class SkillPresenter implements ISkillPresenter {
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error)
       return { success: false, error: errorMsg }
+    }
+  }
+
+  /**
+   * 删除已校验过的技能目录。Windows 下 chokidar/杀毒/索引易导致 ENOTEMPTY 留空目录。
+   * 策略：暂停 skills 监听 → 带重试的递归删除 → 专清空目录 → 仍失败则改名后再删。
+   * 成功返回时保证 skillDir 已不存在（不会留下空文件夹）。
+   */
+  private async removeManagedSkillDirectory(skillDir: string): Promise<void> {
+    const wasWatching = Boolean(this.watcher)
+    if (wasWatching) {
+      this.stopWatching()
+    }
+
+    try {
+      const maxAttempts = 6
+      let lastError: unknown
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        try {
+          if (!fs.existsSync(skillDir)) {
+            return
+          }
+          fs.rmSync(skillDir, {
+            recursive: true,
+            force: true,
+            maxRetries: 8,
+            retryDelay: 100
+          })
+          if (!fs.existsSync(skillDir)) {
+            return
+          }
+        } catch (error) {
+          lastError = error
+          const code = (error as NodeJS.ErrnoException)?.code
+          if (
+            code !== 'ENOTEMPTY' &&
+            code !== 'EBUSY' &&
+            code !== 'EPERM' &&
+            code !== 'EACCES' &&
+            code !== 'EAGAIN'
+          ) {
+            throw error
+          }
+        }
+
+        try {
+          if (fs.existsSync(skillDir)) {
+            this.emptyDirectoryBestEffort(skillDir)
+            if (await this.removeIfEmptyDirectory(skillDir)) {
+              return
+            }
+            if (fs.existsSync(skillDir)) {
+              fs.rmSync(skillDir, {
+                recursive: true,
+                force: true,
+                maxRetries: 5,
+                retryDelay: 120
+              })
+            }
+          }
+          if (!fs.existsSync(skillDir)) {
+            return
+          }
+        } catch (error) {
+          lastError = error
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 80 * (attempt + 1)))
+      }
+
+      if (!fs.existsSync(skillDir)) {
+        return
+      }
+
+      // 内容已空但父目录仍锁住：加长退避专清空目录
+      if (await this.removeIfEmptyDirectory(skillDir, 10)) {
+        return
+      }
+
+      // Windows 常见兜底：先改名到同级 pending，再删（释放原路径句柄）
+      if (this.tryRenameThenRemoveSkillDirectory(skillDir)) {
+        return
+      }
+
+      if (!fs.existsSync(skillDir)) {
+        return
+      }
+      if (lastError) {
+        throw lastError
+      }
+      throw new Error(`Failed to remove skill directory: ${skillDir}`)
+    } finally {
+      if (wasWatching) {
+        this.watchSkillFiles()
+      }
+    }
+  }
+
+  /**
+   * 目录已空（或只剩可忽略项）时反复 rmdir，避免留空文件夹。
+   * @returns 目录已不存在则为 true
+   */
+  private async removeIfEmptyDirectory(dirPath: string, attempts = 6): Promise<boolean> {
+    for (let i = 0; i < attempts; i++) {
+      if (!fs.existsSync(dirPath)) {
+        return true
+      }
+      let left: string[]
+      try {
+        left = fs.readdirSync(dirPath)
+      } catch {
+        return !fs.existsSync(dirPath)
+      }
+      if (left.length > 0) {
+        return false
+      }
+      try {
+        fs.rmSync(dirPath, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 })
+      } catch {
+        // retry after wait
+      }
+      if (!fs.existsSync(dirPath)) {
+        return true
+      }
+      await new Promise((resolve) => setTimeout(resolve, 100 * (i + 1)))
+    }
+    return !fs.existsSync(dirPath)
+  }
+
+  /**
+   * 将技能目录改名为同级 `.pending-delete-*` 后再删，规避 Windows 对原路径的短暂占用。
+   * 仅允许改到 skillsDir 下，防止越界。
+   */
+  private tryRenameThenRemoveSkillDirectory(skillDir: string): boolean {
+    const parent = path.resolve(path.dirname(skillDir))
+    if (parent !== path.resolve(this.skillsDir)) {
+      return false
+    }
+    const pending = path.join(
+      parent,
+      `.pending-delete-${path.basename(skillDir)}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    )
+    try {
+      fs.renameSync(skillDir, pending)
+    } catch (error) {
+      logger.warn('[SkillPresenter] Rename-before-delete failed', { skillDir, error })
+      return false
+    }
+    try {
+      fs.rmSync(pending, { recursive: true, force: true, maxRetries: 10, retryDelay: 150 })
+    } catch (error) {
+      logger.warn('[SkillPresenter] Pending skill dir delete failed', { pending, error })
+    }
+    // 原路径已改名；pending 若仍在，下次启动/发现可忽略 dot 目录，但尽量再清一次
+    if (fs.existsSync(pending)) {
+      try {
+        this.emptyDirectoryBestEffort(pending)
+        fs.rmSync(pending, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
+      } catch {
+        // ignore
+      }
+    }
+    return !fs.existsSync(skillDir) && !fs.existsSync(pending)
+  }
+
+  private emptyDirectoryBestEffort(dirPath: string): void {
+    let entries: fs.Dirent[]
+    try {
+      entries = fs.readdirSync(dirPath, { withFileTypes: true })
+    } catch {
+      return
+    }
+    for (const entry of entries) {
+      const entryPath = path.join(dirPath, entry.name)
+      try {
+        if (entry.isDirectory()) {
+          this.emptyDirectoryBestEffort(entryPath)
+          fs.rmSync(entryPath, { recursive: true, force: true, maxRetries: 3, retryDelay: 80 })
+        } else {
+          fs.rmSync(entryPath, { force: true, maxRetries: 3, retryDelay: 80 })
+        }
+      } catch (error) {
+        logger.warn('[SkillPresenter] Failed to remove skill entry during uninstall', {
+          entryPath,
+          error
+        })
+      }
     }
   }
 
@@ -1934,12 +2178,27 @@ export class SkillPresenter implements ISkillPresenter {
     }
   }
 
-  /**
-   * Open the skills folder in file explorer
-   */
-  async openSkillsFolder(): Promise<void> {
+  /** Open the skills root, or a discovered skill's own folder, in the file explorer. */
+  async openSkillsFolder(name?: string): Promise<void> {
     this.ensureSkillsDir()
-    await shell.openPath(this.skillsDir)
+    let targetPath = this.skillsDir
+
+    if (name) {
+      if (this.metadataCache.size === 0) {
+        await this.discoverSkills()
+      }
+
+      const skill = this.metadataCache.get(name)
+      if (!skill) {
+        throw new Error(`Skill "${name}" not found`)
+      }
+      targetPath = skill.skillRoot
+    }
+
+    const errorMessage = await shell.openPath(targetPath)
+    if (errorMessage) {
+      throw new Error(errorMessage)
+    }
   }
 
   async getSkillExtension(name: string): Promise<SkillExtensionConfig> {
@@ -2047,6 +2306,12 @@ export class SkillPresenter implements ISkillPresenter {
     })
   }
 
+  /** 按交融全局开关过滤已关闭技能（不注入模型 / 不可激活） */
+  private filterJiaorongEnabledSkills(skillNames: string[]): string[] {
+    const setting = this.configPresenter.getSetting<unknown>(JIAORONG_SKILL_SWITCH_SETTING_KEY)
+    return filterEnabledSkillNamesFromSetting(skillNames, setting)
+  }
+
   /**
    * Get active skills for a conversation
    */
@@ -2054,16 +2319,18 @@ export class SkillPresenter implements ISkillPresenter {
     if (await this.isNewAgentSession(conversationId)) {
       const rawSkills = await this.loadNewSessionSkills(conversationId)
       const repairedSkills = this.repairLegacySkillNames(rawSkills)
-      const validSkills = await this.validateSkillNames(repairedSkills)
+      const validatedSkills = await this.validateSkillNames(repairedSkills)
+      // 开关过滤只影响本次返回，不写回会话，避免关闭后再开启时会话里技能丢失
+      const activeSkills = this.filterJiaorongEnabledSkills(validatedSkills)
 
       if (
-        JSON.stringify(rawSkills) !== JSON.stringify(validSkills) ||
-        JSON.stringify(repairedSkills) !== JSON.stringify(validSkills)
+        JSON.stringify(rawSkills) !== JSON.stringify(validatedSkills) ||
+        JSON.stringify(repairedSkills) !== JSON.stringify(validatedSkills)
       ) {
-        this.setPersistedNewSessionSkills(conversationId, validSkills)
+        this.setPersistedNewSessionSkills(conversationId, validatedSkills)
       }
 
-      return validSkills
+      return activeSkills
     }
 
     return []
@@ -2075,8 +2342,8 @@ export class SkillPresenter implements ISkillPresenter {
   async setActiveSkills(conversationId: string, skills: string[]): Promise<string[]> {
     try {
       const isNewSession = await this.isNewAgentSession(conversationId)
-      // Validate skill names
-      const validSkills = await this.validateSkillNames(skills)
+      // Validate skill names（并剔除交融侧已关闭技能）
+      const validSkills = this.filterJiaorongEnabledSkills(await this.validateSkillNames(skills))
       if (!isNewSession) {
         this.warnLegacySkillRetired(conversationId)
         return await this.getActiveSkills(conversationId)

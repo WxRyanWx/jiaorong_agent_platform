@@ -1,6 +1,7 @@
 <template>
   <div
-    class="flex flex-row h-9 min-h-9 relative overflow-hidden"
+    data-testid="app-bar"
+    class="app-bar flex flex-row h-9 min-h-9 relative overflow-hidden"
     :class="[!isFullscreened && isMacOS ? '' : ' rounded-t-none']"
     :dir="langStore.dir"
   >

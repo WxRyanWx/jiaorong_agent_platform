@@ -1,0 +1,312 @@
+import { useSkillsStore } from '@/stores/skillsStore'
+import { listRemoteSkills } from '../../api/skills'
+import { installSkillFromZipUrl } from '../../utils/downloadSkill/installSkillFromZipUrl'
+import { refreshSkillsCatalog } from '../../utils/refreshSkillsCatalog'
+import {
+  loadRemoteInstallMap,
+  rememberRemoteInstall,
+  rememberSkillSource,
+  SkillSource
+} from './sessionSkill'
+import { DEFAULT_MARKET_SKILLS, DEFAULT_SKILLS_SEED_BUILD_ID } from './defaultSkillsManifest'
+import { emitDefaultSkillInstallPhase } from './defaultSkillInstallEvents'
+
+/** @deprecated 旧版按 appVersion 闸门；写入新闸门时清理 */
+export const JIAORONG_DEFAULT_SKILLS_SEED_VERSION_KEY = 'jiaorongDefaultSkillsSeedVersion'
+
+/** 已对某次 DEFAULT_SKILLS_SEED_BUILD_ID 跑过默认补装 */
+export const JIAORONG_DEFAULT_SKILLS_SEED_BUILD_KEY = 'jiaorongDefaultSkillsSeedBuildId'
+
+export type EnsureDefaultSkillsResult = {
+  skipped: boolean
+  reason?: string
+  installed: string[]
+  alreadyInstalled: string[]
+  failed: Array<{ marketName: string; error: string }>
+  missingInCatalog: string[]
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function normalizeName(value: string): string {
+  return value.trim().toLowerCase()
+}
+
+function namesMatch(a: string, b: string): boolean {
+  return normalizeName(a) === normalizeName(b)
+}
+
+/**
+ * 解析默认技能对应的本地目录名（市场 name 或 remoteInstallMap）。
+ * 找不到则返回 null。
+ */
+export function resolveLocalNameForDefault(
+  marketName: string,
+  localNames: readonly string[],
+  remoteInstallMap: Record<string, string>
+): string | null {
+  const direct = localNames.find((local) => namesMatch(local, marketName))
+  if (direct) return direct
+
+  for (const [market, local] of Object.entries(remoteInstallMap)) {
+    if (!namesMatch(market, marketName)) continue
+    const hit = localNames.find((name) => namesMatch(name, local))
+    if (hit) return hit
+  }
+  return null
+}
+
+export function isDefaultSkillPresentLocally(
+  marketName: string,
+  localNames: readonly string[],
+  remoteInstallMap: Record<string, string>
+): boolean {
+  return resolveLocalNameForDefault(marketName, localNames, remoteInstallMap) != null
+}
+
+export type RemoteSkillSeedItem = {
+  id: string
+  name: string
+  downloadUrl: string
+}
+
+/** 远程 list 的 name 与清单 marketName 匹配 */
+export function findRemoteSkillForDefault(
+  marketName: string,
+  remote: readonly RemoteSkillSeedItem[]
+): RemoteSkillSeedItem | null {
+  return remote.find((item) => namesMatch(item.name, marketName)) ?? null
+}
+
+function readSeedBuildId(): string {
+  try {
+    return localStorage.getItem(JIAORONG_DEFAULT_SKILLS_SEED_BUILD_KEY)?.trim() || ''
+  } catch {
+    return ''
+  }
+}
+
+function writeSeedBuildId(buildId: string): void {
+  try {
+    localStorage.setItem(JIAORONG_DEFAULT_SKILLS_SEED_BUILD_KEY, buildId)
+    localStorage.removeItem(JIAORONG_DEFAULT_SKILLS_SEED_VERSION_KEY)
+  } catch {
+    // ignore quota
+  }
+}
+
+async function waitForAuthToken(timeoutMs: number): Promise<boolean> {
+  const started = Date.now()
+  while (Date.now() - started < timeoutMs) {
+    try {
+      if (localStorage.getItem('xkaitoken')?.trim()) return true
+    } catch {
+      // ignore
+    }
+    await sleep(1000)
+  }
+  try {
+    return Boolean(localStorage.getItem('xkaitoken')?.trim())
+  } catch {
+    return false
+  }
+}
+
+function mapRemoteRaw(raw: Record<string, unknown>[]): RemoteSkillSeedItem[] {
+  return raw
+    .map((item) => {
+      const name = String(item.name ?? '').trim()
+      const downloadUrl = String(item.downloadUrl ?? '').trim()
+      const id = String(item.id ?? '').trim()
+      return { id, name, downloadUrl }
+    })
+    .filter((item) => Boolean(item.name))
+}
+
+let inFlight: Promise<EnsureDefaultSkillsResult> | null = null
+
+/**
+ * 新装 / 升级 / 同版本覆盖安装后补装默认市场技能。
+ * 闸门为私有构建号 DEFAULT_SKILLS_SEED_BUILD_ID（不依赖 appVersion，不改开源宿主）。
+ * 本地已存在的跳过；未登录等待 token，超时不写闸门。
+ */
+export async function ensureDefaultSkills(options?: {
+  force?: boolean
+  authWaitMs?: number
+}): Promise<EnsureDefaultSkillsResult> {
+  if (inFlight) return inFlight
+  inFlight = runEnsureDefaultSkills(options).finally(() => {
+    inFlight = null
+  })
+  return inFlight
+}
+
+async function runEnsureDefaultSkills(options?: {
+  force?: boolean
+  authWaitMs?: number
+}): Promise<EnsureDefaultSkillsResult> {
+  const empty: EnsureDefaultSkillsResult = {
+    skipped: true,
+    installed: [],
+    alreadyInstalled: [],
+    failed: [],
+    missingInCatalog: []
+  }
+
+  const buildId = DEFAULT_SKILLS_SEED_BUILD_ID.trim()
+  if (!buildId) {
+    return { ...empty, reason: 'empty seed build id' }
+  }
+
+  if (!options?.force && readSeedBuildId() === buildId) {
+    return { ...empty, reason: 'already seeded for this build' }
+  }
+
+  const hasToken = await waitForAuthToken(options?.authWaitMs ?? 120_000)
+  if (!hasToken) {
+    return { ...empty, reason: 'auth token timeout' }
+  }
+
+  if (!options?.force && readSeedBuildId() === buildId) {
+    return { ...empty, reason: 'already seeded for this build' }
+  }
+
+  const result: EnsureDefaultSkillsResult = {
+    skipped: false,
+    installed: [],
+    alreadyInstalled: [],
+    failed: [],
+    missingInCatalog: []
+  }
+
+  let remote: RemoteSkillSeedItem[] = []
+  try {
+    const raw = await listRemoteSkills()
+    remote = mapRemoteRaw(raw)
+  } catch (error) {
+    return {
+      ...empty,
+      skipped: true,
+      reason: `listRemoteSkills failed: ${String(error)}`
+    }
+  }
+  if (remote.length === 0) {
+    return { ...empty, reason: 'empty remote catalog' }
+  }
+
+  const skillsStore = useSkillsStore()
+  try {
+    await skillsStore.loadSkills()
+  } catch {
+    // continue
+  }
+  const localNames = skillsStore.skills.map((s) => s.name)
+  const remoteInstallMap = loadRemoteInstallMap()
+
+  for (const marketName of DEFAULT_MARKET_SKILLS) {
+    if (resolveLocalNameForDefault(marketName, localNames, remoteInstallMap)) {
+      result.alreadyInstalled.push(marketName)
+      continue
+    }
+
+    const remoteItem = findRemoteSkillForDefault(marketName, remote)
+    if (!remoteItem?.downloadUrl) {
+      result.missingInCatalog.push(marketName)
+      continue
+    }
+
+    emitDefaultSkillInstallPhase(marketName, 'start')
+    try {
+      const installResult = await installSkillFromZipUrl(remoteItem.downloadUrl, {
+        silent: true,
+        displayName: marketName
+      })
+      if (!installResult.success) {
+        result.failed.push({
+          marketName,
+          error: installResult.error || 'install failed'
+        })
+        continue
+      }
+      const localSkillName = installResult.skillName?.trim() || marketName
+      rememberRemoteInstall(marketName, localSkillName)
+      if (installResult.skillName) {
+        rememberSkillSource(installResult.skillName, SkillSource.RemoteApi)
+      }
+      result.installed.push(marketName)
+      localNames.push(localSkillName)
+    } catch (error) {
+      result.failed.push({
+        marketName,
+        error: error instanceof Error ? error.message : String(error)
+      })
+    } finally {
+      emitDefaultSkillInstallPhase(marketName, 'end')
+    }
+  }
+
+  if (result.installed.length > 0) {
+    try {
+      await refreshSkillsCatalog()
+    } catch (error) {
+      console.error('[jiaorong] refreshSkillsCatalog after seed failed:', error)
+    }
+  }
+
+  // 有失败不写闸门，下次启动可重试；missingInCatalog 不阻塞
+  if (result.failed.length === 0) {
+    writeSeedBuildId(buildId)
+  }
+
+  if (import.meta.env.DEV) {
+    console.info('[jiaorong] default skills seed', { buildId, ...result })
+  }
+  return result
+}
+
+/** 空闲调度；同构建号幂等 */
+export function scheduleEnsureDefaultSkills(options?: {
+  force?: boolean
+  authWaitMs?: number
+}): void {
+  const run = () => {
+    void ensureDefaultSkills(options).catch((error) => {
+      console.error('[jiaorong] ensureDefaultSkills failed:', error)
+    })
+  }
+  if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+    window.requestIdleCallback(() => run(), { timeout: 5000 })
+  } else {
+    setTimeout(run, 0)
+  }
+}
+
+/** 进入这些路由时检测构建号并静默补缺（chat 默认落地，skills 兜底） */
+const DEFAULT_SKILLS_SEED_ROUTE_NAMES = new Set(['chat', 'skills', 'skills-detail'])
+
+let routeSeedHookInstalled = false
+
+/**
+ * 在 chat / 技能页挂载后检测补装。
+ * chat 静默后台装，切到技能页时多数已完成，减少卡顿。
+ */
+export function setupDefaultSkillsSeedRouteTriggers(router: {
+  currentRoute: { value: { name?: string | symbol | null } }
+  afterEach: (guard: (to: { name?: string | symbol | null }) => void) => unknown
+}): void {
+  if (routeSeedHookInstalled) return
+  routeSeedHookInstalled = true
+
+  const maybeSeed = (name: string | symbol | null | undefined) => {
+    if (typeof name !== 'string' || !DEFAULT_SKILLS_SEED_ROUTE_NAMES.has(name)) return
+    // 已进业务页通常已有 token；不再空等 120s
+    scheduleEnsureDefaultSkills({ authWaitMs: 0 })
+  }
+
+  maybeSeed(router.currentRoute.value.name)
+  router.afterEach((to) => {
+    maybeSeed(to.name)
+  })
+}

@@ -219,6 +219,7 @@ const chatInputRef = ref<{
   triggerAttach: () => void
   insertRecognizedText?: (text: string) => void
   getPendingSkillsSnapshot?: () => string[]
+  activateSkill?: (skillName: string) => Promise<void>
   focusInput?: () => void
 } | null>(null)
 const acpDraftSessionId = ref<string | null>(null)
@@ -714,6 +715,13 @@ const applyStartDeeplink = async (payload: StartDeeplinkPayload) => {
   await nextTick()
   message.value = buildStartMessage(payload)
   draftStore.systemPrompt = payload.systemPrompt
+
+  const requestedSkills = Array.from(
+    new Set((payload.skills ?? []).map((skill) => skill.trim()).filter(Boolean))
+  )
+  for (const skillName of requestedSkills) {
+    await chatInputRef.value?.activateSkill?.(skillName)
+  }
 
   const modelsReady = await ensureEnabledModelsReady()
   const matchedModel = modelsReady ? resolveStartModelSelection(payload.modelId) : null

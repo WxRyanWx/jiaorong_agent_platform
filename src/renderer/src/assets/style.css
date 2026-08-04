@@ -878,6 +878,13 @@
       animation-duration: 1ms !important;
       animation-iteration-count: 1 !important;
     }
+
+    /* 加载指示器保留旋转（否则看起来像卡住）；需压过上方 * 的 !important */
+    .skill-center-page__state-spinner,
+    .animate-spin {
+      animation-duration: 1s !important;
+      animation-iteration-count: infinite !important;
+    }
   }
 
   code,

@@ -181,6 +181,7 @@ import {
   skillsListMetadataRoute,
   skillsListScriptsRoute,
   skillsOpenFolderRoute,
+  skillsReadFileRoute,
   skillsSaveExtensionRoute,
   skillsSaveWithExtensionRoute,
   skillsSetActiveRoute,
@@ -2150,6 +2151,12 @@ export async function dispatchDeepchatRoute(
       return skillsUpdateFileRoute.output.parse({ result })
     }
 
+    case skillsReadFileRoute.name: {
+      const input = skillsReadFileRoute.input.parse(rawInput)
+      const content = await runtime.skillPresenter.readSkillFile(input.name)
+      return skillsReadFileRoute.output.parse({ content })
+    }
+
     case skillsSaveWithExtensionRoute.name: {
       const input = skillsSaveWithExtensionRoute.input.parse(rawInput)
       const result = await runtime.skillPresenter.saveSkillWithExtension(
@@ -2170,8 +2177,8 @@ export async function dispatchDeepchatRoute(
     }
 
     case skillsOpenFolderRoute.name: {
-      skillsOpenFolderRoute.input.parse(rawInput)
-      await runtime.skillPresenter.openSkillsFolder()
+      const input = skillsOpenFolderRoute.input.parse(rawInput)
+      await runtime.skillPresenter.openSkillsFolder(input.name)
       return skillsOpenFolderRoute.output.parse({ opened: true })
     }
 

@@ -1,5 +1,5 @@
 <template>
-  <div class="flex items-center justify-between px-3 py-2">
+  <div class="chat-input-toolbar flex items-center justify-between px-3 py-2">
     <div class="flex items-center gap-1">
       <!-- Attach button -->
       <Tooltip>
@@ -7,7 +7,7 @@
           <Button
             variant="ghost"
             size="icon"
-            class="h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground"
+            class="chat-input-toolbar-icon h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground"
             @click="$emit('attach')"
           >
             <Icon icon="lucide:plus" class="w-4 h-4" />
@@ -107,7 +107,7 @@
             data-testid="chat-steer-button"
             variant="ghost"
             size="icon"
-            class="h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground"
+            class="chat-input-toolbar-icon h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground"
             @click="emit('steer')"
           >
             <Icon icon="lucide:compass" class="w-4 h-4" />
@@ -212,7 +212,9 @@ const voiceInputButtonClass = computed(() => {
     ]
   }
 
-  return ['relative group h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground']
+  return [
+    'chat-input-toolbar-icon relative group h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground'
+  ]
 })
 const voiceInputIcon = computed(() => {
   if (props.isVoiceInputTranscribing) {

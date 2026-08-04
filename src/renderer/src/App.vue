@@ -21,7 +21,8 @@ import { useModelCheckStore } from '@/stores/modelCheck'
 import MessageDialog from './components/ui/MessageDialog.vue'
 import McpSamplingDialog from '@/components/mcp/McpSamplingDialog.vue'
 import { initAppStores, useMcpInstallDeeplinkHandler } from '@/lib/storeInitializer'
-import { useAuthLoginDeeplinkHandler } from '@/lib/auth/auth-deeplink'
+import { getToken, useAuthLoginDeeplinkHandler } from '@jiaorong/auth/host'
+import { ensureShellBootstrap } from '@/lib/shellBootstrap'
 import { ensureIconsLoaded } from '@/lib/iconLoader'
 import 'vue-sonner/style.css' // vue-sonner v2 requires this import
 import { useFontManager } from './composables/useFontManager'
@@ -45,8 +46,6 @@ import {
 import type { GuidedOnboardingStepId } from '@shared/contracts/routes'
 import type { DatabaseRepairSuggestedPayload } from '@shared/presenter'
 import { createWindowClient } from '@api/WindowClient'
-import { getToken } from '@/lib/auth/local-user'
-
 const DEV_WELCOME_OVERRIDE_KEY = '__deepchat_dev_force_welcome'
 
 const route = useRoute()
@@ -511,6 +510,17 @@ const handleEscKey = (event: KeyboardEvent) => {
 }
 
 void ensureStartupWelcomeState()
+
+// 登录后立刻灌入侧栏 agents，不依赖 ChatTabView（避免早进 /skills 时 deepchat 缺失）
+watch(
+  isLoginRoute,
+  (login) => {
+    if (!login) {
+      void ensureShellBootstrap()
+    }
+  },
+  { immediate: true }
+)
 
 watch(
   () =>

@@ -10,6 +10,16 @@ import { createSkillClient } from '@api/SkillClient'
 // === Stores ===
 import { useSkillsStore } from '@/stores/skillsStore'
 
+// === Jiaorong ===
+import {
+  filterEnabledSkillNames,
+  filterEnabledSkills,
+  isSkillSwitchOn,
+  JIAORONG_SKILL_SWITCH_EVENT,
+  SkillSwitchStatus,
+  type SkillSwitchEventDetail
+} from '@jiaorong/utils'
+
 /**
  * Composable for managing skills data in chat input context
  *
@@ -32,15 +42,16 @@ export function useSkillsData(conversationId: Ref<string | null> | ComputedRef<s
 
   // === Computed ===
   /**
-   * All available skills from the store
+   * All available skills from the store（已按交融全局开关过滤关闭项）
    */
-  const skills = computed<SkillMetadata[]>(() => skillsStore.skills)
+  const skills = computed<SkillMetadata[]>(() => filterEnabledSkills(skillsStore.skills))
 
   /**
    * Effective active skills - uses pending skills if no conversation, otherwise real active skills
    */
   const effectiveActiveSkills = computed(() => {
-    return conversationId.value ? activeSkills.value : pendingSkills.value
+    const names = conversationId.value ? activeSkills.value : pendingSkills.value
+    return filterEnabledSkillNames(names)
   })
 
   /**
@@ -90,6 +101,8 @@ export function useSkillsData(conversationId: Ref<string | null> | ComputedRef<s
    * Works for both existing conversations and pending state
    */
   const toggleSkill = async (skillName: string) => {
+    if (!isSkillSwitchOn(skillName)) return
+
     // If no conversation, toggle in pending skills
     if (!conversationId.value) {
       const isCurrentlyPending = pendingSkills.value.includes(skillName)
@@ -116,6 +129,8 @@ export function useSkillsData(conversationId: Ref<string | null> | ComputedRef<s
    * Activate a specific skill
    */
   const activateSkill = async (skillName: string) => {
+    if (!isSkillSwitchOn(skillName)) return
+
     // If no conversation, add to pending skills
     if (!conversationId.value) {
       if (!pendingSkills.value.includes(skillName)) {
@@ -169,7 +184,7 @@ export function useSkillsData(conversationId: Ref<string | null> | ComputedRef<s
    * Apply pending skills to a newly created conversation
    */
   const applyPendingSkillsToConversation = async (newConversationId: string) => {
-    const pending = consumePendingSkills()
+    const pending = filterEnabledSkillNames(consumePendingSkills())
     if (pending.length > 0) {
       try {
         await skillClient.setActiveSkills(newConversationId, pending)
@@ -208,6 +223,15 @@ export function useSkillsData(conversationId: Ref<string | null> | ComputedRef<s
     { immediate: true }
   )
 
+  const handleJiaorongSkillSwitch = (event: Event) => {
+    const detail = (event as CustomEvent<SkillSwitchEventDetail>).detail
+    if (!detail?.name || detail.status !== SkillSwitchStatus.Off) {
+      return
+    }
+    pendingSkills.value = pendingSkills.value.filter((s) => s !== detail.name)
+    activeSkills.value = activeSkills.value.filter((s) => s !== detail.name)
+  }
+
   // === Lifecycle ===
   onMounted(() => {
     // Load skills list if not already loaded
@@ -216,11 +240,13 @@ export function useSkillsData(conversationId: Ref<string | null> | ComputedRef<s
     }
 
     unsubscribeSkillSessionChanged = skillClient.onSessionChanged(handleSkillSessionChanged)
+    window.addEventListener(JIAORONG_SKILL_SWITCH_EVENT, handleJiaorongSkillSwitch)
   })
 
   onUnmounted(() => {
     unsubscribeSkillSessionChanged?.()
     unsubscribeSkillSessionChanged = null
+    window.removeEventListener(JIAORONG_SKILL_SWITCH_EVENT, handleJiaorongSkillSwitch)
   })
 
   // === Return Public API ===

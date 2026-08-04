@@ -1,4 +1,5 @@
 import '@/assets/main.css'
+import '@jiaorong/brand/theme.less'
 import { createPinia } from 'pinia'
 import { PiniaColada } from '@pinia/colada'
 import { createApp } from 'vue'

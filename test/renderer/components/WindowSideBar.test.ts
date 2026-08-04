@@ -5,6 +5,8 @@ import { flushPromises, mount } from '@vue/test-utils'
 type SetupOptions = {
   groupMode?: 'time' | 'project'
   selectedAgentId?: string | null
+  routeName?: string
+  routePath?: string
   enabledAgents?: Array<{
     id: string
     name: string
@@ -315,13 +317,30 @@ const setup = async (options: SetupOptions = {}) => {
       t: (key: string) => key
     })
   }))
-  vi.doMock('@/lib/auth/session', () => ({
-    forceRevalidateAuthSession: vi.fn(async () => true)
+  vi.doMock('@jiaorong/auth/host', () => ({
+    forceRevalidateAuthSession: vi.fn(async () => true),
+    scheduleAuthRevalidateOnMenuSwitch: vi.fn(() => true)
   }))
+  const route = reactive({
+    name: options.routeName ?? 'chat',
+    path: options.routePath ?? '/chat'
+  })
+  const routerPush = vi.fn(async (to: { name?: string; path?: string }) => {
+    if (to?.name === 'chat') {
+      route.name = 'chat'
+      route.path = '/chat'
+      return
+    }
+    if (to?.name === 'skills') {
+      route.name = 'skills'
+      route.path = '/skills'
+    }
+  })
   vi.doMock('vue-router', () => ({
     useRouter: () => ({
-      push: vi.fn()
-    })
+      push: routerPush
+    }),
+    useRoute: () => route
   }))
 
   const passthrough = defineComponent({
@@ -402,7 +421,9 @@ const setup = async (options: SetupOptions = {}) => {
     remoteControlRuntime,
     spotlightStore,
     pageRouterStore,
-    sidebarStore
+    sidebarStore,
+    routerPush,
+    route
   }
 }
 
@@ -417,6 +438,97 @@ describe('WindowSideBar agent switch', () => {
       expect(sessionStore.closeSession).toHaveBeenCalledTimes(1)
       expect(agentStore.setSelectedAgent).toHaveBeenCalledWith('acp-a')
       expect(operations).toEqual(['close', 'set:acp-a'])
+    },
+    TEST_TIMEOUT_MS
+  )
+
+  it(
+    'hides the session column on skills route',
+    async () => {
+      const { wrapper } = await setup({
+        routeName: 'skills',
+        routePath: '/skills',
+        hasActiveSession: false,
+        activeSession: null,
+        enabledAgents: [
+          {
+            id: 'deepchat',
+            name: 'JiaorongAI',
+            type: 'deepchat',
+            enabled: true
+          }
+        ]
+      })
+
+      expect(wrapper.find('[data-testid="window-sidebar-session-column"]').exists()).toBe(false)
+      expect(wrapper.get('[data-testid="window-sidebar"]').classes()).toContain('w-12')
+      expect(wrapper.get('[data-testid="sidebar-skills-button"]').attributes('data-selected')).toBe(
+        'true'
+      )
+    },
+    TEST_TIMEOUT_MS
+  )
+
+  it(
+    'leaves skills by selecting deepchat without toggling to all agents',
+    async () => {
+      const { wrapper, operations, agentStore, sessionStore, routerPush } = await setup({
+        routeName: 'skills',
+        routePath: '/skills',
+        selectedAgentId: 'deepchat',
+        hasActiveSession: false,
+        activeSession: null,
+        enabledAgents: [
+          {
+            id: 'deepchat',
+            name: 'JiaorongAI',
+            type: 'deepchat',
+            enabled: true
+          }
+        ]
+      })
+
+      await (wrapper.vm as any).handleAgentSelect('deepchat')
+      await flushPromises()
+
+      expect(sessionStore.closeSession).not.toHaveBeenCalled()
+      expect(agentStore.setSelectedAgent).toHaveBeenCalledWith('deepchat')
+      expect(routerPush).toHaveBeenCalledWith({ name: 'chat' })
+      expect(operations.every((item) => item !== 'set:all')).toBe(true)
+    },
+    TEST_TIMEOUT_MS
+  )
+
+  it(
+    'closes mismatched session before leaving skills to another agent',
+    async () => {
+      const { wrapper, operations, agentStore, sessionStore, routerPush } = await setup({
+        routeName: 'skills',
+        routePath: '/skills',
+        selectedAgentId: 'deepchat',
+        hasActiveSession: true,
+        activeSession: {
+          id: 'session-deepchat',
+          agentId: 'deepchat'
+        },
+        enabledAgents: [
+          {
+            id: 'deepchat',
+            name: 'JiaorongAI',
+            type: 'deepchat',
+            enabled: true
+          },
+          { id: 'acp-a', name: 'ACP A', type: 'acp', enabled: true }
+        ]
+      })
+
+      await (wrapper.vm as any).handleAgentSelect('acp-a')
+      await flushPromises()
+
+      expect(sessionStore.closeSession).toHaveBeenCalledTimes(1)
+      expect(agentStore.setSelectedAgent).toHaveBeenCalledWith('acp-a')
+      expect(routerPush).toHaveBeenCalledWith({ name: 'chat' })
+      expect(operations).toEqual(['close', 'set:acp-a', 'set:acp-a'])
     },
     TEST_TIMEOUT_MS
   )

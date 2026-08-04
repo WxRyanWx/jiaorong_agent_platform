@@ -1,28 +1,19 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
-import { setupAuthGuard } from '@/lib/auth/guard'
-import { getToken } from '@/lib/auth/local-user'
+import { getToken, setupAuthGuard } from '@jiaorong/auth/host'
+import { createJiaorongRoutes } from '@jiaorong/router'
 
+/**
+ * 交融私有路由由 `@jiaorong/router` 统一聚合（login / skills…）。
+ * 宿主只挂载，不在此展开各子模块 loader。
+ */
 const router = createRouter({
   history: createWebHashHistory(import.meta.env.BASE_URL),
   routes: [
     {
       path: '/',
+      // 已登录默认进对话；未登录进登录页
       redirect: () => (getToken() ? '/chat' : '/login')
     },
-    {
-      path: '/login',
-      name: 'login',
-      component: () => import('@/pages/LoginPage.vue'),
-      meta: {
-        titleKey: 'routes.login',
-        icon: 'lucide:log-in',
-        requiresAuth: false
-      }
-    },
-    // {
-    //   path: '/',
-    //   redirect: '/chat'
-    // },
     {
       path: '/chat',
       name: 'chat',
@@ -40,7 +31,8 @@ const router = createRouter({
         titleKey: 'routes.welcome',
         icon: 'lucide:message-square'
       }
-    }
+    },
+    ...createJiaorongRoutes()
   ]
 })
 

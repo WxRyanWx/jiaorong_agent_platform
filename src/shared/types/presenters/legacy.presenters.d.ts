@@ -1552,6 +1552,7 @@ export interface IDevicePresenter {
   selectFiles(options?: {
     filters?: { name: string; extensions: string[] }[]
     multiple?: boolean
+    allowDirectory?: boolean
   }): Promise<{ canceled: boolean; filePaths: string[] }>
   restartApp(): Promise<void>
 
@@ -1683,7 +1684,10 @@ export interface IFilePresenter {
     contentType?: null | 'origin' | 'llm-friendly'
   ): Promise<MessageFile>
   prepareDirectory(absPath: string): Promise<MessageFile>
-  writeTemp(file: { name: string; content: string | Buffer | ArrayBuffer }): Promise<string>
+  writeTemp(file: {
+    name: string
+    content: string | Buffer | ArrayBuffer | number[]
+  }): Promise<string>
   isDirectory(absPath: string): Promise<boolean>
   getMimeType(filePath: string): Promise<string>
   writeImageBase64(file: { name: string; content: string }): Promise<string>

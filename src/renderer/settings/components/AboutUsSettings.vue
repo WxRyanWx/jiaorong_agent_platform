@@ -1,5 +1,6 @@
 <template>
   <SettingsPageShell
+    class="settings-about-page"
     :title="t('routes.settings-about')"
     :eyebrow="t('settings.controlCenter.groups.system')"
     data-testid="settings-about-page"
@@ -11,7 +12,7 @@
       <div class="flex flex-col items-center gap-2" :dir="languageStore.dir">
         <h1 class="text-2xl font-bold">{{ t("about.title") }}</h1>
         <p class="pb-4 text-xs text-muted-foreground">v{{ appVersion }}</p>
-        <p class="px-8 text-sm text-muted-foreground">
+        <p class="settings-about-description px-8 text-sm text-muted-foreground">
           {{ t("about.description") }}
         </p>
         <!-- <div class="flex gap-2">
@@ -200,7 +201,7 @@
           v-if="!upgrade.showManualDownloadOptions"
           variant="outline"
           size="sm"
-          class="mb-2 text-xs"
+          class="settings-about-update-button mb-2 text-xs"
           :disabled="
             upgrade.isChecking || upgrade.isDownloading || upgrade.isRestarting
           "
@@ -208,7 +209,7 @@
         >
           <Icon
             icon="lucide:refresh-cw"
-            class="mr-1 h-3 w-3"
+            class="settings-about-update-icon mr-1 h-3 w-3"
             :class="{
               'animate-spin': upgrade.isChecking || upgrade.isDownloading,
             }"

@@ -3,6 +3,7 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprot
 import { z } from 'zod'
 import { zodToJsonSchema } from 'zod-to-json-schema'
 import { Transport } from '@modelcontextprotocol/sdk/shared/transport.js'
+import { ARTIFACTS_FOOTER } from '@jiaorong/brand'
 
 // Artifacts 相关的常量定义
 const ARTIFACTS_INFO = `
@@ -181,7 +182,7 @@ ${ARTIFACT_INSTRUCTIONS_HEAD}
       - It is inappropriate to use "text/html" when sharing snippets, code samples & example HTML or CSS code, as it would be rendered as a webpage and the source code would be obscured. The assistant should instead use "application/vnd.ant.code" defined above.
       - If the assistant is unable to follow the above requirements for any reason, use "application/vnd.ant.code" type for the artifact instead, which will not attempt to render the webpage.
       - Do not put HTML code in a code block when using artifacts.
-      - do not forget to add AI information in the footer as plain text only (no hyperlinks): "Generated with JiaorongAI | All page content is AI-generated and for reference only" ,ensure it matches the page language
+      - do not forget to add AI information in the footer as plain text only (no hyperlinks): "${ARTIFACTS_FOOTER}" ,ensure it matches the page language
 ${ARTIFACT_INSTRUCTIONS_TAIL}
 <example>
   <user_query>Can you create a simple HTML landing page for a fictional coffee shop called "Morning Brew"?</user_query>
@@ -378,7 +379,7 @@ ${ARTIFACT_INSTRUCTIONS_TAIL}
     </section>
 
     <footer>
-      Generated with JiaorongAI | All page content is AI-generated and for reference only
+      ${ARTIFACTS_FOOTER}
     </footer>
 </body>
 </html>

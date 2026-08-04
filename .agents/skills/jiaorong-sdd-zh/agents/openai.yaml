@@ -1,0 +1,4 @@
+interface:
+  display_name: "JiaorongAI SDD（中文）"
+  short_description: "在改动 JiaorongAI 前准备 SDD 规范文档"
+  default_prompt: "在实现 JiaorongAI 改动前使用 $jiaorong-sdd-zh：先对目标分类，并准备 spec、plan、tasks 产物。"

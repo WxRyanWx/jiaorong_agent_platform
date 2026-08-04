@@ -5,7 +5,7 @@
     :class="isWinMacOS ? '' : 'bg-background'"
   >
     <div
-      class="w-full h-9 window-drag-region shrink-0 justify-end flex flex-row relative border border-b-0 border-window-inner-border box-border rounded-t-[10px]"
+      class="settings-page-header w-full h-9 window-drag-region shrink-0 justify-end flex flex-row relative border border-b-0 border-window-inner-border box-border rounded-t-[10px]"
       :class="[
         isMacOS ? '' : ' ounded-t-none',
         isMacOS ? 'bg-window-background' : 'bg-window-background/10',
@@ -26,7 +26,7 @@
       ></div>
       <div
         data-testid="settings-navigation"
-        class="w-60 h-full border-r border-border shrink-0 overflow-y-auto bg-muted/10"
+        class="settings-navigation w-60 h-full border-r border-border shrink-0 overflow-y-auto"
       >
         <div class="flex flex-col gap-4 p-3">
           <div
@@ -47,9 +47,9 @@
                 type="button"
                 :data-testid="getSettingsTabTestId(setting.name)"
                 :class="[
-                  'flex w-full min-w-0 flex-row items-center gap-2 rounded-md px-2 py-2 text-start transition-colors hover:bg-accent',
+                  'settings-navigation-item flex w-full min-w-0 flex-row items-center gap-2 rounded-md px-2 py-2 text-start transition-colors hover:bg-accent',
                   route.name === setting.name
-                    ? 'bg-accent text-accent-foreground'
+                    ? 'settings-navigation-item-active bg-accent text-accent-foreground'
                     : '',
                   isSidebarItemVisuallyHidden(setting.name) ? 'hidden' : '',
                 ]"
@@ -57,7 +57,7 @@
               >
                 <Icon
                   :icon="setting.icon"
-                  class="size-4 shrink-0 text-muted-foreground"
+                  class="settings-navigation-icon size-4 shrink-0 text-muted-foreground"
                 />
                 <span class="min-w-0 truncate text-sm font-medium">{{
                   t(setting.title)

@@ -18,6 +18,8 @@
     "src/renderer/splash/assets/**/*",
     "src/preload/*.d.ts",
     "src/renderer/api/**/*",
+    "src/jiaorong_src/**/*",
+    "src/jiaorong_src/**/*.vue",
     "src/shared/**/*",
     "src/shadcn/**/*",
     "src/renderer/settings/**/*",
@@ -42,6 +44,12 @@
       ],
       "@shared/*": [
         "./src/shared/*"
+      ],
+      "@jiaorong": [
+        "./src/jiaorong_src/index.ts"
+      ],
+      "@jiaorong/*": [
+        "./src/jiaorong_src/*"
       ],
       "@shadcn/*": [
         "./src/shadcn/*"

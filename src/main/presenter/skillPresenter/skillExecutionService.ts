@@ -147,12 +147,16 @@ export class SkillExecutionService {
     const extension = await this.skillPresenter.getSkillExtension(input.skill)
     const shellEnv = await getShellEnvironment()
     const executionCwd = await this.resolveExecutionCwd(conversationId, metadata.skillRoot)
+    const skillsDir = await this.skillPresenter.getSkillsDir()
     const mergedEnv = mergeCommandEnvironment({
       shellEnv,
       overrides: {
         ...extension.env,
         SKILL_ROOT: metadata.skillRoot,
-        DEEPCHAT_SKILL_ROOT: metadata.skillRoot
+        DEEPCHAT_SKILL_ROOT: metadata.skillRoot,
+        SKILLS_DIR: skillsDir,
+        JIAORONG_SKILLS_DIR: skillsDir,
+        DEEPCHAT_SKILLS_DIR: skillsDir
       }
     })
 

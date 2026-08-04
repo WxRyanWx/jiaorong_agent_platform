@@ -1,5 +1,8 @@
 <template>
-  <div data-testid="settings-deepchat-agents-page" class="flex h-full w-full">
+  <div
+    data-testid="settings-deepchat-agents-page"
+    class="settings-agents-page flex h-full w-full"
+  >
     <aside class="flex w-[300px] shrink-0 flex-col border-r border-border">
       <div class="flex items-center justify-between gap-3 px-4 py-4">
         <div>
@@ -20,14 +23,14 @@
           class="w-full rounded-2xl border p-4 text-left transition-colors"
           :class="
             selectedAgentId === agent.id
-              ? 'border-primary bg-accent/40'
+              ? 'settings-agent-card-selected border-primary bg-accent/40'
               : 'border-border hover:bg-accent/20'
           "
           @click="selectAgent(agent.id)"
         >
           <div class="flex items-start gap-3">
             <div
-              class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-border/70 bg-muted/40"
+              class="settings-agent-avatar-container flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-border/70 bg-muted/40 "
             >
               <AgentAvatar
                 :agent="{
@@ -50,7 +53,10 @@
                   {{ t("settings.deepchatAgents.builtIn") }}
                 </Badge>
               </div>
-              <div class="mt-1 text-xs text-muted-foreground">
+              <div
+                class="mt-1 text-xs text-muted-foreground"
+                :class="agent.enabled ? 'settings-agent-status-enabled' : ''"
+              >
                 {{ agent.enabled ? t("common.enabled") : t("common.disabled") }}
               </div>
             </div>
@@ -69,7 +75,7 @@
         >
           <div class="flex items-center gap-4">
             <div
-              class="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-border/70 bg-muted/40"
+              class="settings-agent-avatar-container flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-border/70 bg-muted/40"
             >
               <AgentAvatar
                 :agent="previewAgent"
@@ -134,6 +140,7 @@
                 {{ form.enabled ? t("common.enabled") : t("common.disabled") }}
               </span>
               <Switch
+                class="settings-agent-switch"
                 :model-value="form.enabled"
                 @update:model-value="form.enabled = $event"
               />
@@ -162,12 +169,14 @@
               class="rounded-xl border px-4 py-3 text-left"
               :class="
                 form.avatarKind === option.value
-                  ? 'border-primary bg-accent/40'
+                  ? 'settings-agent-avatar-option-selected border-primary bg-accent/40'
                   : 'border-border hover:bg-accent/20'
               "
               @click="form.avatarKind = option.value"
             >
-              <div class="text-sm font-medium">{{ option.label }}</div>
+              <div class="settings-agent-avatar-option-label text-sm font-medium">
+                {{ option.label }}
+              </div>
               <div class="mt-1 text-xs text-muted-foreground">
                 {{ option.description }}
               </div>
@@ -278,7 +287,7 @@
                   <Button
                     variant="outline"
                     size="sm"
-                    class="h-8 w-full min-w-0 justify-between gap-1.5 rounded-lg px-2.5 text-xs"
+                    class="settings-agent-select h-8 w-full min-w-0 justify-between gap-1.5 rounded-lg px-2.5 text-xs"
                   >
                     <div class="flex min-w-0 items-center gap-1.5">
                       <ModelIcon
@@ -339,7 +348,7 @@
                   <Button
                     variant="outline"
                     size="sm"
-                    class="h-8 w-full min-w-0 justify-between gap-1.5 rounded-lg px-2.5 text-xs"
+                    class="settings-agent-select h-8 w-full min-w-0 justify-between gap-1.5 rounded-lg px-2.5 text-xs"
                     :title="defaultProjectPathTitle"
                   >
                     <div class="flex min-w-0 items-center gap-1.5">
@@ -418,7 +427,7 @@
                     variant="outline"
                     size="sm"
                     :class="[
-                      'h-8 w-full min-w-0 justify-between gap-1.5 rounded-lg px-2.5 text-xs',
+                      'settings-agent-select h-8 w-full min-w-0 justify-between gap-1.5 rounded-lg px-2.5 text-xs',
                       form.permissionMode === 'full_access'
                         ? 'text-orange-500 hover:text-orange-600'
                         : 'text-muted-foreground hover:text-foreground',
@@ -498,6 +507,7 @@
               </div>
             </div>
             <Switch
+              class="settings-agent-switch"
               :model-value="form.subagentEnabled"
               :aria-label="t('settings.deepchatAgents.subagentsEnabled')"
               @update:model-value="form.subagentEnabled = $event"
@@ -533,7 +543,7 @@
                   </div>
                   <select
                     :value="getSubagentTargetValue(slot)"
-                    class="flex h-10 w-full rounded-lg border border-border bg-background px-3 text-sm"
+                    class="settings-agent-select flex h-10 w-full rounded-lg border border-border bg-background px-3 text-sm"
                     @change="handleSubagentTargetChange(slot, $event)"
                   >
                     <option
@@ -609,6 +619,7 @@
                   {{ group.label }}
                 </div>
                 <Switch
+                  class="settings-agent-switch"
                   :model-value="isGroupEnabled(group)"
                   :aria-label="group.label"
                   @update:model-value="(value) => setGroupEnabled(group, value)"
@@ -643,6 +654,7 @@
               {{ t("settings.deepchatAgents.compactionTitle") }}
             </div>
             <Switch
+              class="settings-agent-switch"
               :model-value="form.autoCompactionEnabled"
               :aria-label="t('settings.deepchatAgents.compactionEnabled')"
               @update:model-value="form.autoCompactionEnabled = $event"
