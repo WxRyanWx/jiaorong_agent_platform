@@ -338,10 +338,19 @@ async function handleDrop(event: DragEvent) {
   await classifyPath(filePath, Boolean(entry?.isDirectory))
 }
 
+function isConflictResult(result: SkillInstallResult): boolean {
+  return (
+    result.errorCode === 'conflict' ||
+    Boolean(result.error?.includes('already exists')) ||
+    Boolean(result.error?.toLowerCase().includes('conflict'))
+  )
+}
+
 function handleInstallResult(
   result: SkillInstallResult,
   source: (typeof SkillSource)[keyof typeof SkillSource],
-  retryWithOverwrite: () => Promise<void>
+  retryWithOverwrite: () => Promise<void>,
+  options?: { overwriteAttempt?: boolean }
 ) {
   if (result.success) {
     if (result.skillName) {
@@ -356,11 +365,19 @@ function handleInstallResult(
     return
   }
 
-  if (
-    result.errorCode === 'conflict' ||
-    result.error?.includes('already exists') ||
-    result.error?.toLowerCase().includes('conflict')
-  ) {
+  if (isConflictResult(result)) {
+    // 已点过覆盖仍 conflict：不再二次弹窗（Win 易连点/目录未清干净），给出明确失败
+    if (options?.overwriteAttempt) {
+      pendingOverwrite.value = null
+      conflictDialogOpen.value = false
+      toast({
+        title: '覆盖失败',
+        description:
+          '覆盖安装失败：原技能目录可能仍被占用或无法替换，请关闭相关程序后重试',
+        variant: 'destructive'
+      })
+      return
+    }
     conflictSkillName.value = result.existingSkillName || result.skillName || ''
     pendingOverwrite.value = retryWithOverwrite
     conflictDialogOpen.value = true
@@ -387,10 +404,12 @@ async function runInstall(overwrite = false) {
   if (!selection || installing.value) return
 
   installing.value = true
+  // 覆盖前快照名称，避免异步过程中被清空导致 Win 预卸载找不到目标
+  const overwriteTargetName = conflictSkillName.value.trim()
   try {
     // 仅 Win/Linux：覆盖前先卸载；Mac 走宿主 backup，装失败更可恢复
     if (overwrite && preferPreUninstallOverwrite.value) {
-      const existing = conflictSkillName.value.trim()
+      const existing = overwriteTargetName
       if (existing) {
         const removed = await uninstallSkill(existing)
         if (!removed.success && removed.error !== 'protected-system-skill') {
@@ -422,7 +441,9 @@ async function runInstall(overwrite = false) {
         ...deps
       })
     }
-    handleInstallResult(result, source, () => runInstall(true))
+    handleInstallResult(result, source, () => runInstall(true), {
+      overwriteAttempt: overwrite
+    })
   } catch (error) {
     toast({
       title: '安装失败',
@@ -441,12 +462,23 @@ const handleConflictCancel = () => {
 }
 
 const handleConflictOverwrite = async () => {
-  conflictDialogOpen.value = false
-  if (pendingOverwrite.value) {
-    await pendingOverwrite.value()
-    pendingOverwrite.value = null
+  // 先取走回调，防止 Win 连点并行两次 runInstall(true)
+  const retry = pendingOverwrite.value
+  if (!retry) {
+    conflictDialogOpen.value = false
+    return
   }
-  conflictSkillName.value = ''
+  if (installing.value) {
+    // 安装进行中不吞掉回调，避免偶发点按后无法再覆盖
+    return
+  }
+  pendingOverwrite.value = null
+  conflictDialogOpen.value = false
+  try {
+    await retry()
+  } finally {
+    conflictSkillName.value = ''
+  }
 }
 </script>
 
@@ -561,7 +593,9 @@ const handleConflictOverwrite = async () => {
       </AlertDialogHeader>
       <AlertDialogFooter>
         <AlertDialogCancel @click="handleConflictCancel">取消</AlertDialogCancel>
-        <AlertDialogAction @click="handleConflictOverwrite">覆盖</AlertDialogAction>
+        <AlertDialogAction :disabled="installing" @click.prevent="handleConflictOverwrite">
+          覆盖
+        </AlertDialogAction>
       </AlertDialogFooter>
     </AlertDialogContent>
   </AlertDialog>
