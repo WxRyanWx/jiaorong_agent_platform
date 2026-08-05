@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { ref, watch } from 'vue'
 import defaultBookIcon from '../../assets/book.png'
 import { loadKnowledgeBaseIconObjectUrl } from './resolveKbIconUrl'
 
@@ -24,15 +24,12 @@ async function resolveIcon() {
   src.value = url || defaultBookIcon
 }
 
-onMounted(() => {
-  void resolveIcon()
-})
-
 watch(
   () => props.icon,
   () => {
     void resolveIcon()
-  }
+  },
+  { immediate: true }
 )
 </script>
 

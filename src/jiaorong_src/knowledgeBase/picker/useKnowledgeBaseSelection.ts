@@ -23,10 +23,6 @@ export function useKnowledgeBaseSelection(sessionId: () => string | null | undef
     }
   }
 
-  function clear() {
-    setItems([])
-  }
-
   function removeByKey(key: string) {
     setItems(items.value.filter((item) => item.key !== key))
   }
@@ -34,7 +30,6 @@ export function useKnowledgeBaseSelection(sessionId: () => string | null | undef
   return {
     items,
     setItems,
-    clear,
     removeByKey
   }
 }
