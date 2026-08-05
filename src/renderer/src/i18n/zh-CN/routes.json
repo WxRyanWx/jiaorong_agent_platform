@@ -3,6 +3,7 @@
   "chat": "聊天",
   "welcome": "欢迎",
   "skills": "技能中心",
+  "knowledgeBase": "知识库",
   "skillsDetail": "技能详情",
   "skillsCreateButton": "新建技能",
   "skillsCreateAction": "创建技能",

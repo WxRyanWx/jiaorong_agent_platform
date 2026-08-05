@@ -29,9 +29,15 @@
     </div>
 
     <div
-      v-if="files.selectedFiles.value.length > 0"
-      :class="['flex flex-wrap gap-2 px-4', activeSkillNames.length > 0 ? 'pt-2' : 'pt-3']"
+      v-if="files.selectedFiles.value.length > 0 || hasContextChips"
+      data-testid="chat-input-attachments"
+      :class="[
+        'chat-input-attachments flex flex-wrap content-start gap-2 overflow-y-auto overscroll-contain px-4 pb-1',
+        activeSkillNames.length > 0 ? 'pt-2' : 'pt-3'
+      ]"
     >
+      <!-- 私有扩展：知识库选中 chips 等（jiaorong） -->
+      <slot name="context-chips" />
       <ChatAttachmentItem
         v-for="(file, index) in files.selectedFiles.value"
         :key="file.path || `${file.name}-${index}`"
@@ -115,6 +121,8 @@ const props = withDefaults(
     queueSubmitDisabled?: boolean
     maxWidthClass?: string
     files?: MessageFile[]
+    /** 私有扩展 chips（如知识库）是否有内容，用于与附件同一行显示 */
+    hasContextChips?: boolean
   }>(),
   {
     modelValue: '',
@@ -127,7 +135,8 @@ const props = withDefaults(
     queueSubmitEnabled: false,
     queueSubmitDisabled: false,
     maxWidthClass: 'max-w-2xl',
-    files: () => []
+    files: () => [],
+    hasContextChips: false
   }
 )
 
@@ -466,6 +475,12 @@ defineExpose({
 </script>
 
 <style scoped>
+.chat-input-attachments {
+  /* ~5–6 行 chip；相对视口封顶，避免把编辑器/工具栏挤出屏幕 */
+  max-height: min(11.25rem, 25vh);
+  scrollbar-gutter: stable;
+}
+
 :deep(.chat-input-editor .tiptap p.is-editor-empty:first-child::before) {
   color: var(--muted-foreground);
   content: attr(data-placeholder);

@@ -4,10 +4,11 @@
  */
 import type { RouteRecordRaw } from 'vue-router'
 import { createAuthRoutes } from './auth'
+import { createKnowledgeBaseRoutes } from './knowledgeBase'
 import { createSkillRoutes } from './skills'
 
 export function createJiaorongRoutes(): RouteRecordRaw[] {
-  return [...createAuthRoutes(), ...createSkillRoutes()]
+  return [...createAuthRoutes(), ...createSkillRoutes(), ...createKnowledgeBaseRoutes()]
 }
 
 export {
@@ -16,3 +17,10 @@ export {
   isSkillRouteLocation,
   type SkillRouteName
 } from './skills.meta'
+
+export {
+  KNOWLEDGE_BASE_ROUTE_DEFS,
+  KNOWLEDGE_BASE_ROUTE_NAMES,
+  isKnowledgeBaseRouteLocation,
+  type KnowledgeBaseRouteName
+} from './knowledgeBase.meta'

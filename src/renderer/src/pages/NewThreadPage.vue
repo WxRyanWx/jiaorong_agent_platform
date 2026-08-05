@@ -92,12 +92,17 @@
             :workspace-path="projectStore.selectedProject?.path ?? null"
             :is-acp-session="isAcpSelectedAgent"
             :submit-disabled="isAcpWorkdirUnavailable"
+            :has-context-chips="hasKnowledgeBaseSelection"
             @update:files="onFilesChange"
             @pending-skills-change="onPendingSkillsChange"
             @command-submit="onCommandSubmit"
             @submit="onSubmit"
             @toggle-voice-input="onToggleVoiceInput"
           >
+            <template #context-chips>
+              <!-- 新会话页固定 draft key，不绑定 acpDraftSessionId，避免 draft 就绪后选中丢失 -->
+              <KnowledgeBaseSelectionChips :session-id="null" />
+            </template>
             <template #toolbar>
               <ChatInputToolbar
                 :show-voice-input="isVoiceInputEnabled"
@@ -107,7 +112,11 @@
                 @attach="onAttach"
                 @voice-input="onToggleVoiceInput"
                 @send="onSubmit"
-              />
+              >
+                <template #after-attach>
+                  <KnowledgeBasePickerButton :session-id="null" />
+                </template>
+              </ChatInputToolbar>
             </template>
           </ChatInputBox>
         </div>
@@ -158,6 +167,12 @@ import {
 import { Icon } from '@iconify/vue'
 import ChatInputBox from '@/components/chat/ChatInputBox.vue'
 import ChatInputToolbar from '@/components/chat/ChatInputToolbar.vue'
+import KnowledgeBasePickerButton from '@jiaorong/knowledgeBase/picker/KnowledgeBasePickerButton.vue'
+import KnowledgeBaseSelectionChips from '@jiaorong/knowledgeBase/picker/KnowledgeBaseSelectionChips.vue'
+import {
+  clearKnowledgeBaseSelectionForSession,
+  useKnowledgeBaseSelection
+} from '@jiaorong/knowledgeBase/picker/useKnowledgeBaseSelection'
 import ChatStatusBar from '@/components/chat/ChatStatusBar.vue'
 import { useToast } from '@/components/use-toast'
 import { useProjectStore } from '@/stores/ui/project'
@@ -223,6 +238,15 @@ const chatInputRef = ref<{
   focusInput?: () => void
 } | null>(null)
 const acpDraftSessionId = ref<string | null>(null)
+/** 新会话页 KB 选中始终落在 draft key，与 ACP draft sessionId 解耦 */
+const { items: knowledgeBaseSelectionItems } = useKnowledgeBaseSelection(() => null)
+const hasKnowledgeBaseSelection = computed(() => knowledgeBaseSelectionItems.value.length > 0)
+
+function clearAttachedFiles() {
+  attachedFiles.value = []
+  clearKnowledgeBaseSelectionForSession(null)
+}
+
 const acpDraftModelSelection = ref<SubmissionModelSelection | null>(null)
 const lastAcpDraftKey = ref<string | null>(null)
 const acpDraftRequestSeq = ref(0)
@@ -742,9 +766,10 @@ async function onSubmit() {
   const files = (await prepareFilesForCurrentModel([...attachedFiles.value])).map((f) => toRaw(f))
 
   try {
-    await submitText(text, files)
+    const submitted = await submitText(text, files)
+    if (!submitted) return
     message.value = ''
-    attachedFiles.value = []
+    clearAttachedFiles()
   } catch (e) {
     console.error('[NewThreadPage] submit failed:', e)
   }
@@ -757,8 +782,9 @@ async function onCommandSubmit(command: string) {
   if (shouldIgnoreManualCompactionDraft(text)) return
   const files = (await prepareFilesForCurrentModel([...attachedFiles.value])).map((f) => toRaw(f))
   try {
-    await submitText(text, files)
-    attachedFiles.value = []
+    const submitted = await submitText(text, files)
+    if (!submitted) return
+    clearAttachedFiles()
   } catch (e) {
     console.error('[NewThreadPage] submit failed:', e)
   }
@@ -768,9 +794,10 @@ function shouldIgnoreManualCompactionDraft(text: string): boolean {
   return !isAcpSelectedAgent.value && isManualCompactionCommand(text)
 }
 
-async function submitText(text: string, files: MessageFile[]) {
-  if (!text.trim()) return
-  if (isAcpWorkdirUnavailable.value) return
+/** @returns 是否真正发出/创建会话成功（静默取消返回 false，异常抛出） */
+async function submitText(text: string, files: MessageFile[]): Promise<boolean> {
+  if (!text.trim()) return false
+  if (isAcpWorkdirUnavailable.value) return false
 
   const preparedHeroFlight = prepareChatInputHeroFlight(resolveChatInputBoxElement())
 
@@ -788,7 +815,7 @@ async function submitText(text: string, files: MessageFile[]) {
         text,
         files
       })
-      return
+      return true
     }
 
     let providerId: string | undefined
@@ -804,7 +831,7 @@ async function submitText(text: string, files: MessageFile[]) {
         if (preparedHeroFlight) {
           cancelChatInputHeroFlight()
         }
-        return
+        return false
       }
       providerId = resolved.providerId
       modelId = resolved.modelId
@@ -827,6 +854,7 @@ async function submitText(text: string, files: MessageFile[]) {
       generationSettings: draftGenerationSettings,
       activeSkills: dedupedPendingSkills.length > 0 ? dedupedPendingSkills : undefined
     })
+    return true
   } catch (error) {
     if (preparedHeroFlight) {
       cancelChatInputHeroFlight()

@@ -4,6 +4,7 @@
  */
 import type { JiaorongSidebarItem, JiaorongSidebarSlot } from './types'
 import { BUILTIN_MODULES } from './modules'
+import { isKnowledgeBaseRouteLocation } from '../router/knowledgeBase.meta'
 import { isSkillRouteLocation } from '../router/skills.meta'
 
 export function listJiaorongSidebarItems(
@@ -15,10 +16,11 @@ export function listJiaorongSidebarItems(
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
 }
 
-/** 当前路由是否应隐藏会话栏等宿主 chrome（技能中心等） */
+/** 当前路由是否应隐藏会话栏等宿主 chrome（技能中心、知识库等） */
 export function isJiaorongExclusiveChromeRoute(routeName: unknown, routePath?: string): boolean {
-  // 技能中心：路径/name 双判定（与历史 isSkillRouteLocation 一致）
-  if (isSkillRouteLocation(routeName, routePath ?? '')) {
+  const path = routePath ?? ''
+  // 技能中心 / 知识库：路径/name 双判定（详情子路或刷新后 name 暂缺时仍可靠）
+  if (isSkillRouteLocation(routeName, path) || isKnowledgeBaseRouteLocation(routeName, path)) {
     return true
   }
 

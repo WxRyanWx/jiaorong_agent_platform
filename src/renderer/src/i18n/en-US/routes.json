@@ -3,6 +3,7 @@
   "chat": "Chat",
   "welcome": "Welcome",
   "skills": "Skills",
+  "knowledgeBase": "Knowledge Base",
   "skillsDetail": "Skill Detail",
   "skillsCreateButton": "New skill",
   "skillsCreateAction": "Create skill",

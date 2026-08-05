@@ -17,6 +17,8 @@
           <p>{{ t('chat.input.attach') }}</p>
         </TooltipContent>
       </Tooltip>
+      <!-- 私有扩展：知识库等（jiaorong） -->
+      <slot name="after-attach" />
     </div>
 
     <div class="flex items-center gap-1">

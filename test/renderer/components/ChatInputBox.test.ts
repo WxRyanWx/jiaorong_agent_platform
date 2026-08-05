@@ -147,6 +147,12 @@ vi.mock('@/stores/mcp', () => ({
   })
 }))
 
+vi.mock('@/stores/skillsStore', () => ({
+  useSkillsStore: () => ({
+    skills: []
+  })
+}))
+
 vi.mock('@/components/chat-input/McpIndicator.vue', () => ({
   default: defineComponent({
     name: 'McpIndicator',
@@ -371,6 +377,18 @@ describe('ChatInputBox attachments', () => {
     await nextTick()
     await wrapper.find('.group button[type="button"]').trigger('click')
     expect(deleteFileMock).toHaveBeenCalledWith(0)
+  })
+
+  it('keeps attachment area scrollable with a max height', async () => {
+    selectedFilesRef.value = [{ name: 'a.txt', path: '/tmp/a.txt' }]
+    const wrapper = await mountComponent({
+      files: [{ name: 'a.txt', path: '/tmp/a.txt' }]
+    })
+    await nextTick()
+
+    const attachments = wrapper.get('[data-testid="chat-input-attachments"]')
+    expect(attachments.classes()).toContain('chat-input-attachments')
+    expect(attachments.classes()).toContain('overflow-y-auto')
   })
 
   it('exposes deduplicated pending skills snapshot', async () => {

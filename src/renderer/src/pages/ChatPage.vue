@@ -137,12 +137,16 @@
                     :submit-disabled="isInputSubmitDisabled"
                     :queue-submit-enabled="isGenerating && hasDraftInput"
                     :queue-submit-disabled="isQueueSubmitDisabled"
+                    :has-context-chips="hasKnowledgeBaseSelection"
                     @update:files="onFilesChange"
                     @command-submit="onCommandSubmit"
                     @queue-submit="onQueueSubmit"
                     @submit="onSubmit"
                     @toggle-voice-input="onToggleVoiceInput"
                   >
+                    <template #context-chips>
+                      <KnowledgeBaseSelectionChips :session-id="props.sessionId" />
+                    </template>
                     <template #toolbar>
                       <ChatInputToolbar
                         :is-generating="isGenerating"
@@ -158,7 +162,11 @@
                         @steer="onSteer"
                         @send="onSubmit"
                         @stop="onStop"
-                      />
+                      >
+                        <template #after-attach>
+                          <KnowledgeBasePickerButton :session-id="props.sessionId" />
+                        </template>
+                      </ChatInputToolbar>
                     </template>
                   </ChatInputBox>
                   <ChatStatusBar max-width-class="max-w-4xl" />
@@ -186,6 +194,12 @@ import type {
 } from '@/components/chat/messageListItems'
 import ChatInputBox from '@/components/chat/ChatInputBox.vue'
 import ChatInputToolbar from '@/components/chat/ChatInputToolbar.vue'
+import KnowledgeBasePickerButton from '@jiaorong/knowledgeBase/picker/KnowledgeBasePickerButton.vue'
+import KnowledgeBaseSelectionChips from '@jiaorong/knowledgeBase/picker/KnowledgeBaseSelectionChips.vue'
+import {
+  clearKnowledgeBaseSelectionForSession,
+  useKnowledgeBaseSelection
+} from '@jiaorong/knowledgeBase/picker/useKnowledgeBaseSelection'
 import AgentProgressFloat from '@/components/chat/AgentProgressFloat.vue'
 import PendingInputLane from '@/components/chat/PendingInputLane.vue'
 import ChatStatusBar from '@/components/chat/ChatStatusBar.vue'
@@ -1246,6 +1260,14 @@ watch(
 
 const message = ref('')
 const attachedFiles = ref<MessageFile[]>([])
+const { items: knowledgeBaseSelectionItems } = useKnowledgeBaseSelection(() => props.sessionId)
+const hasKnowledgeBaseSelection = computed(() => knowledgeBaseSelectionItems.value.length > 0)
+
+function clearAttachedFiles() {
+  attachedFiles.value = []
+  clearKnowledgeBaseSelectionForSession(props.sessionId)
+}
+
 const chatInputRef = ref<{
   triggerAttach: () => void
   insertRecognizedText?: (text: string) => void
@@ -1617,7 +1639,7 @@ async function onSubmit() {
     await chatClient.sendMessage(props.sessionId, { text, files })
   }
   message.value = ''
-  attachedFiles.value = []
+  clearAttachedFiles()
   schedulePostSubmitScrollToBottom()
 }
 
@@ -1639,7 +1661,7 @@ async function onCommandSubmit(command: string) {
     agentPlanStore.clear(props.sessionId)
     await chatClient.sendMessage(props.sessionId, { text, files })
   }
-  attachedFiles.value = []
+  clearAttachedFiles()
   schedulePostSubmitScrollToBottom()
 }
 
@@ -1686,7 +1708,7 @@ async function onQueueSubmit() {
   }
   await pendingInputStore.queueInput(props.sessionId, { text, files })
   message.value = ''
-  attachedFiles.value = []
+  clearAttachedFiles()
 }
 
 async function onSteer() {
@@ -1702,7 +1724,7 @@ async function onSteer() {
   agentPlanStore.clear(props.sessionId)
   await chatClient.steerActiveTurn(props.sessionId, { text, files })
   message.value = ''
-  attachedFiles.value = []
+  clearAttachedFiles()
 }
 
 function onAttach() {
