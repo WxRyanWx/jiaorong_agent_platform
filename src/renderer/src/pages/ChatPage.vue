@@ -196,6 +196,7 @@ import ChatInputBox from '@/components/chat/ChatInputBox.vue'
 import ChatInputToolbar from '@/components/chat/ChatInputToolbar.vue'
 import KnowledgeBasePickerButton from '@jiaorong/knowledgeBase/picker/KnowledgeBasePickerButton.vue'
 import KnowledgeBaseSelectionChips from '@jiaorong/knowledgeBase/picker/KnowledgeBaseSelectionChips.vue'
+import { prepareKnowledgeBaseSendFiles } from '@jiaorong/knowledgeBase/picker/prepareKnowledgeBaseSendFiles'
 import {
   clearKnowledgeBaseSelectionForSession,
   useKnowledgeBaseSelection
@@ -1619,6 +1620,22 @@ async function prepareFilesForCurrentModel(files: MessageFile[]): Promise<Messag
   }
 }
 
+async function prepareSendFilesWithKnowledgeBase(
+  text: string,
+  files: MessageFile[]
+): Promise<MessageFile[] | null> {
+  const kbPrepared = await prepareKnowledgeBaseSendFiles(props.sessionId, text, files)
+  if (!kbPrepared.ok) {
+    toast({
+      title: '无法发送',
+      description: kbPrepared.error,
+      variant: 'destructive'
+    })
+    return null
+  }
+  return kbPrepared.files
+}
+
 async function onSubmit() {
   if (isReadOnlySession.value) return
   if (isAcpWorkdirMissing.value) return
@@ -1632,11 +1649,13 @@ async function onSubmit() {
     }
     return
   }
+  const sendFiles = await prepareSendFilesWithKnowledgeBase(text, files)
+  if (!sendFiles) return
   if (isGenerating.value) {
-    await pendingInputStore.queueInput(props.sessionId, { text, files })
+    await pendingInputStore.queueInput(props.sessionId, { text, files: sendFiles })
   } else {
     agentPlanStore.clear(props.sessionId)
-    await chatClient.sendMessage(props.sessionId, { text, files })
+    await chatClient.sendMessage(props.sessionId, { text, files: sendFiles })
   }
   message.value = ''
   clearAttachedFiles()
@@ -1655,11 +1674,13 @@ async function onCommandSubmit(command: string) {
   }
 
   const files = await prepareFilesForCurrentModel([...attachedFiles.value])
+  const sendFiles = await prepareSendFilesWithKnowledgeBase(text, files)
+  if (!sendFiles) return
   if (isGenerating.value) {
-    await pendingInputStore.queueInput(props.sessionId, { text, files })
+    await pendingInputStore.queueInput(props.sessionId, { text, files: sendFiles })
   } else {
     agentPlanStore.clear(props.sessionId)
-    await chatClient.sendMessage(props.sessionId, { text, files })
+    await chatClient.sendMessage(props.sessionId, { text, files: sendFiles })
   }
   clearAttachedFiles()
   schedulePostSubmitScrollToBottom()
@@ -1706,7 +1727,9 @@ async function onQueueSubmit() {
   if (await handleManualCompactionCommand(text)) {
     return
   }
-  await pendingInputStore.queueInput(props.sessionId, { text, files })
+  const sendFiles = await prepareSendFilesWithKnowledgeBase(text, files)
+  if (!sendFiles) return
+  await pendingInputStore.queueInput(props.sessionId, { text, files: sendFiles })
   message.value = ''
   clearAttachedFiles()
 }
@@ -1721,8 +1744,10 @@ async function onSteer() {
   if (await handleManualCompactionCommand(text)) {
     return
   }
+  const sendFiles = await prepareSendFilesWithKnowledgeBase(text, files)
+  if (!sendFiles) return
   agentPlanStore.clear(props.sessionId)
-  await chatClient.steerActiveTurn(props.sessionId, { text, files })
+  await chatClient.steerActiveTurn(props.sessionId, { text, files: sendFiles })
   message.value = ''
   clearAttachedFiles()
 }

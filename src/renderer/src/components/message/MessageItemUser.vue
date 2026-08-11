@@ -23,9 +23,13 @@
         class="text-sm bg-muted dark:bg-muted rounded-lg p-2 border flex flex-col gap-1.5"
         data-message-content="true"
       >
-        <div v-show="message.content.files.length > 0" class="flex flex-wrap gap-1.5">
+        <div
+          v-show="knowledgeBaseSelections.length > 0 || attachmentFiles.length > 0"
+          class="flex flex-wrap gap-1.5"
+        >
+          <KnowledgeBaseMessageChips :items="knowledgeBaseSelections" />
           <ChatAttachmentItem
-            v-for="(file, index) in message.content.files"
+            v-for="(file, index) in attachmentFiles"
             :key="file.path || `${file.name}-${index}`"
             :file="file"
             @click="previewFile(file.path)"
@@ -111,6 +115,11 @@ import ChatAttachmentItem from '../chat/ChatAttachmentItem.vue'
 import MessageToolbar from './MessageToolbar.vue'
 import MessageContent from './MessageContent.vue'
 import MessageTextContent from './MessageTextContent.vue'
+import KnowledgeBaseMessageChips from '@jiaorong/knowledgeBase/picker/KnowledgeBaseMessageChips.vue'
+import {
+  isJiaorongKnowledgeBaseContextFile,
+  readJiaorongKnowledgeBaseSelections
+} from '@jiaorong/knowledgeBase/picker/prepareKnowledgeBaseSendFiles'
 import { createDeviceClient } from '@api/DeviceClient'
 import { createWindowClient } from '@api/WindowClient'
 import { computed, ref, watch, nextTick, onBeforeUnmount } from 'vue'
@@ -177,6 +186,13 @@ const props = defineProps<{
   message: DisplayUserMessage
   isReadOnly?: boolean
 }>()
+
+const knowledgeBaseSelections = computed(() =>
+  readJiaorongKnowledgeBaseSelections(props.message.content.files)
+)
+const attachmentFiles = computed(() =>
+  (props.message.content.files || []).filter((file) => !isJiaorongKnowledgeBaseContextFile(file))
+)
 
 const isEditMode = ref(false)
 const editedText = ref('')

@@ -5,6 +5,13 @@ import type { HookEventName } from '@shared/hooksNotifications'
 import { DEEPCHAT_EVENT_CHANNEL } from '@shared/contracts/channels'
 import { eventBus } from '@/eventbus'
 import { NewSessionHooksBridge } from '@/presenter/hooksNotifications/newSessionBridge'
+import {
+  getModelTraceSessionId,
+  isModelChatRequestUrl,
+  readXTraceIdFromHeaders,
+  resolveRequestUrl,
+  runWithModelTraceSession
+} from './modelTraceContext'
 import { conversationTimingTracker } from './tracker'
 
 type HookContext = {
@@ -28,6 +35,20 @@ type DeepchatEnvelope = {
 }
 
 let installed = false
+
+function observeModelResponseHeaders(input: RequestInfo | URL, response: Response): void {
+  try {
+    const sessionId = getModelTraceSessionId()
+    if (!sessionId) return
+    const url = resolveRequestUrl(input)
+    if (!isModelChatRequestUrl(url)) return
+    const xTraceId = readXTraceIdFromHeaders(response?.headers)
+    if (!xTraceId) return
+    conversationTimingTracker.recordXTraceId(sessionId, xTraceId)
+  } catch (error) {
+    safeWarn('[jiaorong/conversationTiming] observeModelResponseHeaders failed:', error)
+  }
+}
 
 function safeWarn(message: string, error?: unknown): void {
   try {
@@ -210,6 +231,45 @@ export function installJiaorongConversationTiming(): void {
       }
     } catch (error) {
       safeWarn('[jiaorong/conversationTiming] failed to patch hooks bridge:', error)
+    }
+
+    // 绑定 sessionId → 后续模型 fetch 可读 ALS，避免多会话串台
+    // 动态 import，避免与 agentRuntimePresenter → systemPromptFinalize 形成静态环
+    void import('@/presenter/agentRuntimePresenter')
+      .then((mod) => {
+        try {
+          const proto = mod.AgentRuntimePresenter.prototype as {
+            runStreamForMessage: (args: { sessionId?: string }) => Promise<unknown>
+          }
+          const original = proto.runStreamForMessage
+          if (typeof original !== 'function') return
+          proto.runStreamForMessage = function patchedRunStreamForMessage(args) {
+            const sessionId = args?.sessionId?.trim?.() || String(args?.sessionId || '').trim()
+            if (!sessionId) {
+              return original.call(this, args)
+            }
+            return runWithModelTraceSession(sessionId, () => original.call(this, args))
+          }
+        } catch (error) {
+          safeWarn('[jiaorong/conversationTiming] failed to patch runStreamForMessage:', error)
+        }
+      })
+      .catch((error) => {
+        safeWarn('[jiaorong/conversationTiming] runStreamForMessage patch skipped:', error)
+      })
+
+    // 只读响应头；必须原样返回同一 Response，避免打断 SSE
+    try {
+      const originalFetch = globalThis.fetch?.bind(globalThis)
+      if (typeof originalFetch === 'function') {
+        globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+          const response = await originalFetch(input, init)
+          observeModelResponseHeaders(input, response)
+          return response
+        }) as typeof globalThis.fetch
+      }
+    } catch (error) {
+      safeWarn('[jiaorong/conversationTiming] failed to patch fetch:', error)
     }
   } catch (error) {
     safeWarn('[jiaorong/conversationTiming] install failed:', error)

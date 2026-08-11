@@ -17,6 +17,21 @@ export type KnowledgeBaseSelectionItem = {
   icon?: string
 }
 
+/** 消息气泡回显用的精简选中快照 */
+export type KnowledgeBaseMessageSelection = {
+  key: string
+  kind: KnowledgeBaseSelectionKind
+  id: string
+  name: string
+  icon?: string
+  extension?: string | null
+}
+
+export type JiaorongKnowledgeBaseFileMeta = {
+  version: 1
+  selections: KnowledgeBaseMessageSelection[]
+}
+
 /** folder/file 带上知识库 id，避免跨库同 id 碰撞 */
 export function knowledgeBaseSelectionKey(
   kind: KnowledgeBaseSelectionKind,

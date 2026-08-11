@@ -308,7 +308,8 @@ function createFetchMiddleware(
     }
 
     nextInit.body = normalizeRequestBody(provider, requestUrl, nextInit.body)
-    return fetch(url, nextInit)
+    // 走 globalThis.fetch，便于私有旁路（如 x-trace-id 观测）在运行时包装
+    return globalThis.fetch(url, nextInit)
   }
 }
 

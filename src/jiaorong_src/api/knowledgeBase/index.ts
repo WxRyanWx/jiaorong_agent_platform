@@ -15,6 +15,9 @@ export type {
   KnowledgeBaseQueryParams,
   KnowledgeBaseType
 } from './types'
+export type { KnowledgeBaseMcpSelection, KnowledgeBaseMcpSelectionType } from './mcpTypes'
+export { resolveKnowledgeBaseMcpUrl } from './mcpConfig'
+export { toKnowledgeBaseMcpSelections } from './toMcpSelections'
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === 'object' ? (value as Record<string, unknown>) : null

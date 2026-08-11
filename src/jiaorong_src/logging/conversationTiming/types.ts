@@ -19,6 +19,8 @@ export type ConversationTurnTimingRecord = {
   /** 整轮对话结束 */
   turnEndAt: string
   status: string
+  /** 本轮模型 HTTP 响应头 x-trace-id（按请求顺序；无则为 []） */
+  xTraceIds: string[]
 }
 
 /** 从 stream.updated blocks 统计模型叙述长度，用于区分工具回刷 vs 下一轮真输出 */

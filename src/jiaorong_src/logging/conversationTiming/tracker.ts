@@ -17,6 +17,8 @@ type ActiveTurnTiming = {
   awaitingNextModel: boolean
   narrativeLenBaseline: number
   lastNarrativeLen: number
+  /** 本轮模型响应头 x-trace-id（按请求顺序） */
+  xTraceIds: string[]
   /** 测试可注入；生产不设，走默认 ~/.jiaorongchat/logs */
   logsRoot?: string
 }
@@ -139,10 +141,28 @@ export class ConversationTimingTracker {
         awaitingNextModel: false,
         narrativeLenBaseline: 0,
         lastNarrativeLen: 0,
+        xTraceIds: [],
         logsRoot: input.logsRoot
       })
     } catch (error) {
       safeWarn('[jiaorong/conversationTiming] beginTurn failed:', error)
+    }
+  }
+
+  /**
+   * 记录本轮模型响应头 x-trace-id（仅内存；无 active turn 时静默跳过）。
+   * 同步 O(1)，供 fetch 旁路调用，不得做 IO。
+   */
+  recordXTraceId(sessionId: string, xTraceId: string): void {
+    try {
+      const sid = sessionId?.trim?.() || String(sessionId || '').trim()
+      const id = xTraceId?.trim?.() || String(xTraceId || '').trim()
+      if (!sid || !id) return
+      const turn = this.activeBySession.get(sid)
+      if (!turn) return
+      turn.xTraceIds.push(id)
+    } catch (error) {
+      safeWarn('[jiaorong/conversationTiming] recordXTraceId failed:', error)
     }
   }
 
@@ -260,7 +280,8 @@ export class ConversationTimingTracker {
         toolsStartAt: turn.toolsStartAt,
         toolsEndAt: turn.toolsEndAt,
         turnEndAt,
-        status
+        status,
+        xTraceIds: turn.xTraceIds.slice()
       }
 
       appendConversationTurnTiming(record, logsRoot ?? turn.logsRoot)

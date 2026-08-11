@@ -11,7 +11,8 @@ const {
   appQuitMock,
   appRelaunchMock,
   appExitMock,
-  appGetVersionMock
+  appGetVersionMock,
+  appIsPackaged
 } = vi.hoisted(() => {
   const autoUpdaterState = {
     listeners: new Map<string, (...args: unknown[]) => void>(),
@@ -30,7 +31,8 @@ const {
     appQuitMock: vi.fn(),
     appRelaunchMock: vi.fn(),
     appExitMock: vi.fn(),
-    appGetVersionMock: vi.fn(() => '1.0.0')
+    appGetVersionMock: vi.fn(() => '1.0.0'),
+    appIsPackaged: { value: false }
   }
 })
 
@@ -38,6 +40,9 @@ vi.mock('electron', () => ({
   app: {
     getPath: vi.fn(() => '/tmp/deepchat-test'),
     getVersion: appGetVersionMock,
+    get isPackaged() {
+      return appIsPackaged.value
+    },
     quit: appQuitMock,
     relaunch: appRelaunchMock,
     exit: appExitMock
@@ -54,6 +59,8 @@ vi.mock('electron-updater', () => ({
       allowDowngrade: false,
       autoInstallOnAppQuit: true,
       allowPrerelease: false,
+      forceDevUpdateConfig: false,
+      updateConfigPath: undefined as string | undefined,
       channel: 'latest',
       on: vi.fn((event: string, handler: (...args: unknown[]) => void) => {
         autoUpdaterState.listeners.set(event, handler)
@@ -105,6 +112,9 @@ describe('UpgradePresenter', () => {
     appExitMock.mockReset()
     appGetVersionMock.mockReset()
     appGetVersionMock.mockReturnValue('1.0.0')
+    appIsPackaged.value = false
+    electronUpdater.autoUpdater.forceDevUpdateConfig = false
+    electronUpdater.autoUpdater.updateConfigPath = undefined
     vi.mocked(electronUpdater.autoUpdater.checkForUpdates).mockReset()
   })
 
@@ -240,5 +250,90 @@ describe('UpgradePresenter', () => {
 
     expect((presenter as any)._status).toBe('available')
     expect((presenter as any)._versionInfo?.version).toBe('1.0.5')
+  })
+
+  it('enables forceDevUpdateConfig when the app is not packaged', () => {
+    appIsPackaged.value = false
+    const configPresenter = {
+      getUpdateChannel: vi.fn(() => 'stable')
+    } as any
+
+    new UpgradePresenter(configPresenter)
+
+    expect(electronUpdater.autoUpdater.forceDevUpdateConfig).toBe(true)
+    expect(electronUpdater.autoUpdater.updateConfigPath).toMatch(/dev-app-update\.yml$/)
+  })
+
+  it('does not force dev update config when the app is packaged', () => {
+    appIsPackaged.value = true
+    const configPresenter = {
+      getUpdateChannel: vi.fn(() => 'stable')
+    } as any
+
+    new UpgradePresenter(configPresenter)
+
+    expect(electronUpdater.autoUpdater.forceDevUpdateConfig).toBe(false)
+    expect(electronUpdater.autoUpdater.updateConfigPath).toBeUndefined()
+  })
+
+  it('falls back to not-available when checkForUpdates returns null without events', async () => {
+    const configPresenter = {
+      getUpdateChannel: vi.fn(() => 'stable'),
+      getPrivacyModeEnabled: vi.fn(() => false)
+    } as any
+
+    vi.mocked(electronUpdater.autoUpdater.checkForUpdates).mockResolvedValue(null as never)
+
+    const presenter = new UpgradePresenter(configPresenter)
+    await presenter.checkUpdate()
+
+    expect((presenter as any)._status).toBe('not-available')
+    expect(sendToRendererMock).toHaveBeenCalledWith(
+      UPDATE_EVENTS.STATUS_CHANGED,
+      'all_windows',
+      expect.objectContaining({ status: 'not-available' })
+    )
+  })
+
+  it('does not auto-download on autoCheck when the app is not packaged', () => {
+    appIsPackaged.value = false
+    appGetVersionMock.mockReturnValue('1.0.0')
+    vi.mocked(electronUpdater.autoUpdater.downloadUpdate).mockResolvedValue([] as never)
+
+    const configPresenter = {
+      getUpdateChannel: vi.fn(() => 'stable'),
+      getPrivacyModeEnabled: vi.fn(() => false)
+    } as any
+
+    const presenter = new UpgradePresenter(configPresenter)
+    ;(presenter as any)._lastCheckType = 'autoCheck'
+    const handler = autoUpdaterState.listeners.get('update-available')
+    expect(handler).toBeDefined()
+
+    handler!({ version: '1.0.1', releaseDate: '2026-06-01', releaseNotes: '' })
+
+    expect((presenter as any)._status).toBe('available')
+    expect(electronUpdater.autoUpdater.downloadUpdate).not.toHaveBeenCalled()
+  })
+
+  it('auto-downloads on autoCheck when the app is packaged', () => {
+    appIsPackaged.value = true
+    appGetVersionMock.mockReturnValue('1.0.0')
+    vi.mocked(electronUpdater.autoUpdater.downloadUpdate).mockResolvedValue([] as never)
+
+    const configPresenter = {
+      getUpdateChannel: vi.fn(() => 'stable'),
+      getPrivacyModeEnabled: vi.fn(() => false)
+    } as any
+
+    const presenter = new UpgradePresenter(configPresenter)
+    ;(presenter as any)._lastCheckType = 'autoCheck'
+    const handler = autoUpdaterState.listeners.get('update-available')
+    expect(handler).toBeDefined()
+
+    handler!({ version: '1.0.1', releaseDate: '2026-06-01', releaseNotes: '' })
+
+    expect((presenter as any)._status).toBe('downloading')
+    expect(electronUpdater.autoUpdater.downloadUpdate).toHaveBeenCalledTimes(1)
   })
 })

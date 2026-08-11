@@ -12,6 +12,13 @@ import {
   sanitizePathSegment
 } from '../../../../src/jiaorong_src/logging/conversationTiming/paths'
 import {
+  getModelTraceSessionId,
+  isModelChatRequestUrl,
+  readXTraceIdFromHeaders,
+  resolveRequestUrl,
+  runWithModelTraceSession
+} from '../../../../src/jiaorong_src/logging/conversationTiming/modelTraceContext'
+import {
   ConversationTimingTracker,
   formatLocalTimestamp
 } from '../../../../src/jiaorong_src/logging/conversationTiming/tracker'
@@ -119,6 +126,7 @@ describe('jiaorong conversationTiming', () => {
     expect(parsed.modelEndAt).toBe(parsed.turnEndAt)
     expect(parsed.modelInputAt).toBe(formatLocalTimestamp(t0))
     expect(parsed.modelFirstOutputAt).toBe(formatLocalTimestamp(t0 + 1000))
+    expect(parsed.xTraceIds).toEqual([])
   })
 
   it('keeps first-model start and last-model end across two tool gaps', async () => {
@@ -559,5 +567,75 @@ describe('jiaorong conversationTiming', () => {
     expect(parsed.toolsStartAt).toBe(formatLocalTimestamp(t0 + 2000))
     expect(parsed.toolsEndAt).toBe(formatLocalTimestamp(t0 + 2500))
     expect(parsed.modelEndAt).toBe(formatLocalTimestamp(t0 + 6000))
+  })
+
+  it('records x-trace-id list into timing.jsonl in request order', async () => {
+    const root = mkdtempSync(path.join(tmpdir(), 'jiaorong-timing-'))
+    tempRoots.push(root)
+    const tracker = new ConversationTimingTracker()
+    const t0 = Date.parse('2026-08-03T03:36:00.000Z')
+
+    tracker.beginTurn({
+      sessionId: 's-trace',
+      messageId: 'm-trace',
+      agentName: 'JiaorongAI',
+      conversationTitle: 'trace',
+      turnPrompt: '查一下',
+      at: t0,
+      logsRoot: root
+    })
+    tracker.recordXTraceId('s-trace', '5342f73778cda6d34e1e89555269ba4f')
+    tracker.recordXTraceId('s-trace', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')
+    tracker.recordXTraceId('missing', 'should-ignore')
+    tracker.recordXTraceId('s-trace', '  ')
+    tracker.observeStreamBlocks(
+      's-trace',
+      [{ type: 'content', content: 'ok' }],
+      'm-trace',
+      t0 + 100
+    )
+
+    const filePath = path.join(
+      resolveConversationTimingDir({
+        agentName: 'JiaorongAI',
+        conversationTitle: 'trace',
+        sessionId: 's-trace',
+        logsRoot: root
+      }),
+      'timing.jsonl'
+    )
+    tracker.finishTurn('s-trace', 'completed', t0 + 200, root)
+    const parsed = JSON.parse(await waitForLogFile(filePath))
+    expect(parsed.xTraceIds).toEqual([
+      '5342f73778cda6d34e1e89555269ba4f',
+      'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+    ])
+  })
+
+  it('matches only model chat URLs and reads x-trace-id case-insensitively', () => {
+    expect(isModelChatRequestUrl('https://c4ai.ccccltd.cn/api/compatible/v1/messages')).toBe(true)
+    expect(
+      isModelChatRequestUrl('https://c4ai.ccccltd.cn/api/compatible/v1/chat/completions?x=1')
+    ).toBe(true)
+    expect(isModelChatRequestUrl('https://example.com/v1/responses')).toBe(true)
+    expect(isModelChatRequestUrl('https://example.com/v1/embeddings')).toBe(false)
+    expect(isModelChatRequestUrl('https://example.com/v1/models')).toBe(false)
+    expect(resolveRequestUrl('https://example.com/v1/messages')).toBe(
+      'https://example.com/v1/messages'
+    )
+
+    const headers = new Headers({ 'X-Trace-Id': 'abc123' })
+    expect(readXTraceIdFromHeaders(headers)).toBe('abc123')
+    expect(readXTraceIdFromHeaders(new Headers())).toBeNull()
+  })
+
+  it('keeps ALS session binding for async model fetch context', async () => {
+    expect(getModelTraceSessionId()).toBeNull()
+    const seen = await runWithModelTraceSession('session-als', async () => {
+      await Promise.resolve()
+      return getModelTraceSessionId()
+    })
+    expect(seen).toBe('session-als')
+    expect(getModelTraceSessionId()).toBeNull()
   })
 })

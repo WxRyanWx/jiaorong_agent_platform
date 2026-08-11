@@ -11,6 +11,13 @@ export function resolveKnowledgeBaseSessionKey(sessionId: string | null | undefi
   return trimmed ? trimmed : NEW_THREAD_KNOWLEDGE_BASE_SESSION_KEY
 }
 
+export function getKnowledgeBaseSelectionItems(
+  sessionId: string | null | undefined
+): KnowledgeBaseSelectionItem[] {
+  const key = resolveKnowledgeBaseSessionKey(sessionId)
+  return (selectionBySession.value[key] ?? []).map((item) => ({ ...item }))
+}
+
 export function useKnowledgeBaseSelection(sessionId: () => string | null | undefined) {
   const sessionKey = computed(() => resolveKnowledgeBaseSessionKey(sessionId()))
 

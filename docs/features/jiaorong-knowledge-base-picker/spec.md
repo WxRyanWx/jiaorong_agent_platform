@@ -19,5 +19,6 @@
 
 ## Non-goals
 
-- 发送消息时调用知识库 MCP。
 - 改侧栏知识库 iframe 模块。
+
+> 发送时调用知识库 MCP：见 `docs/features/jiaorong-knowledge-base-mcp/`。

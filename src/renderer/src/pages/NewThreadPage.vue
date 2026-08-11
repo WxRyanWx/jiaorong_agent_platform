@@ -27,58 +27,60 @@
                 data-testid="new-thread-project-trigger"
                 class="h-7 px-2.5 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
               >
-              <Icon icon="lucide:folder" class="w-3.5 h-3.5" />
-              <span>{{ selectedProjectName }}</span>
-              <Icon
-                v-if="selectedProjectDirectoryInvalid"
-                icon="lucide:circle-alert"
-                data-testid="new-thread-project-missing-warning"
-                class="w-3.5 h-3.5 text-amber-500"
-                :title="selectedProjectUnavailableTooltip"
-              />
-              <Icon icon="lucide:chevron-down" class="w-3 h-3" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="center" class="min-w-[200px]">
-            <DropdownMenuLabel class="text-xs">{{ t('common.project.recent') }}</DropdownMenuLabel>
-            <DropdownMenuItem
-              data-testid="new-thread-clear-project"
-              class="gap-2 text-xs py-1.5 px-2"
-              :disabled="!canClearProjectSelection"
-              @click="clearSelectedProject"
-            >
-              <Icon icon="lucide:folder-x" class="w-3.5 h-3.5 text-muted-foreground" />
-              <span>{{ t('common.project.none') }}</span>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              v-for="project in projectStore.projects"
-              :key="project.path"
-              class="gap-2 text-xs py-1.5 px-2"
-              @click="projectStore.selectProject(project.path)"
-            >
-              <Icon icon="lucide:folder" class="w-3.5 h-3.5 text-muted-foreground" />
-              <div class="flex flex-col min-w-0 flex-1">
-                <span class="truncate">{{ project.name }}</span>
-                <span class="text-[10px] text-muted-foreground truncate">{{ project.path }}</span>
-              </div>
-              <Icon
-                v-if="isSelectedInvalidProjectPath(project.path)"
-                icon="lucide:circle-alert"
-                data-testid="new-thread-project-menu-missing-warning"
-                class="w-3.5 h-3.5 text-amber-500 shrink-0"
-                :title="selectedProjectUnavailableTooltip"
-              />
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              class="gap-2 text-xs py-1.5 px-2"
-              @click="projectStore.openFolderPicker()"
-            >
-              <Icon icon="lucide:folder-open" class="w-3.5 h-3.5 text-muted-foreground" />
-              <span>{{ t('common.project.openFolder') }}</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+                <Icon icon="lucide:folder" class="w-3.5 h-3.5" />
+                <span>{{ selectedProjectName }}</span>
+                <Icon
+                  v-if="selectedProjectDirectoryInvalid"
+                  icon="lucide:circle-alert"
+                  data-testid="new-thread-project-missing-warning"
+                  class="w-3.5 h-3.5 text-amber-500"
+                  :title="selectedProjectUnavailableTooltip"
+                />
+                <Icon icon="lucide:chevron-down" class="w-3 h-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="center" class="min-w-[200px]">
+              <DropdownMenuLabel class="text-xs">{{
+                t('common.project.recent')
+              }}</DropdownMenuLabel>
+              <DropdownMenuItem
+                data-testid="new-thread-clear-project"
+                class="gap-2 text-xs py-1.5 px-2"
+                :disabled="!canClearProjectSelection"
+                @click="clearSelectedProject"
+              >
+                <Icon icon="lucide:folder-x" class="w-3.5 h-3.5 text-muted-foreground" />
+                <span>{{ t('common.project.none') }}</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                v-for="project in projectStore.projects"
+                :key="project.path"
+                class="gap-2 text-xs py-1.5 px-2"
+                @click="projectStore.selectProject(project.path)"
+              >
+                <Icon icon="lucide:folder" class="w-3.5 h-3.5 text-muted-foreground" />
+                <div class="flex flex-col min-w-0 flex-1">
+                  <span class="truncate">{{ project.name }}</span>
+                  <span class="text-[10px] text-muted-foreground truncate">{{ project.path }}</span>
+                </div>
+                <Icon
+                  v-if="isSelectedInvalidProjectPath(project.path)"
+                  icon="lucide:circle-alert"
+                  data-testid="new-thread-project-menu-missing-warning"
+                  class="w-3.5 h-3.5 text-amber-500 shrink-0"
+                  :title="selectedProjectUnavailableTooltip"
+                />
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                class="gap-2 text-xs py-1.5 px-2"
+                @click="projectStore.openFolderPicker()"
+              >
+                <Icon icon="lucide:folder-open" class="w-3.5 h-3.5 text-muted-foreground" />
+                <span>{{ t('common.project.openFolder') }}</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         <!-- Input area -->
@@ -169,6 +171,7 @@ import ChatInputBox from '@/components/chat/ChatInputBox.vue'
 import ChatInputToolbar from '@/components/chat/ChatInputToolbar.vue'
 import KnowledgeBasePickerButton from '@jiaorong/knowledgeBase/picker/KnowledgeBasePickerButton.vue'
 import KnowledgeBaseSelectionChips from '@jiaorong/knowledgeBase/picker/KnowledgeBaseSelectionChips.vue'
+import { prepareKnowledgeBaseSendFiles } from '@jiaorong/knowledgeBase/picker/prepareKnowledgeBaseSendFiles'
 import {
   clearKnowledgeBaseSelectionForSession,
   useKnowledgeBaseSelection
@@ -757,6 +760,22 @@ const applyStartDeeplink = async (payload: StartDeeplinkPayload) => {
   draftStore.clearPendingStartDeeplink()
 }
 
+async function prepareSendFilesWithKnowledgeBase(
+  text: string,
+  files: MessageFile[]
+): Promise<MessageFile[] | null> {
+  const kbPrepared = await prepareKnowledgeBaseSendFiles(null, text, files)
+  if (!kbPrepared.ok) {
+    toast({
+      title: '无法发送',
+      description: kbPrepared.error,
+      variant: 'destructive'
+    })
+    return null
+  }
+  return kbPrepared.files
+}
+
 async function onSubmit() {
   if (isAcpWorkdirUnavailable.value) return
 
@@ -764,9 +783,11 @@ async function onSubmit() {
   if (!text) return
   if (shouldIgnoreManualCompactionDraft(text)) return
   const files = (await prepareFilesForCurrentModel([...attachedFiles.value])).map((f) => toRaw(f))
+  const sendFiles = await prepareSendFilesWithKnowledgeBase(text, files)
+  if (!sendFiles) return
 
   try {
-    const submitted = await submitText(text, files)
+    const submitted = await submitText(text, sendFiles)
     if (!submitted) return
     message.value = ''
     clearAttachedFiles()
@@ -781,8 +802,10 @@ async function onCommandSubmit(command: string) {
   if (!text) return
   if (shouldIgnoreManualCompactionDraft(text)) return
   const files = (await prepareFilesForCurrentModel([...attachedFiles.value])).map((f) => toRaw(f))
+  const sendFiles = await prepareSendFilesWithKnowledgeBase(text, files)
+  if (!sendFiles) return
   try {
-    const submitted = await submitText(text, files)
+    const submitted = await submitText(text, sendFiles)
     if (!submitted) return
     clearAttachedFiles()
   } catch (e) {
