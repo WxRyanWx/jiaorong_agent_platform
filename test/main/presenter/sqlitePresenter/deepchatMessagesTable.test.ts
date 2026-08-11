@@ -74,4 +74,23 @@ describe('DeepChatMessagesTable', () => {
     expect(page[0]?.order_seq).toBe(502)
     expect(page[500]?.order_seq).toBe(2)
   })
+
+  it('pages older rows with a cursor after taking the newest 40 of 100', () => {
+    const rows = Array.from({ length: 100 }, (_, index) => createMessageRow(index + 1))
+    const db = createMockDb(rows)
+    const table = new DeepChatMessagesTable(db)
+
+    const newest = table.listPageBySession('s1', { limit: 41 })
+    expect(newest).toHaveLength(41)
+    expect(newest[0]?.order_seq).toBe(100)
+    expect(newest[39]?.order_seq).toBe(61)
+
+    const older = table.listPageBySession('s1', {
+      limit: 100,
+      cursor: { orderSeq: 61, id: 'm61' }
+    })
+    expect(older.map((row) => row.order_seq)).toEqual(
+      Array.from({ length: 60 }, (_, index) => 60 - index)
+    )
+  })
 })

@@ -869,20 +869,29 @@ describe('sessionStore onboarding progress', () => {
 })
 
 describe('sessionStore streaming cleanup', () => {
-  it('clears streaming state when switching active session', async () => {
-    const { store, clearStreamingState, setCurrentSessionId, sessionClient, agentStore } =
-      await setupStore({
-        selectedAgentId: 'deepchat'
-      })
-    store.activeSessionId.value = 'session-a'
-    store.sessions.value = [createSession({ id: 'session-b', agentId: 'acp-a' })]
+  it('navigates to chat before waiting for activate', async () => {
+    const { store, pageRouter, sessionClient } = await setupStore({
+      selectedAgentId: 'deepchat'
+    })
+    store.sessions.value = [createSession({ id: 'session-b', agentId: 'deepchat' })]
 
-    await store.selectSession('session-b')
+    let resolveActivate: ((value: { activated: boolean }) => void) | undefined
+    sessionClient.activate.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveActivate = resolve
+        })
+    )
 
+    const selectPromise = store.selectSession('session-b')
+    await Promise.resolve()
+
+    expect(store.activeSessionId.value).toBe('session-b')
+    expect(pageRouter.goToChat).toHaveBeenCalledWith('session-b')
     expect(sessionClient.activate).toHaveBeenCalledWith('session-b')
-    expect(agentStore.setSelectedAgent).toHaveBeenCalledWith('acp-a')
-    expect(clearStreamingState).toHaveBeenCalledTimes(1)
-    expect(setCurrentSessionId).toHaveBeenCalledWith('session-b')
+
+    resolveActivate?.({ activated: true })
+    await selectPromise
   })
 
   it('keeps restored model when re-selecting the current session', async () => {

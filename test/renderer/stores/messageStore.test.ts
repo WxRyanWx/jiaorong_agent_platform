@@ -338,6 +338,44 @@ describe('messageStore', () => {
     expect(store.messages.value[149]?.id).toBe('m150')
   })
 
+  it('loads older pages after a 40-message restore window', async () => {
+    const { store, sessionClient } = await setupStore()
+    const olderMessages = Array.from({ length: 60 }, (_, index) =>
+      buildUserMessage(`m${index + 1}`, 's1', index + 1, `older-${index + 1}`)
+    )
+    const recentMessages = Array.from({ length: 40 }, (_, index) =>
+      buildUserMessage(`m${index + 61}`, 's1', index + 61, `recent-${index + 61}`)
+    )
+
+    sessionClient.restore.mockResolvedValueOnce({
+      session: { id: 's1' },
+      messages: recentMessages,
+      nextCursor: { orderSeq: 61, id: 'm61' },
+      hasMore: true
+    })
+    sessionClient.listMessagesPage.mockResolvedValueOnce({
+      messages: olderMessages,
+      nextCursor: null,
+      hasMore: false
+    })
+
+    await store.loadMessages('s1', 40)
+    expect(sessionClient.restore).toHaveBeenCalledWith('s1', 40)
+    expect(store.messages.value).toHaveLength(40)
+    expect(store.messages.value[0]?.id).toBe('m61')
+    expect(store.hasMoreHistory.value).toBe(true)
+
+    const loaded = await store.loadOlderMessages()
+    expect(sessionClient.listMessagesPage).toHaveBeenCalledWith('s1', {
+      cursor: { orderSeq: 61, id: 'm61' },
+      limit: 16
+    })
+    expect(loaded).toBe(60)
+    expect(store.messages.value).toHaveLength(100)
+    expect(store.messages.value[0]?.id).toBe('m1')
+    expect(store.hasMoreHistory.value).toBe(false)
+  })
+
   it('ignores stale older-history results after switching sessions', async () => {
     const { store, sessionClient } = await setupStore()
     const recentMessages = Array.from({ length: 100 }, (_, index) =>

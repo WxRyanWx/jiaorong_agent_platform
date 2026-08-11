@@ -223,6 +223,25 @@ describe('renderer api clients', () => {
     expect(bridge.on).toHaveBeenNthCalledWith(5, 'chat.plan.updated', expect.any(Function))
   })
 
+  it('plain-clones listMessagesPage cursors so Vue proxies are IPC-safe', async () => {
+    const { reactive } = await import('vue')
+    const bridge = createBridge()
+    const sessionClient = createSessionClient(bridge)
+    const cursor = reactive({ orderSeq: 61, id: 'm61' })
+
+    await sessionClient.listMessagesPage('session-1', {
+      cursor,
+      limit: 100
+    })
+
+    const payload = bridge.invoke.mock.calls[0]?.[1] as {
+      cursor: { orderSeq: number; id: string }
+    }
+    expect(payload.cursor).toEqual({ orderSeq: 61, id: 'm61' })
+    expect(payload.cursor).not.toBe(cursor)
+    expect(() => structuredClone(payload)).not.toThrow()
+  })
+
   it('routes phase2 config, provider, and model calls through the shared registry names', async () => {
     const bridge = createBridge()
     const configClient = createConfigClient(bridge)

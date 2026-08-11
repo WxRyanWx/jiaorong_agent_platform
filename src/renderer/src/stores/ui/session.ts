@@ -630,13 +630,15 @@ export const useSessionStore = defineStore('session', () => {
       if (activeSessionId.value && !isSameSession) {
         messageStore.clearStreamingState()
       }
-      await sessionClient.activate(sessionId)
+      // Optimistic UI: enter chat immediately, then activate in main.
+      // Avoid waiting on sessions.activate IPC before navigation/restore starts.
       if (activeSessionSummary.value?.id !== sessionId) {
         clearActiveSessionSummary()
       }
       syncSelectedAgentToSession(sessionId)
       setActiveSessionId(sessionId)
       pageRouter.goToChat(sessionId)
+      await sessionClient.activate(sessionId)
     } catch (selectError) {
       error.value = `Failed to select session: ${selectError}`
     }

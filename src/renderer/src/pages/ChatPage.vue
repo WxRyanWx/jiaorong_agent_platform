@@ -7,6 +7,7 @@
         :data-generating="String(isGenerating)"
         class="message-list-container min-h-0 w-full min-w-0 flex-1 overflow-y-auto"
         @scroll.passive="onScroll"
+        @wheel.passive="onWheelTowardOlderHistory"
       >
         <ChatTopBar
           class="chat-capture-hide"
@@ -29,10 +30,10 @@
             />
           </div>
         </div>
-        <div ref="messageSearchRoot" :style="messageSearchRootStyle">
+        <div ref="messageSearchRoot" class="relative" :style="messageSearchRootStyle">
           <div
             v-if="messageStore.isLoadingHistory"
-            class="pointer-events-none px-6 py-2 text-center text-xs text-muted-foreground"
+            class="pointer-events-none absolute inset-x-0 top-0 z-10 px-6 py-2 text-center text-xs text-muted-foreground"
           >
             {{ t('common.loading') }}
           </div>
@@ -224,7 +225,6 @@ import {
   setActiveChatSearchMatch,
   type ChatSearchMatch
 } from '@/lib/chatSearch'
-import { scheduleStartupDeferredTask } from '@/lib/startupDeferred'
 import { WORKSPACE_EVENTS } from '@/events'
 import { filterUnsupportedAudioAttachments } from '@/lib/audioInputSupport'
 import { useSpeechRecognition } from '@/components/chat/composables/useSpeechRecognition'
@@ -262,7 +262,7 @@ const isGenerating = computed(
   () => sessionStore.activeSession?.status === 'working' || messageStore.isStreaming
 )
 const RATE_LIMIT_STREAM_MESSAGE_PREFIX = '__rate_limit__:'
-const INITIAL_MESSAGE_RESTORE_COUNT = 40
+const INITIAL_MESSAGE_RESTORE_COUNT = 8
 const isAcpWorkdirMissing = computed(() => {
   const activeSession = sessionStore.activeSession
   if (!activeSession || activeSession.providerId !== 'acp') {
@@ -299,7 +299,16 @@ const shouldAutoFollow = ref(true)
 type ScrollMode = 'initial-bottom' | 'auto-follow' | 'anchored-reading' | 'manual-jump'
 const scrollMode = ref<ScrollMode>('initial-bottom')
 const NEAR_BOTTOM_THRESHOLD = 80 // px
-const TOP_HISTORY_THRESHOLD = 80
+/**
+ * Prefetch older history a bit before the absolute top so loading stays mostly
+ * off-screen. Keep this modest (~200px): larger thresholds load too often and jump.
+ */
+const TOP_HISTORY_PREFETCH_MIN_PX = 200
+const TOP_HISTORY_PREFETCH_VIEWPORT_RATIO = 0.25
+let isFillingOlderHistoryAtTop = false
+let historyPrependSettleUntil = 0
+/** True only while settle assigns scrollTop (sync scroll events must not self-cancel). */
+let suppressSessionRestoreScrollCancel = false
 const MESSAGE_JUMP_RETRY_INTERVAL = 80
 const MESSAGE_HIGHLIGHT_DURATION = 2000
 const MAX_MESSAGE_JUMP_RETRIES = 8
@@ -345,7 +354,6 @@ let sessionRestoreScrollFrame: number | null = null
 let sessionRestoreScrollTimer: number | null = null
 let chatSearchRefreshFrame: number | null = null
 let programmaticScrollUntil = 0
-let cancelSessionRestoreTask: (() => void) | null = null
 let cancelSessionRestoreScrollIntentListeners: (() => void) | null = null
 let cancelPlanUpdatedListener: (() => void) | null = null
 let sessionRestoreRequestId = 0
@@ -477,6 +485,35 @@ function captureViewportAnchor(): ViewportAnchor | null {
   return fallback
 }
 
+const HISTORY_PREPEND_ANCHOR_FALLBACK_MIN_PX = 2
+
+function escapeMessageIdForSelector(messageId: string): string {
+  return typeof CSS !== 'undefined' && typeof CSS.escape === 'function'
+    ? CSS.escape(messageId)
+    : messageId.replace(/["\\]/g, '\\$&')
+}
+
+function applyViewportAnchorDelta(anchor: ViewportAnchor): boolean {
+  const container = scrollContainer.value
+  const root = messageSearchRoot.value
+  if (!container || !root) return false
+
+  const target = root.querySelector<HTMLElement>(
+    `[data-message-id="${escapeMessageIdForSelector(anchor.messageId)}"]`
+  )
+  if (!target) return false
+
+  const containerRect = container.getBoundingClientRect()
+  const nextOffset = target.getBoundingClientRect().top - containerRect.top
+  const delta = nextOffset - anchor.viewportOffset
+  if (Math.abs(delta) < 1) {
+    return false
+  }
+
+  container.scrollTop += delta
+  return true
+}
+
 function scheduleViewportAnchorRestore(anchor: ViewportAnchor | null): void {
   if (!anchor || isProgrammaticScrollActive()) {
     return
@@ -492,23 +529,50 @@ function scheduleViewportAnchorRestore(anchor: ViewportAnchor | null): void {
     const currentAnchor = pendingAnchorRestore
     pendingAnchorRestore = null
     if (!currentAnchor) return
-
-    const container = scrollContainer.value
-    const root = messageSearchRoot.value
-    if (!container || !root) return
-
-    const target = root.querySelector<HTMLElement>(
-      `[data-message-id="${CSS.escape(currentAnchor.messageId)}"]`
-    )
-    if (!target) return
-
-    const containerRect = container.getBoundingClientRect()
-    const nextOffset = target.getBoundingClientRect().top - containerRect.top
-    const delta = nextOffset - currentAnchor.viewportOffset
-    if (Math.abs(delta) >= 1) {
-      container.scrollTop += delta
-    }
+    applyViewportAnchorDelta(currentAnchor)
   })
+}
+
+/**
+ * Prefer Chromium overflow-anchor after prepend. If the reading message still
+ * drifted (seen on some GPU/DPI paths), correct once — no continuous chase.
+ */
+async function restoreViewportAnchorAfterHistoryPrepend(
+  anchor: ViewportAnchor | null,
+  sessionId: string
+): Promise<void> {
+  if (!anchor) return
+
+  await nextTick()
+  await new Promise<void>((resolve) => {
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => resolve())
+    })
+  })
+
+  if (sessionId !== props.sessionId) {
+    return
+  }
+
+  const container = scrollContainer.value
+  const root = messageSearchRoot.value
+  if (!container || !root) return
+
+  const target = root.querySelector<HTMLElement>(
+    `[data-message-id="${escapeMessageIdForSelector(anchor.messageId)}"]`
+  )
+  if (!target) return
+
+  const containerRect = container.getBoundingClientRect()
+  const nextOffset = target.getBoundingClientRect().top - containerRect.top
+  const delta = nextOffset - anchor.viewportOffset
+  // Native overflow-anchor usually leaves ~0 drift; only patch real failures.
+  if (Math.abs(delta) < HISTORY_PREPEND_ANCHOR_FALLBACK_MIN_PX) {
+    return
+  }
+
+  markProgrammaticScroll(150)
+  container.scrollTop += delta
 }
 
 function markProgrammaticScroll(durationMs = 300): void {
@@ -537,11 +601,23 @@ function scrollToBottom(force = false) {
     markProgrammaticScroll(500)
     scrollMode.value = 'initial-bottom'
     shouldAutoFollow.value = true
-  } else if (!uiSettingsStore.autoScrollEnabled || !shouldAutoFollow.value) {
+  } else if (
+    !uiSettingsStore.autoScrollEnabled ||
+    !shouldAutoFollow.value ||
+    // Older-history prepend must never be treated as "new content → stick to bottom".
+    isFillingOlderHistoryAtTop ||
+    Date.now() < historyPrependSettleUntil
+  ) {
     return
   }
 
   void nextTick(() => {
+    if (
+      !force &&
+      (isFillingOlderHistoryAtTop || Date.now() < historyPrependSettleUntil || !shouldAutoFollow.value)
+    ) {
+      return
+    }
     scrollDomToBottom()
     if (force) {
       scheduleScrollMetricsRead()
@@ -568,12 +644,23 @@ function applySessionRestoreBottomScroll(requestId: number, sessionId: string): 
     return false
   }
 
+  // User already scrolled away (reading history) — stop pinning to bottom.
+  if (!shouldAutoFollow.value || scrollMode.value === 'anchored-reading' || scrollMode.value === 'manual-jump') {
+    return false
+  }
+
   const el = scrollContainer.value
   if (!el) {
     return false
   }
 
-  el.scrollTop = Math.max(el.scrollHeight - el.clientHeight, 0)
+  markProgrammaticScroll(100)
+  suppressSessionRestoreScrollCancel = true
+  try {
+    el.scrollTop = Math.max(el.scrollHeight - el.clientHeight, 0)
+  } finally {
+    suppressSessionRestoreScrollCancel = false
+  }
   return true
 }
 
@@ -588,7 +675,14 @@ function settleSessionRestoreScrollToBottom(requestId: number, sessionId: string
   let remainingFrames = SESSION_RESTORE_SCROLL_SETTLE_FRAMES
 
   if (el) {
-    const cancelForUserScrollIntent = () => {
+    const cancelForUserGesture = () => {
+      cancelSessionRestoreScrollSettle()
+    }
+    // scrollTop assignment fires scroll synchronously — ignore only that pulse.
+    const cancelForUserScroll = () => {
+      if (suppressSessionRestoreScrollCancel) {
+        return
+      }
       cancelSessionRestoreScrollSettle()
     }
     const cancelForKeyboardScrollIntent = (event: KeyboardEvent) => {
@@ -597,16 +691,18 @@ function settleSessionRestoreScrollToBottom(requestId: number, sessionId: string
       }
     }
 
-    el.addEventListener('wheel', cancelForUserScrollIntent, { passive: true })
-    el.addEventListener('touchstart', cancelForUserScrollIntent, { passive: true })
-    el.addEventListener('pointerdown', cancelForUserScrollIntent, { passive: true })
-    el.addEventListener('mousedown', cancelForUserScrollIntent, { passive: true })
+    el.addEventListener('wheel', cancelForUserGesture, { passive: true })
+    el.addEventListener('scroll', cancelForUserScroll, { passive: true })
+    el.addEventListener('touchstart', cancelForUserGesture, { passive: true })
+    el.addEventListener('pointerdown', cancelForUserGesture, { passive: true })
+    el.addEventListener('mousedown', cancelForUserGesture, { passive: true })
     window.addEventListener('keydown', cancelForKeyboardScrollIntent, { capture: true })
     cancelSessionRestoreScrollIntentListeners = () => {
-      el.removeEventListener('wheel', cancelForUserScrollIntent)
-      el.removeEventListener('touchstart', cancelForUserScrollIntent)
-      el.removeEventListener('pointerdown', cancelForUserScrollIntent)
-      el.removeEventListener('mousedown', cancelForUserScrollIntent)
+      el.removeEventListener('wheel', cancelForUserGesture)
+      el.removeEventListener('scroll', cancelForUserScroll)
+      el.removeEventListener('touchstart', cancelForUserGesture)
+      el.removeEventListener('pointerdown', cancelForUserGesture)
+      el.removeEventListener('mousedown', cancelForUserGesture)
       window.removeEventListener('keydown', cancelForKeyboardScrollIntent, true)
     }
   }
@@ -695,41 +791,100 @@ function scheduleScrollMetricsRead(fromUserScroll = false) {
   })
 }
 
+function getHistoryPrefetchThreshold(el: HTMLElement): number {
+  return Math.max(
+    TOP_HISTORY_PREFETCH_MIN_PX,
+    Math.round(el.clientHeight * TOP_HISTORY_PREFETCH_VIEWPORT_RATIO)
+  )
+}
+
+function isInHistoryPrefetchZone(el: HTMLElement): boolean {
+  return el.scrollTop <= getHistoryPrefetchThreshold(el)
+}
+
 function onScroll() {
   const el = scrollContainer.value
   if (!el) return
 
+  // Settle itself assigns scrollTop; only user scrolls should cancel pin-to-bottom.
+  if (!suppressSessionRestoreScrollCancel) {
+    cancelSessionRestoreScrollSettle()
+  }
   scheduleScrollMetricsRead(true)
 
-  if (el.scrollTop <= TOP_HISTORY_THRESHOLD) {
-    void loadOlderMessagesAtTop()
+  if (isInHistoryPrefetchZone(el)) {
+    // Keep programmatic gate: settle/pin-to-bottom can leave scrollTop at 0 when
+    // the first paint does not overflow, and must not auto-pull older pages.
+    void loadOlderMessagesAtTop({ clearProgrammaticGate: false })
   }
 }
 
-async function loadOlderMessagesAtTop(): Promise<void> {
-  if (
-    messageStore.isLoadingHistory ||
-    !messageStore.hasMoreHistory ||
-    isProgrammaticScrollActive()
-  ) {
+/**
+ * When scrollTop is already 0, further up-gestures often emit wheel but not scroll
+ * (common on macOS). Still request older history in that case.
+ */
+function onWheelTowardOlderHistory(event: WheelEvent) {
+  if (event.deltaY >= 0) {
+    return
+  }
+  const el = scrollContainer.value
+  if (!el || !isInHistoryPrefetchZone(el)) {
+    return
+  }
+  // User intent: clear restore pin-to-bottom gate so top-up is not skipped.
+  void loadOlderMessagesAtTop({ clearProgrammaticGate: true })
+}
+
+async function loadOlderMessagesAtTop(options?: {
+  clearProgrammaticGate?: boolean
+}): Promise<void> {
+  if (isFillingOlderHistoryAtTop || messageStore.isLoadingHistory || !messageStore.hasMoreHistory) {
+    return
+  }
+
+  if (options?.clearProgrammaticGate) {
+    programmaticScrollUntil = 0
+  } else if (isProgrammaticScrollActive()) {
     return
   }
 
   const el = scrollContainer.value
-  if (!el) {
+  if (!el || !isInHistoryPrefetchZone(el)) {
     return
   }
 
-  const previousScrollHeight = el.scrollHeight
-  const previousScrollTop = el.scrollTop
-  const loadedCount = await messageStore.loadOlderMessages()
-  if (loadedCount === 0) {
+  // Non-overflow first paint keeps scrollTop at 0 (always "in zone"). Ignore
+  // passive scroll there; only an explicit wheel-up may fill until scrollable.
+  const canScroll = el.scrollHeight > el.clientHeight + 1
+  if (!canScroll && !options?.clearProgrammaticGate) {
     return
   }
 
-  await nextTick()
-  const nextScrollHeight = el.scrollHeight
-  el.scrollTop = previousScrollTop + (nextScrollHeight - previousScrollHeight)
+  isFillingOlderHistoryAtTop = true
+  // Break auto-follow before messageIds/revision change, or the messages watch
+  // will scrollToBottom and jump back to the newest messages (~50).
+  shouldAutoFollow.value = false
+  if (scrollMode.value === 'auto-follow' || scrollMode.value === 'initial-bottom') {
+    scrollMode.value = 'anchored-reading'
+  }
+  const sessionIdAtStart = props.sessionId
+  try {
+    // Prefer native overflow-anchor (no continuous heightDelta chase — that
+    // fought live scroll as "up 2, back 1"). Capture once, then apply a single
+    // JS fallback only if the reading message still drifted after layout.
+    const readingAnchor = captureViewportAnchor()
+    const loadedCount = await messageStore.loadOlderMessages()
+    if (sessionIdAtStart !== props.sessionId || loadedCount === 0) {
+      return
+    }
+    historyPrependSettleUntil = Date.now() + 400
+    await restoreViewportAnchorAfterHistoryPrepend(readingAnchor, sessionIdAtStart)
+  } finally {
+    // Only the owner request clears the flag; a newer session switch already reset it.
+    if (sessionIdAtStart === props.sessionId) {
+      isFillingOlderHistoryAtTop = false
+    }
+  }
 }
 
 async function focusPendingSpotlightMessageJump(attempt = 0): Promise<void> {
@@ -741,7 +896,7 @@ async function focusPendingSpotlightMessageJump(attempt = 0): Promise<void> {
   await nextTick()
 
   let target = messageSearchRoot.value?.querySelector<HTMLElement>(
-    `[data-message-id="${CSS.escape(pendingJump.messageId)}"]`
+    `[data-message-id="${escapeMessageIdForSelector(pendingJump.messageId)}"]`
   )
 
   if (!target) {
@@ -752,7 +907,7 @@ async function focusPendingSpotlightMessageJump(attempt = 0): Promise<void> {
       container.scrollTop = Math.max(entry.top - Math.round(container.clientHeight / 3), 0)
       await nextTick()
       target = messageSearchRoot.value?.querySelector<HTMLElement>(
-        `[data-message-id="${CSS.escape(pendingJump.messageId)}"]`
+        `[data-message-id="${escapeMessageIdForSelector(pendingJump.messageId)}"]`
       )
     }
   }
@@ -789,47 +944,58 @@ async function focusPendingSpotlightMessageJump(attempt = 0): Promise<void> {
     uiSettingsStore.autoScrollEnabled && isNearBottom.value ? 'auto-follow' : 'anchored-reading'
 }
 
-// Load messages when sessionId changes, then scroll to bottom
+// Load messages when sessionId changes, then scroll to bottom.
+// Critical path: restore immediately (do not use startup idle deferral — up to 800ms blank).
 watch(
   () => props.sessionId,
-  async (id) => {
+  (id) => {
     clearChatSearchState()
     displayMessageCache.clear()
     sessionRestoreRequestId += 1
-    cancelSessionRestoreTask?.()
-    cancelSessionRestoreTask = null
     cancelSessionRestoreScrollSettle()
+    // Drop mid-flight older-history flags/modes so they cannot block the next
+    // session's pin-to-bottom restore (same ChatPage instance is reused).
+    isFillingOlderHistoryAtTop = false
+    historyPrependSettleUntil = 0
+    programmaticScrollUntil = 0
+    suppressSessionRestoreScrollCancel = false
+    shouldAutoFollow.value = true
+    scrollMode.value = 'initial-bottom'
     messageStore.clear()
     pendingInputStore.clear()
-    if (id) {
-      const requestId = sessionRestoreRequestId
-      cancelSessionRestoreTask = scheduleStartupDeferredTask(async () => {
-        if (requestId !== sessionRestoreRequestId) {
-          return
-        }
-
-        console.info(`[Startup][Renderer] ChatPage restoring session ${id}`)
-        const [restoredSession] = await Promise.all([
-          messageStore.loadMessages(id, INITIAL_MESSAGE_RESTORE_COUNT),
-          pendingInputStore.loadPendingInputs(id)
-        ])
-
-        if (requestId !== sessionRestoreRequestId) {
-          return
-        }
-
-        applyRestoredSessionSummary(restoredSession)
-
-        await nextTick()
-        if (spotlightStore.pendingMessageJump?.sessionId === id) {
-          cancelSessionRestoreScrollSettle()
-          void focusPendingSpotlightMessageJump()
-          return
-        }
-        settleSessionRestoreScrollToBottom(requestId, id)
-      })
+    if (!id) {
       return
     }
+
+    const requestId = sessionRestoreRequestId
+    void (async () => {
+      if (requestId !== sessionRestoreRequestId) {
+        return
+      }
+
+      console.info(`[ChatPage] restoring session ${id}`)
+      const [restoredSession] = await Promise.all([
+        messageStore.loadMessages(id, INITIAL_MESSAGE_RESTORE_COUNT),
+        pendingInputStore.loadPendingInputs(id)
+      ])
+
+      if (requestId !== sessionRestoreRequestId) {
+        return
+      }
+
+      applyRestoredSessionSummary(restoredSession)
+
+      await nextTick()
+      if (requestId !== sessionRestoreRequestId) {
+        return
+      }
+      if (spotlightStore.pendingMessageJump?.sessionId === id) {
+        cancelSessionRestoreScrollSettle()
+        void focusPendingSpotlightMessageJump()
+        return
+      }
+      settleSessionRestoreScrollToBottom(requestId, id)
+    })()
   },
   { immediate: true }
 )
@@ -1049,7 +1215,11 @@ const messageWindow = useMessageWindow({
   messages: displayMessages
 })
 
-function onMessageMeasure(payload: { messageId: string; height: number }) {
+function onMessageMeasure(payload: {
+  messageId: string
+  height: number
+  isInitialMeasure?: boolean
+}) {
   // Snapshot the reading anchor from pre-change geometry: capturing after
   // setMeasuredHeight resizes the row would compare against post-layout DOM and
   // let anchored-reading/manual-jump drift when content above the viewport grows.
@@ -1061,9 +1231,20 @@ function onMessageMeasure(payload: { messageId: string; height: number }) {
   if (delta === 0) return
   if (isBottomFollowing) {
     scrollToBottom(scrollMode.value === 'initial-bottom')
-  } else {
-    scheduleViewportAnchorRestore(preChangeAnchor)
+    return
   }
+
+  // First layout after prepend: one-shot restore runs in loadOlderMessagesAtTop.
+  // Skip continuous measure-driven restore here so we do not fight live scroll.
+  if (
+    payload.isInitialMeasure ||
+    isFillingOlderHistoryAtTop ||
+    Date.now() < historyPrependSettleUntil
+  ) {
+    return
+  }
+
+  scheduleViewportAnchorRestore(preChangeAnchor)
 }
 
 const traceMessageIds = computed(() =>
@@ -1100,6 +1281,12 @@ watch(
   () => {
     if (spotlightStore.pendingMessageJump?.sessionId === props.sessionId) {
       void focusPendingSpotlightMessageJump()
+      return
+    }
+
+    // Prepending older history changes messageIds/revision — must not pin to bottom.
+    if (isFillingOlderHistoryAtTop || Date.now() < historyPrependSettleUntil) {
+      scheduleScrollMetricsRead()
       return
     }
 
@@ -1940,8 +2127,8 @@ onUnmounted(() => {
   cancelPlanUpdatedListener?.()
   cancelPlanUpdatedListener = null
   voiceInput.cleanup()
-  cancelSessionRestoreTask?.()
-  cancelSessionRestoreTask = null
+  // Bump request id so any in-flight restore is ignored after unmount.
+  sessionRestoreRequestId += 1
   window.removeEventListener('context-menu-ask-ai', handleContextMenuAskAI)
   window.removeEventListener(
     WORKSPACE_EVENTS.INSERT_REFERENCE_REQUESTED,
@@ -1972,11 +2159,6 @@ onUnmounted(() => {
   will-change: scroll-position;
   overscroll-behavior: contain;
   scroll-behavior: auto;
-}
-
-/* 流式生成时，最后一行始终渲染以保证流式流畅 */
-[data-generating='true'] .message-list-row:last-child {
-  content-visibility: visible;
 }
 
 .agent-question-panel {

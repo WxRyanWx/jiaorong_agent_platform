@@ -69,7 +69,7 @@ const emit = defineEmits<{
   continue: [conversationId: string, messageId: string]
   trace: [messageId: string]
   editSave: [payload: { messageId: string; text: string }]
-  measure: [payload: { messageId: string; height: number }]
+  measure: [payload: { messageId: string; height: number; isInitialMeasure?: boolean }]
 }>()
 
 const traceMessageIdSet = computed(() => new Set(props.traceMessageIds))

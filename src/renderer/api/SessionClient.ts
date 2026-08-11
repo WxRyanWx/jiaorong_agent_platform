@@ -81,9 +81,17 @@ export function createSessionClient(bridge: DeepchatBridge = getDeepchatBridge()
       limit?: number
     }
   ) {
+    // IPC structured-clone cannot send Vue reactive proxies. Always pass a plain cursor.
+    const cursor = options?.cursor
     return await bridge.invoke(sessionsListMessagesPageRoute.name, {
       sessionId,
-      cursor: options?.cursor,
+      cursor:
+        cursor == null
+          ? null
+          : {
+              orderSeq: cursor.orderSeq,
+              id: cursor.id
+            },
       limit: options?.limit
     })
   }

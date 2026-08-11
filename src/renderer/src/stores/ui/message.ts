@@ -18,6 +18,18 @@ import { bindMessageStoreIpc } from './messageIpc'
 
 const EPHEMERAL_STREAM_MESSAGE_PREFIXES = ['__rate_limit__:']
 
+function toPlainMessagePageCursor(
+  cursor: MessagePageCursor | null | undefined
+): MessagePageCursor | null {
+  if (!cursor) {
+    return null
+  }
+  return {
+    orderSeq: cursor.orderSeq,
+    id: cursor.id
+  }
+}
+
 function toStoreStateRef<T extends object, K extends keyof T>(store: T, key: K): Ref<any> {
   const value = store[key]
   return isRef(value) ? value : toRef(store, key)
@@ -274,7 +286,8 @@ export const useMessageStore = defineStore('message', () => {
     desiredCount: number,
     requestId: number
   ): Promise<Awaited<ReturnType<typeof sessionClient.restore>> | null> {
-    const initialLimit = Math.min(Math.max(desiredCount, 40), 500)
+    // Honor ChatPage first-paint size; older history comes from user top-up scroll.
+    const initialLimit = Math.min(Math.max(desiredCount, 1), 500)
     const restored = await sessionClient.restore(sessionId, initialLimit)
     if (!isCurrentLoadRequest(requestId, sessionId)) {
       return null
@@ -291,7 +304,7 @@ export const useMessageStore = defineStore('message', () => {
 
     while (messages.length < desiredCount && hasMoreValue && nextCursorValue) {
       const page = await sessionClient.listMessagesPage(sessionId, {
-        cursor: nextCursorValue,
+        cursor: toPlainMessagePageCursor(nextCursorValue),
         limit: Math.min(Math.max(desiredCount - messages.length, 1), 500)
       })
       if (!isCurrentLoadRequest(requestId, sessionId)) {
@@ -310,7 +323,7 @@ export const useMessageStore = defineStore('message', () => {
         messages = [...uniqueMessages, ...messages]
       }
 
-      nextCursorValue = page.nextCursor
+      nextCursorValue = toPlainMessagePageCursor(page.nextCursor)
       hasMoreValue = page.hasMore
 
       if (page.messages.length === 0) {
@@ -321,7 +334,7 @@ export const useMessageStore = defineStore('message', () => {
     return {
       session: restored.session,
       messages,
-      nextCursor: nextCursorValue,
+      nextCursor: toPlainMessagePageCursor(nextCursorValue),
       hasMore: hasMoreValue
     }
   }
@@ -358,7 +371,7 @@ export const useMessageStore = defineStore('message', () => {
       hydratingStreamMessageIds.clear()
       messageCache.value = nextMessageCache
       messageIds.value = nextMessageIds
-      nextCursor.value = restored.nextCursor
+      nextCursor.value = toPlainMessagePageCursor(restored.nextCursor)
       hasMoreHistory.value = restored.hasMore
       lastPersistedRevision.value += 1
       return restored.session
@@ -375,35 +388,35 @@ export const useMessageStore = defineStore('message', () => {
 
     const sessionId = currentSessionId.value
     const requestId = ++latestHistoryRequestId
+    const requestCursor = toPlainMessagePageCursor(nextCursor.value)
     isLoadingHistory.value = true
     try {
       const page = await sessionClient.listMessagesPage(sessionId, {
-        cursor: nextCursor.value,
-        limit: 100
+        cursor: requestCursor,
+        // Larger than first-paint window so scroll-up needs fewer prepend cycles.
+        limit: 16
       })
       if (!isCurrentHistoryRequest(requestId, sessionId)) {
         return 0
       }
       const incomingIds: string[] = []
+      const existingIds = new Set(messageIds.value)
       for (const msg of page.messages) {
         messageCache.value.set(msg.id, msg)
         incomingIds.push(msg.id)
       }
 
-      if (incomingIds.length > 0) {
-        const existingIds = new Set(messageIds.value)
-        messageIds.value = [
-          ...incomingIds.filter((id) => !existingIds.has(id)),
-          ...messageIds.value
-        ]
+      const prependedIds = incomingIds.filter((id) => !existingIds.has(id))
+      if (prependedIds.length > 0) {
+        messageIds.value = [...prependedIds, ...messageIds.value]
       }
 
-      nextCursor.value = page.nextCursor
+      nextCursor.value = toPlainMessagePageCursor(page.nextCursor)
       hasMoreHistory.value = page.hasMore
-      if (incomingIds.length > 0) {
+      if (prependedIds.length > 0) {
         lastPersistedRevision.value += 1
       }
-      return incomingIds.length
+      return prependedIds.length
     } catch (error) {
       console.error('Failed to load older messages:', error)
       return 0

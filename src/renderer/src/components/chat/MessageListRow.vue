@@ -89,58 +89,36 @@ const emit = defineEmits<{
     fromTop: boolean,
     modelInfo: { model_name: string; model_provider: string }
   ]
-  measure: [payload: { messageId: string; height: number }]
+  measure: [payload: { messageId: string; height: number; isInitialMeasure?: boolean }]
 }>()
 
 const { t } = useI18n()
 const rowRef = ref<HTMLElement | null>(null)
 let resizeObserver: ResizeObserver | null = null
-let intersectionObserver: IntersectionObserver | null = null
 let measureFrame: number | null = null
 let lastMeasuredHeight = 0
-// Rows use `content-visibility: auto`, so an off-screen row reports the
-// `contain-intrinsic-size` placeholder (~300px) instead of its real height.
-// Gate measurement on the row having actually entered (or neared) the viewport
-// so we never commit a placeholder height that would skew jump/anchor restore.
-let hasBeenVisible = typeof IntersectionObserver === 'undefined'
+let hasCommittedRealHeight = false
 
 const emitMeasuredHeight = () => {
-  if (!hasBeenVisible) return
   if (measureFrame !== null) return
 
   measureFrame = window.requestAnimationFrame(() => {
     measureFrame = null
     const messageId = props.item?.id
-    if (!messageId) return
-    const height = rowRef.value?.offsetHeight ?? 0
+    const row = rowRef.value
+    if (!messageId || !row) return
+    const height = row.offsetHeight ?? 0
     if (height <= 0 || Math.abs(height - lastMeasuredHeight) < 1) return
+    const isInitialMeasure = !hasCommittedRealHeight
     lastMeasuredHeight = height
-    emit('measure', { messageId, height })
+    hasCommittedRealHeight = true
+    emit('measure', { messageId, height, isInitialMeasure })
   })
 }
 
 onMounted(() => {
   if (!rowRef.value) return
-
-  if (typeof IntersectionObserver !== 'undefined') {
-    // `rootMargin` lets near-viewport rows measure slightly early for smoother
-    // anchor restoration, while still excluding far-off-screen placeholder rows.
-    intersectionObserver = new IntersectionObserver(
-      (intersectionEntries) => {
-        if (!intersectionEntries.some((entry) => entry.isIntersecting)) return
-        hasBeenVisible = true
-        emitMeasuredHeight()
-        // Visibility only needs to be detected once; the ResizeObserver tracks
-        // every subsequent height change.
-        intersectionObserver?.disconnect()
-        intersectionObserver = null
-      },
-      { rootMargin: '200px 0px' }
-    )
-    intersectionObserver.observe(rowRef.value)
-  } else {
-    emitMeasuredHeight()
-  }
+  emitMeasuredHeight()
 
   if (typeof ResizeObserver === 'undefined') return
   resizeObserver = new ResizeObserver(emitMeasuredHeight)
@@ -151,6 +129,7 @@ watch(
   () => props.item?.id,
   () => {
     lastMeasuredHeight = 0
+    hasCommittedRealHeight = false
     emitMeasuredHeight()
   },
   { flush: 'post' }
@@ -159,8 +138,6 @@ watch(
 onBeforeUnmount(() => {
   resizeObserver?.disconnect()
   resizeObserver = null
-  intersectionObserver?.disconnect()
-  intersectionObserver = null
   if (measureFrame !== null) {
     window.cancelAnimationFrame(measureFrame)
     measureFrame = null
@@ -186,10 +163,7 @@ const onCopyImage = (
 </script>
 
 <style scoped>
-.message-list-row {
-  content-visibility: auto;
-  contain-intrinsic-size: auto 300px;
-}
+/* content-visibility disabled: placeholders caused scroll jumps on history prepend. */
 
 .compaction-divider {
   display: flex;
