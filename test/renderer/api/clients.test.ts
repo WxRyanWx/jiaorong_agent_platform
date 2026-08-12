@@ -242,6 +242,30 @@ describe('renderer api clients', () => {
     expect(() => structuredClone(payload)).not.toThrow()
   })
 
+  it('plain-clones listLightweight cursors so Vue proxies are IPC-safe', async () => {
+    const { reactive } = await import('vue')
+    const bridge = createBridge()
+    const sessionClient = createSessionClient(bridge)
+    const cursor = reactive({ updatedAt: 1_700_000_000_000, id: 's1' })
+
+    await sessionClient.listLightweight({
+      cursor,
+      limit: 30,
+      includeSubagents: true
+    })
+
+    const payload = bridge.invoke.mock.calls[0]?.[1] as {
+      cursor: { updatedAt: number; id: string }
+      limit: number
+      includeSubagents: boolean
+    }
+    expect(payload.cursor).toEqual({ updatedAt: 1_700_000_000_000, id: 's1' })
+    expect(payload.cursor).not.toBe(cursor)
+    expect(payload.limit).toBe(30)
+    expect(payload.includeSubagents).toBe(true)
+    expect(() => structuredClone(payload)).not.toThrow()
+  })
+
   it('routes phase2 config, provider, and model calls through the shared registry names', async () => {
     const bridge = createBridge()
     const configClient = createConfigClient(bridge)
