@@ -33,6 +33,7 @@ import {
 } from '../../lib/sessionSkill'
 import { formatSkillInstallError, formatSkillUninstallError } from '../../lib/formatSkillInstallError'
 import { parseSkillMarketTab } from '../../lib/skillMarketTab'
+import { resolveSkillTryPrompts } from '../../lib/resolveSkillTryPrompts'
 import skillIcon from '@jiaorong/assets/skill.png'
 import codeIcon from '@jiaorong/brand/icons/skill-detail/code@2x.png'
 import codeActiveIcon from '@jiaorong/brand/icons/skill-detail/code-active@2x.png'
@@ -70,7 +71,13 @@ const skillDisplayName = computed(() => {
 const skillDescription = computed(
   () => remoteSkillDetail.value?.description || skill.value?.description || ''
 )
-const skillTryPrompts = computed(() => remoteSkillDetail.value?.tryPrompts ?? [])
+const skillTryPrompts = computed(() =>
+  resolveSkillTryPrompts({
+    skillMarkdown: skillMarkdown.value,
+    skillMetadata: skill.value?.metadata,
+    remoteTryPrompts: remoteSkillDetail.value?.tryPrompts
+  })
+)
 
 /** 内置 14 + 默认市场 19：详情页不展示删除 */
 const canDeleteSkill = computed(() => {
