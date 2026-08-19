@@ -1121,8 +1121,12 @@ export class McpService implements McpServicePort {
     const { name: serverName, config } = await this.requireServerById(serverId)
     const auth = this.mcpOAuthManager.getStatus(serverName, config)
     const client = this.serverManager.getClient(serverName)
+    const lastError = this.serverManager.getServerLastError(serverName)?.slice(0, 2048)
     if (client) {
-      return client.getDiagnostics(auth)
+      return {
+        ...client.getDiagnostics(auth),
+        ...(lastError ? { lastError } : {})
+      }
     }
 
     let authorizationExtensions: string[] = []
@@ -1136,7 +1140,9 @@ export class McpService implements McpServicePort {
       serverName,
       owner: config.ownerPluginId ? 'plugin' : 'deepchat',
       transport: config.type,
-      connectionState: 'stopped',
+      connectionState: lastError ? 'error' : 'stopped',
+      lifecycleStatus: lastError ? 'failed' : 'stopped',
+      ...(lastError ? { lastError } : {}),
       era: 'unknown',
       probe: { outcome: 'not-run' },
       extensions: [],

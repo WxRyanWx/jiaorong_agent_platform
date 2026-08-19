@@ -11,7 +11,12 @@ import { getLanguageFromFilename } from '@shared/utils/codeLanguage'
 import { glob } from 'glob'
 import type { CommandShellPathStyle } from '@shared/commandShell'
 import { normalizeCommandShellFilePath } from '@/agent/shared/process/commandShellPath'
-import { DEFAULT_AGENT_OUTPUT_LIMITS } from '@shared/lib/agentOutputLimits'
+import {
+  AGENT_RAW_READ_MAX_BYTES,
+  buildBinaryReadGuidance,
+  decodeAgentFileBytes,
+  paginateReadContent
+} from '@/lib/binaryReadGuard'
 
 const ReadFileArgsSchema = z.object({
   paths: z.array(z.string()).min(1).describe('Array of file paths to read'),
@@ -123,6 +128,50 @@ interface FileMutationOptions {
   beforeMutation?: () => void
 }
 
+interface FileReadOptions {
+  mimeType: string
+  autoTruncateChars: number
+  maxReadBytes?: number
+}
+
+const READ_CHUNK_BYTES = 64 * 1024
+
+async function readFileWindow(
+  filePath: string,
+  maxReadBytes: number
+): Promise<{ bytes: Buffer; totalBytes: number }> {
+  const handle = await fs.open(filePath, 'r')
+  try {
+    const { size } = await handle.stat()
+    const chunks: Buffer[] = []
+    let offset = 0
+    while (offset < maxReadBytes) {
+      const want = Math.min(READ_CHUNK_BYTES, maxReadBytes - offset)
+      const chunk = Buffer.alloc(want)
+      const { bytesRead } = await handle.read(chunk, 0, want, offset)
+      if (bytesRead === 0) {
+        break
+      }
+      chunks.push(bytesRead === want ? chunk : chunk.subarray(0, bytesRead))
+      offset += bytesRead
+      if (bytesRead < want) {
+        break
+      }
+    }
+    const bytes = Buffer.concat(chunks, offset)
+    let truncated = false
+    if (offset === maxReadBytes) {
+      const peek = Buffer.alloc(1)
+      const { bytesRead } = await handle.read(peek, 0, 1, offset)
+      truncated = bytesRead > 0
+    }
+    const totalBytes = truncated ? Math.max(size, bytes.length + 1) : bytes.length
+    return { bytes, totalBytes }
+  } finally {
+    await handle.close()
+  }
+}
+
 interface GrepMatch {
   file: string
   line: number
@@ -198,7 +247,6 @@ export class AgentFileSystemHandler {
   private readonly commandShellPathStyle: CommandShellPathStyle
   private readonly pathApi: path.PlatformPath
   private readonly caseInsensitivePathComparison: boolean
-  private readonly readFileAutoTruncateChars: number
   private readonly protectedDirectoryRules: Array<{
     roots: string[]
     allowedRoots: string[]
@@ -209,7 +257,6 @@ export class AgentFileSystemHandler {
     options: {
       conversationId?: string
       allowExternalAccess?: boolean
-      readFileAutoTruncateChars?: number
       protectedDirectoryRules?: ProtectedDirectoryRule[]
       commandShellPathStyle?: CommandShellPathStyle
     } = {}
@@ -240,8 +287,6 @@ export class AgentFileSystemHandler {
     this.conversationId = options.conversationId
     this.sessionsRoot = this.normalizePath(getSessionsRoot())
     this.allowExternalAccess = options.allowExternalAccess === true
-    this.readFileAutoTruncateChars =
-      options.readFileAutoTruncateChars ?? DEFAULT_AGENT_OUTPUT_LIMITS.readFileAutoTruncateChars
     this.protectedDirectoryRules = (options.protectedDirectoryRules ?? []).map((rule) => ({
       roots: this.resolveDirectoryRoots([rule.root]),
       allowedRoots: this.resolveDirectoryRoots(rule.allowedDirectories)
@@ -838,7 +883,11 @@ export class AgentFileSystemHandler {
     }
   }
 
-  async readFile(args: unknown, baseDirectory?: string): Promise<string> {
+  async readFile(
+    args: unknown,
+    baseDirectory: string | undefined,
+    options: FileReadOptions
+  ): Promise<string> {
     const parsed = ReadFileArgsSchema.safeParse(args)
     if (!parsed.success) {
       throw new Error(`Invalid arguments: ${parsed.error}`)
@@ -853,45 +902,20 @@ export class AgentFileSystemHandler {
             enforceAllowed: false,
             accessType: 'read'
           })
-          const bytes = await fs.readFile(validPath)
-          let fullContent: string
-          if (bytes[0] === 0xff && bytes[1] === 0xfe) {
-            fullContent = bytes.subarray(2).toString('utf16le')
-          } else if (bytes[0] === 0xfe && bytes[1] === 0xff) {
-            fullContent = new TextDecoder('utf-16be').decode(bytes.subarray(2))
-          } else {
-            fullContent = bytes.toString('utf8').replace(/^\uFEFF/, '')
+          const maxReadBytes = options.maxReadBytes ?? AGENT_RAW_READ_MAX_BYTES
+          const { bytes, totalBytes } = await readFileWindow(validPath, maxReadBytes)
+          const decoded = decodeAgentFileBytes(bytes)
+          if (decoded.kind === 'binary') {
+            return buildBinaryReadGuidance(filePath, options.mimeType, 'agent')
           }
-          const totalLength = fullContent.length
-
-          // Determine effective limit
-          let effectiveLimit = limit
-          let autoTruncated = false
-
-          // Auto-truncate large files when no explicit limit specified
-          if (limit === undefined && totalLength - offset > this.readFileAutoTruncateChars) {
-            effectiveLimit = this.readFileAutoTruncateChars
-            autoTruncated = true
-          }
-
-          // Apply offset and limit
-          const content =
-            effectiveLimit !== undefined
-              ? fullContent.slice(offset, offset + effectiveLimit)
-              : fullContent.slice(offset)
-
-          const endOffset = offset + content.length
-
-          // Build result with metadata when pagination is active or auto-truncated
-          if (offset > 0 || limit !== undefined || autoTruncated) {
-            let header = `${filePath} [chars ${offset}-${endOffset} of ${totalLength}]`
-            if (autoTruncated) {
-              header += ` (auto-truncated, use offset/limit to read more)`
-            }
-            return `${header}:\n${content}\n`
-          }
-
-          return `${filePath}:\n${content}\n`
+          return paginateReadContent(
+            filePath,
+            decoded.content,
+            offset,
+            limit,
+            options.autoTruncateChars,
+            bytes.length < totalBytes ? { readBytes: bytes.length, totalBytes } : undefined
+          )
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error)
           return `${filePath}: Error - ${errorMessage}`

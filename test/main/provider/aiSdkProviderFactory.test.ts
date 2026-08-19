@@ -597,4 +597,66 @@ describe('AI SDK provider factory', () => {
     expect(headers.get('x-goog-api-key')).toBe('test-key-1234')
     expect(headers.has('authorization')).toBe(false)
   })
+
+  it('does not attach a private dispatcher for no-proxy openai-compatible fetch', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: 'chatcmpl-headers-timeout',
+          object: 'chat.completion',
+          created: 1,
+          model: 'llama3',
+          choices: [
+            {
+              index: 0,
+              message: {
+                role: 'assistant',
+                content: 'ok'
+              },
+              finish_reason: 'stop'
+            }
+          ],
+          usage: {
+            prompt_tokens: 1,
+            completion_tokens: 1,
+            total_tokens: 2
+          }
+        }),
+        {
+          status: 200,
+          headers: {
+            'content-type': 'application/json'
+          }
+        }
+      )
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const context = createAiSdkProviderContext({
+      providerKind: 'openai-compatible',
+      provider: {
+        id: 'ollama',
+        name: 'Ollama',
+        apiType: 'ollama',
+        apiKey: '',
+        baseUrl: 'http://127.0.0.1:11434',
+        enable: true
+      } as any,
+      providerSettings: {
+        getAzureApiVersion: () => undefined
+      } as any,
+      defaultHeaders: {},
+      modelId: 'llama3',
+      wrapThinkReasoning: false
+    })
+
+    await generateText({
+      model: context.model,
+      messages: [{ role: 'user', content: 'Hello' }]
+    })
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const init = fetchMock.mock.calls[0]?.[1] as (RequestInit & { dispatcher?: object }) | undefined
+    expect(init?.dispatcher).toBeUndefined()
+  })
 })

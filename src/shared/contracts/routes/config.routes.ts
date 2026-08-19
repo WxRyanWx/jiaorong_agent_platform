@@ -118,10 +118,22 @@ export const CONFIG_ENTRY_KEYS = [
   'artifact_think_collapse',
   'providerOrder',
   'providerTimestamps',
+  'configuredProviders',
+  'providerHealth',
   'sidebar_group_mode',
   'input_enabledMcpTools',
   'jiaorong_skill_switch_map'
 ] as const
+
+// Cached verification result for a provider's current connection configuration.
+// `fingerprint` is derived from non-secret config so credential/endpoint changes
+// invalidate the cached result without storing the secret itself.
+export const ProviderHealthEntrySchema = z.object({
+  status: z.enum(['verified', 'needs_attention']),
+  fingerprint: z.string(),
+  checkedAt: z.number().int(),
+  errorMsg: z.string().optional()
+})
 
 export const ConfigEntryKeySchema = z.enum(CONFIG_ENTRY_KEYS)
 
@@ -138,6 +150,8 @@ export const ConfigEntryValuesSchema = z.object({
   artifact_think_collapse: z.boolean(),
   providerOrder: z.array(z.string()),
   providerTimestamps: z.record(z.string(), z.number().int()),
+  configuredProviders: z.array(z.string()),
+  providerHealth: z.record(z.string(), ProviderHealthEntrySchema),
   sidebar_group_mode: z.string(),
   input_enabledMcpTools: z.array(z.string()),
   jiaorong_skill_switch_map: z.record(z.string(), z.union([z.literal(0), z.literal(1)]))
@@ -191,6 +205,14 @@ export const ConfigEntryChangeSchema = z.discriminatedUnion('key', [
   z.object({
     key: z.literal('providerTimestamps'),
     value: z.record(z.string(), z.number().int())
+  }),
+  z.object({
+    key: z.literal('configuredProviders'),
+    value: z.array(z.string())
+  }),
+  z.object({
+    key: z.literal('providerHealth'),
+    value: z.record(z.string(), ProviderHealthEntrySchema)
   }),
   z.object({
     key: z.literal('sidebar_group_mode'),
@@ -1012,3 +1034,4 @@ export const configSetAwsBedrockCredentialRoute = defineRouteContract({
 export type ConfigEntryKey = z.infer<typeof ConfigEntryKeySchema>
 export type ConfigEntryValues = z.infer<typeof ConfigEntryValuesSchema>
 export type ConfigEntryChange = z.infer<typeof ConfigEntryChangeSchema>
+export type ProviderHealthEntry = z.infer<typeof ProviderHealthEntrySchema>

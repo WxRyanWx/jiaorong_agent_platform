@@ -1,5 +1,21 @@
 # Changelog
 
+## v1.1.1-beta.2 (2026-08-18)
+- Redesigned the Settings provider sidebar and configured-provider page
+- Honored provider model-configured timeouts instead of the default 300s undici header timeout
+- Inherited global fetch timeouts on remaining proxy fetches
+- Repaired usage statistics and MCP startup
+- Allowed ACP apps to be uninstalled while disabled
+- Stopped Agent from silently reading empty files
+- Made body portals non-draggable and improved enabled tool chip visibility in dark mode
+- 重新设计设置页的 Provider 侧边栏与已配置 Provider 页面
+- 修复 Provider 模型超时，改为遵循模型配置的超时而非默认 300s 请求头超时
+- 在剩余代理请求上继承全局 fetch 超时
+- 修复用量统计与 MCP 启动
+- 允许在禁用状态下卸载 ACP 应用
+- 修复 Agent 静默读取空文件的问题
+- 使 body 门户不可拖拽，并改善暗色模式下已启用工具 chip 的可见性
+
 ## v1.1.1-beta.1 (2026-08-17)
 - Added virtualized tool surfaces: agents load tools on demand with search, canary performance gates, and permission-gated activation for large catalogs
 - Added a Tape Trace Inspector to audit agent runs, tool calls, and skill usage

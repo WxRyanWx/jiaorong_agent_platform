@@ -59,6 +59,7 @@ describe('AgentToolManager read routing', () => {
   }
   let resolveConversationWorkdir: ReturnType<typeof vi.fn>
   let resolveConversationSessionInfo: ReturnType<typeof vi.fn>
+  let settingsGet: ReturnType<typeof vi.fn>
   let callToolWithoutCommandShell: AgentToolManager['callTool']
   let preCheckWithoutCommandShell: AgentToolManager['preCheckToolPermission']
 
@@ -90,9 +91,10 @@ describe('AgentToolManager read routing', () => {
       }),
       resolveDeepChatAgentConfig: vi.fn().mockResolvedValue({})
     }
+    settingsGet = vi.fn()
     manager = new AgentToolManager({
       skillSettings: { isEnabled: () => false } as any,
-      settings: { get: vi.fn() },
+      settings: { get: settingsGet },
       commandPermissionHandler: new CommandPermissionService(),
       agentWorkspacePath: workspaceDir,
       providerSettings,
@@ -314,6 +316,120 @@ describe('AgentToolManager read routing', () => {
 
     expect(result.content).toContain('note.txt')
     expect(result.content).toContain('hello text')
+    expect(fileService.prepareFileCompletely).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['Cargo.toml', 'application/toml', '[package]\nname = "server-status"\n', '[package]'],
+    ['foo.rs', 'application/rls-services+xml', 'fn main() {}\n', 'fn main()'],
+    ['query.sql', 'application/sql', 'SELECT 1;\n', 'SELECT 1;']
+  ])('reads %s reported as %s as raw text', async (name, mimeType, source, snippet) => {
+    await fs.writeFile(path.join(workspaceDir, name), source, 'utf-8')
+    fileService.getMimeType.mockResolvedValue(mimeType)
+
+    const result = (await manager.callTool('read', { path: name }, 'conv1')) as {
+      content: string
+    }
+
+    expect(result.content).toContain(snippet)
+    expect(fileService.prepareFileCompletely).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    [
+      'rows.csv',
+      'text/csv',
+      ['h1,h2', ...Array.from({ length: 12 }, (_, index) => `r${index + 1},v${index + 1}`)].join(
+        '\n'
+      ),
+      'r12,v12'
+    ],
+    [
+      'rows.tsv',
+      'text/tab-separated-values',
+      ['h1\th2', ...Array.from({ length: 12 }, (_, index) => `r${index + 1}\tv${index + 1}`)].join(
+        '\n'
+      ),
+      'r12\tv12'
+    ]
+  ])(
+    'reads the full %s body instead of a ten-row preview',
+    async (name, mimeType, source, last) => {
+      await fs.writeFile(path.join(workspaceDir, name), source, 'utf-8')
+      fileService.getMimeType.mockResolvedValue(mimeType)
+
+      const result = (await manager.callTool('read', { path: name }, 'conv1')) as {
+        content: string
+      }
+
+      expect(result.content).toContain(last)
+      expect(result.content).not.toContain('Data Preview')
+      expect(fileService.prepareFileCompletely).not.toHaveBeenCalled()
+    }
+  )
+
+  it('rejects a NUL-prefixed archive on the default read path', async () => {
+    const filePath = path.join(workspaceDir, 'payload.tar')
+    await fs.writeFile(filePath, Buffer.from([0x7b, 0x00, 0x7d]))
+    fileService.getMimeType.mockResolvedValue('application/x-tar')
+
+    const result = (await manager.callTool('read', { path: 'payload.tar' }, 'conv1')) as {
+      content: string
+    }
+
+    expect(result.content).toContain('Cannot read "payload.tar" as plain text')
+    expect(result.content).toContain('application/x-tar')
+    expect(result.content).toContain('conversion/extraction tool')
+    expect(fileService.prepareFileCompletely).not.toHaveBeenCalled()
+  })
+
+  it('guides NUL hits on toml files toward an encoding conversion', async () => {
+    const filePath = path.join(workspaceDir, 'Cargo.toml')
+    await fs.writeFile(filePath, Buffer.from([0x61, 0x00, 0x62]))
+    fileService.getMimeType.mockResolvedValue('application/toml')
+
+    const result = (await manager.callTool('read', { path: 'Cargo.toml' }, 'conv1')) as {
+      content: string
+    }
+
+    expect(result.content).toContain('UTF-16 without a BOM')
+    expect(fileService.prepareFileCompletely).not.toHaveBeenCalled()
+  })
+
+  it('reports document extraction failures with the configured size limit', async () => {
+    const filePath = path.join(workspaceDir, 'blank.pdf')
+    await fs.writeFile(filePath, 'pdf-binary', 'utf-8')
+    fileService.getMimeType.mockResolvedValue('application/pdf')
+    fileService.prepareFileCompletely.mockResolvedValue({ content: '   ' })
+    settingsGet.mockImplementation((key: string) =>
+      key === 'maxFileSize' ? 50 * 1024 * 1024 : undefined
+    )
+
+    const result = (await manager.callTool('read', { path: 'blank.pdf' }, 'conv1')) as {
+      content: string
+    }
+
+    expect(result.content).toContain('Cannot extract text')
+    expect(result.content).toContain('damaged or contain no extractable text layer')
+    expect(result.content).toContain(
+      `File size: ${Buffer.byteLength('pdf-binary')} bytes (document limit ${50 * 1024 * 1024} bytes)`
+    )
+    expect(fileService.prepareFileCompletely).toHaveBeenCalled()
+  })
+
+  it('skips document adapters when the file exceeds the configured size limit', async () => {
+    const filePath = path.join(workspaceDir, 'huge.pdf')
+    await fs.writeFile(filePath, 'x'.repeat(32), 'utf-8')
+    fileService.getMimeType.mockResolvedValue('application/pdf')
+    settingsGet.mockImplementation((key: string) => (key === 'maxFileSize' ? 16 : undefined))
+
+    const result = (await manager.callTool('read', { path: 'huge.pdf' }, 'conv1')) as {
+      content: string
+    }
+
+    expect(result.content).toContain('File too large')
+    expect(result.content).toContain('32 bytes')
+    expect(result.content).toContain('limit 16')
     expect(fileService.prepareFileCompletely).not.toHaveBeenCalled()
   })
 

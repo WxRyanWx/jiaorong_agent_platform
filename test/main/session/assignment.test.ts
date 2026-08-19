@@ -312,8 +312,14 @@ describe('SessionAssignment', () => {
     })
   })
 
-  it('uses the required deletion port for bulk deletion and publishes once', async () => {
+  it('deletes active Agent sessions and ignores their queued input', async () => {
     const harness = createHarness([createSession({ id: 'parent' })])
+    harness.deepchatHandle.snapshot.mockResolvedValue({
+      status: 'generating',
+      providerId: 'openai',
+      modelId: 'gpt-4'
+    })
+    harness.pendingInputs.set('parent', [{ id: 'queued-1', mode: 'queue' }])
     harness.deletion.deleteSessionTree.mockResolvedValue(['child', 'parent'])
 
     await expect(harness.coordinator.deleteAgentSessions('source')).resolves.toEqual([
@@ -325,6 +331,49 @@ describe('SessionAssignment', () => {
       sessionIds: ['child', 'parent'],
       reason: 'deleted'
     })
+  })
+
+  it('uses lightweight snapshots to stop and transfer unavailable ACP sessions', async () => {
+    const harness = createHarness([createSession({ agentId: 'codex-acp' })])
+    let cancelled = false
+    const cancel = vi.fn(async () => {
+      cancelled = true
+    })
+    const snapshot = vi.fn(async (options?: { lightweight?: boolean }) => {
+      if (!options?.lightweight) throw new Error('Agent "codex-acp" is unavailable: invalid-config')
+      return {
+        status: cancelled ? ('idle' as const) : ('generating' as const),
+        providerId: 'acp',
+        modelId: 'codex-acp'
+      }
+    })
+    harness.runtime.resolveTransferSource.mockReturnValue({
+      descriptor: { id: 'codex-acp', kind: 'acp', source: 'registry' },
+      handle: {
+        ...harness.acpHandle,
+        snapshot,
+        cancel,
+        pending: { delete: vi.fn().mockResolvedValue(undefined) }
+      },
+      facet: {
+        hasMessages: vi.fn().mockResolvedValue(true),
+        listPendingInputs: vi.fn().mockResolvedValue([])
+      },
+      closeRuntime: harness.acpFacet.closeRuntime
+    })
+
+    await expect(harness.coordinator.getAgentTransferImpact('codex-acp')).resolves.toMatchObject({
+      totalSessions: 1,
+      movableSessions: 1,
+      blockedSessions: 0
+    })
+    await expect(harness.coordinator.moveAgentSessions('codex-acp', 'target')).resolves.toEqual({
+      movedSessionIds: ['s1'],
+      deletedSessionIds: []
+    })
+    expect(snapshot).toHaveBeenCalled()
+    expect(snapshot.mock.calls.every(([options]) => options?.lightweight)).toBe(true)
+    expect(cancel).toHaveBeenCalledOnce()
   })
 
   it('preserves the non-transactional project update order', async () => {

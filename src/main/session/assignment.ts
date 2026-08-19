@@ -30,6 +30,10 @@ import {
   type OrchestrationPolicy
 } from '@shared/orchestration/policy'
 import { normalizeToolModeOverride, type ToolModeOverride } from '@shared/toolMode'
+import { setTimeout as delay } from 'node:timers/promises'
+
+const TRANSFER_STOP_TIMEOUT_MS = 10_000
+const TRANSFER_STOP_POLL_MS = 50
 
 export interface SessionAgentAssignmentDependencies {
   sessions: SessionAssignmentStorePort
@@ -495,12 +499,14 @@ export class SessionAssignment implements SessionAgentAssignmentPort, SessionAss
   private async assessTransferSession(session: SessionRecord): Promise<{
     status: SessionWithState['status']
     isEmptyDraft: boolean
+    queuedInputIds: string[]
     blockReason?: AgentTransferBlockReason
   }> {
     const { handle, facet } = this.dependencies.runtime.resolveTransferSource(
       toAppSessionId(session.id)
     )
-    const state = await handle.snapshot()
+    const state =
+      handle.kind === 'acp' ? await handle.snapshot({ lightweight: true }) : await handle.snapshot()
     const status = state?.status ?? 'idle'
     let hasMessages = true
     try {
@@ -512,15 +518,18 @@ export class SessionAssignment implements SessionAgentAssignmentPort, SessionAss
       )
     }
 
-    let hasPendingInput = false
+    let queuedInputIds: string[] = []
+    let pendingInputInspectionFailed = false
     try {
-      hasPendingInput = (await facet.listPendingInputs(toAppSessionId(session.id))).length > 0
+      queuedInputIds = (await facet.listPendingInputs(toAppSessionId(session.id)))
+        .filter((input) => input.mode === 'queue')
+        .map((input) => input.id)
     } catch (error) {
       console.warn(
         `[SessionAssignment] Failed to inspect pending input for session=${session.id}:`,
         error
       )
-      hasPendingInput = true
+      pendingInputInspectionFailed = true
     }
 
     const hasSubagentChildren =
@@ -531,9 +540,36 @@ export class SessionAssignment implements SessionAgentAssignmentPort, SessionAss
       }).length > 0
     const isEmptyDraft = Boolean(session.isDraft) && !hasMessages && !hasSubagentChildren
 
-    if (status === 'generating') return { status, isEmptyDraft, blockReason: 'active' }
-    if (hasPendingInput) return { status, isEmptyDraft, blockReason: 'pending-input' }
-    return { status, isEmptyDraft }
+    if (pendingInputInspectionFailed) {
+      return { status, isEmptyDraft, queuedInputIds, blockReason: 'pending-input' }
+    }
+    return { status, isEmptyDraft, queuedInputIds }
+  }
+
+  private async prepareSessionForTransfer(
+    sessionId: string,
+    status: SessionWithState['status'],
+    queuedInputIds: string[]
+  ): Promise<void> {
+    if (status !== 'generating' && queuedInputIds.length === 0) return
+
+    const { handle } = this.dependencies.runtime.resolveTransferSource(toAppSessionId(sessionId))
+    for (const itemId of queuedInputIds) {
+      await handle.pending.delete(itemId)
+    }
+    if (status === 'generating') {
+      await handle.cancel()
+      const deadline = Date.now() + TRANSFER_STOP_TIMEOUT_MS
+      while (
+        (await handle.snapshot(handle.kind === 'acp' ? { lightweight: true } : undefined))
+          ?.status === 'generating'
+      ) {
+        if (Date.now() >= deadline) {
+          throw new Error(`Session ${sessionId} did not stop before transfer.`)
+        }
+        await delay(TRANSFER_STOP_POLL_MS)
+      }
+    }
   }
 
   private async moveSessionToAgentInternal(
@@ -577,11 +613,11 @@ export class SessionAssignment implements SessionAgentAssignmentPort, SessionAss
       targetAgentId,
       session.projectDir
     )
+    await this.prepareSessionForTransfer(sessionId, assessment.status, assessment.queuedInputIds)
     const source = this.dependencies.runtime.resolveTransferSource(toAppSessionId(sessionId))
-    const sourceState = await source.handle.snapshot()
     const previousDirectAcp = source.handle.kind === 'acp'
     const previousCompatibilityAcp =
-      source.handle.kind === 'deepchat' && sourceState?.providerId === 'acp'
+      source.handle.kind === 'deepchat' && (await source.handle.snapshot())?.providerId === 'acp'
     const { facet: transferTarget } = this.dependencies.runtime.resolveDeepChatTransferTarget(
       target.agentId
     )

@@ -1,9 +1,9 @@
 <template>
   <ProviderSettingsShell
-    v-model:active-tab="activeTab"
     :title="t(provider.name)"
     :subtitle="provider.baseUrl"
     :enabled-count="enabledModels.length"
+    :health="providerHealth"
   >
     <template #connection>
       <ProviderApiConfig
@@ -167,9 +167,18 @@ const enabledModels = computed(() => {
 })
 const checkResult = ref<boolean>(false)
 const showCheckModelDialog = ref(false)
-const activeTab = ref<'connection' | 'models' | 'advanced'>('connection')
-const syncActiveTabFromOnboardingStep = (stepId?: string | null) => {
-  activeTab.value = stepId === 'provider-model' ? 'models' : 'connection'
+const providerHealth = computed(() => providerStore.getProviderHealth(props.provider.id))
+// The vertical page keeps every section mounted; onboarding steps scroll to the
+// relevant section instead of switching tabs.
+const scrollToOnboardingSection = (stepId?: string | null) => {
+  if (stepId !== 'provider-model') {
+    return
+  }
+  void nextTick(() => {
+    document
+      .querySelector('[data-testid="provider-models-section"]')
+      ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  })
 }
 
 const providerWebsites = computed<ProviderWebsites | undefined>(
@@ -227,6 +236,8 @@ const validateApiKey = async () => {
       showCheckModelDialog.value = true
       // 验证成功后刷新当前provider的模型列表
       await modelStore.refreshProviderModels(props.provider.id)
+      // 首次配置成功且用户尚未勾选任何模型时，应用确定性的初始推荐
+      await modelStore.applyInitialModelRecommendations(props.provider.id)
       return true
     } else {
       console.log('验证失败', resp.errorMsg)
@@ -314,7 +325,7 @@ const initProviderSettings = async () => {
 watch(
   () => props.provider.id,
   () => {
-    syncActiveTabFromOnboardingStep(props.activeOnboardingStepId)
+    scrollToOnboardingSection(props.activeOnboardingStepId)
     initProviderSettings()
   },
   { immediate: true }
@@ -323,7 +334,7 @@ watch(
 watch(
   () => props.activeOnboardingStepId,
   (stepId) => {
-    syncActiveTabFromOnboardingStep(stepId)
+    scrollToOnboardingSection(stepId)
   },
   { immediate: true }
 )

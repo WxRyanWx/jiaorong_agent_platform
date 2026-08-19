@@ -27,7 +27,15 @@ import {
   SKILL_RUNTIME_VIEW_RESULT_MAX_BYTES,
   type SkillManageResult
 } from '@shared/types/skill'
-import { buildBinaryReadGuidance, shouldRejectAgentBinaryRead } from '@/lib/binaryReadGuard'
+import { isDocumentReadMime } from '@/file/mime'
+import {
+  buildBinaryReadGuidance,
+  buildEmptyDocumentReadGuidance,
+  buildOversizedReadGuidance,
+  DEFAULT_DOCUMENT_READ_MAX_BYTES,
+  paginateReadContent,
+  shouldRejectAgentBinaryRead
+} from '@/lib/binaryReadGuard'
 import { AgentFileSystemHandler, type ProtectedDirectoryRule } from './agentFileSystemHandler'
 import { AgentBashHandler, type AgentCommandEnvironmentPort } from './agentBashHandler'
 import {
@@ -1093,8 +1101,16 @@ export class AgentToolManager {
         type: 'function',
         function: {
           name: 'read',
-          description:
-            "Read the contents of a file. Supports pagination via offset/limit for large files (auto-truncated using the Agent's configured output limit if not specified). For image files, returns an English description of visible content instead of raw pixels. When invoked from a skill context with relative paths, provide base_directory as the skill's root directory.",
+          description: [
+            'Read the contents of a file.',
+            'Supports pagination via offset/limit for large files',
+            '(auto-truncated using the configured Agent output limit if not specified).',
+            'Raw text reads return only the first 10MB.',
+            'Office and PDF files return extracted text, not the original binary,',
+            'and follow the configured document size limit.',
+            'For image files, returns an English description of visible content instead of raw pixels.',
+            'When invoked from a skill context with relative paths, provide base_directory as the skill root directory.'
+          ].join(' '),
           parameters: toDeepChatJsonSchema(schemas.read) as {
             type: string
             properties: Record<string, unknown>
@@ -1629,7 +1645,7 @@ export class AgentToolManager {
             offset?: number
             limit?: number
           }
-          const validPath = await this.resolveValidatedReadPath(
+          const { path: validPath, size: fileSize } = await this.resolveValidatedReadPath(
             fileSystemHandler,
             readArgs.path,
             baseDirectory,
@@ -1661,39 +1677,48 @@ export class AgentToolManager {
           }
 
           const readOutputLimits = await this.resolveOutputLimitsForConversation(conversationId)
-          const readFileSystemHandler = new AgentFileSystemHandler(allowedDirectories, {
-            conversationId,
-            allowExternalAccess: allowExternalFileAccess,
-            readFileAutoTruncateChars: readOutputLimits.readFileAutoTruncateChars,
-            protectedDirectoryRules,
-            commandShellPathStyle: options.commandShell.pathStyle
-          })
 
-          if (this.shouldUseRawTextRead(mimeType)) {
+          if (isDocumentReadMime(mimeType)) {
+            const maxFileSize = this.resolveDocumentMaxFileSize()
+            if (fileSize > maxFileSize) {
+              return {
+                content: buildOversizedReadGuidance(validPath, fileSize, maxFileSize)
+              }
+            }
+            const prepared = await this.getFileService().prepareFileCompletely(
+              validPath,
+              mimeType,
+              'llm-friendly'
+            )
+            const extracted = prepared.content ?? ''
+            if (extracted.trim().length === 0) {
+              return {
+                content: buildEmptyDocumentReadGuidance(validPath, mimeType, fileSize, maxFileSize)
+              }
+            }
             return {
-              content: await readFileSystemHandler.readFile(
-                {
-                  paths: [readArgs.path],
-                  offset: readArgs.offset,
-                  limit: readArgs.limit
-                },
-                baseDirectory
+              content: paginateReadContent(
+                readArgs.path,
+                extracted,
+                readArgs.offset,
+                readArgs.limit,
+                readOutputLimits.readFileAutoTruncateChars
               )
             }
           }
 
-          const prepared = await this.getFileService().prepareFileCompletely(
-            validPath,
-            mimeType,
-            'llm-friendly'
-          )
           return {
-            content: this.paginateReadContent(
-              readArgs.path,
-              prepared.content || '',
-              readArgs.offset,
-              readArgs.limit,
-              readOutputLimits.readFileAutoTruncateChars
+            content: await fileSystemHandler.readFile(
+              {
+                paths: [readArgs.path],
+                offset: readArgs.offset,
+                limit: readArgs.limit
+              },
+              baseDirectory,
+              {
+                mimeType,
+                autoTruncateChars: readOutputLimits.readFileAutoTruncateChars
+              }
             )
           }
         }
@@ -2387,7 +2412,7 @@ export class AgentToolManager {
     requestedPath: string,
     baseDirectory?: string,
     allowExternalFileAccess = false
-  ): Promise<string> {
+  ): Promise<{ path: string; size: number }> {
     const resolvedPath = fileSystemHandler.resolvePath(requestedPath, baseDirectory)
     fileSystemHandler.assertReadAllowedAbsolute(resolvedPath)
     if (!allowExternalFileAccess && !fileSystemHandler.isPathAllowedAbsolute(resolvedPath)) {
@@ -2415,64 +2440,15 @@ export class AgentToolManager {
       throw new Error(`Path is not a file: ${requestedPath}`)
     }
 
-    return pathForRead
+    return { path: pathForRead, size: stats.size }
+  }
+
+  private resolveDocumentMaxFileSize(): number {
+    return this.settings.get<number>('maxFileSize') ?? DEFAULT_DOCUMENT_READ_MAX_BYTES
   }
 
   private isImageMimeType(mimeType: string): boolean {
     return mimeType.startsWith('image/')
-  }
-
-  private shouldUseRawTextRead(mimeType: string): boolean {
-    if (mimeType === 'text/csv') {
-      return false
-    }
-    if (mimeType.startsWith('text/') || mimeType === 'application/octet-stream') {
-      return true
-    }
-
-    const codeLikeMimes = new Set([
-      'application/json',
-      'application/xml',
-      'application/javascript',
-      'application/x-javascript',
-      'application/typescript',
-      'application/x-typescript'
-    ])
-    return codeLikeMimes.has(mimeType)
-  }
-
-  private paginateReadContent(
-    pathLabel: string,
-    fullContent: string,
-    offset?: number,
-    limit?: number,
-    autoTruncateChars = resolveAgentOutputLimits().readFileAutoTruncateChars
-  ): string {
-    const start = Math.max(0, offset ?? 0)
-    const totalLength = fullContent.length
-
-    let effectiveLimit = limit
-    let autoTruncated = false
-    if (effectiveLimit === undefined && totalLength - start > autoTruncateChars) {
-      effectiveLimit = autoTruncateChars
-      autoTruncated = true
-    }
-
-    const content =
-      effectiveLimit !== undefined
-        ? fullContent.slice(start, start + effectiveLimit)
-        : fullContent.slice(start)
-    const endOffset = start + content.length
-
-    if (start > 0 || limit !== undefined || autoTruncated) {
-      let header = `${pathLabel} [chars ${start}-${endOffset} of ${totalLength}]`
-      if (autoTruncated) {
-        header += ' (auto-truncated, use offset/limit to read more)'
-      }
-      return `${header}:\n${content}\n`
-    }
-
-    return `${pathLabel}:\n${content}\n`
   }
 
   private buildImageMetadataBlock(filePath: string, mimeType: string, fileSize: number): string {

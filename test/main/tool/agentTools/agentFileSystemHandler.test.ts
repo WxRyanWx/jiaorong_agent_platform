@@ -283,3 +283,114 @@ describe('AgentFileSystemHandler path authorization', () => {
     }
   )
 })
+
+describe('AgentFileSystemHandler read batch isolation', () => {
+  it('keeps a binary sibling from replacing other files in the same batch', async () => {
+    const testDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-fs-read-'))
+    try {
+      const handler = new AgentFileSystemHandler([testDir])
+      const textPath = path.join(testDir, 'ok.txt')
+      const binaryPath = path.join(testDir, 'bad.bin')
+      await fs.writeFile(textPath, 'keep me\n', 'utf-8')
+      await fs.writeFile(binaryPath, Buffer.from([0x00, 0x01, 0x02]))
+
+      const content = await handler.readFile({ paths: [textPath, binaryPath] }, undefined, {
+        mimeType: 'application/x-tar',
+        autoTruncateChars: 4_500
+      })
+
+      expect(content).toContain('keep me')
+      expect(content).toContain('Cannot read "bad.bin" as plain text')
+      expect(content).toContain('application/x-tar')
+    } finally {
+      await fs.rm(testDir, { recursive: true, force: true })
+    }
+  })
+
+  it('reads only the first window of a file above the raw byte cap', async () => {
+    const testDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-fs-read-cap-'))
+    try {
+      const handler = new AgentFileSystemHandler([testDir])
+      const filePath = path.join(testDir, 'huge.log')
+      await fs.writeFile(filePath, 'A'.repeat(32), 'utf-8')
+
+      const content = await handler.readFile({ paths: [filePath] }, undefined, {
+        mimeType: 'text/plain',
+        autoTruncateChars: 4_500,
+        maxReadBytes: 16
+      })
+
+      expect(content).toContain('first 16 of 32 bytes')
+      expect(content).toContain('A'.repeat(16))
+      expect(content).not.toContain('A'.repeat(17))
+      expect(content).not.toContain('File too large')
+    } finally {
+      await fs.rm(testDir, { recursive: true, force: true })
+    }
+  })
+
+  it('reads a file larger than one chunk without a byte-window header', async () => {
+    const testDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-fs-read-chunk-'))
+    try {
+      const handler = new AgentFileSystemHandler([testDir])
+      const filePath = path.join(testDir, 'chunked.txt')
+      const body = 'B'.repeat(80 * 1024)
+      await fs.writeFile(filePath, body, 'utf-8')
+
+      const content = await handler.readFile({ paths: [filePath] }, undefined, {
+        mimeType: 'text/plain',
+        autoTruncateChars: 200_000
+      })
+
+      expect(content).toContain(body)
+      expect(content).not.toContain('first ')
+    } finally {
+      await fs.rm(testDir, { recursive: true, force: true })
+    }
+  })
+
+  it('reads a batch of empty files without allocating a full window each', async () => {
+    const testDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-fs-read-empty-batch-'))
+    try {
+      const handler = new AgentFileSystemHandler([testDir])
+      const paths = await Promise.all(
+        Array.from({ length: 8 }, async (_, index) => {
+          const filePath = path.join(testDir, `empty-${index}.txt`)
+          await fs.writeFile(filePath, '', 'utf-8')
+          return filePath
+        })
+      )
+
+      const content = await handler.readFile({ paths }, undefined, {
+        mimeType: 'text/plain',
+        autoTruncateChars: 4_500
+      })
+
+      for (const filePath of paths) {
+        expect(content).toContain(`${filePath}:\n\n`)
+      }
+      expect(content).not.toContain('first ')
+    } finally {
+      await fs.rm(testDir, { recursive: true, force: true })
+    }
+  })
+
+  it('reads an empty regular file without a byte-window header', async () => {
+    const testDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-fs-read-empty-'))
+    try {
+      const handler = new AgentFileSystemHandler([testDir])
+      const filePath = path.join(testDir, 'empty.txt')
+      await fs.writeFile(filePath, '', 'utf-8')
+
+      const content = await handler.readFile({ paths: [filePath] }, undefined, {
+        mimeType: 'text/plain',
+        autoTruncateChars: 4_500
+      })
+
+      expect(content).toBe(`${filePath}:\n\n`)
+      expect(content).not.toContain('first ')
+    } finally {
+      await fs.rm(testDir, { recursive: true, force: true })
+    }
+  })
+})

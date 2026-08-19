@@ -16,8 +16,6 @@ import {
   extractProviderFailureMetadata
 } from '../providerFailure'
 import type { ProviderLocalePort } from '../ports'
-import { proxyConfig } from '../../platform/proxy'
-import { ProxyAgent } from 'undici'
 
 const DEFAULT_BASE_URL = 'https://dev.voice.ai'
 const DEFAULT_AUDIO_FORMAT = 'mp3'
@@ -61,9 +59,6 @@ type VoiceAITtsConfig = {
 }
 
 export class VoiceAIProvider extends BaseLLMProvider {
-  private proxyAgent?: ProxyAgent
-  private proxyUrl?: string
-
   constructor(
     provider: LLM_PROVIDER,
     providerSettings: ProviderSettingsPort,
@@ -73,16 +68,7 @@ export class VoiceAIProvider extends BaseLLMProvider {
     this.init()
   }
 
-  public onProxyResolved(): void {
-    this.proxyAgent = undefined
-    this.proxyUrl = undefined
-  }
-
-  public override updateConfig(provider: LLM_PROVIDER): void {
-    super.updateConfig(provider)
-    this.proxyAgent = undefined
-    this.proxyUrl = undefined
-  }
+  public onProxyResolved(): void {}
 
   public async check(): Promise<{ isOk: boolean; errorMsg: string | null }> {
     if (!this.provider.apiKey) {
@@ -241,16 +227,6 @@ export class VoiceAIProvider extends BaseLLMProvider {
     }
   }
 
-  private getFetchOptions(): { dispatcher?: ProxyAgent } {
-    const proxyUrl = proxyConfig.getProxyUrl()
-    if (!proxyUrl) return {}
-    if (this.proxyUrl !== proxyUrl || !this.proxyAgent) {
-      this.proxyAgent = new ProxyAgent(proxyUrl)
-      this.proxyUrl = proxyUrl
-    }
-    return { dispatcher: this.proxyAgent }
-  }
-
   private getBaseUrl(): string {
     const raw = this.provider.baseUrl?.trim()
     if (raw && raw.length > 0) {
@@ -341,8 +317,7 @@ export class VoiceAIProvider extends BaseLLMProvider {
     const response = await fetch(url, {
       method: 'GET',
       headers,
-      ...(signal ? { signal } : {}),
-      ...this.getFetchOptions()
+      ...(signal ? { signal } : {})
     })
 
     if (!response.ok) {
@@ -414,23 +389,30 @@ export class VoiceAIProvider extends BaseLLMProvider {
   }
 
   private async listVoices(): Promise<VoiceStatusResponse[]> {
-    const response = await fetch(this.buildUrl('/api/v1/tts/voices'), {
-      method: 'GET',
-      headers: this.getAuthHeaders(),
-      ...this.getFetchOptions()
+    const { signal, dispose } = this.createModelRequestSignal({
+      timeout: this.getModelFetchTimeout()
     })
+    try {
+      const response = await fetch(this.buildUrl('/api/v1/tts/voices'), {
+        method: 'GET',
+        headers: this.getAuthHeaders(),
+        ...(signal ? { signal } : {})
+      })
 
-    if (!response.ok) {
-      throw createProviderHttpErrorFromResponse(
-        `Voice.ai list voices failed: ${response.status} ${response.statusText}`,
-        response,
-        'voiceai_voices_http_error'
-      )
+      if (!response.ok) {
+        throw createProviderHttpErrorFromResponse(
+          `Voice.ai list voices failed: ${response.status} ${response.statusText}`,
+          response,
+          'voiceai_voices_http_error'
+        )
+      }
+
+      const data = await response.json()
+      if (!Array.isArray(data)) return []
+      return data as VoiceStatusResponse[]
+    } finally {
+      dispose()
     }
-
-    const data = await response.json()
-    if (!Array.isArray(data)) return []
-    return data as VoiceStatusResponse[]
   }
 
   private async generateSpeech(
@@ -478,8 +460,7 @@ export class VoiceAIProvider extends BaseLLMProvider {
         method: 'POST',
         headers,
         body: JSON.stringify(requestBody),
-        ...(signal ? { signal } : {}),
-        ...this.getFetchOptions()
+        ...(signal ? { signal } : {})
       })
 
       if (!response.ok) {

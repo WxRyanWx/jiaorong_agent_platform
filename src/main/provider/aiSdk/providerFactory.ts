@@ -9,8 +9,6 @@ import { createVertex } from '@ai-sdk/google-vertex'
 import { createOpenAI } from '@ai-sdk/openai'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { fromNodeProviderChain } from '@aws-sdk/credential-providers'
-import { ProxyAgent } from 'undici'
-import { proxyConfig } from '../../platform/proxy'
 import { createReasoningMiddleware } from './middlewares/reasoningMiddleware'
 import {
   buildOpenAICodexResponsesEndpoint,
@@ -368,17 +366,10 @@ function createFetchMiddleware(
   defaultHeaders: Record<string, string>,
   cleanHeaders = false
 ) {
-  const proxyUrl = proxyConfig.getProxyUrl()
-  const dispatcher = proxyUrl ? new ProxyAgent(proxyUrl) : undefined
-
   return async (url: string | URL | Request, init?: RequestInit): Promise<Response> => {
     const requestUrl = typeof url === 'string' ? url : url instanceof URL ? url.toString() : url.url
-    const nextInit: RequestInit & { dispatcher?: ProxyAgent } = {
+    const nextInit: RequestInit = {
       ...init
-    }
-
-    if (dispatcher) {
-      nextInit.dispatcher = dispatcher
     }
 
     const headers = new Headers(init?.headers ?? {})
