@@ -2,6 +2,21 @@ import { describe, expect, it } from 'vitest'
 import { DEFAULT_PROVIDERS } from '../../../src/main/provider/defaults'
 
 describe('DEFAULT_PROVIDERS', () => {
+  it('includes Jiaorong as the preconfigured enabled OpenAI-compatible provider', () => {
+    expect(DEFAULT_PROVIDERS[0]).toMatchObject({
+      id: 'jiaorong',
+      name: 'Jiaorong',
+      apiType: 'openai-completions',
+      apiKey: 'sk-ChWjO4ISHz6FmVIBrcI7mpki2CVJsQhz',
+      baseUrl: 'https://c4ai.ccccltd.cn/api/compatible/v1',
+      enable: true,
+      websites: expect.objectContaining({
+        official: 'https://c4ai.ccccltd.cn/',
+        defaultBaseUrl: 'https://c4ai.ccccltd.cn/api/compatible/v1'
+      })
+    })
+  })
+
   it('includes AMD GPU Cloud as a disabled built-in OpenAI-compatible provider', () => {
     expect(DEFAULT_PROVIDERS).toContainEqual(
       expect.objectContaining({

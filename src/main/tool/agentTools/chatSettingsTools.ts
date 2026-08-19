@@ -13,13 +13,15 @@ import type { AgentDesktopToolPort, AgentDisplaySettingsPort } from '../runtimeP
 import type { SkillSettingsPort } from '@/skill/settings'
 import { REQUESTED_LOCALES } from '@shared/locales'
 
-export const CHAT_SETTINGS_SKILL_NAME = 'deepchat-settings'
+import { CHAT_SETTINGS_SKILL_NAME, resolveLegacySkillName } from '@shared/legacyBrandAliases'
+
+export { CHAT_SETTINGS_SKILL_NAME }
 export const CHAT_SETTINGS_TOOL_NAMES = {
-  toggle: 'deepchat_settings_toggle',
-  setLanguage: 'deepchat_settings_set_language',
-  setTheme: 'deepchat_settings_set_theme',
-  setFontSize: 'deepchat_settings_set_font_size',
-  open: 'deepchat_settings_open'
+  toggle: 'jiaorong_settings_toggle',
+  setLanguage: 'jiaorong_settings_set_language',
+  setTheme: 'jiaorong_settings_set_theme',
+  setFontSize: 'jiaorong_settings_set_font_size',
+  open: 'jiaorong_settings_open'
 } as const
 
 const SUPPORTED_THEMES = ['dark', 'light', 'system'] as const
@@ -32,11 +34,11 @@ const toggleSchema = z.strictObject({
 })
 
 const languageSchema = z.strictObject({
-  language: z.enum(REQUESTED_LOCALES).describe('DeepChat language/locale.')
+  language: z.enum(REQUESTED_LOCALES).describe('JiaorongAI language/locale.')
 })
 
 const themeSchema = z.strictObject({
-  theme: z.enum(SUPPORTED_THEMES).describe('Theme mode for DeepChat.')
+  theme: z.enum(SUPPORTED_THEMES).describe('Theme mode for JiaorongAI.')
 })
 
 const fontSizeSchema = z.strictObject({
@@ -160,8 +162,8 @@ export class ChatSettingsToolHandler {
     }
     const activeSkills =
       activeSkillNames ?? (await this.options.skillService.getActiveSkills(conversationId))
-    if (!activeSkills.includes(CHAT_SETTINGS_SKILL_NAME)) {
-      return buildError('skill_inactive', 'deepchat-settings skill is not active.')
+    if (!activeSkills.some((name) => resolveLegacySkillName(name) === CHAT_SETTINGS_SKILL_NAME)) {
+      return buildError('skill_inactive', 'jiaorong-settings skill is not active.')
     }
     return null
   }
@@ -211,7 +213,7 @@ export class ChatSettingsToolHandler {
     } catch (error) {
       return buildError(
         'apply_failed',
-        'Failed to apply DeepChat toggle.',
+        'Failed to apply JiaorongAI toggle.',
         error instanceof Error ? error.message : String(error)
       )
     }
@@ -253,7 +255,7 @@ export class ChatSettingsToolHandler {
     } catch (error) {
       return buildError(
         'apply_failed',
-        'Failed to apply DeepChat language.',
+        'Failed to apply JiaorongAI language.',
         error instanceof Error ? error.message : String(error)
       )
     }
@@ -291,7 +293,7 @@ export class ChatSettingsToolHandler {
     } catch (error) {
       return buildError(
         'apply_failed',
-        'Failed to apply DeepChat theme.',
+        'Failed to apply JiaorongAI theme.',
         error instanceof Error ? error.message : String(error)
       )
     }
@@ -333,7 +335,7 @@ export class ChatSettingsToolHandler {
     } catch (error) {
       return buildError(
         'apply_failed',
-        'Failed to apply DeepChat font size.',
+        'Failed to apply JiaorongAI font size.',
         error instanceof Error ? error.message : String(error)
       )
     }
@@ -417,7 +419,8 @@ export const buildChatSettingsToolDefinitions = (allowedTools: string[]): MCPToo
       type: 'function',
       function: {
         name: CHAT_SETTINGS_TOOL_NAMES.toggle,
-        description: 'Toggle a DeepChat setting.',
+        displayName: '切换设置',
+        description: '切换交融AI开关类设置。',
         parameters: toDeepChatJsonSchema(toggleSchema) as {
           type: string
           properties: Record<string, unknown>
@@ -425,9 +428,9 @@ export const buildChatSettingsToolDefinitions = (allowedTools: string[]): MCPToo
         }
       },
       server: {
-        name: 'deepchat-settings',
+        name: 'jiaorong-settings',
         icons: 'settings',
-        description: 'DeepChat settings control'
+        description: 'JiaorongAI settings control'
       }
     })
   }
@@ -438,7 +441,8 @@ export const buildChatSettingsToolDefinitions = (allowedTools: string[]): MCPToo
       type: 'function',
       function: {
         name: CHAT_SETTINGS_TOOL_NAMES.setLanguage,
-        description: 'Set DeepChat language/locale.',
+        displayName: '设置语言',
+        description: '设置交融AI语言/区域。',
         parameters: toDeepChatJsonSchema(languageSchema) as {
           type: string
           properties: Record<string, unknown>
@@ -446,9 +450,9 @@ export const buildChatSettingsToolDefinitions = (allowedTools: string[]): MCPToo
         }
       },
       server: {
-        name: 'deepchat-settings',
+        name: 'jiaorong-settings',
         icons: 'settings',
-        description: 'DeepChat settings control'
+        description: 'JiaorongAI settings control'
       }
     })
   }
@@ -459,7 +463,8 @@ export const buildChatSettingsToolDefinitions = (allowedTools: string[]): MCPToo
       type: 'function',
       function: {
         name: CHAT_SETTINGS_TOOL_NAMES.setTheme,
-        description: 'Set DeepChat theme mode.',
+        displayName: '设置主题',
+        description: '设置交融AI主题模式。',
         parameters: toDeepChatJsonSchema(themeSchema) as {
           type: string
           properties: Record<string, unknown>
@@ -467,9 +472,9 @@ export const buildChatSettingsToolDefinitions = (allowedTools: string[]): MCPToo
         }
       },
       server: {
-        name: 'deepchat-settings',
+        name: 'jiaorong-settings',
         icons: 'settings',
-        description: 'DeepChat settings control'
+        description: 'JiaorongAI settings control'
       }
     })
   }
@@ -480,7 +485,8 @@ export const buildChatSettingsToolDefinitions = (allowedTools: string[]): MCPToo
       type: 'function',
       function: {
         name: CHAT_SETTINGS_TOOL_NAMES.setFontSize,
-        description: 'Set DeepChat font size level.',
+        displayName: '设置字号',
+        description: '设置交融AI字号级别。',
         parameters: toDeepChatJsonSchema(fontSizeSchema) as {
           type: string
           properties: Record<string, unknown>
@@ -488,9 +494,9 @@ export const buildChatSettingsToolDefinitions = (allowedTools: string[]): MCPToo
         }
       },
       server: {
-        name: 'deepchat-settings',
+        name: 'jiaorong-settings',
         icons: 'settings',
-        description: 'DeepChat settings control'
+        description: 'JiaorongAI settings control'
       }
     })
   }
@@ -501,8 +507,8 @@ export const buildChatSettingsToolDefinitions = (allowedTools: string[]): MCPToo
       type: 'function',
       function: {
         name: CHAT_SETTINGS_TOOL_NAMES.open,
-        description:
-          'Open DeepChat settings only when the request cannot be fulfilled via other settings tools; do not call after the change is already applied.',
+        displayName: '打开设置页',
+        description: '当其他设置工具无法满足请求时打开交融AI设置页；若变更已生效则不要调用。',
         parameters: toDeepChatJsonSchema(openSchema) as {
           type: string
           properties: Record<string, unknown>
@@ -510,9 +516,9 @@ export const buildChatSettingsToolDefinitions = (allowedTools: string[]): MCPToo
         }
       },
       server: {
-        name: 'deepchat-settings',
+        name: 'jiaorong-settings',
         icons: 'settings',
-        description: 'DeepChat settings control'
+        description: 'JiaorongAI settings control'
       }
     })
   }

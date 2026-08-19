@@ -17,10 +17,7 @@ import type { EffectiveSkillContentResolution } from '@shared/types/skill'
 import { isSkillSourceType } from '@shared/types/skillManagement'
 import { TOOL_SEARCH_AGENT_TOOL_NAME } from '@shared/agentTools'
 import { buildExecutionContractBinding } from '@/tape/domain/executionContract'
-import {
-  parseQuestionToolArgs,
-  QUESTION_TOOL_NAME
-} from '@/tool/agentTools/questionTool'
+import { isQuestionToolName, parseQuestionToolArgs } from '@/tool/agentTools/questionTool'
 import { UPDATE_PLAN_TOOL_NAME } from '@/tool/agentTools/agentPlanTool'
 import type {
   InterleavedReasoningConfig,
@@ -729,7 +726,10 @@ function extractSearchPayload(
 
   const resourceItems = content.filter(
     (item): item is MCPResourceContent =>
-      item.type === 'resource' && item.resource?.mimeType === 'application/deepchat-webpage'
+      item.type === 'resource' &&
+      (item.resource?.mimeType === 'application/jiaorong-webpage' ||
+        // Keep legacy DeepChat mime for historical tool results.
+        item.resource?.mimeType === 'application/deepchat-webpage')
   )
   if (resourceItems.length === 0) {
     return null
@@ -3187,7 +3187,7 @@ export async function settleToolBatch(
       // Questions and permission prechecks are effects of accepting this call, so the frozen View
       // must admit it first. Later assertions retain the race checks around asynchronous policy.
       assertToolSurfaceAuthority(toolCall)
-      if (toolCall.function.name === QUESTION_TOOL_NAME) {
+      if (isQuestionToolName(toolCall.function.name)) {
         const parsedQuestion = parseQuestionToolArgs(tc.arguments)
         if (!parsedQuestion.success) {
           const errorText = `Error: ${parsedQuestion.error}`

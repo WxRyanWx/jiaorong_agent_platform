@@ -3,6 +3,7 @@
     :title="t('routes.settings-display')"
     :eyebrow="t('settings.controlCenter.groups.setup')"
     data-testid="settings-appearance-page"
+    class="settings-display-page"
   >
     <div class="flex w-full flex-col gap-1.5">
       <!-- Language selection -->
@@ -17,7 +18,7 @@
           </span>
           <div class="ml-auto w-auto">
             <Select v-model="selectedLanguage">
-              <SelectTrigger data-testid="language-select" class="h-8!">
+              <SelectTrigger data-testid="language-select" class="settings-display-select h-8!">
                 <SelectValue :placeholder="t('settings.common.languageSelect')" />
               </SelectTrigger>
               <SelectContent>
@@ -35,8 +36,8 @@
         </div>
       </div>
 
-      <!-- Theme settings -->
-      <div class="flex flex-col gap-2 px-2 py-2">
+      <!-- Theme settings (交融强制浅色，入口隐藏) -->
+      <div v-if="false" class="flex flex-col gap-2 px-2 py-2">
         <div class="flex items-center gap-3">
           <span
             class="flex items-center gap-2 text-sm font-medium shrink-0 min-w-[220px]"

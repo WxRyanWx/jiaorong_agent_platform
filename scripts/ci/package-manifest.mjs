@@ -41,6 +41,7 @@ const execFileAsync = promisify(execFile)
 const COMMAND_OUTPUT_LIMIT = 4 * 1024 * 1024
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
+const MACOS_APP_BUNDLE_NAME = 'JiaorongAI.app'
 
 function assertNonEmptyString(value, label) {
   if (typeof value !== 'string' || value.trim().length === 0) {
@@ -143,7 +144,7 @@ export function validateMacZipEntries(output) {
       path.posix.isAbsolute(normalizedEntry) ||
       /^[A-Za-z]:/.test(normalizedEntry) ||
       segments.some((segment) => segment === '' || segment === '.' || segment === '..') ||
-      segments[0] !== 'DeepChat.app'
+      segments[0] !== MACOS_APP_BUNDLE_NAME
     ) {
       throw new Error(`macOS updater ZIP contains an unsafe entry: ${JSON.stringify(entry)}`)
     }
@@ -183,17 +184,17 @@ export async function verifyMacZipDistribution(
     const entries = await readdir(extractionRoot, { withFileTypes: true })
     if (
       entries.length !== 1 ||
-      entries[0].name !== 'DeepChat.app' ||
+      entries[0].name !== MACOS_APP_BUNDLE_NAME ||
       !entries[0].isDirectory()
     ) {
-      throw new Error('macOS updater ZIP must contain exactly one root DeepChat.app directory')
+      throw new Error(`macOS updater ZIP must contain exactly one root ${MACOS_APP_BUNDLE_NAME} directory`)
     }
 
-    const extractedAppPath = path.join(extractionRoot, 'DeepChat.app')
+    const extractedAppPath = path.join(extractionRoot, MACOS_APP_BUNDLE_NAME)
     const appStat = await lstat(extractedAppPath)
     if (appStat.isSymbolicLink() || !appStat.isDirectory()) {
       throw new Error(
-        'macOS updater ZIP root DeepChat.app must be a real application directory'
+        `macOS updater ZIP root ${MACOS_APP_BUNDLE_NAME} must be a real application directory`
       )
     }
     await verifyCuaMacHelper(extractedAppPath, { teamId, runCommand })
@@ -685,7 +686,7 @@ export async function createPackageManifest({
       path.join(
         resolvedDistDirectory,
         definition.arch === 'arm64' ? 'mac-arm64' : 'mac',
-        'DeepChat.app'
+        MACOS_APP_BUNDLE_NAME
       )
     const resolvedDmgPath = path.join(resolvedDistDirectory, dmg.name)
     const resolvedZipPath = path.join(

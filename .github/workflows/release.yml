@@ -364,7 +364,7 @@ jobs:
           token: ${{ github.token }}
           tag_name: ${{ needs.preflight.outputs.tag }}
           target_commitish: ${{ needs.preflight.outputs.sha }}
-          name: DeepChat V${{ needs.preflight.outputs.version }}
+          name: JiaorongAI V${{ needs.preflight.outputs.version }}
           draft: true
           prerelease: ${{ needs.preflight.outputs.prerelease == 'true' }}
           files: release-assets/*

@@ -267,6 +267,8 @@ import { parseLiveDelegationSpawnBlock } from '@/lib/liveDelegationToolCall'
 import LiveDelegationToolCallCard from './LiveDelegationToolCallCard.vue'
 import MessageBlockToolCallImagePreview from './MessageBlockToolCallImagePreview.vue'
 import { DcCopyButton } from '@dc-ui/components'
+import { getDisplayLabel } from '@/lib/slashMenuDisplayText'
+import { useToolDisplayLabelOptions } from '@/composables/useToolDisplayLabelOptions'
 
 const McpAppView = defineAsyncComponent(() => import('@/components/mcp/McpAppView.vue'))
 
@@ -274,6 +276,7 @@ const { t } = useI18n()
 
 const themeStore = useThemeStore()
 const sessionStore = useSessionStore()
+const { displayLabelOptions } = useToolDisplayLabelOptions()
 
 const props = defineProps<{
   block: DisplayAssistantMessageBlock
@@ -329,24 +332,29 @@ const functionLabel = computed(() => {
   return toolCall?.name ?? ''
 })
 
-const displayFunctionName = computed(() => functionLabel.value || t('toolCall.title'))
+const displayFunctionName = computed(() => {
+  const label = getDisplayLabel(functionLabel.value, displayLabelOptions.value)
+  return label || t('toolCall.title')
+})
 
 const expandedToolTitle = computed(() => {
   if (!shouldRenderDetails.value || !props.block.tool_call) {
     return ''
   }
 
-  const toolName = functionLabel.value || t('toolCall.title')
+  const toolName =
+    getDisplayLabel(functionLabel.value, displayLabelOptions.value) || t('toolCall.title')
   let serverName = props.block.tool_call.server_name?.trim() ?? ''
   if (serverName.includes('/')) {
     serverName = serverName.split('/').pop() ?? ''
   }
+  const displayServerName = serverName ? getDisplayLabel(serverName, displayLabelOptions.value) : ''
 
-  if (!serverName || serverName === toolName) {
+  if (!displayServerName || displayServerName === toolName) {
     return toolName
   }
 
-  return `${serverName}.${toolName}`
+  return `${displayServerName}.${toolName}`
 })
 
 const paramsText = computed(() => props.block.tool_call?.params ?? '')

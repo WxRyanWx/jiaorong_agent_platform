@@ -1,17 +1,20 @@
 import type { SettingsDatabase } from '@/settings/data/database'
 import { AppSettingsDbBackedStore } from '@/settings/appSettingsDbStore'
 import type { StoreLike } from '@/config/storeLike'
+import { prepareJsonStoreFile } from '@/config/jsonStoreRecovery'
 import ElectronStore from 'electron-store'
 import path from 'node:path'
 import { app } from 'electron'
 
 export function createSettingsStore(): SettingsStore {
   const userDataPath = app.getPath('userData')
+  prepareJsonStoreFile(userDataPath, 'app-settings')
   return new SettingsStore(
     new ElectronStore<Record<string, unknown>>({
       name: 'app-settings',
+      clearInvalidConfig: true,
       defaults: {
-        language: 'system',
+        language: 'zh-CN',
         providers: [],
         closeToQuit: false,
         proxyMode: 'system',
@@ -32,7 +35,7 @@ export function createSettingsStore(): SettingsStore {
         fontFamily: '',
         codeFontFamily: '',
         default_system_prompt: '',
-        skillsPath: path.join(app.getPath('home'), '.deepchat', 'skills'),
+        skillsPath: path.join(app.getPath('home'), '.jiaorongchat', 'skills'),
         enableSkills: true,
         skillDraftSuggestionsEnabled: false,
         appVersion: app.getVersion(),

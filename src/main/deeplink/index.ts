@@ -12,10 +12,16 @@ import {
 } from '@shared/providerDeeplink'
 import type { ProviderDeeplinkFailureReason } from '@shared/notifications'
 import type {
+  DeeplinkAuthLoginPort,
   DeeplinkDesktopPort,
   DeeplinkMcpInstallPort,
   DeeplinkProviderInstallPort
 } from './ports'
+import {
+  DEEPLINK_SCHEME,
+  LEGACY_DEEPLINK_SCHEME,
+  isSupportedDeeplinkProtocol
+} from '@shared/appIdentity'
 
 interface MCPInstallConfig {
   mcpServers: Record<
@@ -47,11 +53,11 @@ class ProviderDeeplinkError extends Error {
 
 /**
  * DeepLink 处理器类
- * 负责处理 deepchat:// 协议的链接
- * deepchat://start 唤起应用，进入到默认的新会话界面
- * deepchat://start?msg=你好 唤起应用，进入新会话界面，并且带上默认消息
- * deepchat://start?msg=你好&model=deepseek-chat 唤起应用，进入新会话界面，并且带上默认消息，model先进行完全匹配，选中第一个命中的。没有命中的就进行模糊匹配，只要包含这个字段的第一个返回，如果都没有就忽略用默认
- * deepchat://mcp/install?json=base64JSONData 通过json数据直接安装mcp
+ * 负责处理 jiaorongchat://（及兼容 deepchat://）协议的链接
+ * jiaorongchat://start 唤起应用，进入到默认的新会话界面
+ * jiaorongchat://start?msg=你好 唤起应用，进入新会话界面，并且带上默认消息
+ * jiaorongchat://mcp/install?json=base64JSONData 通过json数据直接安装mcp
+ * jiaorongchat://chat?token=xxx 交建通扫码登录回调，将 token 交给渲染进程写入本地存储
  */
 export class DeeplinkService {
   private startupUrl: string | null = null
@@ -60,7 +66,8 @@ export class DeeplinkService {
   constructor(
     private readonly desktop: DeeplinkDesktopPort,
     private readonly mcpInstall: DeeplinkMcpInstallPort,
-    private readonly providerInstall: DeeplinkProviderInstallPort
+    private readonly providerInstall: DeeplinkProviderInstallPort,
+    private readonly authLogin: DeeplinkAuthLoginPort
   ) {}
 
   init(): void {
@@ -70,15 +77,19 @@ export class DeeplinkService {
       this.startupUrl = startupDeepLinkUrl
     }
 
-    // 注册协议处理器
+    // 注册协议处理器（交融主协议 + DeepChat 兼容协议）
+    const schemes = [DEEPLINK_SCHEME, LEGACY_DEEPLINK_SCHEME]
     if (process.defaultApp) {
       if (process.argv.length >= 2) {
-        app.setAsDefaultProtocolClient('deepchat', process.execPath, [
-          path.resolve(process.argv[1])
-        ])
+        const resolved = path.resolve(process.argv[1])
+        for (const scheme of schemes) {
+          app.setAsDefaultProtocolClient(scheme, process.execPath, [resolved])
+        }
       }
     } else {
-      app.setAsDefaultProtocolClient('deepchat')
+      for (const scheme of schemes) {
+        app.setAsDefaultProtocolClient(scheme)
+      }
     }
   }
 
@@ -110,7 +121,7 @@ export class DeeplinkService {
       const urlObj = new URL(url)
       logger.info('Received DeepLink:', this.redactDeepLinkUrlForLog(url))
 
-      if (urlObj.protocol !== 'deepchat:') {
+      if (!isSupportedDeeplinkProtocol(urlObj.protocol)) {
         console.error('Unsupported protocol:', urlObj.protocol)
         return
       }
@@ -144,12 +155,26 @@ export class DeeplinkService {
         } else {
           console.warn('Unknown provider subcommand:', subCommand)
         }
+      } else if (command === 'chat') {
+        await this.handleChatLogin(urlObj.searchParams)
       } else {
         console.warn('Unknown DeepLink command:', command)
       }
     } catch (error) {
       console.error('Error processing DeepLink:', error)
     }
+  }
+
+  async handleChatLogin(params: URLSearchParams): Promise<void> {
+    logger.info('Processing chat login command, parameters:', this.redactSearchParamsForLog(params))
+
+    const token = params.get('token') || params.get('accessToken')
+    if (!token || token.trim() === '') {
+      console.warn("Missing 'token' parameter in chat login deeplink")
+      return
+    }
+
+    await this.authLogin.requestAuthLogin(token)
   }
 
   async handleStart(params: URLSearchParams): Promise<void> {

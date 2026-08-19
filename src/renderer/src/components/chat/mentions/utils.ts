@@ -1,4 +1,5 @@
 import type { MCPToolDefinition, PromptListEntry } from '@shared/types/mcp'
+import { compareSlashSuggestionLabels } from '@jiaorong/utils/slashSuggestionSort'
 
 export interface AcpSessionCommand {
   name: string
@@ -140,7 +141,7 @@ export const sortSlashSuggestionItems = (items: SlashSuggestionItem[]): SlashSug
     if (SLASH_CATEGORY_RANK[a.category] !== SLASH_CATEGORY_RANK[b.category]) {
       return SLASH_CATEGORY_RANK[a.category] - SLASH_CATEGORY_RANK[b.category]
     }
-    return a.label.localeCompare(b.label)
+    return compareSlashSuggestionLabels(a.label, b.label)
   })
 }
 
@@ -181,7 +182,8 @@ export const resolveSlashSelectionAction = (item: SlashSuggestionItem): SlashAct
   if (item.category === 'tool') {
     const tool = item.payload as MCPToolDefinition
     const toolName = tool.function.name?.trim() || item.label.trim()
-    return { kind: 'insert-tool', text: `@${toolName} ` }
+    const displayLabel = item.label.trim() || toolName
+    return { kind: 'insert-tool', text: `@${displayLabel} ` }
   }
 
   const prompt = item.payload as PromptListEntry

@@ -3371,7 +3371,7 @@ describe('Session application coordinators', () => {
       })
 
       await expect(turn.compactSession('s-compat')).rejects.toThrow(
-        'Manual compaction is only available for DeepChat agent sessions.'
+        'Manual compaction is only available for JiaorongAI agent sessions.'
       )
       expect(deepChatAgent.compactSession).not.toHaveBeenCalled()
     })

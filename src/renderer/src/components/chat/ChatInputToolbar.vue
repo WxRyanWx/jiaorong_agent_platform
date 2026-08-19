@@ -9,10 +9,11 @@
         :label="t('chat.input.attach')"
         :tooltip="t('chat.input.attach')"
         :tooltip-delay-duration="200"
-        class="h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground"
+        class="chat-input-toolbar-icon h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground"
         :disabled="isPreparingAttachments"
         @click="$emit('attach')"
       />
+      <KnowledgeBasePickerButton :session-id="resolvedKnowledgeBaseSessionId" />
     </div>
 
     <div class="flex items-center gap-1">
@@ -192,6 +193,7 @@ import { Spinner } from '@shadcn/components/ui/spinner'
 import { Icon } from '@iconify/vue'
 import { DcButton } from '@dc-ui/components/button'
 import { useI18n } from 'vue-i18n'
+import KnowledgeBasePickerButton from '@jiaorong/knowledgeBase/picker/KnowledgeBasePickerButton.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -208,6 +210,9 @@ const props = withDefaults(
     isPreparingAttachments?: boolean
     showSearch?: boolean
     searchEnabled?: boolean
+    sessionId?: string | null
+    /** 未传则跟 sessionId；新会话页显式传 null，避免 ACP draft id 把选中写到另一把 key */
+    knowledgeBaseSessionId?: string | null
   }>(),
   {
     isGenerating: false,
@@ -222,8 +227,13 @@ const props = withDefaults(
     isVoiceInputTranscribing: false,
     isPreparingAttachments: false,
     showSearch: false,
-    searchEnabled: false
+    searchEnabled: false,
+    sessionId: null
   }
+)
+
+const resolvedKnowledgeBaseSessionId = computed(() =>
+  props.knowledgeBaseSessionId !== undefined ? props.knowledgeBaseSessionId : props.sessionId
 )
 
 const emit = defineEmits<{

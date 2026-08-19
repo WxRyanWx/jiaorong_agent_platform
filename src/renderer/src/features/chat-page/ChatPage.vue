@@ -222,6 +222,7 @@
                   >
                     <template #toolbar>
                       <ChatInputToolbar
+                        :session-id="props.sessionId"
                         :is-generating="isGenerating"
                         :has-input="hasDraftInput"
                         :send-disabled="isInputSubmitDisabled"
@@ -464,7 +465,8 @@ const chatScrollController = useChatScrollController({
     if (container) syncMessageViewportMetrics(container)
   }
 })
-const TOP_HISTORY_THRESHOLD = 80
+const TOP_HISTORY_PREFETCH_MIN_PX = 200
+const TOP_HISTORY_PREFETCH_VIEWPORT_RATIO = 0.25
 const MESSAGE_JUMP_RETRY_INTERVAL = 80
 const MESSAGE_HIGHLIGHT_DURATION = 2000
 const MAX_MESSAGE_JUMP_RETRIES = 8
@@ -639,6 +641,13 @@ function scheduleScrollMetricsRead() {
   })
 }
 
+function getHistoryPrefetchThreshold(el: HTMLElement): number {
+  return Math.max(
+    TOP_HISTORY_PREFETCH_MIN_PX,
+    Math.round(el.clientHeight * TOP_HISTORY_PREFETCH_VIEWPORT_RATIO)
+  )
+}
+
 function onWheel(event: WheelEvent) {
   if (event.deltaY === 0) return
   chatScrollController.notifyUserGestureStart('wheel')
@@ -659,7 +668,7 @@ function onScroll() {
     listGestures.markListScrolling()
   }
 
-  if (el.scrollTop <= TOP_HISTORY_THRESHOLD && hadUpwardPaginationIntent) {
+  if (el.scrollTop <= getHistoryPrefetchThreshold(el) && hadUpwardPaginationIntent) {
     if (!listGestures.consumeUpwardPaginationIntent()) {
       return
     }
@@ -691,10 +700,10 @@ async function loadOlderMessagesAtTop(options: { force?: boolean } = {}): Promis
   if (!el) {
     return
   }
-  if (!options.force && el.scrollTop > TOP_HISTORY_THRESHOLD) {
+  if (!options.force && el.scrollTop > getHistoryPrefetchThreshold(el)) {
     return
   }
-  if (!options.force && el.scrollHeight - el.clientHeight <= TOP_HISTORY_THRESHOLD) {
+  if (!options.force && el.scrollHeight - el.clientHeight <= getHistoryPrefetchThreshold(el)) {
     return
   }
 
@@ -878,7 +887,7 @@ if (pendingMessageWindowMeasurements) {
 const listGestures = useListGestures({
   viewport: scrollContainer,
   scrollIdleMs: SCROLL_IDLE_MS,
-  topHistoryThreshold: TOP_HISTORY_THRESHOLD,
+  topHistoryThreshold: TOP_HISTORY_PREFETCH_MIN_PX,
   onGestureStart: (kind) => chatScrollController.notifyUserGestureStart(kind),
   onGestureEnd: () => chatScrollController.notifyUserGestureEnd(),
   onScrollingStart: () => virtualization.pinWindowToViewport(),

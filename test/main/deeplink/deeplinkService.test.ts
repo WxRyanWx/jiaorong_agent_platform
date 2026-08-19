@@ -51,7 +51,7 @@ describe('DeeplinkService', () => {
       mcp: presenterMock.mcpService as any,
       notifications: presenterMock.semanticNotifications
     })
-    return new DeeplinkService(actions.desktop, actions.mcp, actions.provider)
+    return new DeeplinkService(actions.desktop, actions.mcp, actions.provider, actions.auth)
   }
 
   beforeEach(async () => {

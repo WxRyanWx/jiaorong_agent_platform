@@ -48,6 +48,9 @@ describe('startupDeepLink utilities', () => {
     expect(findDeepLinkArg(['electron', '--flag', 'deepchat://provider/install?v=1'])).toBe(
       'deepchat://provider/install?v=1'
     )
+    expect(findDeepLinkArg(['electron', 'JiaorongChat://start?msg=1'])).toBe(
+      'JiaorongChat://start?msg=1'
+    )
   })
 
   it('ignores strings that only contain a deeplink later in the value', () => {
@@ -55,5 +58,13 @@ describe('startupDeepLink utilities', () => {
       null
     )
     expect(findDeepLinkArg(['electron', 'prefix deepchat://start?msg=1'])).toBeNull()
+  })
+
+  it('reads jiaorongchat_deeplink as a secondary env fallback', () => {
+    const env = {
+      jiaorongchat_deeplink: 'jiaorongchat://start?msg=env'
+    } as NodeJS.ProcessEnv
+
+    expect(findStartupDeepLink(['electron'], env)).toBe('jiaorongchat://start?msg=env')
   })
 })

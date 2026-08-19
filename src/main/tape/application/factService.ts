@@ -178,6 +178,7 @@ export class TapeFactService
   }
 
   getTapeIncarnationId(sessionId: string): string {
+    this.table.ensureBootstrapAnchor(sessionId)
     const incarnation = this.table.getBootstrapIncarnation(sessionId)
     if (!incarnation) throw new Error('Session Tape bootstrap is missing or invalid.')
     return incarnation

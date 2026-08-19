@@ -31,7 +31,7 @@ const WINDOWS_PACKAGED_EXECUTABLE = resolve(
   REPO_ROOT,
   'dist',
   arch() === 'arm64' ? 'win-arm64-unpacked' : 'win-unpacked',
-  'DeepChat.exe'
+  'JiaorongAI.exe'
 )
 const MAX_MAIN_LOG_ATTACHMENT_BYTES = 512 * 1024
 const APP_CLOSE_TIMEOUT_MS = 10_000
@@ -60,7 +60,7 @@ const isMainAppWindow = async (page: Page): Promise<boolean> => {
   }
 
   const title = await page.title().catch(() => '')
-  return title === 'DeepChat' && !url.includes('/renderer/')
+  return title === 'JiaorongAI' && !url.includes('/renderer/')
 }
 
 const waitForMainAppWindow = async (electronApp: ElectronApplication): Promise<Page> => {
@@ -136,14 +136,14 @@ const getDefaultUserDataDir = (): string => {
   }
 
   if (process.platform === 'win32') {
-    return resolve(process.env.APPDATA ?? resolve(homedir(), 'AppData', 'Roaming'), 'DeepChat')
+    return resolve(process.env.APPDATA ?? resolve(homedir(), 'AppData', 'Roaming'), 'JiaorongAI')
   }
 
   if (process.platform === 'darwin') {
-    return resolve(homedir(), 'Library', 'Application Support', 'DeepChat')
+    return resolve(homedir(), 'Library', 'Application Support', 'JiaorongAI')
   }
 
-  return resolve(process.env.XDG_CONFIG_HOME ?? resolve(homedir(), '.config'), 'DeepChat')
+  return resolve(process.env.XDG_CONFIG_HOME ?? resolve(homedir(), '.config'), 'JiaorongAI')
 }
 
 const readTextFileTail = (filePath: string): string => {

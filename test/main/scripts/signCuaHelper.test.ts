@@ -59,7 +59,7 @@ describe('sign-cua-helper', () => {
 
     await expect(
       signMacHelper({
-        appPath: path.join(tmpDir, 'DeepChat Computer Use.app'),
+        appPath: path.join(tmpDir, 'JiaorongAI Computer Use.app'),
         entitlementsPath: path.join(tmpDir, 'entitlements.plist'),
         purpose: 'verification',
         cwd: tmpDir,
@@ -79,7 +79,7 @@ describe('sign-cua-helper', () => {
 
   it('imports the release certificate and signs the helper before plugin packaging', async () => {
     const { signMacHelper } = await loadSigner()
-    const appPath = path.join(tmpDir, 'DeepChat Computer Use.app')
+    const appPath = path.join(tmpDir, 'JiaorongAI Computer Use.app')
     const entitlementsPath = path.join(tmpDir, 'entitlements.plist')
 
     await expect(
@@ -138,7 +138,7 @@ describe('sign-cua-helper', () => {
     expect(resolveCuaSigningPurpose(undefined, {})).toBe('development')
     await expect(
       signMacHelper({
-        appPath: path.join(tmpDir, 'DeepChat Computer Use.app'),
+        appPath: path.join(tmpDir, 'JiaorongAI Computer Use.app'),
         entitlementsPath: path.join(tmpDir, 'entitlements.plist'),
         cwd: tmpDir,
         env: { CI: 'true' }
@@ -211,7 +211,7 @@ describe('sign-cua-helper', () => {
     )
 
     const signingError = await signMacHelper({
-      appPath: path.join(tmpDir, 'DeepChat Computer Use.app'),
+      appPath: path.join(tmpDir, 'JiaorongAI Computer Use.app'),
       entitlementsPath: path.join(tmpDir, 'entitlements.plist'),
       purpose: 'distribution',
       cwd: tmpDir,
@@ -258,7 +258,7 @@ describe('sign-cua-helper', () => {
 
     await expect(
       signMacHelper({
-        appPath: path.join(tmpDir, 'DeepChat Computer Use.app'),
+        appPath: path.join(tmpDir, 'JiaorongAI Computer Use.app'),
         entitlementsPath: path.join(tmpDir, 'entitlements.plist'),
         purpose: 'distribution',
         cwd: tmpDir,

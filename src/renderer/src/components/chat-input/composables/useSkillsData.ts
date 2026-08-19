@@ -9,6 +9,11 @@ import { createSkillClient } from '@api/SkillClient'
 
 // === Stores ===
 import { useSkillsStore } from '@/stores/skillsStore'
+import {
+  filterEnabledSkillNames,
+  filterEnabledSkills,
+  JIAORONG_SKILL_SWITCH_EVENT
+} from '@jiaorong/utils'
 
 /**
  * Composable for managing skills data in chat input context
@@ -37,13 +42,16 @@ export function useSkillsData(
   const sessionActiveSkillRemoving = ref<string | null>(null)
   const normalizedAgentId = computed(() => agentId.value?.trim() || 'deepchat')
 
+  const skillSwitchVersion = ref(0)
+
   // === Computed ===
   /**
    * All available skills from the store
    */
-  const skills = computed<SkillMetadata[]>(() =>
-    skillsStore.getSkillsForAgent(normalizedAgentId.value)
-  )
+  const skills = computed<SkillMetadata[]>(() => {
+    void skillSwitchVersion.value
+    return filterEnabledSkills(skillsStore.getSkillsForAgent(normalizedAgentId.value))
+  })
   const loading = computed(
     () => sessionActiveSkillsLoading.value || skillsStore.isSkillsLoading(normalizedAgentId.value)
   )
@@ -95,7 +103,7 @@ export function useSkillsData(
         sequence === activeSkillsLoadSequence &&
         conversationId.value === requestedConversationId
       ) {
-        sessionActiveSkills.value = loadedSkills
+        sessionActiveSkills.value = filterEnabledSkillNames(loadedSkills)
       }
     } catch (error) {
       console.error('[useSkillsData] Failed to load active skills:', error)
@@ -142,7 +150,7 @@ export function useSkillsData(
    * Get pending skills and clear them (called when conversation is created)
    */
   const consumePendingSkills = () => {
-    const pending = [...pendingSkills.value]
+    const pending = filterEnabledSkillNames([...pendingSkills.value])
     pendingSkills.value = []
     return pending
   }
@@ -177,7 +185,7 @@ export function useSkillsData(
         mutationSequence === activeSkillMutationSequence &&
         conversationId.value === requestedConversationId
       ) {
-        sessionActiveSkills.value = updatedSkills
+        sessionActiveSkills.value = filterEnabledSkillNames(updatedSkills)
       }
     } catch (error) {
       if (
@@ -208,7 +216,7 @@ export function useSkillsData(
       if (payload.change === 'activated') {
         const currentSet = new Set(sessionActiveSkills.value)
         payload.skills.forEach((skill: string) => currentSet.add(skill))
-        sessionActiveSkills.value = Array.from(currentSet)
+        sessionActiveSkills.value = filterEnabledSkillNames(Array.from(currentSet))
         return
       }
 
@@ -247,14 +255,22 @@ export function useSkillsData(
     { immediate: true }
   )
 
+  const bumpSkillSwitchVersion = () => {
+    skillSwitchVersion.value += 1
+    sessionActiveSkills.value = filterEnabledSkillNames(sessionActiveSkills.value)
+    pendingSkills.value = filterEnabledSkillNames(pendingSkills.value)
+  }
+
   // === Lifecycle ===
   onMounted(() => {
     unsubscribeSkillSessionChanged = skillClient.onSessionChanged(handleSkillSessionChanged)
+    window.addEventListener(JIAORONG_SKILL_SWITCH_EVENT, bumpSkillSwitchVersion)
   })
 
   onUnmounted(() => {
     unsubscribeSkillSessionChanged?.()
     unsubscribeSkillSessionChanged = null
+    window.removeEventListener(JIAORONG_SKILL_SWITCH_EVENT, bumpSkillSwitchVersion)
   })
 
   // === Return Public API ===

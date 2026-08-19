@@ -29,6 +29,7 @@ export function createDeviceClient(bridge: DeepchatBridge = getDeepchatBridge())
   async function selectFiles(options?: {
     filters?: { name: string; extensions: string[] }[]
     multiple?: boolean
+    allowDirectory?: boolean
   }) {
     return await bridge.invoke(deviceSelectFilesRoute.name, options ?? {})
   }

@@ -168,8 +168,7 @@ export const SETTINGS_NAVIGATION_ITEMS: SettingsNavigationItem[] = [
     icon: 'lucide:server',
     position: 5,
     groupKey: 'tools',
-    keywords: ['mcp', 'tools', 'server', 'model context protocol', '工具', '服务'],
-    hiddenInSidebar: true
+    keywords: ['mcp', 'tools', 'server', 'model context protocol', '工具', '服务']
   },
   {
     routeName: 'settings-ocr',
@@ -188,8 +187,7 @@ export const SETTINGS_NAVIGATION_ITEMS: SettingsNavigationItem[] = [
     icon: 'lucide:smartphone',
     position: 5.25,
     groupKey: 'system',
-    keywords: ['remote', 'telegram', 'feishu', 'control', '远程', '控制'],
-    hiddenInSidebar: true
+    keywords: ['remote', 'telegram', 'feishu', 'control', '远程', '控制']
   },
   {
     routeName: 'settings-notifications-hooks',
@@ -230,8 +228,7 @@ export const SETTINGS_NAVIGATION_ITEMS: SettingsNavigationItem[] = [
     position: 5.75,
     groupKey: 'tools',
     keywords: ['plugin', 'plugins', 'extension', 'runtime', '插件', '扩展', '运行时'],
-    supportedTargets: ['darwin/arm64', 'darwin/x64', 'win32/x64', 'win32/arm64', 'linux/x64'],
-    hiddenInSidebar: true
+    supportedTargets: ['darwin/arm64', 'darwin/x64', 'win32/x64', 'win32/arm64', 'linux/x64']
   },
   {
     routeName: 'settings-prompt',
@@ -380,6 +377,21 @@ export const getSettingsNavigationGroups = (
   })).filter((group) => group.items.length > 0)
 }
 
+export const getSettingsSidebarNavigationGroups = (
+  platform?: string,
+  arch?: string,
+  includeDevelopmentItems = false
+): SettingsNavigationGroup[] => {
+  const items = getSettingsRouteItems(platform, arch, includeDevelopmentItems)
+
+  return SETTINGS_NAVIGATION_GROUPS.map((group) => ({
+    ...group,
+    items: items
+      .filter((item) => item.groupKey === group.key)
+      .sort((left, right) => left.position - right.position)
+  })).filter((group) => group.items.length > 0)
+}
+
 export const resolveSettingsNavigationPath = (
   routeName: SettingsNavigationItem['routeName'],
   params?: Record<string, string>,
@@ -391,7 +403,7 @@ export const resolveSettingsNavigationPath = (
     (navigationItem) => navigationItem.routeName === routeName
   )
   if (!item) {
-    return '/overview'
+    return '/deepchat-agents'
   }
 
   const resolvedSegments = item.path

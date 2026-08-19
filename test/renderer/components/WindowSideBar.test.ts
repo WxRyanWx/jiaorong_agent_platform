@@ -57,6 +57,13 @@ type SetupOptions = {
   defaultProjectPath?: string | null
   projectSnapshotReady?: boolean
   currentRouteName?: string
+  jiaorongSidebarItems?: Array<{
+    id: string
+    title?: string
+    routeName: string
+    testId?: string
+    slot?: 'after-deepchat'
+  }>
 }
 
 const createEnvironment = (
@@ -488,7 +495,18 @@ const setup = async (options: SetupOptions = {}) => {
     })
   }))
   vi.doMock('vue-router', () => ({
-    useRouter: () => router
+    useRouter: () => router,
+    useRoute: () => ({
+      name: options.currentRouteName ?? 'chat',
+      path: options.currentRouteName === 'skills' ? '/skills' : '/chat'
+    })
+  }))
+  vi.doMock('@jiaorong/runtime/sidebar', () => ({
+    listJiaorongSidebarItems: () => options.jiaorongSidebarItems ?? [],
+    isJiaorongExclusiveChromeRoute: () => false
+  }))
+  vi.doMock('@jiaorong/auth/host', () => ({
+    scheduleAuthRevalidateOnMenuSwitch: () => true
   }))
 
   const passthrough = defineComponent({
@@ -673,6 +691,37 @@ describe('WindowSideBar agent switch', () => {
       expect(wrapper.get('[data-testid="window-sidebar"]').classes()).toContain('w-[288px]')
       expect(agentStore.setSelectedAgent).toHaveBeenCalledWith('acp-a')
       expect(operations).toEqual(['close', 'set:acp-a'])
+    },
+    TEST_TIMEOUT_MS
+  )
+
+  it(
+    'renders jiaorong entries between builtin deepchat and user agents',
+    async () => {
+      const { wrapper } = await setup({
+        enabledAgents: [
+          { id: 'acp-a', name: 'ACP A', type: 'acp', enabled: true },
+          { id: 'deepchat', name: 'DeepChat', type: 'deepchat', enabled: true }
+        ],
+        jiaorongSidebarItems: [
+          {
+            id: 'skills',
+            title: '技能中心',
+            routeName: 'skills',
+            testId: 'sidebar-skills-button',
+            slot: 'after-deepchat'
+          }
+        ]
+      })
+
+      await wrapper.vm.$nextTick()
+
+      const ids = wrapper
+        .findAll('[data-testid="sidebar-agent-button"], [data-testid="sidebar-skills-button"]')
+        .map((button) => button.attributes('data-agent-id') || button.attributes('data-testid'))
+        .filter((id): id is string => Boolean(id))
+
+      expect(ids).toEqual(['deepchat', 'sidebar-skills-button', 'acp-a'])
     },
     TEST_TIMEOUT_MS
   )

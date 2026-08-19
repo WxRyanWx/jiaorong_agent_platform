@@ -29,6 +29,7 @@ import { createDeviceClient } from '@api/DeviceClient'
 import { useThemeStore } from '@/stores/theme'
 import { useSessionStore } from '@/stores/ui/session'
 import { useSidepanelStore } from '@/stores/ui/sidepanel'
+import { APP_NAME } from '@jiaorong/brand'
 import {
   claimMcpAppNonInlineDisplay,
   releaseMcpAppNonInlineDisplay,
@@ -144,7 +145,7 @@ const hostContext = computed<McpUiHostContext>(() => {
     locale: locale.value,
     timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     platform: 'desktop',
-    userAgent: 'DeepChat',
+    userAgent: APP_NAME,
     deviceCapabilities: {
       touch: navigator.maxTouchPoints > 0,
       hover: window.matchMedia('(hover: hover)').matches
@@ -235,7 +236,7 @@ const connectBridge = async () => {
 
   const nextBridge = new AppBridge(
     null,
-    { name: 'DeepChat', version: hostVersion },
+    { name: APP_NAME, version: hostVersion },
     {
       openLinks: {},
       serverTools: {},

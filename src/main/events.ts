@@ -22,7 +22,8 @@ export const DEV_EVENTS = {
 // DeepLink 相关事件
 export const DEEPLINK_EVENTS = {
   START: 'deeplink:start',
-  MCP_INSTALL: 'deeplink:mcp-install'
+  MCP_INSTALL: 'deeplink:mcp-install',
+  AUTH_LOGIN: 'deeplink:auth-login'
 }
 
 export const SHORTCUT_EVENTS = {

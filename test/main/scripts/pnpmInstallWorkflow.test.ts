@@ -18,6 +18,7 @@ const repositoryRoot = process.cwd()
 const WORKFLOW_INSTALL_COUNTS = {
   'prcheck.yml': 5,
   'build.yml': 0,
+  'build-test.yml': 0,
   '_package-windows.yml': 2,
   '_package-linux.yml': 2,
   '_package-macos.yml': 2,

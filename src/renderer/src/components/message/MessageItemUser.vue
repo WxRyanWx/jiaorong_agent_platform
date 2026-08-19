@@ -42,10 +42,11 @@
         data-message-content="true"
       >
         <div
-          v-show="standaloneFiles.length > 0"
+          v-show="standaloneFiles.length > 0 || knowledgeBaseSelections.length > 0"
           class="flex flex-wrap gap-1.5"
           data-chat-search-exclude="true"
         >
+          <KnowledgeBaseMessageChips :items="knowledgeBaseSelections" />
           <ChatAttachmentItem
             v-for="(file, index) in standaloneFiles"
             :key="file.path || `${file.name}-${index}`"
@@ -135,6 +136,11 @@ import { Icon } from '@iconify/vue'
 import { useI18n } from 'vue-i18n'
 import MessageInfo from './MessageInfo.vue'
 import ChatAttachmentItem from '../chat/ChatAttachmentItem.vue'
+import KnowledgeBaseMessageChips from '@jiaorong/knowledgeBase/picker/KnowledgeBaseMessageChips.vue'
+import {
+  isJiaorongKnowledgeBaseContextFile,
+  readJiaorongKnowledgeBaseSelections
+} from '@jiaorong/knowledgeBase/picker/prepareKnowledgeBaseSendFiles'
 import MessageToolbar from './MessageToolbar.vue'
 import MessageContent from './MessageContent.vue'
 import MessageTextContent from './MessageTextContent.vue'
@@ -235,7 +241,14 @@ const standaloneActiveSkills = computed(() =>
 )
 
 const standaloneFiles = computed(() =>
-  props.message.content.files.filter((file) => !inlineFileKeys.value.has(file.path || file.name))
+  props.message.content.files.filter(
+    (file) =>
+      !inlineFileKeys.value.has(file.path || file.name) && !isJiaorongKnowledgeBaseContextFile(file)
+  )
+)
+
+const knowledgeBaseSelections = computed(() =>
+  readJiaorongKnowledgeBaseSelections(props.message.content.files)
 )
 
 const explicitLineCount = computed(() => countExplicitLines(visibleMessageText.value))

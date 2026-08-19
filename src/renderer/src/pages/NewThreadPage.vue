@@ -18,81 +18,85 @@
         </h1>
 
         <!-- Project selector -->
-        <DropdownMenu>
-          <DropdownMenuTrigger as-child>
-            <DcButton
-              variant="ghost"
-              size="sm"
-              data-testid="new-thread-project-trigger"
-              class="h-7 px-2.5 gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-6"
+        <div class="mb-6">
+          <DropdownMenu>
+            <DropdownMenuTrigger as-child>
+              <DcButton
+                variant="ghost"
+                size="sm"
+                data-testid="new-thread-project-trigger"
+                class="h-7 px-2.5 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+              >
+                <Icon
+                  :icon="selectedProjectIcon"
+                  :data-icon="selectedProjectIcon"
+                  data-testid="new-thread-project-trigger-icon"
+                  class="w-3.5 h-3.5"
+                />
+                <span>{{ selectedProjectName }}</span>
+                <Icon
+                  v-if="selectedProjectDirectoryInvalid"
+                  icon="lucide:circle-alert"
+                  data-testid="new-thread-project-missing-warning"
+                  class="w-3.5 h-3.5 text-amber-500"
+                  :title="selectedProjectUnavailableTooltip"
+                />
+                <Icon icon="lucide:chevron-down" class="w-3 h-3" />
+              </DcButton>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="center"
+              class="min-w-[200px] max-h-[min(28rem,calc(var(--reka-dropdown-menu-content-available-height)-0.75rem))] overflow-y-auto"
             >
-              <Icon
-                :icon="selectedProjectIcon"
-                :data-icon="selectedProjectIcon"
-                data-testid="new-thread-project-trigger-icon"
-                class="w-3.5 h-3.5"
+              <DropdownMenuLabel class="text-xs">{{
+                t('common.project.recent')
+              }}</DropdownMenuLabel>
+              <DropdownMenuItem
+                data-testid="new-thread-clear-project"
+                class="gap-2 text-xs py-1.5 px-2"
+                :disabled="!canClearProjectSelection"
+                @click="clearSelectedProject"
+              >
+                <Icon
+                  :icon="chatProjectIcon"
+                  :data-icon="chatProjectIcon"
+                  data-testid="new-thread-clear-project-icon"
+                  class="w-3.5 h-3.5 text-muted-foreground"
+                />
+                <span>{{ t('chat.sidebar.chats') }}</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                v-for="project in selectableProjects"
+                :key="project.path"
+                class="gap-2 text-xs py-1.5 px-2"
+                @click="projectStore.selectProject(project.path)"
+              >
+                <Icon
+                  :icon="getProjectMenuIcon(project.path)"
+                  class="w-3.5 h-3.5 text-muted-foreground"
+                />
+                <div class="flex flex-col min-w-0 flex-1">
+                  <span class="truncate">{{ getProjectDisplayName(project) }}</span>
+                  <span class="text-[10px] text-muted-foreground truncate">{{ project.path }}</span>
+                </div>
+                <Icon
+                  v-if="isSelectedInvalidProjectPath(project.path)"
+                  icon="lucide:circle-alert"
+                  data-testid="new-thread-project-menu-missing-warning"
+                  class="w-3.5 h-3.5 text-amber-500 shrink-0"
+                  :title="selectedProjectUnavailableTooltip"
+                />
+              </DropdownMenuItem>
+              <DcDropdownActionItem
+                icon="lucide:folder-open"
+                :label="t('common.project.openFolder')"
+                class="text-xs py-1.5 px-2"
+                @select="handleOpenFolderPicker"
               />
-              <span>{{ selectedProjectName }}</span>
-              <Icon
-                v-if="selectedProjectDirectoryInvalid"
-                icon="lucide:circle-alert"
-                data-testid="new-thread-project-missing-warning"
-                class="w-3.5 h-3.5 text-amber-500"
-                :title="selectedProjectUnavailableTooltip"
-              />
-              <Icon icon="lucide:chevron-down" class="w-3 h-3" />
-            </DcButton>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="center"
-            class="min-w-[200px] max-h-[min(28rem,calc(var(--reka-dropdown-menu-content-available-height)-0.75rem))] overflow-y-auto"
-          >
-            <DropdownMenuLabel class="text-xs">{{ t('common.project.recent') }}</DropdownMenuLabel>
-            <DropdownMenuItem
-              data-testid="new-thread-clear-project"
-              class="gap-2 text-xs py-1.5 px-2"
-              :disabled="!canClearProjectSelection"
-              @click="clearSelectedProject"
-            >
-              <Icon
-                :icon="chatProjectIcon"
-                :data-icon="chatProjectIcon"
-                data-testid="new-thread-clear-project-icon"
-                class="w-3.5 h-3.5 text-muted-foreground"
-              />
-              <span>{{ t('chat.sidebar.chats') }}</span>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              v-for="project in selectableProjects"
-              :key="project.path"
-              class="gap-2 text-xs py-1.5 px-2"
-              @click="projectStore.selectProject(project.path)"
-            >
-              <Icon
-                :icon="getProjectMenuIcon(project.path)"
-                class="w-3.5 h-3.5 text-muted-foreground"
-              />
-              <div class="flex flex-col min-w-0 flex-1">
-                <span class="truncate">{{ getProjectDisplayName(project) }}</span>
-                <span class="text-[10px] text-muted-foreground truncate">{{ project.path }}</span>
-              </div>
-              <Icon
-                v-if="isSelectedInvalidProjectPath(project.path)"
-                icon="lucide:circle-alert"
-                data-testid="new-thread-project-menu-missing-warning"
-                class="w-3.5 h-3.5 text-amber-500 shrink-0"
-                :title="selectedProjectUnavailableTooltip"
-              />
-            </DropdownMenuItem>
-            <DcDropdownActionItem
-              icon="lucide:folder-open"
-              :label="t('common.project.openFolder')"
-              class="text-xs py-1.5 px-2"
-              @select="handleOpenFolderPicker"
-            />
-          </DropdownMenuContent>
-        </DropdownMenu>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
 
         <!-- Input area -->
         <div ref="firstChatGuideHostRef" :class="['w-full max-w-4xl flex justify-center']">
@@ -102,6 +106,7 @@
             v-model="message"
             :files="attachedFiles"
             :session-id="acpDraftSessionId"
+            :knowledge-base-session-id="null"
             :agent-id="selectedAgent.id"
             :workspace-path="projectStore.selectedProject?.path ?? null"
             :is-acp-session="isAcpSelectedAgent"
@@ -118,6 +123,8 @@
           >
             <template #toolbar>
               <ChatInputToolbar
+                :session-id="acpDraftSessionId"
+                :knowledge-base-session-id="null"
                 :show-voice-input="isVoiceInputEnabled"
                 :is-voice-input-listening="isVoiceInputListening"
                 :is-voice-input-transcribing="isVoiceInputTranscribing"
@@ -186,6 +193,8 @@ import { Icon } from '@iconify/vue'
 import ChatInputBox from '@/components/chat/ChatInputBox.vue'
 import ChatInputToolbar from '@/components/chat/ChatInputToolbar.vue'
 import ChatStatusBar from '@/components/chat/ChatStatusBar.vue'
+import { prepareKnowledgeBaseSendFiles } from '@jiaorong/knowledgeBase/picker/prepareKnowledgeBaseSendFiles'
+import { clearKnowledgeBaseSelectionForSession } from '@jiaorong/knowledgeBase/picker/useKnowledgeBaseSelection'
 import {
   openChatStatusBarModelPicker,
   switchAttachmentToVisionModel,
@@ -277,6 +286,8 @@ const chatInputRef = ref<{
   getInlineItemsSnapshot?: () => UserMessageInlineItem[]
   getPendingSkillsSnapshot?: () => string[]
   clearPendingSkills?: () => void
+  setPendingSkills?: (skillNames: string[]) => void
+  activateSkill?: (skillName: string) => Promise<void>
   focusInput?: () => void
 } | null>(null)
 const chatStatusBarRef = ref<ChatStatusBarModelPicker | null>(null)
@@ -439,13 +450,13 @@ const selectableProjects = computed(() =>
 const hasExplicitNoProjectSelection = computed(
   () => projectStore.selectionSource === 'manual' && !projectStore.selectedProject?.path?.trim()
 )
+const hasNoSelectedProject = computed(() => !projectStore.selectedProject?.path?.trim())
 const selectedSessionProjectDir = computed<string | null | undefined>(() =>
   hasExplicitNoProjectSelection.value ? null : projectStore.selectedProject?.path
 )
 const isSelectedChatProject = computed(
   () =>
-    hasExplicitNoProjectSelection.value ||
-    isDefaultChatWorkspaceProject(projectStore.selectedProject?.path)
+    hasNoSelectedProject.value || isDefaultChatWorkspaceProject(projectStore.selectedProject?.path)
 )
 const chatProjectIcon = 'lucide:message-square'
 const selectedProjectName = computed(() => {
@@ -455,7 +466,7 @@ const selectedProjectName = computed(() => {
   if (projectStore.selectedProject?.name) {
     return projectStore.selectedProject.name
   }
-  return hasExplicitNoProjectSelection.value ? t('chat.sidebar.chats') : t('common.project.select')
+  return t('chat.sidebar.chats')
 })
 const selectedProjectIcon = computed(() =>
   isSelectedChatProject.value ? chatProjectIcon : 'lucide:folder'
@@ -907,9 +918,49 @@ const applyStartDeeplink = async (payload: StartDeeplinkPayload) => {
 
   await nextTick()
   if (!isCurrentStartDeeplink(payload.token)) return
+  // EditorContent assigns Vue node views on a nested tick.
+  await nextTick()
+  if (!isCurrentStartDeeplink(payload.token)) return
 
-  message.value = buildStartMessage(payload)
-  draftStore.systemPrompt = payload.systemPrompt
+  const prompt = buildStartMessage(payload)
+  const requestedSkills = Array.from(
+    new Set(
+      (payload.skills ?? [])
+        .map((skill) => skill.trim())
+        .filter((skill): skill is string => skill.length > 0)
+    )
+  )
+  pendingSkills.value = [...requestedSkills]
+
+  try {
+    message.value = prompt
+    draftStore.systemPrompt = payload.systemPrompt
+  } catch (error) {
+    console.warn('[NewThreadPage] Failed to prefill start-deeplink prompt', error)
+  }
+
+  if (requestedSkills.length && isCurrentStartDeeplink(payload.token)) {
+    if (!chatInputRef.value) {
+      await nextTick()
+    }
+    const input = chatInputRef.value
+    try {
+      if (input?.activateSkill) {
+        for (const skillName of requestedSkills) {
+          await input.activateSkill(skillName)
+        }
+      } else {
+        input?.setPendingSkills?.(requestedSkills)
+      }
+    } catch (error) {
+      console.warn('[NewThreadPage] Failed to activate start-deeplink skills', error)
+    }
+  }
+
+  await nextTick()
+  if (isCurrentStartDeeplink(payload.token) && prompt && message.value !== prompt) {
+    message.value = prompt
+  }
 
   const modelsReady = await ensureEnabledModelsReady()
   if (!isCurrentStartDeeplink(payload.token)) return
@@ -944,9 +995,19 @@ async function onSubmit() {
   try {
     const files = (await prepareFilesForCurrentModel([...attachedFiles.value])).map((f) => toRaw(f))
     if (submission.cancelled) return
-    if (await submitText(text, files, submission, search)) {
+    const kb = await prepareKnowledgeBaseSendFiles(null, text, files)
+    if (!kb.ok) {
+      notifyRenderer({
+        kind: 'error',
+        code: 'chat.knowledgeBase.prepareFailed',
+        title: kb.error
+      })
+      return
+    }
+    if (await submitText(text, kb.files, submission, search)) {
       message.value = ''
       attachedFiles.value = []
+      clearKnowledgeBaseSelectionForSession(null)
     }
   } catch (e) {
     if (!(submission.cancelled && isAbortError(e))) {
@@ -985,8 +1046,18 @@ async function onCommandSubmit(command: string) {
   try {
     const files = (await prepareFilesForCurrentModel([...attachedFiles.value])).map((f) => toRaw(f))
     if (submission.cancelled) return
-    if (await submitText(text, files, submission, search)) {
+    const kb = await prepareKnowledgeBaseSendFiles(null, text, files)
+    if (!kb.ok) {
+      notifyRenderer({
+        kind: 'error',
+        code: 'chat.knowledgeBase.prepareFailed',
+        title: kb.error
+      })
+      return
+    }
+    if (await submitText(text, kb.files, submission, search)) {
       attachedFiles.value = []
+      clearKnowledgeBaseSelectionForSession(null)
     }
   } catch (e) {
     if (!(submission.cancelled && isAbortError(e))) {

@@ -250,7 +250,13 @@ export class AgentSkillImportService {
       entries.sort((left, right) => left.name.localeCompare(right.name))
 
       for (const entry of entries) {
-        if (entry.isSymbolicLink() || entry.name === '.deepchat-meta') continue
+        if (
+          entry.isSymbolicLink() ||
+          entry.name === '.jiaorongchat-meta' ||
+          entry.name === '.deepchat-meta'
+        ) {
+          continue
+        }
         const fullPath = path.join(current, entry.name)
         if (entry.isDirectory()) {
           await visit(fullPath)
@@ -313,7 +319,7 @@ export class AgentSkillImportService {
   private async materializeCanonicalSkill(item: ResolvedImportItem): Promise<string> {
     if (!item.canonicalSkill) throw new Error('External Skill could not be converted.')
     const root = await fs.promises.mkdtemp(
-      path.join(app.getPath('temp'), `deepchat-agent-skill-import-${randomUUID()}-`)
+      path.join(app.getPath('temp'), `jiaorong-agent-skill-import-${randomUUID()}-`)
     )
     try {
       await fs.promises.writeFile(

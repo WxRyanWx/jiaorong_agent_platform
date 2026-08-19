@@ -15,6 +15,7 @@ import {
 import { LIVE_DELEGATION_AGENT_TOOL_NAME } from '@shared/agentTools'
 import { UNTRUSTED_CHILD_OUTPUT_POLICY } from '@shared/orchestration/resultSafety'
 import { POSIX_COMMAND_SHELL } from '../../../../helpers/commandShell'
+import { SYSTEM_PROMPT_LANGUAGE_TAIL } from '@jiaorong/prompts/defaultSystemPrompt'
 
 describe('DeepChat system prompt builder', () => {
   it('appends one fixed CLI Programmatic adapter section', () => {
@@ -172,8 +173,8 @@ describe('DeepChat system prompt builder', () => {
     })
 
     expect(first).toContain('BASE PROMPT')
-    expect(first).toContain('You are powered by the model named GPT-4o.')
-    expect(first).toContain('## Verification Policy')
+    expect(first).toContain('You are powered by the model named Jiaorong-Ai.')
+    expect(first).toContain('## 验证策略')
     expect(first).not.toContain('## Multi-Agent Orchestration Policy')
     expect(second).toBe(first)
     expect(assembly.prompt).toBe(first)
@@ -185,8 +186,8 @@ describe('DeepChat system prompt builder', () => {
       [
         'BASE PROMPT',
         [
-          'You are powered by the model named GPT-4o.',
-          'The exact model ID is openai/gpt-4o',
+          'You are powered by the model named Jiaorong-Ai.',
+          'The exact model ID is Jiaorong-Ai',
           'Here is some useful information about the environment you are running in:',
           '<env>',
           'Working directory: /tmp/deepchat-system-prompt-builder-test-no-agents',
@@ -197,10 +198,11 @@ describe('DeepChat system prompt builder', () => {
           '</env>'
         ].join('\n'),
         [
-          '## Verification Policy',
-          'After changing code, configuration, tests, docs that affect behavior, or generated assets, check verification status before the final response.',
-          'If verification was not run, state the reason explicitly in the final response.'
-        ].join('\n')
+          '## 验证策略',
+          '修改会影响行为的代码、配置、测试、文档或生成物后，最终回复前须核对验证状态。',
+          '若未跑验证，须在最终回复中明确说明原因。'
+        ].join('\n'),
+        SYSTEM_PROMPT_LANGUAGE_TAIL
       ].join('\n\n')
     )
     expect(assembly.sections.map((section) => section.kind)).toEqual([
@@ -297,7 +299,7 @@ describe('DeepChat system prompt builder', () => {
     expect(prompt).not.toContain('### skill-b')
     expect(prompt).toContain('- skill-a: Skill A')
     expect(prompt).toContain('- skill-b: Skill B')
-    expect(prompt).toContain('use `skill_list` with a query')
+    expect(prompt).toContain('先用 `skill_list` 查询')
     expect(prompt).not.toContain('call `skill_view` first')
     expect(prompt).not.toContain('Viewing a skill root')
     expect(loadSkillContent).not.toHaveBeenCalled()
@@ -503,7 +505,8 @@ describe('DeepChat system prompt builder', () => {
     expect(assembly.sections.find((section) => section.kind === 'pinned_skills')?.content).toBe(
       [
         '## Active Skills',
-        'These Session Skills are persistent context for this conversation. Follow them when relevant.',
+        '以下技能已预载到本会话。相关时请遵循其说明。',
+        '注意：技能正文 / description 的语言（常为英文）只是参考材料，**不是**用户语言；思考与回答只跟 role=user 的用户消息语言一致。',
         '',
         '### skill-a',
         'exact materialized body'
@@ -523,7 +526,7 @@ describe('DeepChat system prompt builder', () => {
     ).rejects.toThrow('does not match the active Skill set')
   })
 
-  it('observes model, tool prompt, and package script changes on the next assembly', async () => {
+  it('keeps env model identity as Jiaorong-Ai while tool prompt and package scripts still refresh', async () => {
     let modelName = 'Model One'
     let toolPrompt = 'TOOL PROMPT ONE'
     let packageJson = JSON.stringify({
@@ -584,10 +587,13 @@ describe('DeepChat system prompt builder', () => {
     })
     const second = await buildSystemPromptWithSkills(dependencies, input)
 
-    expect(first).toContain('Model One')
+    expect(first).toContain('You are powered by the model named Jiaorong-Ai.')
+    expect(first).toContain('The exact model ID is Jiaorong-Ai')
+    expect(first).not.toContain('Model One')
     expect(first).toContain('TOOL PROMPT ONE')
     expect(first).toContain('`verify`')
-    expect(second).toContain('Model Two')
+    expect(second).toContain('You are powered by the model named Jiaorong-Ai.')
+    expect(second).not.toContain('Model Two')
     expect(second).toContain('TOOL PROMPT TWO')
     expect(second).toContain('`check`')
     expect(second).not.toContain('TOOL PROMPT ONE')

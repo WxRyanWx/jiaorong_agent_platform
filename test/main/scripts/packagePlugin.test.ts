@@ -15,7 +15,7 @@ vi.unmock('node:path')
 
 const ROOT = process.cwd()
 const tempRoots: string[] = []
-const DARWIN_HELPER_APP = 'DeepChat Computer Use.app'
+const DARWIN_HELPER_APP = 'JiaorongAI Computer Use.app'
 const DARWIN_HELPER_EXECUTABLE = 'deepchat-cua-driver'
 const DARWIN_HELPER_BUNDLE_ID = 'com.deepchat.computeruse.helper'
 
@@ -30,9 +30,9 @@ function darwinInfoPlist({
     <key>CFBundleIdentifier</key>
     <string>${bundleId}</string>
     <key>CFBundleName</key>
-    <string>DeepChat Computer Use</string>
+    <string>JiaorongAI Computer Use</string>
     <key>CFBundleDisplayName</key>
-    <string>DeepChat Computer Use</string>
+    <string>JiaorongAI Computer Use</string>
     <key>CFBundleExecutable</key>
     <string>${executable}</string>
   </dict>
@@ -49,7 +49,7 @@ async function createCuaPluginFixture() {
     id: 'com.deepchat.plugins.cua',
     name: 'Computer Use',
     version: '0.0.0',
-    publisher: 'DeepChat',
+    publisher: 'JiaorongAI',
     engines: {
       deepchat: '>=0.0.0',
       platforms: ['darwin', 'win32', 'linux'],
@@ -60,7 +60,7 @@ async function createCuaPluginFixture() {
     source: {
       type: 'deepchat-official',
       url: '${github.release.download}/deepchat-plugin-cua-${app.version}-${target.platform}-${arch}.dcplugin',
-      publisher: 'DeepChat'
+      publisher: 'JiaorongAI'
     },
     runtime: {
       id: 'cua-driver',
@@ -69,7 +69,7 @@ async function createCuaPluginFixture() {
       adapter: 'cua-embedded-v1',
       integrityDescriptor: 'runtime/${target.platform}/${arch}/integrity.json',
       adapterContract: {
-        hostBundleId: 'com.wefonk.deepchat',
+        hostBundleId: 'com.wefonk.jiaorong',
         driverVersion: '0.19.2',
         contractVersion: '0.6.0',
         toolsListSchemaVersion: '1',
@@ -77,8 +77,8 @@ async function createCuaPluginFixture() {
         mcpProtocolVersion: '2025-06-18'
       },
       detect: [
-        'app-helper:DeepChat Computer Use.app/Contents/MacOS/deepchat-cua-driver',
-        'plugin:runtime/darwin/${arch}/DeepChat Computer Use.app/Contents/MacOS/deepchat-cua-driver',
+        'app-helper:JiaorongAI Computer Use.app/Contents/MacOS/deepchat-cua-driver',
+        'plugin:runtime/darwin/${arch}/JiaorongAI Computer Use.app/Contents/MacOS/deepchat-cua-driver',
         'plugin:runtime/win32/${arch}/cua-driver.exe',
         'plugin:runtime/linux/${arch}/cua-driver'
       ]
@@ -501,7 +501,7 @@ describe('package-plugin', () => {
     }
   })
 
-  it('packages the DeepChat-owned macOS CUA helper identity for each macOS arch', async () => {
+  it('packages the JiaorongAI-owned macOS CUA helper identity for each macOS arch', async () => {
     const fixture = await createCuaPluginFixture()
     const outDir = path.join(fixture.root, 'out')
 
@@ -518,14 +518,14 @@ describe('package-plugin', () => {
 
       expect(manifest.engines.targets).toEqual([`darwin/${arch}`])
       expect(manifest.runtime.detect).toEqual([
-        'app-helper:DeepChat Computer Use.app/Contents/MacOS/deepchat-cua-driver',
-        `plugin:runtime/darwin/${arch}/DeepChat Computer Use.app/Contents/MacOS/deepchat-cua-driver`,
+        'app-helper:JiaorongAI Computer Use.app/Contents/MacOS/deepchat-cua-driver',
+        `plugin:runtime/darwin/${arch}/JiaorongAI Computer Use.app/Contents/MacOS/deepchat-cua-driver`,
         `plugin:runtime/win32/${arch}/cua-driver.exe`,
         `plugin:runtime/linux/${arch}/cua-driver`
       ])
       expect(runtimeFiles).toEqual([
-        `runtime/darwin/${arch}/DeepChat Computer Use.app/Contents/Info.plist`,
-        `runtime/darwin/${arch}/DeepChat Computer Use.app/Contents/MacOS/deepchat-cua-driver`,
+        `runtime/darwin/${arch}/JiaorongAI Computer Use.app/Contents/Info.plist`,
+        `runtime/darwin/${arch}/JiaorongAI Computer Use.app/Contents/MacOS/deepchat-cua-driver`,
         `runtime/darwin/${arch}/integrity.json`,
         `runtime/darwin/${arch}/tool-catalog.json`
       ])
@@ -653,7 +653,7 @@ describe('package-plugin', () => {
 
     expect(result.status).not.toBe(0)
     expect(result.stderr).toContain(
-      'CUA macOS runtime detect path must prefer app-helper:DeepChat Computer Use.app/Contents/MacOS/deepchat-cua-driver'
+      'CUA macOS runtime detect path must prefer app-helper:JiaorongAI Computer Use.app/Contents/MacOS/deepchat-cua-driver'
     )
   })
 
@@ -697,7 +697,7 @@ describe('package-plugin', () => {
 
     expect(result.status).not.toBe(0)
     expect(result.stderr).toContain(
-      'CUA macOS runtime must not stage legacy signature file runtime/darwin/x64/DeepChat Computer Use.app/Contents/CodeResources'
+      'CUA macOS runtime must not stage legacy signature file runtime/darwin/x64/JiaorongAI Computer Use.app/Contents/CodeResources'
     )
   })
 })

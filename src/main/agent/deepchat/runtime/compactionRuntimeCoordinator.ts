@@ -184,7 +184,7 @@ export class CompactionRuntimeCoordinator {
       state.providerId
     )
     if (shouldBypassDeepChatContextBudget(state.providerId, modelConfig, state.modelId)) {
-      throw new Error('Manual compaction is only available for DeepChat agent sessions.')
+      throw new Error('Manual compaction is only available for JiaorongAI agent sessions.')
     }
     if (state.status !== 'idle') {
       throw new Error('Manual compaction is only available when the session is idle.')

@@ -3,6 +3,7 @@
     :title="t('routes.settings-common')"
     :eyebrow="t('settings.controlCenter.groups.setup')"
     data-testid="settings-general-page"
+    class="settings-general-page"
   >
     <div class="flex w-full flex-col gap-3">
       <UploadFileSettingsSection />

@@ -7,7 +7,13 @@ const CANONICAL_TOOL_NAMES = new Set([
   'ls',
   'exec',
   'process',
-  // Built-in DeepChat settings tools exposed by the deepchat-settings skill.
+  // Built-in JiaorongAI settings tools exposed by the jiaorong-settings skill.
+  'jiaorong_settings_toggle',
+  'jiaorong_settings_set_language',
+  'jiaorong_settings_set_theme',
+  'jiaorong_settings_set_font_size',
+  'jiaorong_settings_open',
+  // Legacy deepchat-settings aliases
   'deepchat_settings_toggle',
   'deepchat_settings_set_language',
   'deepchat_settings_set_theme',
@@ -31,7 +37,7 @@ const TOOL_NAME_MAPPING: Record<string, string> = {
   multiedit: 'edit',
   bash: 'exec',
 
-  // Legacy DeepChat names
+  // Legacy JiaorongAI names
   read_file: 'read',
   write_file: 'write',
   list_directory: 'ls',

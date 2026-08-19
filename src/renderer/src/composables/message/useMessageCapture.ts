@@ -3,6 +3,7 @@ import { createDeviceClient } from '@api/DeviceClient'
 import { usePageCapture } from '@/composables/usePageCapture'
 import { useThemeStore } from '@/stores/theme'
 import { useI18n } from 'vue-i18n'
+import { WATERMARK_BRAND } from '@jiaorong/brand'
 import type { CaptureOptions } from './types'
 
 export function useMessageCapture() {
@@ -167,7 +168,7 @@ export function useMessageCapture() {
           isDark: themeStore.isDark,
           version: appVersion.value,
           texts: {
-            brand: 'DeepChat',
+            brand: WATERMARK_BRAND,
             tip: t('common.watermarkTip'),
             model: modelInfo?.model_name,
             provider: modelInfo?.model_provider

@@ -187,7 +187,8 @@ import {
   filePrepareFileRoute,
   fileReadFileRoute,
   fileSaveImageRoute,
-  fileWriteImageBase64Route
+  fileWriteImageBase64Route,
+  fileWriteTempRoute
 } from './routes/file.routes'
 import {
   knowledgeAddFileRoute,
@@ -569,7 +570,7 @@ import {
   syncPullFromCloudRoute
 } from './routes/sync.routes'
 import { systemOpenSettingsRoute } from './routes/system.routes'
-import { toolsListDefinitionsRoute } from './routes/tools.routes'
+import { toolsDisplayCatalogRoute, toolsListDefinitionsRoute } from './routes/tools.routes'
 import { tabCaptureCurrentAreaRoute, tabStitchImagesWithWatermarkRoute } from './routes/tab.routes'
 import {
   upgradeCheckRoute,
@@ -779,6 +780,7 @@ const DEEPCHAT_ROUTE_CATALOG_PART_2 = {
   [fileReadFileRoute.name]: fileReadFileRoute,
   [fileIsDirectoryRoute.name]: fileIsDirectoryRoute,
   [fileWriteImageBase64Route.name]: fileWriteImageBase64Route,
+  [fileWriteTempRoute.name]: fileWriteTempRoute,
   [fileSaveImageRoute.name]: fileSaveImageRoute,
   [fileCopyImageRoute.name]: fileCopyImageRoute,
   [knowledgeIsSupportedRoute.name]: knowledgeIsSupportedRoute,
@@ -1227,6 +1229,7 @@ const DEEPCHAT_ROUTE_CATALOG_PART_5 = {
   [debugCloseSplashScenarioRoute.name]: debugCloseSplashScenarioRoute,
   [dialogRespondRoute.name]: dialogRespondRoute,
   [dialogErrorRoute.name]: dialogErrorRoute,
+  [toolsDisplayCatalogRoute.name]: toolsDisplayCatalogRoute,
   [toolsListDefinitionsRoute.name]: toolsListDefinitionsRoute,
   [systemOpenSettingsRoute.name]: systemOpenSettingsRoute,
   [orchestrationGetCapabilityRoute.name]: orchestrationGetCapabilityRoute,

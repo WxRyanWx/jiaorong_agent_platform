@@ -679,7 +679,7 @@ describe('RemoteCommandRouter', () => {
           type: 'question',
           messageId: 'assistant-2',
           toolCallId: 'tool-2',
-          toolName: 'deepchat_question',
+          toolName: 'jiaorong_question',
           toolArgs: '{}',
           question: {
             question: 'Pick one',
@@ -707,7 +707,7 @@ describe('RemoteCommandRouter', () => {
       type: 'question',
       messageId: 'assistant-2',
       toolCallId: 'tool-2',
-      toolName: 'deepchat_question',
+      toolName: 'jiaorong_question',
       toolArgs: '{}',
       question: {
         question: 'Pick one',

@@ -47,7 +47,7 @@ function getPluginApi() {
   const api = window.deepchatPlugin
   if (!api) {
     throw new Error(
-      'DeepChat plugin settings bridge is unavailable. Restart DeepChat and reopen this page.'
+      'JiaorongAI plugin settings bridge is unavailable. Restart JiaorongAI and reopen this page.'
     )
   }
   return api
@@ -193,7 +193,7 @@ function friendlyErrorMessage(value) {
       raw
     )
   ) {
-    return 'The CUA runtime is missing or modified. Reinstall DeepChat or the CUA plugin, then check Windows Security > Protection history.'
+    return 'The CUA runtime is missing or modified. Reinstall JiaorongAI or the CUA plugin, then check Windows Security > Protection history.'
   }
   if (/PowerShell 5\.1|positional JSON arg|deepchat-permission-probe/i.test(raw)) {
     return 'Permission status could not be read from this CUA build. Open setup, then check again.'
@@ -297,7 +297,7 @@ async function refreshStatus() {
     setStatusNode(mcpStateNode, 'Error')
     setMessage(
       friendlyErrorMessage(status.activationError) ||
-        'CUA runtime validation failed. Repair or reinstall DeepChat or the CUA plugin.',
+        'CUA runtime validation failed. Repair or reinstall JiaorongAI or the CUA plugin.',
       'error',
       status.activationError
     )
@@ -306,8 +306,8 @@ async function refreshStatus() {
     if (status.runtime?.state === 'missing') {
       setMessage(
         currentPlatform === 'win32'
-          ? 'The CUA runtime is missing. Reinstall DeepChat or the CUA plugin, then check Windows Security > Protection history.'
-          : 'The CUA runtime is missing. Repair or reinstall DeepChat or the CUA plugin.',
+          ? 'The CUA runtime is missing. Reinstall JiaorongAI or the CUA plugin, then check Windows Security > Protection history.'
+          : 'The CUA runtime is missing. Repair or reinstall JiaorongAI or the CUA plugin.',
         'error'
       )
     } else if (status.runtime?.lastError) {
@@ -319,14 +319,14 @@ async function refreshStatus() {
     setStatusNode(mcpStateNode, 'Error')
     setMessage(
       friendlyErrorMessage(cuaMcp.integrityError) ||
-        'CUA runtime validation failed. Repair or reinstall DeepChat or the CUA plugin.',
+        'CUA runtime validation failed. Repair or reinstall JiaorongAI or the CUA plugin.',
       'error',
       cuaMcp.integrityError
     )
   } else if (quarantined) {
     setStatusNode(mcpStateNode, 'Quarantined')
     setMessage(
-      'DeepChat stopped this runtime after an unclean exit. Retry only when the desktop is safe to control.',
+      'JiaorongAI stopped this runtime after an unclean exit. Retry only when the desktop is safe to control.',
       'warning',
       cuaMcp.lastError
     )

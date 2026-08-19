@@ -498,8 +498,8 @@ export interface SkillServicePort {
   ): Promise<SkillInstallResult>
   getSkillFolderTree(name: string): Promise<SkillFolderNode[]>
   getSkillFolderTreeForAgent(agentId: string, name: string): Promise<SkillFolderNode[]>
-  openSkillsFolder(): Promise<void>
-  openSkillsFolderForAgent(agentId: string): Promise<void>
+  openSkillsFolder(name?: string): Promise<void>
+  openSkillsFolderForAgent(agentId: string, name?: string): Promise<void>
   getSkillExtension(name: string): Promise<SkillExtensionConfig>
   getSkillExtensionForAgent(agentId: string, name: string): Promise<SkillExtensionConfig>
   resolveSkillRuntimeEnvironmentBinding(

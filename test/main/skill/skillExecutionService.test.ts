@@ -165,7 +165,8 @@ describe('SkillExecutionService', () => {
 
     resolveConversationWorkdir = vi.fn().mockResolvedValue('/workspace/session')
     service = new SkillExecutionService({
-      resolveConversationWorkdir
+      resolveConversationWorkdir,
+      resolveSkillsDir: async () => '/mock/home/.jiaorongchat/skills'
     })
   })
 
@@ -263,6 +264,9 @@ describe('SkillExecutionService', () => {
     expect(plan.env.API_KEY).toBe('secret')
     expect(plan.env.SKILL_ROOT).toBe('/package')
     expect(plan.env.DEEPCHAT_SKILL_ROOT).toBe('/package')
+    expect(plan.env.SKILLS_DIR).toBe('/mock/home/.jiaorongchat/skills')
+    expect(plan.env.JIAORONG_SKILLS_DIR).toBe('/mock/home/.jiaorongchat/skills')
+    expect(plan.env.DEEPCHAT_SKILLS_DIR).toBe('/mock/home/.jiaorongchat/skills')
     expect(plan.args).toEqual(['run', '/package/scripts/run.py', '--lang', 'en'])
     expect(spawn).not.toHaveBeenCalled()
   })
@@ -294,7 +298,7 @@ describe('SkillExecutionService', () => {
 
     const plan = await buildPlan({ skill: 'ocr', script: 'scripts/run.py' })
 
-    const sessionDir = path.resolve(os.homedir(), '.deepchat', 'sessions', 'conv-1')
+    const sessionDir = path.resolve(os.homedir(), '.jiaorongchat', 'sessions', 'conv-1')
     expect(plan.cwd).toBe(sessionDir)
     expect(fs.mkdirSync).toHaveBeenCalledWith(sessionDir, { recursive: true })
   })
@@ -310,7 +314,7 @@ describe('SkillExecutionService', () => {
 
     const plan = await buildPlan({ skill: 'ocr', script: 'scripts/run.py' })
 
-    expect(plan.cwd).toBe(path.resolve(os.homedir(), '.deepchat', 'sessions', 'conv-1'))
+    expect(plan.cwd).toBe(path.resolve(os.homedir(), '.jiaorongchat', 'sessions', 'conv-1'))
   })
 
   it('uses the package root when a session cwd cannot be created', async () => {

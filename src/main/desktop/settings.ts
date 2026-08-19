@@ -11,6 +11,7 @@ import {
   type RequestedLocale,
   type SupportedLocale
 } from '@shared/locales'
+import { needsForceLightTheme, FORCED_THEME_MODE } from '@jiaorong/brand'
 
 export class DesktopSettings {
   constructor(
@@ -28,7 +29,8 @@ export class DesktopSettings {
 
   getLanguage(): SupportedLocale {
     const language = this.getRequestedLanguage()
-    return resolveSupportedLocale(language === 'system' ? app.getLocale() : language)
+    // 交融产品：跟随系统时也默认简体中文，避免开发机英文 locale 把整站打成英文
+    return resolveSupportedLocale(language === 'system' ? 'zh-CN' : language)
   }
 
   setLanguage(language: string): void {
@@ -45,6 +47,9 @@ export class DesktopSettings {
   }
 
   initializeTheme(): void {
+    if (needsForceLightTheme(this.getTheme())) {
+      this.setTheme(FORCED_THEME_MODE)
+    }
     nativeTheme.themeSource = this.getTheme()
     nativeTheme.on('updated', () => {
       if (nativeTheme.themeSource !== 'system') return

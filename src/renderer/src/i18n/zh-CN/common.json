@@ -62,7 +62,7 @@
   "zoomOut": "缩小",
   "resetZoom": "重置缩放",
   "error": {
-    "requestFailed": "请求失败...",
+    "requestFailed": "请求失败...请稍后重试，或打开新对话。",
     "createChatFailed": "创建会话失败",
     "selectChatFailed": "选择会话失败",
     "renameChatFailed": "重命名会话失败",

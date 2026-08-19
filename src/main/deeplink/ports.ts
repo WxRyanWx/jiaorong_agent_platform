@@ -23,3 +23,7 @@ export interface DeeplinkProviderInstallPort {
   requestInstall(preview: ProviderInstallPreview): Promise<boolean>
   reportFailure(reason: ProviderDeeplinkFailureReason): void
 }
+
+export interface DeeplinkAuthLoginPort {
+  requestAuthLogin(token: string): Promise<boolean>
+}

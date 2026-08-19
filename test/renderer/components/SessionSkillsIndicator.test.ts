@@ -1,7 +1,16 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { defineComponent } from 'vue'
 import { mount } from '@vue/test-utils'
 import SessionSkillsIndicator from '@/components/chat-input/SessionSkillsIndicator.vue'
+
+vi.mock('@/stores/skillsStore', () => ({
+  useSkillsStore: () => ({
+    skills: [
+      { name: 'review', metadata: { displayName: '代码审查' } },
+      { name: 'database-migration', metadata: {} }
+    ]
+  })
+}))
 
 const PassThrough = defineComponent({
   template: '<div><slot /></div>'
@@ -52,7 +61,7 @@ describe('SessionSkillsIndicator', () => {
   it('lists persistent Session Skills and emits explicit removals', async () => {
     const wrapper = mountIndicator({ activeSkills: ['review', 'database-migration'] })
 
-    expect(wrapper.text()).toContain('review')
+    expect(wrapper.text()).toContain('代码审查')
     expect(wrapper.text()).toContain('database-migration')
 
     await wrapper.get('[data-skill-name="review"]').trigger('click')

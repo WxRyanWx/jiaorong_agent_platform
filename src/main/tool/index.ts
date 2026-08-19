@@ -116,6 +116,7 @@ type MainProcessToolPreCheckOptions = Pick<
 import type { AgentCommandEnvironmentPort } from './agentTools/agentBashHandler'
 import type { ToolEffectObserver } from './effectObserver'
 import { resolvePluginToolPolicy } from '@/plugin/toolPolicyStore'
+import { isJiaorongKnowledgeBaseMcpServer } from '@jiaorong/knowledgeBase/mcp/knowledgeBaseMcpConstants'
 import { composeSubagentAuthority } from '@/session/subagentAuthority'
 import type { LiveDelegationConsentIssuer } from '@/orchestration/liveDelegationConsent'
 import { parseChildAgentResultEnvelopeText } from '@shared/orchestration/resultSafety'
@@ -534,6 +535,12 @@ export class ToolService implements ToolServicePort {
       console.warn('[ToolPresenter] Failed to load configurable Agent tool definitions', error)
       return []
     }
+  }
+
+  async getToolDisplayCatalog(): Promise<
+    Array<{ name: string; displayName?: string; description?: string }>
+  > {
+    return this.createAgentToolManager(null).getToolDisplayCatalog()
   }
 
   syncAgentToolContext(context: {
@@ -2018,6 +2025,10 @@ export class ToolService implements ToolServicePort {
     if (!serverName) {
       return true
     }
+    // 仅交融知识库 MCP：等价旧产品该 server 的 autoApprove:['all']，其它 MCP 仍走 broker
+    if (isJiaorongKnowledgeBaseMcpServer(serverName)) {
+      return false
+    }
     const policy = resolvePluginToolPolicy(
       serverName,
       definition.raw?.name ?? definition.function.name
@@ -2102,7 +2113,7 @@ export class ToolService implements ToolServicePort {
     const conversationId = context.conversationId || '<conversationId>'
     const offloadPath =
       resolveToolOffloadTemplatePath(conversationId) ??
-      '~/.deepchat/sessions/<conversationId>/tool_<toolCallId>.offload'
+      '~/.jiaorongchat/sessions/<conversationId>/tool_<toolCallId>.offload'
     const toolDefinitions: MCPToolDefinitionBase[] =
       context.toolDefinitions?.filter((tool) => tool.source === 'agent') ??
       this.getFallbackPromptToolDefinitions()
@@ -2123,7 +2134,10 @@ export class ToolService implements ToolServicePort {
       this.buildTapePrompt(groupedTools.get(AGENT_TAPE_TOOL_SERVER_NAME) ?? []),
       this.buildCronJobPrompt(groupedTools.get(CRON_JOB_TOOL_SERVER_NAME) ?? []),
       this.buildSkillsPrompt(toolNames),
-      this.buildSettingsPrompt(groupedTools.get('deepchat-settings') ?? []),
+      this.buildSettingsPrompt([
+        ...(groupedTools.get('jiaorong-settings') ?? []),
+        ...(groupedTools.get('deepchat-settings') ?? [])
+      ]),
       this.buildYoBrowserPrompt(groupedTools.get('yobrowser') ?? [])
     ]
 
@@ -2333,7 +2347,10 @@ export class ToolService implements ToolServicePort {
 
     const toolNames = new Set(modelTools.map((tool) => tool.function.name))
     const names = modelTools.map((tool) => `\`${tool.function.name}\``).join(', ')
-    const lines = ['## Tape Tools', `DeepChat tape tools are available in this session: ${names}.`]
+    const lines = [
+      '## Tape Tools',
+      `JiaorongAI tape tools are available in this session: ${names}.`
+    ]
 
     if (toolNames.has(TAPE_TOOL_NAMES.search)) {
       lines.push(
@@ -2367,8 +2384,8 @@ export class ToolService implements ToolServicePort {
 
     const names = tools.map((tool) => `\`${tool.function.name}\``).join(', ')
     return [
-      '## DeepChat Settings Tools',
-      `DeepChat settings tools are available in this session: ${names}.`,
+      '## JiaorongAI Settings Tools',
+      `JiaorongAI settings tools are available in this session: ${names}.`,
       'Prefer these tools over describing manual settings steps when a direct change is possible.'
     ].join('\n')
   }

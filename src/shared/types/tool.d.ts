@@ -138,6 +138,13 @@ export interface ToolServicePort {
   getConfigurableAgentToolDefinitions(context: ToolDefinitionContext): Promise<MCPToolDefinition[]>
 
   /**
+   * UI-only catalog of agent tool display names. Skips session/skill gates.
+   */
+  getToolDisplayCatalog(): Promise<
+    Array<{ name: string; displayName?: string; description?: string }>
+  >
+
+  /**
    * Synchronize agent-tool runtime state without rebuilding tool schemas.
    */
   syncAgentToolContext(context: {

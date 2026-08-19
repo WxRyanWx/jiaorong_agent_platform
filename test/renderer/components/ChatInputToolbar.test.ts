@@ -53,6 +53,19 @@ vi.mock('@dc-ui/components/button', () => ({
   })
 }))
 
+vi.mock('@jiaorong/knowledgeBase/picker/KnowledgeBasePickerButton.vue', () => ({
+  default: defineComponent({
+    name: 'KnowledgeBasePickerButton',
+    props: {
+      sessionId: {
+        default: undefined
+      }
+    },
+    template:
+      '<button type="button" data-testid="kb-picker" :data-session="sessionId == null ? \'null\' : String(sessionId)" />'
+  })
+}))
+
 vi.mock('@shadcn/components/ui/tooltip', () => ({
   TooltipProvider: defineComponent({
     name: 'TooltipProvider',
@@ -246,5 +259,28 @@ describe('ChatInputToolbar', () => {
     const wrapper = mount(ChatInputToolbar, { props: { showSearch: false } })
 
     expect(wrapper.find('[data-testid="chat-search-toggle"]').exists()).toBe(false)
+  })
+
+  it('keeps new-thread knowledge base picker on the draft key when ACP draft session exists', async () => {
+    const ChatInputToolbar = (await import('@/components/chat/ChatInputToolbar.vue')).default
+    const wrapper = mount(ChatInputToolbar, {
+      props: {
+        sessionId: 'acp-draft-1',
+        knowledgeBaseSessionId: null
+      }
+    })
+
+    expect(wrapper.get('[data-testid="kb-picker"]').attributes('data-session')).toBe('null')
+  })
+
+  it('uses the conversation session id for knowledge base picker when no override is passed', async () => {
+    const ChatInputToolbar = (await import('@/components/chat/ChatInputToolbar.vue')).default
+    const wrapper = mount(ChatInputToolbar, {
+      props: {
+        sessionId: 'chat-1'
+      }
+    })
+
+    expect(wrapper.get('[data-testid="kb-picker"]').attributes('data-session')).toBe('chat-1')
   })
 })

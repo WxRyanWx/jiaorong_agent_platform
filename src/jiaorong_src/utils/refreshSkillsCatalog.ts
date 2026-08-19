@@ -1,0 +1,15 @@
+import { useSkillsStore } from '@/stores/skillsStore'
+import type { SkillMetadata } from '@shared/types/skill'
+import { buildSkillMarketCatalog } from '../skills/lib/skillMarketCatalog'
+
+/**
+ * 刷新本地技能目录到 skillsStore（供 / 菜单、创建技能后等场景）。
+ * 内部走 SkillClient.getAllSkills 扫盘。
+ */
+export async function refreshSkillsCatalog(): Promise<SkillMetadata[]> {
+  const { local } = await buildSkillMarketCatalog({
+    fetchRemote: async () => []
+  })
+  await useSkillsStore().loadSkills()
+  return local
+}

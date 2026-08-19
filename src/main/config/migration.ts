@@ -174,7 +174,7 @@ function migrateSensitiveConfigToSqlite(options: Parameters<typeof migrateConfig
       prompts: [
         {
           id: 'default',
-          name: 'DeepChat',
+          name: 'JiaorongAI',
           content: DEFAULT_SYSTEM_PROMPT,
           isDefault: true,
           createdAt: Date.now(),

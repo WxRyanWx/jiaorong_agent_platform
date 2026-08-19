@@ -28,15 +28,15 @@ See `SKILL.md` for the main body.
 
 1. **macOS 14 or newer** — the driver depends on SkyLight private SPIs
    that were stabilized in Sonoma.
-2. **`cua-driver` CLI + `DeepChat Computer Use.app`** — bundled with DeepChat.
-   For local DeepChat builds:
+2. **`cua-driver` CLI + `JiaorongAI Computer Use.app`** — bundled with JiaorongAI.
+   For local JiaorongAI builds:
    ```bash
    pnpm run build:cua-driver:mac:arm64
    ```
    The driver runs as an `.app` bundle because macOS TCC grants are
    tied to a stable bundle id (`com.wefonk.deepchat.computeruse`). The CLI symlink
    lets Claude invoke tools via plain shell.
-3. **TCC grants on `DeepChat Computer Use.app`** — **Accessibility** and
+3. **TCC grants on `JiaorongAI Computer Use.app`** — **Accessibility** and
    **Screen Recording** in System Settings → Privacy & Security.
    Verify with:
    ```bash
@@ -93,7 +93,7 @@ also invoke it explicitly:
 ## Troubleshooting
 
 - `cua-driver: command not found` → re-run the installer or add
-  `.build/DeepChat Computer Use.app/Contents/MacOS/` to `$PATH`.
+  `.build/JiaorongAI Computer Use.app/Contents/MacOS/` to `$PATH`.
 - `No cached AX state for pid X window_id W` → element_index was
   reused across turns, or across different windows of the same app.
   Call `get_window_state({pid, window_id})` first in the same turn,

@@ -53,14 +53,14 @@ describe('AcpTerminalManager', () => {
       command: 'pwd'
     })
 
-    expect(fs.mkdirSync).toHaveBeenCalledWith(path.normalize('/tmp/deepchat-acp/terminals'), {
+    expect(fs.mkdirSync).toHaveBeenCalledWith(path.normalize('/tmp/jiaorong-acp/terminals'), {
       recursive: true
     })
     expect(spawn).toHaveBeenCalledWith(
       'pwd',
       [],
       expect.objectContaining({
-        cwd: expect.stringContaining(path.normalize('/tmp/deepchat-acp/terminals'))
+        cwd: expect.stringContaining(path.normalize('/tmp/jiaorong-acp/terminals'))
       })
     )
   })

@@ -39,6 +39,7 @@ import { isRetiredWorkflowResultMessageMetadata } from '@shared/orchestration/re
 import { segmentAssistantBlocksByProviderReplay } from './providerReplaySegments'
 import { inheritProviderProjectionIdentities } from '@/agent/deepchat/loop/providerProjectionIdentity'
 import { hashJsonData } from '@/tape/domain/canonicalJson'
+import { isJiaorongKnowledgeBaseContextAttachment } from '@jiaorong/knowledgeBase/mcp/knowledgeBaseMcpConstants'
 
 export { estimateMessagesTokens } from '@shared/utils/messageTokens'
 
@@ -410,6 +411,7 @@ function buildNonImageFileContext(
     const fileContent = typeof file.content === 'string' ? file.content : ''
     const shouldIncludeContent =
       options.includeFileContent === true ||
+      isJiaorongKnowledgeBaseContextAttachment(file) ||
       (isAudio && !fileContent.trim().toLowerCase().startsWith('data:audio/'))
     const byteSize = resolveFileByteSize(file)
     const metadataLines = [

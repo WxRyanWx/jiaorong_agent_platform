@@ -1,7 +1,10 @@
 <template>
   <div
     data-testid="chat-input-box"
-    :class="['w-full overflow-hidden rounded-xl border bg-card/30 shadow-sm', props.maxWidthClass]"
+    :class="[
+      'chat-input-box w-full overflow-hidden rounded-xl border bg-card/30 shadow-sm',
+      props.maxWidthClass
+    ]"
     style="
       backdrop-filter: blur(var(--dc-blur-panel));
       -webkit-backdrop-filter: blur(var(--dc-blur-panel));
@@ -23,6 +26,7 @@
         @remove="removeSessionActiveSkill"
       />
     </div>
+    <KnowledgeBaseSelectionChips :session-id="resolvedKnowledgeBaseSessionId" />
 
     <div
       data-testid="chat-input-editor"
@@ -83,6 +87,7 @@ import { useChatInputMentions } from './composables/useChatInputMentions'
 import { useChatInputFiles } from './composables/useChatInputFiles'
 import { useSkillsData } from '@/components/chat-input/composables/useSkillsData'
 import SessionSkillsIndicator from '@/components/chat-input/SessionSkillsIndicator.vue'
+import KnowledgeBaseSelectionChips from '@jiaorong/knowledgeBase/picker/KnowledgeBaseSelectionChips.vue'
 import { SkillChip } from './nodes/skillChip'
 import { FileAttachment } from './nodes/fileAttachment'
 import { CommandForm } from './nodes/commandForm'
@@ -102,6 +107,8 @@ const props = withDefaults(
     modelValue?: string
     placeholder?: string
     sessionId?: string | null
+    /** 未传则跟 sessionId；新会话页显式传 null，与发送时 prepareKnowledgeBaseSendFiles(null) 对齐 */
+    knowledgeBaseSessionId?: string | null
     agentId?: string | null
     workspacePath?: string | null
     isAcpSession?: boolean
@@ -153,6 +160,9 @@ const resolvedPlaceholder = computed(() => props.placeholder?.trim() || t('chat.
 let editorInstance: Editor | null = null
 const getEditor = () => editorInstance
 const conversationId = computed(() => props.sessionId)
+const resolvedKnowledgeBaseSessionId = computed(() =>
+  props.knowledgeBaseSessionId !== undefined ? props.knowledgeBaseSessionId : props.sessionId
+)
 const skillAgentId = computed(() => props.agentId?.trim() || 'deepchat')
 const skillsData = useSkillsData(conversationId, skillAgentId)
 const activeSkillNames = computed(() => skillsData.composerActiveSkills.value)
@@ -330,9 +340,12 @@ const getEditorText = (editor: Editor): string => {
   return editor.getText({ blockSeparator: '\n' })
 }
 
+const getLiveEditorState = (target: Editor) => target.view.state ?? target.state
+
 const setCaretToEnd = (editor: Editor) => {
-  const end = TextSelection.atEnd(editor.state.doc)
-  editor.view.dispatch(editor.state.tr.setSelection(end))
+  const state = getLiveEditorState(editor)
+  const end = TextSelection.atEnd(state.doc)
+  editor.view.dispatch(state.tr.setSelection(end))
 }
 
 type InlineNodeRange = { pos: number; size: number }
@@ -344,6 +357,40 @@ function syncEditorContent(applyChange: () => void) {
     applyChange()
   } finally {
     isSyncingNodes = false
+  }
+}
+
+/** Replace the document without aborting callers if Vue node views throw. */
+function replaceEditorContent(content: JSONContent) {
+  const applyWithCommands = () => editor.commands.setContent(content, false)
+
+  try {
+    const schema = editor.schema
+    const viewState = getLiveEditorState(editor)
+    if (!schema?.nodeFromJSON || viewState.doc.content.size === undefined) {
+      applyWithCommands()
+    } else {
+      const nextDoc = schema.nodeFromJSON(content)
+      editor.view.dispatch(
+        viewState.tr
+          .replaceWith(0, viewState.doc.content.size, nextDoc)
+          .setMeta('preventUpdate', true)
+          .setMeta(CHAT_INPUT_SYNC_META, true)
+          .setMeta('addToHistory', false)
+      )
+    }
+  } catch (error) {
+    try {
+      applyWithCommands()
+    } catch (fallbackError) {
+      console.warn('[ChatInputBox] Failed to replace editor content', fallbackError)
+    }
+  }
+
+  try {
+    setCaretToEnd(editor)
+  } catch (error) {
+    console.warn('[ChatInputBox] Failed to move editor caret', error)
   }
 }
 
@@ -415,6 +462,55 @@ function reconcileEditorNodes() {
   }
 }
 
+function findLeadingSkillInsertPos(): number {
+  let pos = 1
+  const first = editor.state.doc.firstChild
+  if (!first) return 1
+
+  let sawNonChip = false
+  first.forEach((node, offset) => {
+    if (sawNonChip) return
+    if (node.type.name === 'skillChip') {
+      pos = 1 + offset + node.nodeSize
+      return
+    }
+    sawNonChip = true
+  })
+  return pos
+}
+
+function splitParagraphAfterLeadingSkillChips() {
+  const first = editor.state.doc.firstChild
+  if (!first) return
+
+  let lastChipEnd: number | null = null
+  let hasInlineAfterChips = false
+  first.forEach((node, offset) => {
+    if (node.type.name === 'skillChip') {
+      if (!hasInlineAfterChips) {
+        lastChipEnd = 1 + offset + node.nodeSize
+      }
+      return
+    }
+    if (lastChipEnd !== null) {
+      hasInlineAfterChips = true
+    }
+  })
+
+  if (lastChipEnd === null || !hasInlineAfterChips) return
+
+  const state = getLiveEditorState(editor)
+  if (lastChipEnd <= 0 || lastChipEnd >= state.doc.content.size) return
+
+  try {
+    editor.view.dispatch(
+      state.tr.split(lastChipEnd).setMeta(CHAT_INPUT_SYNC_META, true).setMeta('addToHistory', false)
+    )
+  } catch (error) {
+    console.warn('[ChatInputBox] Failed to separate skill chips from prompt', error)
+  }
+}
+
 /** Ensure editor SkillChip nodes mirror skillsData.activeSkills */
 function syncSkillNodes() {
   if (isSyncingNodes) return
@@ -443,10 +539,20 @@ function syncSkillNodes() {
       }))
 
     if (newSkillNodes.length > 0) {
-      editor
-        .chain()
-        .insertContentAt(editor.state.selection.from, newSkillNodes, { updateSelection: false })
-        .run()
+      try {
+        editor
+          .chain()
+          .insertContentAt(findLeadingSkillInsertPos(), newSkillNodes, { updateSelection: false })
+          .command(({ tr }) => {
+            tr.setMeta(CHAT_INPUT_SYNC_META, true)
+            tr.setMeta('addToHistory', false)
+            return true
+          })
+          .run()
+        splitParagraphAfterLeadingSkillChips()
+      } catch (error) {
+        console.warn('[ChatInputBox] Failed to insert skill chips', error)
+      }
     }
   })
 }
@@ -562,6 +668,11 @@ const editor = new VueEditor({
 
     const text = getEditorText(editor)
     if (text !== (props.modelValue || '')) {
+      // Skill chips render as empty text. A chip-only document must not erase a prefilled prompt.
+      if (!text && (props.modelValue || '') && getEditorSkillNames().length > 0) {
+        emit('draft-change')
+        return
+      }
       emit('update:modelValue', text)
     }
     emit('draft-change')
@@ -587,8 +698,7 @@ watch(
     if (next === current) return
 
     syncEditorContent(() => {
-      editor.commands.setContent(toEditorDoc(next), false)
-      setCaretToEnd(editor)
+      replaceEditorContent(toEditorDoc(next))
     })
 
     // Re-sync chips after content replacement
@@ -875,14 +985,17 @@ function setPendingSkills(skillNames: string[]) {
   )
 }
 
+async function activateSkill(skillName: string) {
+  await skillsData.activateSkill(skillName)
+}
+
 function getDocumentSnapshot(): JSONContent {
   return editor.getJSON()
 }
 
 function restoreDocumentSnapshot(document: JSONContent) {
   syncEditorContent(() => {
-    editor.commands.setContent(document, false)
-    setCaretToEnd(editor)
+    replaceEditorContent(document)
   })
   void nextTick(() => {
     syncSkillNodes()
@@ -904,6 +1017,7 @@ defineExpose({
   consumePendingSkills,
   clearPendingSkills,
   setPendingSkills,
+  activateSkill,
   getDocumentSnapshot,
   restoreDocumentSnapshot,
   focusInput

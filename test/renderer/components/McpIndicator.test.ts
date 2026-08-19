@@ -154,7 +154,7 @@ const setup = async (options?: {
       .mockResolvedValue([
         buildTool('read', 'agent-filesystem'),
         buildTool('exec', 'agent-filesystem'),
-        buildTool('deepchat_question', 'agent-core'),
+        buildTool('jiaorong_question', 'agent-core'),
         buildTool('update_plan', 'agent-core'),
         buildTool('cdp_send', 'yobrowser'),
         buildTool('mcp_tool', 'demo-server', 'mcp')

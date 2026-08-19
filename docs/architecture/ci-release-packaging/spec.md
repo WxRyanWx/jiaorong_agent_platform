@@ -61,7 +61,7 @@ assembly fails closed against an explicit six-target contract.
   requires its Developer ID authority, expected Team ID, hardened runtime, secure timestamp, exact
   entitlement allowlist, and allowed Mach-O load paths before accepting the outer application.
 - The staged updater ZIP is extracted as the real updater consumer payload. Its sole root
-  `DeepChat.app` must pass the same CUA helper and complete application distribution checks.
+  `JiaorongAI.app` must pass the same CUA helper and complete application distribution checks.
 - `syspolicy_check distribution` assesses both the staging application and the application
   extracted from the updater ZIP after all electron-builder and notarization transformations.
 - Verification packaging explicitly disables certificate auto-discovery, receives no Apple signing

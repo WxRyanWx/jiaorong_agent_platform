@@ -57,6 +57,7 @@ export interface SkillRunOptions {
 
 interface SkillExecutionServiceOptions {
   resolveConversationWorkdir?: (conversationId: string) => Promise<string | null>
+  resolveSkillsDir?: () => Promise<string>
 }
 
 interface SkillExecutionResult {
@@ -103,9 +104,11 @@ interface ForegroundExecutionResult {
 export class SkillExecutionService {
   private readonly runtimeHelper = RuntimeHelper.getInstance()
   private readonly resolveConversationWorkdir?: (conversationId: string) => Promise<string | null>
+  private readonly resolveSkillsDir?: () => Promise<string>
 
   constructor(options: SkillExecutionServiceOptions = {}) {
     this.resolveConversationWorkdir = options.resolveConversationWorkdir
+    this.resolveSkillsDir = options.resolveSkillsDir
     this.runtimeHelper.initializeRuntimes()
   }
 
@@ -284,11 +287,19 @@ export class SkillExecutionService {
     }
 
     const executionCwd = await this.resolveExecutionCwd(conversationId, tree.packageRoot)
+    const skillsDir = this.resolveSkillsDir ? await this.resolveSkillsDir() : ''
     const mergedEnv = mergeCommandEnvironment({
       overrides: {
         ...authority.environment,
         SKILL_ROOT: tree.packageRoot,
-        DEEPCHAT_SKILL_ROOT: tree.packageRoot
+        DEEPCHAT_SKILL_ROOT: tree.packageRoot,
+        ...(skillsDir
+          ? {
+              SKILLS_DIR: skillsDir,
+              JIAORONG_SKILLS_DIR: skillsDir,
+              DEEPCHAT_SKILLS_DIR: skillsDir
+            }
+          : {})
       }
     })
 

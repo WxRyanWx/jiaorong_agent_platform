@@ -333,7 +333,7 @@ export function createSkillRoutes(deps: {
       skillsOpenFolderRoute.name,
       async (rawInput) => {
         const input = skillsOpenFolderRoute.input.parse(rawInput)
-        await skillService.openSkillsFolderForAgent(input.agentId)
+        await skillService.openSkillsFolderForAgent(input.agentId, input.name)
         return skillsOpenFolderRoute.output.parse({ opened: true })
       }
     ],

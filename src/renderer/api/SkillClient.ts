@@ -226,8 +226,8 @@ export function createSkillClient(bridge: DeepchatBridge = getDeepchatBridge()) 
     return result.nodes
   }
 
-  async function openSkillsFolder(agentId: string = BUILTIN_SKILL_AGENT_ID) {
-    await bridge.invoke(skillsOpenFolderRoute.name, { agentId })
+  async function openSkillsFolder(name?: string, agentId: string = BUILTIN_SKILL_AGENT_ID) {
+    await bridge.invoke(skillsOpenFolderRoute.name, name ? { agentId, name } : { agentId })
   }
 
   async function getSkillExtension(name: string, agentId: string = BUILTIN_SKILL_AGENT_ID) {

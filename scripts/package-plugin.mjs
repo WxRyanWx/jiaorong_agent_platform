@@ -7,14 +7,14 @@ import { readCuaToolCatalog } from './cua-tool-catalog-contract.mjs'
 import { CUA_DARWIN_ALLOWED_ENTITLEMENTS } from './cua-macos-contract.mjs'
 
 const OFFICIAL_PLUGIN_SOURCE = 'deepchat-official'
-const CUA_DARWIN_HELPER_APP = 'DeepChat Computer Use.app'
+const CUA_DARWIN_HELPER_APP = 'JiaorongAI Computer Use.app'
 const CUA_DARWIN_HELPER_EXECUTABLE = 'deepchat-cua-driver'
 const CUA_DARWIN_HELPER_BUNDLE_ID = 'com.deepchat.computeruse.helper'
 const CUA_DARWIN_MANAGED_HELPER_DETECT = `app-helper:${CUA_DARWIN_HELPER_APP}/Contents/MacOS/${CUA_DARWIN_HELPER_EXECUTABLE}`
 const CUA_PLUGIN_ID = 'com.deepchat.plugins.cua'
 const CUA_INTEGRITY_DESCRIPTOR_NAME = 'integrity.json'
 const CUA_EMBEDDED_ADAPTER_CONTRACT = Object.freeze({
-  hostBundleId: 'com.wefonk.deepchat',
+  hostBundleId: 'com.wefonk.jiaorong',
   driverVersion: '0.19.2',
   contractVersion: '0.6.0',
   toolsListSchemaVersion: '1',

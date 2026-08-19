@@ -1,6 +1,6 @@
 <template>
   <div
-    class="flex flex-row h-9 min-h-9 relative overflow-hidden"
+    class="app-bar flex flex-row h-9 min-h-9 relative overflow-hidden"
     :class="[!isFullscreened && isMacOS ? '' : ' rounded-t-none']"
     :dir="langStore.dir"
   >
@@ -83,7 +83,7 @@ const isMacOS = ref(false)
 const isMaximized = ref(false)
 const isFullscreened = ref(false)
 const showUpdateButton = computed(
-  () => route.name !== 'welcome' && upgrade.shouldShowTopbarInstallButton
+  () => route.name !== 'welcome' && route.name !== 'login' && upgrade.shouldShowTopbarInstallButton
 )
 
 const minimizeWindow = () => {

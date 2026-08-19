@@ -7,7 +7,8 @@ import {
   filePrepareFileRoute,
   fileReadFileRoute,
   fileSaveImageRoute,
-  fileWriteImageBase64Route
+  fileWriteImageBase64Route,
+  fileWriteTempRoute
 } from '@shared/contracts/routes'
 import { createRouteMap, type DeepchatRouteMap } from '@/routes/routeRegistry'
 
@@ -62,6 +63,22 @@ export function createFileRoutes(fileService: FileServicePort): DeepchatRouteMap
         const input = fileWriteImageBase64Route.input.parse(rawInput)
         return fileWriteImageBase64Route.output.parse({
           path: await fileService.writeImageBase64(input)
+        })
+      }
+    ],
+    [
+      fileWriteTempRoute.name,
+      async (rawInput) => {
+        const input = fileWriteTempRoute.input.parse(rawInput)
+        const bytes =
+          input.encoding === 'base64'
+            ? Buffer.from(input.content, 'base64')
+            : Buffer.from(input.content, 'utf8')
+        return fileWriteTempRoute.output.parse({
+          path: await fileService.writeTemp({
+            name: input.name,
+            content: bytes
+          })
         })
       }
     ],

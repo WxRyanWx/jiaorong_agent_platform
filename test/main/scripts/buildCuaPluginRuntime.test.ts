@@ -139,7 +139,7 @@ describe('build-cua-plugin-runtime', () => {
     ).rejects.toThrow()
     await expect(readFile(path.join(targetApp, 'Contents', 'CodeResources'), 'utf8')).rejects.toThrow()
     expect(plist).toContain(`<string>${darwinHelperBundleIdentifier}</string>`)
-    expect(plist).toContain('<key>CFBundleName</key>\n    <string>DeepChat Computer Use</string>')
+    expect(plist).toContain('<key>CFBundleName</key>\n    <string>JiaorongAI Computer Use</string>')
     expect(plist).toContain('<key>CFBundleDisplayName</key>')
     expect(plist).toContain(`<string>${darwinHelperBinaryName}</string>`)
   })

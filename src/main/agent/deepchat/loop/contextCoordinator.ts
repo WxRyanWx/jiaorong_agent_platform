@@ -471,7 +471,7 @@ function isProviderControlEvent(
 
 const PREMATURE_PROVIDER_STREAM_ERROR = 'Provider stream ended without a terminal stop event.'
 const CONTEXT_OVERFLOW_AFTER_OUTPUT_ERROR =
-  'The provider reported a context overflow after response output began. DeepChat preserved the partial output and did not retry.'
+  'The provider reported a context overflow after response output began. JiaorongAI preserved the partial output and did not retry.'
 
 interface ProviderAttemptObservation {
   outputCommitted: boolean

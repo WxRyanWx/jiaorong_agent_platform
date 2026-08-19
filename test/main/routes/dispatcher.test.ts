@@ -1586,6 +1586,9 @@ function createRuntime() {
           description: 'Agent filesystem tools'
         }
       }
+    ]),
+    getToolDisplayCatalog: vi.fn().mockResolvedValue([
+      { name: 'skill_list', displayName: '技能列表' }
     ])
   }
   const pluginService = {
@@ -2053,6 +2056,23 @@ describe('dispatchDeepchatRoute', () => {
       tools: [{ source: 'agent', function: { name: 'read' } }]
     })
     expect(toolService.getConfigurableAgentToolDefinitions).toHaveBeenCalledWith(input)
+    expect(toolService.getAllToolDefinitions).not.toHaveBeenCalled()
+  })
+
+  it('routes tools.displayCatalog to the UI-only tool label catalog', async () => {
+    const { runtime, toolService } = createRuntime()
+
+    const result = await dispatchDeepchatRoute(
+      runtime,
+      'tools.displayCatalog',
+      {},
+      createRendererRouteContext(42, 7)
+    )
+
+    expect(result).toEqual({
+      tools: [{ name: 'skill_list', displayName: '技能列表' }]
+    })
+    expect(toolService.getToolDisplayCatalog).toHaveBeenCalledTimes(1)
     expect(toolService.getAllToolDefinitions).not.toHaveBeenCalled()
   })
 

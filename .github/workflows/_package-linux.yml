@@ -19,6 +19,11 @@ on:
         description: Compare installers with the committed package-size baseline.
         required: true
         type: boolean
+      build-script:
+        description: pnpm script for electron-vite (build or build:test).
+        required: false
+        type: string
+        default: build
     secrets:
       RTK_GITHUB_TOKEN:
         required: false
@@ -112,11 +117,20 @@ jobs:
           pnpm run smoke:duckdb:vss -- --platform linux --arch ${{ inputs.arch }}
 
       - name: Build Linux application
-        run: pnpm run build
         env:
+          BUILD_SCRIPT: ${{ inputs.build-script }}
           VITE_GITHUB_CLIENT_ID: ${{ secrets.DC_GITHUB_CLIENT_ID }}
           VITE_GITHUB_CLIENT_SECRET: ${{ secrets.DC_GITHUB_CLIENT_SECRET }}
           VITE_GITHUB_REDIRECT_URI: ${{ secrets.DC_GITHUB_REDIRECT_URI }}
+        run: |
+          case "${BUILD_SCRIPT:-build}" in
+            build|build:test) ;;
+            *)
+              echo "build-script must be build or build:test" >&2
+              exit 1
+              ;;
+          esac
+          pnpm run "${BUILD_SCRIPT:-build}"
 
       - name: Bundle CUA plugin
         if: inputs.arch == 'x64'

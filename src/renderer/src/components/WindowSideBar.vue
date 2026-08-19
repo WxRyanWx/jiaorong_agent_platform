@@ -3,7 +3,7 @@
     <div
       data-testid="window-sidebar"
       class="window-sidebar-shell flex flex-row h-full shrink-0 overflow-hidden window-drag-region transition-[width] duration-[var(--dc-motion-fast)] ease-[var(--dc-ease-out-express)] motion-reduce:transition-none"
-      :class="collapsed ? 'w-12' : 'w-[288px]'"
+      :class="sidebarShellWidthClass"
     >
       <!-- Left Column: Agent Icons (48px) -->
       <div class="window-no-drag-region flex flex-col items-center shrink-0 pt-2 pb-2 gap-1 w-12">
@@ -11,7 +11,7 @@
         <DcButton
           data-testid="sidebar-agent-all-button"
           data-agent-id="__all__"
-          :data-selected="String(sidebarSelectedAgentId === null)"
+          :data-selected="String(!isExclusiveChromeRoute && sidebarSelectedAgentId === null)"
           size="icon"
           icon="lucide:layers"
           icon-size="4"
@@ -20,7 +20,7 @@
           :tooltip="t('chat.sidebar.allAgents')"
           class="flex items-center justify-center w-9 h-9 rounded-xl border transition-all duration-150 text-foreground/80 hover:text-foreground/80"
           :class="
-            sidebarSelectedAgentId === null
+            sidebarSelectedAgentId === null && !isExclusiveChromeRoute
               ? 'bg-card/50 border-white/70 dark:border-white/20 ring-1 ring-black/10 hover:bg-white/30 dark:hover:bg-white/10'
               : 'bg-transparent border-none hover:bg-white/30 dark:hover:bg-white/10 shadow-none'
           "
@@ -29,21 +29,76 @@
 
         <div class="w-5 h-px bg-border my-1"></div>
 
-        <!-- Agent icons -->
+        <!-- Builtin deepchat first, then 交融 entries, then user agents -->
         <DcButton
-          v-for="agent in agentStore.enabledAgents"
+          v-if="sidebarAgentPartitions.deepchat"
+          data-testid="sidebar-agent-button"
+          :data-agent-id="sidebarAgentPartitions.deepchat.id"
+          :data-agent-type="
+            sidebarAgentPartitions.deepchat.agentType ?? sidebarAgentPartitions.deepchat.type
+          "
+          :data-selected="
+            String(
+              !isExclusiveChromeRoute &&
+                sidebarSelectedAgentId === sidebarAgentPartitions.deepchat.id
+            )
+          "
+          size="icon"
+          tooltip-side="right"
+          :tooltip-delay-duration="200"
+          :tooltip="sidebarAgentPartitions.deepchat.name"
+          class="flex items-center justify-center w-9 h-9 rounded-xl border transition-all duration-150"
+          :class="
+            sidebarSelectedAgentId === sidebarAgentPartitions.deepchat.id && !isExclusiveChromeRoute
+              ? 'bg-card/50 border-white/80 dark:border-white/20 ring-1 ring-black/10 hover:bg-white/30 dark:hover:bg-white/10'
+              : 'bg-transparent border-none hover:bg-white/30 dark:hover:bg-white/10 shadow-none'
+          "
+          @click="handleAgentSelect(sidebarAgentPartitions.deepchat.id)"
+        >
+          <AgentAvatar :agent="sidebarAgentPartitions.deepchat" class-name="w-4 h-4" />
+        </DcButton>
+
+        <!-- 交融私有侧栏贡献（技能中心 / 知识库） -->
+        <DcButton
+          v-for="item in jiaorongAfterDeepchatItems"
+          :key="item.id"
+          :data-testid="item.testId || `sidebar-jiaorong-${item.id}`"
+          :data-selected="String(isJiaorongSidebarItemActive(item))"
+          size="icon"
+          tooltip-side="right"
+          :tooltip-delay-duration="200"
+          :tooltip="item.titleKey ? t(item.titleKey) : item.title || item.id"
+          class="flex items-center justify-center w-9 h-9 rounded-xl border transition-all duration-150"
+          :class="
+            isJiaorongSidebarItemActive(item)
+              ? 'bg-card/50 border-white/80 dark:border-white/20 ring-1 ring-black/10 hover:bg-white/30 dark:hover:bg-white/10'
+              : 'bg-transparent border-none hover:bg-white/30 dark:hover:bg-white/10 shadow-none'
+          "
+          @click="openJiaorongSidebarItem(item)"
+        >
+          <img
+            v-if="item.iconSrc"
+            :src="item.iconSrc"
+            alt=""
+            class="w-[22px] h-[22px] object-contain"
+          />
+          <Icon v-else :icon="item.icon || 'lucide:circle'" class="w-4 h-4 text-foreground/80" />
+        </DcButton>
+
+        <DcButton
+          v-for="agent in sidebarAgentPartitions.userAgents"
           :key="agent.id"
           data-testid="sidebar-agent-button"
           :data-agent-id="agent.id"
           :data-agent-type="agent.agentType ?? agent.type"
-          :data-selected="String(sidebarSelectedAgentId === agent.id)"
+          :data-selected="String(!isExclusiveChromeRoute && sidebarSelectedAgentId === agent.id)"
           size="icon"
           tooltip-side="right"
           :tooltip-delay-duration="200"
           :tooltip="agent.name"
           class="flex items-center justify-center w-9 h-9 rounded-xl border transition-all duration-150"
           :class="
-            sidebarSelectedAgentId === agent.id
+            sidebarSelectedAgentId === agent.id && !isExclusiveChromeRoute
               ? 'bg-card/50 border-white/80 dark:border-white/20 ring-1 ring-black/10 hover:bg-white/30 dark:hover:bg-white/10'
               : 'bg-transparent border-none hover:bg-white/30 dark:hover:bg-white/10 shadow-none'
           "
@@ -92,8 +147,9 @@
           @click="openRemoteSettings"
         />
 
-        <!-- Theme toggle -->
+        <!-- Theme toggle: 交融强制 light，隐藏切换 -->
         <DcButton
+          v-if="false"
           data-testid="window-sidebar-theme-toggle"
           size="icon"
           tooltip-side="right"
@@ -111,6 +167,7 @@
 
         <!-- Collapse toggle -->
         <DcButton
+          v-if="!isExclusiveChromeRoute"
           :icon="collapsed ? 'lucide:panel-left-open' : 'lucide:panel-left-close'"
           size="icon"
           data-testid="window-sidebar-toggle"
@@ -138,6 +195,7 @@
 
       <!-- Right Column: Session List (240px) -->
       <div
+        v-if="!isExclusiveChromeRoute"
         data-testid="window-sidebar-session-column"
         class="window-sidebar-session-column window-no-drag-region flex flex-col w-0 flex-1 min-w-0 transition-[opacity,transform] duration-[var(--dc-motion-default)] ease-[var(--dc-ease-out-express)]"
         :class="
@@ -164,7 +222,7 @@
                 type="search"
                 :placeholder="t('chat.sidebar.searchPlaceholder')"
                 :aria-label="t('chat.sidebar.searchAriaLabel')"
-                class="h-8 pr-8 pl-8 text-sm"
+                class="window-sidebar-search-input h-8 pr-8 pl-8 text-sm"
                 @keydown.esc.prevent="sessionSearchQuery = ''"
               />
             </div>
@@ -172,7 +230,7 @@
             <button
               data-testid="app-new-chat-button"
               type="button"
-              class="flex h-9 w-full items-center gap-3 rounded-lg px-2 text-left text-sm text-foreground transition-colors hover:bg-accent/60"
+              class="window-sidebar-action-btn flex h-9 w-full items-center gap-3 rounded-lg px-2 text-left text-sm text-foreground transition-colors hover:bg-accent/60"
               @click="handleNewChat"
             >
               <Icon icon="lucide:square-pen" class="size-4 shrink-0 text-muted-foreground" />
@@ -223,6 +281,7 @@
             workspaceGroups.length === 0
           "
           icon="lucide:message-square-plus"
+          icon-class-name="window-sidebar-empty-icon"
           class="h-full border-0 py-10"
           :title="
             normalizedSessionSearchQuery
@@ -706,7 +765,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import draggable from 'vuedraggable'
 import { Icon } from '@iconify/vue'
 import { DcButton } from '@dc-ui/components/button'
@@ -736,6 +795,10 @@ import {
   DropdownMenuTrigger
 } from '@shadcn/components/ui/dropdown-menu'
 import { createSettingsClient } from '@api/SettingsClient'
+import { isJiaorongExclusiveChromeRoute, listJiaorongSidebarItems } from '@jiaorong/runtime/sidebar'
+import type { JiaorongSidebarItem } from '@jiaorong/runtime/types'
+import { partitionSidebarAgents } from '@shared/sidebarAgents'
+import { scheduleAuthRevalidateOnMenuSwitch } from '@jiaorong/auth/host'
 import { useAgentStore } from '@/stores/ui/agent'
 import { useProjectStore } from '@/stores/ui/project'
 import {
@@ -764,8 +827,23 @@ import { useThemeStore } from '@/stores/theme'
 
 const settingsClient = createSettingsClient()
 const { t } = useI18n()
+const route = useRoute()
 const router = useRouter()
+const jiaorongAfterDeepchatItems = listJiaorongSidebarItems('after-deepchat')
+const isExclusiveChromeRoute = computed(() =>
+  isJiaorongExclusiveChromeRoute(route.name, route.path)
+)
+const isJiaorongSidebarItemActive = (item: JiaorongSidebarItem) => {
+  if (typeof route.name !== 'string') {
+    return false
+  }
+  if (item.matchRouteNames?.length) {
+    return item.matchRouteNames.includes(route.name)
+  }
+  return route.name === item.routeName
+}
 const agentStore = useAgentStore()
+const sidebarAgentPartitions = computed(() => partitionSidebarAgents(agentStore.enabledAgents))
 const projectStore = useProjectStore()
 const sessionStore = useSessionStore()
 const sidebarStore = useSidebarStore()
@@ -800,6 +878,12 @@ const themeModeLabel = computed(() => {
 })
 
 const collapsed = computed(() => sidebarStore.collapsed)
+const sidebarShellWidthClass = computed(() => {
+  if (collapsed.value || isExclusiveChromeRoute.value) {
+    return 'w-12'
+  }
+  return 'w-[288px]'
+})
 const sessionSearchQuery = ref('')
 const pluginsRouteActive = computed(() =>
   String(router?.currentRoute?.value?.name ?? '').startsWith('plugins')
@@ -1005,6 +1089,22 @@ const handleWorkspaceGroupClick = (group: SessionGroup) => {
   toggleGroup(group)
 }
 
+const redirectToLogin = () => {
+  void router.push({ name: 'login' })
+}
+
+const ensureAuthOnMenuSwitch = (): boolean => {
+  return scheduleAuthRevalidateOnMenuSwitch(redirectToLogin)
+}
+
+const openJiaorongSidebarItem = async (item: JiaorongSidebarItem) => {
+  const allowed = ensureAuthOnMenuSwitch()
+  if (!allowed) {
+    return
+  }
+  await router.push({ name: item.routeName })
+}
+
 const openSettings = () => {
   void settingsClient.openSettings()
 }
@@ -1058,13 +1158,19 @@ const handleAgentSelect = async (id: string | null) => {
     sidebarStore.setCollapsed(false)
   }
 
+  const leavingExclusive = isExclusiveChromeRoute.value
   const requestSeq = ++agentSwitchSeq
 
   agentSwitchQueue = agentSwitchQueue
     .then(async () => {
       const currentAgentId = sidebarSelectedAgentId.value
-      const nextAgentId = currentAgentId === id ? null : id
-      if (nextAgentId === currentAgentId) {
+      const nextAgentId = leavingExclusive ? id : currentAgentId === id ? null : id
+      if (!leavingExclusive && nextAgentId === currentAgentId) {
+        return
+      }
+
+      const allowed = ensureAuthOnMenuSwitch()
+      if (!allowed || requestSeq !== agentSwitchSeq) {
         return
       }
 
@@ -1085,6 +1191,9 @@ const handleAgentSelect = async (id: string | null) => {
       }
 
       agentStore.setSelectedAgent(nextAgentId)
+      if (leavingExclusive) {
+        await navigateToChat()
+      }
     })
     .catch((error) => {
       console.warn('[WindowSideBar] Agent switch pipeline failed:', error)

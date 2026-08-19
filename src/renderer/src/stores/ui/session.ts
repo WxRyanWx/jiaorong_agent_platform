@@ -1185,21 +1185,23 @@ export const useSessionStore = defineStore('session', () => {
     error.value = null
     const requestId = createActivationNavigationRequest()
     try {
-      if (activeSessionId.value && activeSessionId.value !== sessionId) {
+      const isSameSession = activeSessionId.value === sessionId
+      if (activeSessionId.value && !isSameSession) {
         messageStore.clearStreamingState()
       }
+      // Optimistic UI: enter chat immediately, then activate in main.
+      // Avoid waiting on sessions.activate IPC before navigation/restore starts.
+      if (activeSessionSummary.value?.id !== sessionId) {
+        clearActiveSessionSummary()
+      }
+      syncSelectedAgentToSession(sessionId)
+      setActiveSessionId(sessionId)
+      pageRouter.goToChat(sessionId)
       await sessionClient.activate(sessionId)
       if (activationNavigationRequestId !== requestId) {
         return
       }
-      clearActiveSessionSummary()
-      syncSelectedAgentToSession(sessionId)
-      setActiveSessionId(sessionId)
       await hydrateActiveSessionSummary(sessionId, requestId)
-      if (!isCurrentActivationNavigation(requestId, sessionId)) {
-        return
-      }
-      pageRouter.goToChat(sessionId)
     } catch (selectError) {
       if (activationNavigationRequestId === requestId) {
         error.value = `Failed to select session: ${selectError}`

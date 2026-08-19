@@ -48,7 +48,7 @@ export class McpRouterManager {
     return {
       'Content-Type': 'application/json',
       'HTTP-Referer': 'deepchatai.cn',
-      'X-Title': 'DeepChat'
+      'X-Title': 'JiaorongAI'
     }
   }
 
@@ -113,7 +113,7 @@ export class McpRouterManager {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${apiKey}`,
         'HTTP-Referer': 'deepchatai.cn',
-        'X-Title': 'DeepChat'
+        'X-Title': 'JiaorongAI'
       },
       source: 'mcprouter',
       sourceId: serverKey

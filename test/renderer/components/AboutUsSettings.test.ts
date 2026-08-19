@@ -183,7 +183,7 @@ describe('AboutUsSettings', () => {
     })
   })
 
-  it('renders fallback download actions in the bottom action row', async () => {
+  it('hides GitHub and official fallback downloads when auto-update fails', async () => {
     const { default: AboutUsSettings } =
       await import('../../../src/renderer/settings/components/AboutUsSettings.vue')
 
@@ -211,15 +211,12 @@ describe('AboutUsSettings', () => {
     await flushPromises()
 
     const buttons = wrapper.findAll('button').map((button) => button.text())
-    expect(buttons).toEqual(['意见反馈', '免责声明', 'GitHub 下载', '官网下载', '关闭'])
+    expect(buttons).toEqual(['关闭'])
     expect(wrapper.text()).not.toContain('检查更新')
-
-    const officialButton = wrapper.findAll('button').find((button) => button.text() === '官网下载')
-    expect(officialButton).toBeTruthy()
-
-    await officialButton!.trigger('click')
-
-    expect(upgradeStoreMock.handleUpdate).toHaveBeenCalledWith('official')
+    expect(wrapper.text()).not.toContain('GitHub 下载')
+    expect(wrapper.text()).not.toContain('官网下载')
+    expect(wrapper.text()).not.toContain('意见反馈')
+    expect(wrapper.text()).toContain('自动更新可能不稳定，请手动下载更新')
   })
 
   it('subscribes to tray update checks before initial presenter calls resolve', async () => {
@@ -362,7 +359,7 @@ describe('AboutUsSettings', () => {
     wrapper.unmount()
   })
 
-  it('keeps the committed update channel when persistence fails', async () => {
+  it('hides the update channel selector', async () => {
     configClientMock.setUpdateChannel.mockRejectedValueOnce(new Error('disk unavailable'))
 
     const { default: AboutUsSettings } =
@@ -390,19 +387,9 @@ describe('AboutUsSettings', () => {
     })
 
     await flushPromises()
-    const select = wrapper.getComponent(selectStub)
-    select.vm.$emit('update:modelValue', 'beta')
-    await flushPromises()
-
-    expect(configClientMock.setUpdateChannel).toHaveBeenCalledWith('beta')
-    expect(select.props('modelValue')).toBe('stable')
-    expect(notifyRenderer).toHaveBeenCalledWith(
-      expect.objectContaining({
-        kind: 'error',
-        code: 'settings.about.updateChannelSaveFailed',
-        title: 'common.error.operationFailed'
-      })
-    )
+    expect(wrapper.find('[data-testid="update-channel-select"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('更新渠道')
+    expect(configClientMock.setUpdateChannel).not.toHaveBeenCalled()
     expect(wrapper.text()).not.toContain('disk unavailable')
 
     wrapper.unmount()

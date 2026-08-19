@@ -4,9 +4,11 @@ import {
   DISABLED_AGENT_TOOL_CAPABILITY_CLEANUP_KEY,
   DISABLED_SEARCH_TOOL_CLEANUP_V1_KEY,
   SQLITE_MAINLINE_NORMALIZATION_KEY,
+  TAPE_BOOTSTRAP_BACKFILL_KEY,
   runBuiltinMcpAllowlistCompatibilityMigration,
   runDisabledAgentToolCapabilityCleanupMigration,
   runMainlineNormalizationMigration,
+  runTapeBootstrapBackfillMigration,
   type SessionDataMigrationSQLitePort
 } from '@/app/startupMigrations/sessionDataMigrations'
 import { TAPE_TOOL_NAMES } from '@shared/agentTools'
@@ -364,5 +366,37 @@ describe('session data migrations', () => {
     expect(failed.settings.get(DISABLED_AGENT_TOOL_CAPABILITY_CLEANUP_KEY)).toMatchObject({
       status: 'completed'
     })
+  })
+
+  it('backfills Tape bootstrap for every session exactly once', async () => {
+    const fixture = createFixture()
+    fixture.sessionRows.push({ id: 'session-a' }, { id: 'session-b' })
+    const ensureSessionTapeBootstrap = vi.fn()
+
+    await runTapeBootstrapBackfillMigration(
+      {
+        sqlitePresenter: fixture.sqlitePresenter,
+        ensureSessionTapeBootstrap
+      },
+      fixture.taskContext as never
+    )
+
+    expect(ensureSessionTapeBootstrap).toHaveBeenCalledTimes(2)
+    expect(ensureSessionTapeBootstrap).toHaveBeenNthCalledWith(1, 'session-a')
+    expect(ensureSessionTapeBootstrap).toHaveBeenNthCalledWith(2, 'session-b')
+    expect(fixture.settings.get(TAPE_BOOTSTRAP_BACKFILL_KEY)).toMatchObject({
+      status: 'completed',
+      processedCount: 2
+    })
+
+    ensureSessionTapeBootstrap.mockClear()
+    await runTapeBootstrapBackfillMigration(
+      {
+        sqlitePresenter: fixture.sqlitePresenter,
+        ensureSessionTapeBootstrap
+      },
+      fixture.taskContext as never
+    )
+    expect(ensureSessionTapeBootstrap).not.toHaveBeenCalled()
   })
 })

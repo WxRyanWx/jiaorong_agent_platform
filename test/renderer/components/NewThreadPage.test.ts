@@ -72,6 +72,7 @@ const setup = async (options?: {
   isDirectory?: boolean | ((path: string) => Promise<boolean> | boolean)
   defaultProjectPath?: string | null
   defaultChatWorkspacePath?: string | null
+  selectionSource?: 'none' | 'manual' | 'default'
   defaultModel?: { providerId: string; modelId: string }
   preferredModel?: { providerId: string; modelId: string }
   resolvedAgentConfig?: Record<string, unknown>
@@ -113,7 +114,7 @@ const setup = async (options?: {
   const projectStore = reactive({
     selectedProject: initialSelectedProject as { path: string; name: string } | null,
     selectedProjectName: initialSelectedProject?.name ?? 'workspace',
-    selectionSource: 'manual' as 'manual' | 'default',
+    selectionSource: (options?.selectionSource ?? 'manual') as 'none' | 'manual' | 'default',
     defaultProjectPath: options?.defaultProjectPath ?? null,
     defaultChatWorkspacePath: options?.defaultChatWorkspacePath ?? null,
     projects: [],
@@ -421,6 +422,23 @@ describe('NewThreadPage ACP draft session bootstrap', () => {
       projectDir: '/tmp/default-workspace',
       permissionMode: 'full_access'
     })
+  })
+
+  it('labels an uninitialized empty project selection as chats instead of select-project', async () => {
+    const { wrapper } = await setup({
+      selectedProject: null,
+      selectionSource: 'none'
+    })
+
+    expect(wrapper.get('[data-testid="new-thread-project-trigger"]').text()).toContain(
+      'chat.sidebar.chats'
+    )
+    expect(
+      wrapper.get('[data-testid="new-thread-project-trigger-icon"]').attributes('data-icon')
+    ).toBe('lucide:message-square')
+    expect(wrapper.get('[data-testid="new-thread-project-trigger"]').text()).not.toContain(
+      'common.project.select'
+    )
   })
 
   it('labels the built-in default workspace as chats instead of its folder name', async () => {

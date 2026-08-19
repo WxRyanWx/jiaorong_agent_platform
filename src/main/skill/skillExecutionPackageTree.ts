@@ -14,7 +14,7 @@ import {
   SKILL_EXECUTION_PACKAGE_MAX_FILES
 } from '@shared/types/skill'
 
-const TEMP_DIRECTORY_PREFIX = 'deepchat-skill-exec-'
+const TEMP_DIRECTORY_PREFIX = 'jiaorong-skill-exec-'
 const OWNERSHIP_MARKER = '.deepchat-package-owner'
 const PACKAGE_DIRECTORY = 'package'
 const PRIVATE_DIRECTORY_MODE = 0o700

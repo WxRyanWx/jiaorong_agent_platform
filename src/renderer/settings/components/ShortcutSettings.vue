@@ -3,6 +3,7 @@
     :title="t('settings.shortcuts.title')"
     :eyebrow="t('settings.controlCenter.groups.system')"
     data-testid="settings-shortcut-page"
+    class="settings-shortcuts-page"
   >
     <template #actions>
       <DcButton variant="outline" size="sm" @click="resetShortcutKeys()">
@@ -26,7 +27,7 @@
 
         <div class="shrink-0 min-w-[240px]" :data-testid="`shortcut-value-${shortcut.id}`">
           <div
-            class="group flex items-center gap-3 rounded-md border bg-background/60 px-3 transition"
+            class="settings-shortcut-input group flex items-center gap-3 rounded-md border bg-background/60 px-3 transition"
             :class="{
               'border-primary ring-2 ring-primary/50':
                 recordingShortcutId === shortcut.id && !shortcutError,

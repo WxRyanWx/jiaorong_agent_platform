@@ -1,10 +1,10 @@
 <p align='center'>
-<img src='./build/icon.png' width="150" height="150" alt="DeepChat AI助手图标" />
+<img src='./build/icon.png' width="150" height="150" alt="JiaorongAI AI助手图标" />
 </p>
 
-<h1 align="center">DeepChat - 开源本地优先 Agent 桌面客户端</h1>
+<h1 align="center">JiaorongAI - 强大的开源多模型 AI Agent 平台</h1>
 
-<p align="center">DeepChat 是一款开源、本地优先的 Agent 桌面客户端，具有丰富的 Agent 能力，基于 Tape.systems 哲学设计，支持 MCP、Skills、ACP，并具备丰富的远程控制能力，可无缝接入各种 IM 工具。</p>
+<p align="center">JiaorongAI是一个功能丰富的开源 AI Agent 平台，统一模型、工具与 Agent：多模型聊天、MCP 工具调用、Skills、ACP Agent 集成和远程控制。</p>
 
 <p align="center">
   <a href="https://github.com/ThinkInAIXYZ/deepchat/stargazers"><img src="https://img.shields.io/github/stars/ThinkInAIXYZ/deepchat" alt="Stars Badge"/></a>

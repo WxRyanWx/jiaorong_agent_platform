@@ -11,7 +11,7 @@
       <DcButton
         variant="ghost"
         size="sm"
-        class="h-9 md:h-8 px-3 w-full md:w-auto justify-center"
+        class="settings-display-font-reset h-9 md:h-8 px-3 w-full md:w-auto justify-center"
         :disabled="isResetting || (!uiSettingsStore.fontFamily && !uiSettingsStore.codeFontFamily)"
         @click="handleReset"
       >

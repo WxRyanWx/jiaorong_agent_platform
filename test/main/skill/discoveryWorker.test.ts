@@ -190,9 +190,9 @@ describe('discoverSkillMetadataInWorker', () => {
     )
     expect(skill?.description).toEqual(expect.any(String))
     expect(skill?.description.length).toBeGreaterThan(0)
-    expect(skill?.description).toContain('recall')
-    expect(skill?.description).toContain('remember')
-    expect(skill?.description).toContain('Memory')
+    expect(skill?.description).toContain('回忆')
+    expect(skill?.description).toContain('记住')
+    expect(skill?.description).toContain('记忆')
 
     for (const anchor of [
       'memory_recall',

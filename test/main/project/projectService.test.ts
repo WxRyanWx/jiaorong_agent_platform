@@ -234,24 +234,24 @@ describe('ProjectService', () => {
         vi.fn()
       )
 
-      await expect(presenter.ensureDefaultWorkspace()).resolves.toBe('/mock/documents/DeepChat')
+      await expect(presenter.ensureDefaultWorkspace()).resolves.toBe('/mock/documents/JiaorongAI')
 
-      expect(mkdirSyncMock).toHaveBeenCalledWith('/mock/documents/DeepChat', { recursive: true })
+      expect(mkdirSyncMock).toHaveBeenCalledWith('/mock/documents/JiaorongAI', { recursive: true })
       expect(sqlitePresenter.newProjectsTable.upsert).toHaveBeenCalledWith(
-        '/mock/documents/DeepChat',
-        'DeepChat'
+        '/mock/documents/JiaorongAI',
+        'JiaorongAI'
       )
       expect(sqlitePresenter.newEnvironmentPreferencesTable.markActive).toHaveBeenCalledWith(
-        '/mock/documents/DeepChat'
+        '/mock/documents/JiaorongAI'
       )
       expect(settingsStore.set).toHaveBeenCalledWith(
         'defaultProjectPath',
-        '/mock/documents/DeepChat'
+        '/mock/documents/JiaorongAI'
       )
     })
 
     it('recreates and registers the built-in workspace when it is already the default', async () => {
-      const settingsStore = createMockSettingsStore('/mock/documents/DeepChat')
+      const settingsStore = createMockSettingsStore('/mock/documents/JiaorongAI')
       presenter = new ProjectService(
         sqlitePresenter,
         sqlitePresenter,
@@ -260,16 +260,16 @@ describe('ProjectService', () => {
         vi.fn()
       )
 
-      await expect(presenter.ensureDefaultWorkspace()).resolves.toBe('/mock/documents/DeepChat')
+      await expect(presenter.ensureDefaultWorkspace()).resolves.toBe('/mock/documents/JiaorongAI')
 
-      expect(mkdirSyncMock).toHaveBeenCalledWith('/mock/documents/DeepChat', { recursive: true })
+      expect(mkdirSyncMock).toHaveBeenCalledWith('/mock/documents/JiaorongAI', { recursive: true })
       expect(sqlitePresenter.newProjectsTable.upsert).toHaveBeenCalledWith(
-        '/mock/documents/DeepChat',
-        'DeepChat'
+        '/mock/documents/JiaorongAI',
+        'JiaorongAI'
       )
       expect(settingsStore.set).not.toHaveBeenCalledWith(
         'defaultProjectPath',
-        '/mock/documents/DeepChat'
+        '/mock/documents/JiaorongAI'
       )
     })
 
@@ -312,7 +312,7 @@ describe('ProjectService', () => {
       const settingsStore = createMockSettingsStore()
       sqlitePresenter.newEnvironmentPreferencesTable.list.mockReturnValue([
         {
-          path: '/mock/documents/DeepChat',
+          path: '/mock/documents/JiaorongAI',
           status: 'archived',
           sort_order: 2147483647,
           archived_at: 1000,
@@ -338,7 +338,7 @@ describe('ProjectService', () => {
       const settingsStore = createMockSettingsStore()
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
       mkdirSyncMock.mockImplementation((targetPath: string) => {
-        if (targetPath === '/mock/documents/DeepChat') {
+        if (targetPath === '/mock/documents/JiaorongAI') {
           throw new Error('documents denied')
         }
       })
@@ -351,13 +351,13 @@ describe('ProjectService', () => {
       )
 
       try {
-        await expect(presenter.ensureDefaultWorkspace()).resolves.toBe('/mock/home/DeepChat')
+        await expect(presenter.ensureDefaultWorkspace()).resolves.toBe('/mock/home/JiaorongAI')
 
-        expect(mkdirSyncMock).toHaveBeenCalledWith('/mock/documents/DeepChat', { recursive: true })
-        expect(mkdirSyncMock).toHaveBeenCalledWith('/mock/home/DeepChat', { recursive: true })
-        expect(settingsStore.set).toHaveBeenCalledWith('defaultProjectPath', '/mock/home/DeepChat')
+        expect(mkdirSyncMock).toHaveBeenCalledWith('/mock/documents/JiaorongAI', { recursive: true })
+        expect(mkdirSyncMock).toHaveBeenCalledWith('/mock/home/JiaorongAI', { recursive: true })
+        expect(settingsStore.set).toHaveBeenCalledWith('defaultProjectPath', '/mock/home/JiaorongAI')
         expect(warnSpy).toHaveBeenCalledWith(
-          '[ProjectService] Failed to create default workspace at /mock/documents/DeepChat:',
+          '[ProjectService] Failed to create default workspace at /mock/documents/JiaorongAI:',
           expect.any(Error)
         )
       } finally {

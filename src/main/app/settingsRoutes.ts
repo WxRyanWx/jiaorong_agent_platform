@@ -67,6 +67,7 @@ export function createAppSettingsRoutes(deps: {
     read('providerTimestamps')
     read('sidebar_group_mode')
     read('input_enabledMcpTools')
+    read('jiaorong_skill_switch_map')
     return values
   }
   const readSnapshot = (): SettingsSnapshotValues => ({

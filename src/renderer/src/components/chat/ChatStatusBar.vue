@@ -2,224 +2,231 @@
   <div :class="['w-full', props.maxWidthClass]">
     <div class="flex w-full items-center justify-between px-1 py-2">
       <div class="flex min-w-0 items-center gap-1">
-        <template v-if="isAcpAgent">
-          <div
-            class="acp-agent-badge flex h-6 min-w-0 items-center gap-1 rounded-full px-2 text-xs text-muted-foreground dc-blur-panel"
-          >
-            <ModelIcon
-              :model-id="acpAgentIconId"
-              custom-class="w-3.5 h-3.5 shrink-0"
-              :is-dark="themeStore.isDark"
-            />
-            <span class="truncate">{{ acpAgentLabel }}</span>
-            <Spinner
-              v-if="isAcpConfigLoading"
-              class="acp-agent-loading-indicator size-3 shrink-0"
-            />
-          </div>
+        <div
+          class="flex min-w-0 items-center gap-1"
+          :class="{ speLabel: !isSettingsSidebarAdminUser }"
+        >
+          <template v-if="isAcpAgent">
+            <div
+              class="acp-agent-badge flex h-6 min-w-0 items-center gap-1 rounded-full px-2 text-xs text-muted-foreground dc-blur-panel"
+            >
+              <ModelIcon
+                :model-id="acpAgentIconId"
+                custom-class="w-3.5 h-3.5 shrink-0"
+                :is-dark="themeStore.isDark"
+              />
+              <span class="truncate">{{ acpAgentLabel }}</span>
+              <Spinner
+                v-if="isAcpConfigLoading"
+                class="acp-agent-loading-indicator size-3 shrink-0"
+              />
+            </div>
 
-          <Popover
-            v-for="option in acpInlineOptions"
-            :key="option.id"
-            :open="acpInlineOpenOptionId === option.id"
-            @update:open="onAcpInlineOptionOpenChange(option.id, $event)"
-          >
+            <Popover
+              v-for="option in acpInlineOptions"
+              :key="option.id"
+              :open="acpInlineOpenOptionId === option.id"
+              @update:open="onAcpInlineOptionOpenChange(option.id, $event)"
+            >
+              <PopoverTrigger as-child>
+                <DcButton
+                  variant="ghost"
+                  size="sm"
+                  :title="getAcpOptionDisplayValue(option)"
+                  :data-option-id="option.id"
+                  class="acp-inline-option h-6 max-w-[9rem] min-w-0 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground dc-blur-panel"
+                  :disabled="acpConfigReadOnly || isAcpOptionSaving(option.id)"
+                >
+                  <span class="truncate">{{ getAcpOptionDisplayValue(option) }}</span>
+                  <Icon icon="lucide:chevron-down" class="h-3 w-3 shrink-0" />
+                </DcButton>
+              </PopoverTrigger>
+
+              <PopoverContent align="start" class="w-56 overflow-hidden p-0">
+                <div class="border-b px-3 py-2">
+                  <div
+                    :data-option-id="option.id"
+                    class="acp-inline-option-title text-sm font-medium"
+                  >
+                    {{ option.label }}
+                  </div>
+                </div>
+
+                <div
+                  v-if="(option.options?.length ?? 0) > 0"
+                  class="dc-overscroll-contain max-h-60 overflow-y-auto px-2 py-2"
+                >
+                  <button
+                    v-for="entry in option.options ?? []"
+                    :key="`${option.id}-${entry.value}`"
+                    type="button"
+                    :data-option-id="option.id"
+                    :data-value="entry.value"
+                    :disabled="
+                      acpConfigReadOnly ||
+                      isAcpOptionSaving(option.id) ||
+                      String(option.currentValue) === entry.value
+                    "
+                    :class="[
+                      'acp-inline-option-item flex w-full items-center rounded-md px-2 py-1.5 text-left text-xs transition-colors disabled:pointer-events-none disabled:opacity-60',
+                      String(option.currentValue) === entry.value
+                        ? 'bg-muted/60 text-foreground'
+                        : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
+                    ]"
+                    @click="onAcpSelectOption(option.id, entry.value)"
+                  >
+                    {{ entry.value }}
+                  </button>
+                </div>
+
+                <div v-else class="px-3 py-4 text-xs text-muted-foreground">
+                  {{ t('chat.modelPicker.empty') }}
+                </div>
+              </PopoverContent>
+            </Popover>
+          </template>
+
+          <Popover v-else-if="showModelPopover" v-model:open="isModelPanelOpen">
             <PopoverTrigger as-child>
               <DcButton
+                data-testid="app-model-switcher"
+                :data-selected-provider-id="effectiveModelSelection?.providerId ?? ''"
+                :data-selected-model-id="effectiveModelSelection?.modelId ?? ''"
                 variant="ghost"
                 size="sm"
-                :title="getAcpOptionDisplayValue(option)"
-                :data-option-id="option.id"
-                class="acp-inline-option h-6 max-w-[9rem] min-w-0 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground dc-blur-panel"
-                :disabled="acpConfigReadOnly || isAcpOptionSaving(option.id)"
+                :class="[
+                  'h-6 px-2 gap-1 text-xs text-muted-foreground hover:text-foreground dc-blur-panel overflow-visible',
+                  !isModelOptionsReady ? 'opacity-70' : ''
+                ]"
+                :aria-busy="!isModelOptionsReady"
               >
-                <span class="truncate">{{ getAcpOptionDisplayValue(option) }}</span>
-                <Icon icon="lucide:chevron-down" class="h-3 w-3 shrink-0" />
+                <ModelIcon
+                  :model-id="displayIconId"
+                  custom-class="w-3.5 h-3.5 shrink-0"
+                  :is-dark="themeStore.isDark"
+                />
+                <span>{{ displayModelText }}</span>
+                <Spinner v-if="showModelOptionsLoading" class="size-3" />
+                <Icon v-else icon="lucide:chevron-down" class="w-3 h-3" />
               </DcButton>
             </PopoverTrigger>
 
-            <PopoverContent align="start" class="w-56 overflow-hidden p-0">
-              <div class="border-b px-3 py-2">
-                <div
-                  :data-option-id="option.id"
-                  class="acp-inline-option-title text-sm font-medium"
-                >
-                  {{ option.label }}
-                </div>
-              </div>
-
-              <div
-                v-if="(option.options?.length ?? 0) > 0"
-                class="dc-overscroll-contain max-h-60 overflow-y-auto px-2 py-2"
-              >
-                <button
-                  v-for="entry in option.options ?? []"
-                  :key="`${option.id}-${entry.value}`"
-                  type="button"
-                  :data-option-id="option.id"
-                  :data-value="entry.value"
-                  :disabled="
-                    acpConfigReadOnly ||
-                    isAcpOptionSaving(option.id) ||
-                    String(option.currentValue) === entry.value
-                  "
-                  :class="[
-                    'acp-inline-option-item flex w-full items-center rounded-md px-2 py-1.5 text-left text-xs transition-colors disabled:pointer-events-none disabled:opacity-60',
-                    String(option.currentValue) === entry.value
-                      ? 'bg-muted/60 text-foreground'
-                      : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
-                  ]"
-                  @click="onAcpSelectOption(option.id, entry.value)"
-                >
-                  {{ entry.value }}
-                </button>
-              </div>
-
-              <div v-else class="px-3 py-4 text-xs text-muted-foreground">
-                {{ t('chat.modelPicker.empty') }}
-              </div>
-            </PopoverContent>
-          </Popover>
-        </template>
-
-        <Popover v-else-if="showModelPopover" v-model:open="isModelPanelOpen">
-          <PopoverTrigger as-child>
-            <DcButton
-              data-testid="app-model-switcher"
-              :data-selected-provider-id="effectiveModelSelection?.providerId ?? ''"
-              :data-selected-model-id="effectiveModelSelection?.modelId ?? ''"
-              variant="ghost"
-              size="sm"
-              :class="[
-                'h-6 px-2 gap-1 text-xs text-muted-foreground hover:text-foreground dc-blur-panel',
-                !isModelOptionsReady ? 'opacity-70' : ''
-              ]"
-              :aria-busy="!isModelOptionsReady"
+            <PopoverContent
+              align="start"
+              class="z-72 w-[20rem] max-w-[calc(100vw-1rem)] overflow-hidden p-0"
             >
-              <ModelIcon
-                :model-id="displayIconId"
-                custom-class="w-3.5 h-3.5"
-                :is-dark="themeStore.isDark"
-              />
-              <span>{{ displayModelText }}</span>
-              <Spinner v-if="showModelOptionsLoading" class="size-3" />
-              <Icon v-else icon="lucide:chevron-down" class="w-3 h-3" />
-            </DcButton>
-          </PopoverTrigger>
-
-          <PopoverContent
-            align="start"
-            class="z-72 w-[20rem] max-w-[calc(100vw-1rem)] overflow-hidden p-0"
-          >
-            <div class="flex max-h-[28rem]">
-              <div class="flex w-full min-w-0 flex-col">
-                <div v-if="isModelOptionsReady" class="border-b px-2.5 py-2">
-                  <Input
-                    data-model-search-input="true"
-                    v-model="modelSearchKeyword"
-                    class="h-7 border-0 bg-transparent px-3 text-xs shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                    :placeholder="t('model.search.placeholder')"
-                  />
-                </div>
-
-                <div class="dc-overscroll-contain max-h-[24rem] overflow-y-auto px-2 py-2">
-                  <div
-                    v-if="showModelOptionsLoading"
-                    data-model-picker-state="loading"
-                    class="rounded-lg border border-dashed px-3 py-6 text-center text-xs text-muted-foreground"
-                  >
-                    <div class="flex items-center justify-center gap-2">
-                      <Spinner class="size-3.5" />
-                      <span>{{ t('common.loading') }}</span>
-                    </div>
+              <div class="flex max-h-[28rem]">
+                <div class="flex w-full min-w-0 flex-col">
+                  <div v-if="isModelOptionsReady" class="border-b px-2.5 py-2">
+                    <Input
+                      data-model-search-input="true"
+                      v-model="modelSearchKeyword"
+                      class="h-7 border-0 bg-transparent px-3 text-xs shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                      :placeholder="t('model.search.placeholder')"
+                    />
                   </div>
 
-                  <div
-                    v-else-if="hasModelOptionsError"
-                    data-model-picker-state="error"
-                    class="rounded-lg border border-dashed px-3 py-6 text-center text-xs text-muted-foreground"
-                  >
-                    <div>{{ t('model.error.loadFailed') }}</div>
-                    <DcButton
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      class="mt-3 h-7 px-3 text-xs"
-                      @click="retryModelOptionsInitialization"
-                    >
-                      {{ t('settings.dashboard.rtk.actions.retry') }}
-                    </DcButton>
-                  </div>
-
-                  <div
-                    v-else-if="filteredModelGroups.length === 0"
-                    class="rounded-lg border border-dashed px-3 py-6 text-center text-xs text-muted-foreground"
-                  >
-                    {{ t('chat.modelPicker.empty') }}
-                  </div>
-
-                  <div v-else class="space-y-3">
+                  <div class="dc-overscroll-contain max-h-[24rem] overflow-y-auto px-2 py-2">
                     <div
-                      v-for="group in filteredModelGroups"
-                      :key="group.providerId"
-                      class="space-y-1"
+                      v-if="showModelOptionsLoading"
+                      data-model-picker-state="loading"
+                      class="rounded-lg border border-dashed px-3 py-6 text-center text-xs text-muted-foreground"
                     >
-                      <div
-                        class="px-2 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
-                      >
-                        {{ group.providerName }}
+                      <div class="flex items-center justify-center gap-2">
+                        <Spinner class="size-3.5" />
+                        <span>{{ t('common.loading') }}</span>
                       </div>
+                    </div>
 
-                      <div class="space-y-1">
+                    <div
+                      v-else-if="hasModelOptionsError"
+                      data-model-picker-state="error"
+                      class="rounded-lg border border-dashed px-3 py-6 text-center text-xs text-muted-foreground"
+                    >
+                      <div>{{ t('model.error.loadFailed') }}</div>
+                      <DcButton
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        class="mt-3 h-7 px-3 text-xs"
+                        @click="retryModelOptionsInitialization"
+                      >
+                        {{ t('settings.dashboard.rtk.actions.retry') }}
+                      </DcButton>
+                    </div>
+
+                    <div
+                      v-else-if="filteredModelGroups.length === 0"
+                      class="rounded-lg border border-dashed px-3 py-6 text-center text-xs text-muted-foreground"
+                    >
+                      {{ t('chat.modelPicker.empty') }}
+                    </div>
+
+                    <div v-else class="space-y-3">
+                      <div
+                        v-for="group in filteredModelGroups"
+                        :key="group.providerId"
+                        class="space-y-1"
+                      >
                         <div
-                          v-for="model in group.models"
-                          :key="`${group.providerId}-${model.id}`"
-                          class="flex items-center"
+                          class="px-2 text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground"
                         >
-                          <button
-                            type="button"
-                            data-testid="model-option"
-                            :data-provider-id="group.providerId"
-                            :data-model-id="model.id"
-                            :class="[
-                              'flex h-8 min-w-0 flex-1 items-center gap-2 rounded-md px-2 text-left text-xs transition-colors',
-                              isModelSelected(group.providerId, model.id)
-                                ? 'bg-muted/60 text-foreground'
-                                : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
-                            ]"
-                            @click="handleModelQuickSelect(group.providerId, model.id)"
+                          {{ group.providerName }}
+                        </div>
+
+                        <div class="space-y-1">
+                          <div
+                            v-for="model in group.models"
+                            :key="`${group.providerId}-${model.id}`"
+                            class="flex items-center"
                           >
-                            <ModelIcon
-                              :model-id="resolveModelIconId(group.providerId, model.id)"
-                              custom-class="w-3.5 h-3.5 shrink-0"
-                              :is-dark="themeStore.isDark"
-                            />
-                            <span class="min-w-0 flex-1 truncate font-medium">{{ model.id }}</span>
-                          </button>
+                            <button
+                              type="button"
+                              data-testid="model-option"
+                              :data-provider-id="group.providerId"
+                              :data-model-id="model.id"
+                              :class="[
+                                'flex h-8 min-w-0 flex-1 items-center gap-2 rounded-md px-2 text-left text-xs transition-colors',
+                                isModelSelected(group.providerId, model.id)
+                                  ? 'bg-muted/60 text-foreground'
+                                  : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
+                              ]"
+                              @click="handleModelQuickSelect(group.providerId, model.id)"
+                            >
+                              <ModelIcon
+                                :model-id="resolveModelIconId(group.providerId, model.id)"
+                                custom-class="w-3.5 h-3.5 shrink-0"
+                                :is-dark="themeStore.isDark"
+                              />
+                              <span class="min-w-0 flex-1 truncate font-medium">{{
+                                model.id
+                              }}</span>
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </PopoverContent>
-        </Popover>
+            </PopoverContent>
+          </Popover>
 
-        <DcButton
-          v-else
-          variant="ghost"
-          size="sm"
-          class="h-6 px-2 gap-1 text-xs text-muted-foreground hover:text-foreground dc-blur-panel"
-          :disabled="true"
-        >
-          <ModelIcon
-            :model-id="displayIconId"
-            custom-class="w-3.5 h-3.5"
-            :is-dark="themeStore.isDark"
-          />
-          <span>{{ displayModelText }}</span>
-        </DcButton>
+          <DcButton
+            v-else
+            variant="ghost"
+            size="sm"
+            class="h-6 px-2 gap-1 text-xs text-muted-foreground hover:text-foreground dc-blur-panel"
+            :disabled="true"
+          >
+            <ModelIcon
+              :model-id="displayIconId"
+              custom-class="w-3.5 h-3.5 shrink-0"
+              :is-dark="themeStore.isDark"
+            />
+            <span>{{ displayModelText }}</span>
+          </DcButton>
+        </div>
 
         <Popover v-if="showReasoningOrchestrationControl" v-model:open="isOrchestrationPanelOpen">
           <PopoverTrigger as-child>
@@ -417,7 +424,7 @@
         >
           <template #generation-settings>
             <Collapsible
-              v-if="!isAcpAgent && generationSettingsModel"
+              v-if="!isAcpAgent && generationSettingsModel && isSettingsSidebarAdminUser"
               v-model:open="isGenerationSettingsExpanded"
               class="border-b"
             >
@@ -1188,7 +1195,7 @@ import {
 } from './composables/chatStatusBarReasoningOptions'
 import { useGenerationNumericInputs } from './composables/useGenerationNumericInputs'
 import SessionSettingsPopover from '@/components/chat-input/McpIndicator.vue'
-import ModelIcon from '@/components/icons/ModelIcon.vue'
+import { isSettingsSidebarAdmin } from '@shared/settingsSidebarAdmin'
 import OpenAIImageGenerationSettingsFields from '@/components/settings/OpenAIImageGenerationSettingsFields.vue'
 import OpenAIVideoGenerationSettingsFields from '@/components/settings/OpenAIVideoGenerationSettingsFields.vue'
 import { createConfigClient } from '@api/ConfigClient'
@@ -1208,6 +1215,7 @@ import { useSessionStore } from '@/stores/ui/session'
 import { scheduleStartupDeferredTask } from '@/lib/startupDeferred'
 import { useChatStatusBarAcpConfig } from './composables/useChatStatusBarAcpConfig'
 import GenerationParameterLoadingSkeleton from '@/components/GenerationParameterLoadingSkeleton.vue'
+import ModelIcon from '@/components/icons/ModelIcon.vue'
 import {
   useModelCapabilities,
   type RendererModelCapabilities
@@ -1274,6 +1282,7 @@ const providerClient = createProviderClient()
 const sessionClient = createSessionClient()
 const orchestrationClient = createOrchestrationClient()
 const { locale, t } = useI18n()
+const isSettingsSidebarAdminUser = computed(() => isSettingsSidebarAdmin())
 
 const draftModelSelection = ref<ModelSelection | null>(null)
 const permissionMode = ref<PermissionMode>('full_access')
@@ -1777,7 +1786,9 @@ const resolveModelIconId = (providerId?: string | null, modelId?: string | null)
   if (providerId === 'acp' && modelId) {
     return modelId
   }
-  return providerId || 'anthropic'
+  // Master: ModelIcon matches provider id (`jiaorong` → duihua). Passing modelId
+  // (`jiaorong-deepseek-v4-pro`) never hits the provider store and can collapse.
+  return providerId || modelId || 'anthropic'
 }
 
 const {
@@ -3344,3 +3355,15 @@ defineExpose({
   openModelPicker
 })
 </script>
+
+<style scoped>
+.speLabel {
+  opacity: 0;
+  pointer-events: none;
+  cursor: not-allowed;
+  width: 0;
+  min-width: 0;
+  overflow: hidden;
+  flex: none;
+}
+</style>

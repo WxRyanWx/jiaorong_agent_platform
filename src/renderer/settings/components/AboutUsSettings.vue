@@ -3,43 +3,48 @@
     :title="t('routes.settings-about')"
     :eyebrow="t('settings.controlCenter.groups.system')"
     data-testid="settings-about-page"
+    class="settings-about-page"
   >
     <div class="flex min-h-[520px] w-full flex-col items-center justify-center gap-2">
       <img src="@/assets/logo.png" class="h-10 w-10" :alt="t('about.title')" />
       <div class="flex flex-col items-center gap-2" :dir="languageStore.dir">
         <h1 class="text-2xl font-bold">{{ t('about.title') }}</h1>
         <p class="pb-4 text-xs text-muted-foreground">v{{ appVersion }}</p>
-        <p class="px-8 text-sm text-muted-foreground">
+        <p class="settings-about-description px-8 text-sm text-muted-foreground">
           {{ t('about.description') }}
         </p>
-        <div class="flex gap-2">
+        <div v-if="false" class="flex gap-2">
           <a
             class="flex items-center text-xs text-muted-foreground hover:text-primary"
-            href="https://deepchat.thinkinai.xyz/"
+            href="https://github.com/WxRyanWx/jiaorong_agent_platform/"
             target="_blank"
             rel="noopener noreferrer"
-            @click.prevent="openExternalLink('https://deepchat.thinkinai.xyz/')"
+            @click.prevent="
+              openExternalLink('https://github.com/WxRyanWx/jiaorong_agent_platform/')
+            "
           >
             <Icon icon="lucide:globe" class="mr-1 h-3 w-3" />
             {{ t('about.website') }}</a
           >
           <a
             class="flex items-center text-xs text-muted-foreground hover:text-primary"
-            href="https://github.com/ThinkInAIXYZ/deepchat"
+            href="https://github.com/WxRyanWx/jiaorong_agent_platform/"
             target="_blank"
             rel="noopener noreferrer"
-            @click.prevent="openExternalLink('https://github.com/ThinkInAIXYZ/deepchat')"
+            @click.prevent="
+              openExternalLink('https://github.com/WxRyanWx/jiaorong_agent_platform/')
+            "
           >
             <Icon icon="lucide:github" class="mr-1 h-3 w-3" />
             GitHub
           </a>
           <a
             class="flex items-center text-xs text-muted-foreground hover:text-primary"
-            href="https://github.com/ThinkInAIXYZ/deepchat/blob/dev/LICENSE"
+            href="https://github.com/WxRyanWx/jiaorong_agent_platform/"
             target="_blank"
             rel="noopener noreferrer"
             @click.prevent="
-              openExternalLink('https://github.com/ThinkInAIXYZ/deepchat/blob/dev/LICENSE')
+              openExternalLink('https://github.com/WxRyanWx/jiaorong_agent_platform/')
             "
           >
             <Icon icon="lucide:scale" class="mr-1 h-3 w-3" />
@@ -48,7 +53,7 @@
         </div>
       </div>
 
-      <div class="mt-4 flex items-center gap-4">
+      <div v-if="false" class="mt-4 flex items-center gap-4">
         <label class="text-sm font-medium">{{ t('about.updateChannel') }}:</label>
         <div class="min-w-32 max-w-48">
           <Select
@@ -103,6 +108,7 @@
 
       <div class="mt-2 flex flex-wrap justify-center gap-2">
         <DcButton
+          v-if="false"
           variant="outline"
           size="sm"
           class="mb-2 text-xs"
@@ -112,13 +118,19 @@
           {{ t('about.feedbackButton') }}
         </DcButton>
 
-        <DcButton variant="outline" size="sm" class="mb-2 text-xs" @click="openDisclaimerDialog">
+        <DcButton
+          v-if="false"
+          variant="outline"
+          size="sm"
+          class="mb-2 text-xs"
+          @click="openDisclaimerDialog"
+        >
           <Icon icon="lucide:info" class="mr-1 h-3 w-3" />
           {{ t('about.disclaimerButton') }}
         </DcButton>
 
         <DcButton
-          v-if="upgrade.showManualDownloadOptions"
+          v-if="false"
           variant="outline"
           size="sm"
           class="mb-2 text-xs"
@@ -128,7 +140,7 @@
         </DcButton>
 
         <DcButton
-          v-if="upgrade.showManualDownloadOptions"
+          v-if="false"
           variant="outline"
           size="sm"
           class="mb-2 text-xs"

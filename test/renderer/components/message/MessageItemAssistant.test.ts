@@ -38,9 +38,17 @@ vi.mock('@/stores/uiSettingsStore', () => ({
   useUiSettingsStore: () => ({})
 }))
 
-vi.mock('@/stores/theme', () => ({
-  useThemeStore: () => ({
-    isDark: false
+vi.mock('@/stores/ui/agent', () => ({
+  useAgentStore: () => ({
+    agents: [{ id: 'deepchat', name: '交融对话', type: 'deepchat' }]
+  })
+}))
+
+vi.mock('@/stores/ui/session', () => ({
+  useSessionStore: () => ({
+    sessions: [{ id: 's1', agentId: 'deepchat' }],
+    activeSession: { id: 's1', agentId: 'deepchat' },
+    activeSessionId: 's1'
   })
 }))
 
@@ -113,6 +121,23 @@ const componentStub = (name: string) =>
     name,
     template: '<div><slot /></div>'
   })
+
+const MessageInfoStub = defineComponent({
+  name: 'MessageInfo',
+  props: {
+    name: { type: String, default: '' }
+  },
+  template: '<div data-testid="message-info" :data-name="name" />'
+})
+
+const AgentAvatarStub = defineComponent({
+  name: 'AgentAvatar',
+  props: {
+    agent: { type: Object, default: null }
+  },
+  template:
+    '<div data-testid="agent-avatar" :data-agent-id="agent?.id" :data-agent-name="agent?.name" />'
+})
 
 const createMessage = (
   status: 'sent' | 'pending' | 'error',
@@ -195,7 +220,8 @@ describe('MessageItemAssistant', () => {
   const global = {
     stubs: {
       ModelIcon: componentStub('ModelIcon'),
-      MessageInfo: componentStub('MessageInfo'),
+      AgentAvatar: AgentAvatarStub,
+      MessageInfo: MessageInfoStub,
       MessageBlockContent: defineComponent({
         name: 'MessageBlockContent',
         props: {
@@ -279,6 +305,27 @@ describe('MessageItemAssistant', () => {
 
     expect(legacy.find('[data-testid="search-block"]').exists()).toBe(false)
     expect(provider.find('[data-testid="search-block"]').exists()).toBe(true)
+  })
+
+  it('renders the Jiaorong conversation name instead of the model id', () => {
+    const wrapper = mount(MessageItemAssistant, {
+      props: {
+        message: createMessage('sent', [
+          {
+            type: 'content',
+            content: 'hello',
+            status: 'success',
+            timestamp: 1
+          }
+        ]),
+        isCapturingImage: false
+      },
+      global
+    })
+
+    expect(wrapper.get('[data-testid="message-info"]').attributes('data-name')).toBe('交融对话')
+    expect(wrapper.find('[data-testid="agent-avatar"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('GPT-4')
   })
 
   it('allows code block hosts to shrink inside the assistant row', () => {

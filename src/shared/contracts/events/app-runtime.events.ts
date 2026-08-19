@@ -21,6 +21,13 @@ export const appRuntimeMcpInstallRequestedEvent = defineEventContract({
   })
 })
 
+export const appRuntimeAuthLoginRequestedEvent = defineEventContract({
+  name: 'appRuntime.authLoginRequested',
+  payload: z.object({
+    token: z.string().min(1)
+  })
+})
+
 export const appRuntimeGuidedOnboardingStartRequestedEvent = defineEventContract({
   name: 'appRuntime.guidedOnboardingStartRequested',
   payload: EmptyPayloadSchema

@@ -671,7 +671,7 @@ export class McpClient {
           this.serverConfig as Partial<MCPServerConfig>
         ) ?? []
       this.client = new Client(
-        { name: 'DeepChat', version: app.getVersion() },
+        { name: 'JiaorongAI', version: app.getVersion() },
         {
           capabilities: {
             sampling: {},

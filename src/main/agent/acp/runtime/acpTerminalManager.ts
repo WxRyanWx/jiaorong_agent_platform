@@ -43,7 +43,7 @@ export class AcpTerminalManager {
       return path.resolve(normalized)
     }
 
-    const fallbackDir = path.join(app.getPath('temp'), 'deepchat-acp', 'terminals')
+    const fallbackDir = path.join(app.getPath('temp'), 'jiaorong-acp', 'terminals')
     try {
       fs.mkdirSync(fallbackDir, { recursive: true })
       console.warn(`[ACP Terminal] Missing cwd, using fallback directory: ${fallbackDir}`)

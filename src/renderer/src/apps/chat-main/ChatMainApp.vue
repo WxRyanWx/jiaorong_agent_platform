@@ -27,6 +27,8 @@ import McpElicitationDialog from '@/components/mcp/McpElicitationDialog.vue'
 import McpAppConsentDialog from '@/components/mcp/McpAppConsentDialog.vue'
 import CliApprovalDialog from '@/components/cli/CliApprovalDialog.vue'
 import { initAppStores, useMcpInstallDeeplinkHandler } from '@/lib/storeInitializer'
+import { ensureShellBootstrap } from '@/lib/shellBootstrap'
+import { getToken, useAuthLoginDeeplinkHandler } from '@jiaorong/auth/host'
 import { ensureIconsLoaded } from '@/lib/iconLoader'
 import { useFontManager } from '@/composables/useFontManager'
 import { applyDocumentAppearance } from '@/foundation/appearance/documentAppearance'
@@ -104,6 +106,9 @@ const toasterTheme = computed(() =>
   themeStore.themeMode === 'system' ? (themeStore.isDark ? 'dark' : 'light') : themeStore.themeMode
 )
 const { setup: setupMcpDeeplink, cleanup: cleanupMcpDeeplink } = useMcpInstallDeeplinkHandler()
+const { setup: setupAuthLoginDeeplink, cleanup: cleanupAuthLoginDeeplink } =
+  useAuthLoginDeeplinkHandler()
+const isLoginRoute = computed(() => route.name === 'login')
 
 watch(
   [() => themeStore.themeMode, () => themeStore.isDark, () => uiSettingsStore.fontSizeClass],
@@ -157,6 +162,10 @@ const ensureStartupWelcomeState = async () => {
 
     const currentRoute = router.currentRoute.value
     const isWelcomeRoute = currentRoute.name === 'welcome' || currentRoute.path === '/welcome'
+
+    if (currentRoute.name === 'login' || !getToken()) {
+      return
+    }
 
     if (isDevWelcomeOverrideEnabled()) {
       if (!isWelcomeRoute) {
@@ -473,6 +482,11 @@ onMounted(() => {
   // Ensure icons are loaded (load asynchronously, can happen in parallel with store init)
   void ensureIconsLoaded()
 
+  // Agents/session must hydrate even when exclusive chrome (skills/KB) unmounts ChatTabView.
+  void ensureShellBootstrap().catch((error) => {
+    console.warn('[Startup][Renderer] ChatMainApp shell.bootstrap failed', error)
+  })
+
   // Start shell-critical data directly from the main window so it does not depend on settings.
   void initAppStores()
     .then(() => {
@@ -484,6 +498,7 @@ onMounted(() => {
       performanceReporter.recordStartup('app-stores-ready', { outcome: 'failed' })
     })
   setupMcpDeeplink()
+  setupAuthLoginDeeplink()
   setupAppIpcRuntime()
 
   watch(
@@ -514,6 +529,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   cleanupAppIpcRuntime()
   cleanupMcpDeeplink()
+  cleanupAuthLoginDeeplink()
   cleanupSemanticNotifications?.()
   cleanupSemanticNotifications = undefined
   semanticNotificationController.dispose()
@@ -523,6 +539,18 @@ onBeforeUnmount(() => {
 
 <template>
   <div
+    v-if="isLoginRoute"
+    data-testid="app-login-root"
+    class="flex h-screen w-screen flex-col overflow-hidden"
+    :class="isWinMacOS ? 'bg-window-background' : 'bg-background'"
+  >
+    <AppBar />
+    <div class="min-h-0 flex-1 overflow-auto">
+      <RouterView v-if="isStartupRouteReady" />
+    </div>
+  </div>
+  <div
+    v-else
     data-testid="app-root"
     class="flex flex-col h-screen"
     :class="isWinMacOS ? 'bg-window-background' : 'bg-background'"

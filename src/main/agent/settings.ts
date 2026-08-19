@@ -710,7 +710,7 @@ export class AgentSettings implements AgentSettingsPort {
 
   private initializeUnifiedAgents(): void {
     this.repository.ensureBuiltinDeepChatAgent({
-      name: 'DeepChat',
+      name: '交融对话',
       config: this.buildLegacyBuiltinDeepChatConfig()
     })
 

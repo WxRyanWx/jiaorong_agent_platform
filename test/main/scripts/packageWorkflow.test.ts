@@ -117,7 +117,8 @@ const commonInputs = {
   'source-sha': { required: true, type: 'string' },
   arch: { required: true, type: 'string' },
   'artifact-purpose': { required: true, type: 'string' },
-  'enforce-installer-size': { required: true, type: 'boolean' }
+  'enforce-installer-size': { required: true, type: 'boolean' },
+  'build-script': { required: false, type: 'string', default: 'build' }
 }
 
 const commonSecrets = {
@@ -457,6 +458,41 @@ describe('Build Application caller', () => {
       'DEEPCHAT_APPLE_NOTARY_TEAM_ID',
       'DEEPCHAT_APPLE_NOTARY_PASSWORD'
     ])
+  })
+})
+
+describe('Build Test Application caller', () => {
+  const workflow = readWorkflow<BuildWorkflow>('build-test.yml')
+  const source = readWorkflowSource('build-test.yml')
+
+  it('uses the shared package jobs with the test API vite mode', () => {
+    expect(workflow.permissions).toEqual({ contents: 'read' })
+    expect(Object.keys(workflow.jobs)).toEqual([
+      'package-windows',
+      'package-linux',
+      'package-macos'
+    ])
+    const expectedUses = {
+      'package-windows': './.github/workflows/_package-windows.yml',
+      'package-linux': './.github/workflows/_package-linux.yml',
+      'package-macos': './.github/workflows/_package-macos.yml'
+    }
+    for (const [name, job] of Object.entries(workflow.jobs)) {
+      expect(job.permissions).toEqual({ contents: 'read' })
+      expect(job.strategy).toEqual({
+        'fail-fast': false,
+        matrix: { arch: ['x64', 'arm64'] }
+      })
+      expect(job.uses).toBe(expectedUses[name as keyof typeof expectedUses])
+      expect(job.with).toEqual({
+        'source-sha': '${{ github.sha }}',
+        arch: '${{ matrix.arch }}',
+        'artifact-purpose': 'distribution',
+        'enforce-installer-size': false,
+        'build-script': 'build:test'
+      })
+    }
+    expect(source).not.toContain('secrets: inherit')
   })
 })
 

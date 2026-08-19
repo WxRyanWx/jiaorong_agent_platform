@@ -204,7 +204,7 @@ export class TerminalHelper {
    */
   private static async createTempScript(content: string, extension: string): Promise<string> {
     const tempDir = tmpdir()
-    const scriptPath = path.join(tempDir, `deepchat-acp-init-${Date.now()}${extension}`)
+    const scriptPath = path.join(tempDir, `jiaorong-acp-init-${Date.now()}${extension}`)
 
     await fs.promises.writeFile(scriptPath, content, { mode: 0o755 })
     return scriptPath

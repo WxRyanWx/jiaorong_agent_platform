@@ -147,9 +147,9 @@ describe('AgentSessionExportService', () => {
   })
 
   it.each([
-    ['markdown', 'export_deepchat_2026-07-13_01-02-03.md'],
-    ['html', 'export_deepchat_2026-07-13_01-02-03.html'],
-    ['txt', 'export_deepchat_2026-07-13_01-02-03.txt'],
+    ['markdown', 'export_jiaorongchat_2026-07-13_01-02-03.md'],
+    ['html', 'export_jiaorongchat_2026-07-13_01-02-03.html'],
+    ['txt', 'export_jiaorongchat_2026-07-13_01-02-03.txt'],
     ['nowledge-mem', 'nowledge_mem_Export_Target_2026-07-13_01-02-03.json']
   ] as const)(
     'exports %s with compatible ordering and sent-message filtering',

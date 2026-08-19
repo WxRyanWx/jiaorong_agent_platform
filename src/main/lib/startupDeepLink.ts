@@ -1,14 +1,15 @@
+import { matchesAnyDeeplinkUrl } from '@shared/appIdentity'
+
 const STARTUP_DEEPLINK_ENV_KEY = 'STARTUP_DEEPLINK'
-const SECONDARY_STARTUP_ENV_KEYS = ['DEEPLINK_URL', 'deepchat_deeplink'] as const
+const SECONDARY_STARTUP_ENV_KEYS = [
+  'DEEPLINK_URL',
+  'deepchat_deeplink',
+  'jiaorongchat_deeplink'
+] as const
 let pendingStartupDeepLink: string | null = null
 
 export const isDeepLinkUrl = (value: string | null | undefined): value is string => {
-  if (typeof value !== 'string') {
-    return false
-  }
-
-  const normalized = value.trim()
-  return normalized.startsWith('deepchat://') || normalized.startsWith('deepchat:')
+  return matchesAnyDeeplinkUrl(value)
 }
 
 export const normalizeDeepLinkUrl = (value: string): string => value.trim()

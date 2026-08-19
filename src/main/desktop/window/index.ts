@@ -30,6 +30,7 @@ import { openExternalUrl } from '@/lib/externalUrl'
 import { activateAppOnMac } from '@/lib/activateApp'
 import { DEEPCHAT_EVENT_CHANNEL } from '@shared/contracts/channels'
 import { createDeepchatEventEnvelope } from '@shared/contracts/events'
+import { ensureJiaorongPrivateApiCors } from './jiaorongPrivateApiCors'
 
 type PendingSettingsMessage = {
   channel: string
@@ -88,6 +89,7 @@ export class WindowPresenter implements IWindowPresenter {
     this.settings = settings
     this.restartApp = restartApp
     this.startupWorkloadCoordinator = startupWorkloadCoordinator
+    ensureJiaorongPrivateApiCors()
   }
 
   applyContentProtection(enabled: boolean): void {
@@ -530,6 +532,10 @@ export class WindowPresenter implements IWindowPresenter {
         const payload = firstArg && typeof firstArg === 'object' ? firstArg : {}
         return createDeepchatEventEnvelope('appRuntime.mcpInstallRequested', payload)
       }
+      case DEEPLINK_EVENTS.AUTH_LOGIN: {
+        const payload = firstArg && typeof firstArg === 'object' ? firstArg : {}
+        return createDeepchatEventEnvelope('appRuntime.authLoginRequested', payload)
+      }
       case DEV_EVENTS.START_GUIDED_ONBOARDING:
         return createDeepchatEventEnvelope('appRuntime.guidedOnboardingStartRequested', {})
       case SHORTCUT_EVENTS.CREATE_NEW_CONVERSATION:
@@ -667,6 +673,7 @@ export class WindowPresenter implements IWindowPresenter {
         contextIsolation: true,
         preload: join(__dirname, '../preload/index.mjs'), // Preload 脚本路径
         sandbox: false, // 禁用沙箱，允许 preload 访问 Node.js API
+        webSecurity: false, // 暂关：技能 zip / 知识库列表等跨域；CORS helper 仍保留
         devTools: is.dev // 开发模式下启用 DevTools
       },
       roundedCorners: true // Windows 11 圆角
@@ -1323,7 +1330,7 @@ export class WindowPresenter implements IWindowPresenter {
       fullscreenable: false,
 
       icon: iconFile,
-      title: 'DeepChat - Settings',
+      title: 'JiaorongAI - Settings',
       titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : undefined,
       transparent: process.platform === 'darwin',
       vibrancy: process.platform === 'darwin' ? 'under-window' : undefined,
@@ -1340,6 +1347,7 @@ export class WindowPresenter implements IWindowPresenter {
         contextIsolation: true,
         preload: join(__dirname, '../preload/index.mjs'),
         sandbox: false,
+        webSecurity: false, // 与主窗口一致；暂关隔离
         devTools: is.dev
       },
       roundedCorners: true

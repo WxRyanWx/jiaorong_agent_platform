@@ -123,9 +123,10 @@ export function createSessionClient(bridge: DeepchatBridge = getDeepchatBridge()
       limit?: number
     }
   ) {
+    const cursor = options?.cursor
     return await bridge.invoke(sessionsListMessagesPageRoute.name, {
       sessionId,
-      cursor: options?.cursor,
+      cursor: cursor ? { orderSeq: cursor.orderSeq, id: cursor.id } : cursor,
       limit: options?.limit
     })
   }
@@ -158,7 +159,11 @@ export function createSessionClient(bridge: DeepchatBridge = getDeepchatBridge()
     agentId?: string
     prioritizeSessionId?: string
   }) {
-    return await bridge.invoke(sessionsListLightweightRoute.name, input ?? {})
+    const cursor = input?.cursor
+    return await bridge.invoke(sessionsListLightweightRoute.name, {
+      ...(input ?? {}),
+      cursor: cursor ? { updatedAt: cursor.updatedAt, id: cursor.id } : cursor
+    })
   }
 
   async function getLightweightByIds(sessionIds: string[]) {

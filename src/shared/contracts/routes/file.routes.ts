@@ -70,6 +70,18 @@ export const fileWriteImageBase64Route = defineRouteContract({
   })
 })
 
+export const fileWriteTempRoute = defineRouteContract({
+  name: 'file.writeTemp',
+  input: z.object({
+    name: z.string().min(1),
+    content: z.string(),
+    encoding: z.enum(['utf8', 'base64']).default('utf8')
+  }),
+  output: z.object({
+    path: z.string()
+  })
+})
+
 export const fileSaveImageRoute = defineRouteContract({
   name: 'file.saveImage',
   input: FileImageActionInputSchema,

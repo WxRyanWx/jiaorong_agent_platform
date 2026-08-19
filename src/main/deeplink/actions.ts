@@ -9,6 +9,7 @@ import { createDeepchatEventEnvelope } from '@shared/contracts/events'
 import { DEEPLINK_EVENTS } from '@/events'
 import type { SemanticNotificationPublisher } from '@/notifications'
 import type {
+  DeeplinkAuthLoginPort,
   DeeplinkDesktopPort,
   DeeplinkMcpInstallPort,
   DeeplinkProviderInstallPort,
@@ -127,8 +128,22 @@ class ProviderInstallActions implements DeeplinkProviderInstallPort {
   }
 }
 
+class AuthLoginActions implements DeeplinkAuthLoginPort {
+  constructor(private readonly windowPresenter: IWindowPresenter) {}
+
+  async requestAuthLogin(token: string): Promise<boolean> {
+    const targetWindow = await resolveChatWindow(this.windowPresenter)
+    return targetWindow
+      ? this.windowPresenter.sendToWindow(targetWindow.id, DEEPLINK_EVENTS.AUTH_LOGIN, {
+          token
+        })
+      : false
+  }
+}
+
 export const createDeeplinkActions = (deps: DeeplinkActionsDeps) => ({
   desktop: new DesktopActions(deps.window),
   mcp: new McpInstallActions(deps.window, deps.mcp),
-  provider: new ProviderInstallActions(deps.window, deps.config, deps.notifications)
+  provider: new ProviderInstallActions(deps.window, deps.config, deps.notifications),
+  auth: new AuthLoginActions(deps.window)
 })

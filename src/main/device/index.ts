@@ -8,6 +8,7 @@ import path from 'path'
 import { app, dialog } from 'electron'
 import { svgSanitizer } from '../lib/svgSanitizer'
 import { cacheImage, type CacheImageOptions } from '@/platform/imageCache'
+import { HTTP_X_TITLE, buildAppUserAgent } from '@jiaorong/brand'
 const execAsync = promisify(exec)
 
 export class DeviceService implements DeviceServicePort {
@@ -15,8 +16,8 @@ export class DeviceService implements DeviceServicePort {
     const version = app.getVersion()
     return {
       'HTTP-Referer': 'https://deepchatai.cn',
-      'X-Title': 'DeepChat',
-      'User-Agent': `DeepChat/${version}`
+      'X-Title': HTTP_X_TITLE,
+      'User-Agent': buildAppUserAgent(version)
     }
   }
   async getAppVersion(): Promise<string> {
@@ -322,8 +323,12 @@ export class DeviceService implements DeviceServicePort {
   async selectFiles(options?: {
     filters?: { name: string; extensions: string[] }[]
     multiple?: boolean
+    allowDirectory?: boolean
   }): Promise<{ canceled: boolean; filePaths: string[] }> {
-    const properties: ('openFile' | 'multiSelections')[] = ['openFile']
+    const properties: Array<'openFile' | 'openDirectory' | 'multiSelections'> = ['openFile']
+    if (options?.allowDirectory) {
+      properties.push('openDirectory')
+    }
     if (options?.multiple) {
       properties.push('multiSelections')
     }

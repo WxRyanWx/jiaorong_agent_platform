@@ -17,6 +17,13 @@ vi.mock('@/stores/theme', () => ({
   })
 }))
 
+vi.mock('@/composables/useToolDisplayLabelOptions', () => ({
+  useToolDisplayLabelOptions: () => ({
+    displayLabelOptions: { value: { skills: [], tools: [] } },
+    refreshToolDisplayCatalog: vi.fn()
+  })
+}))
+
 vi.mock('@iconify/vue', () => ({
   Icon: defineComponent({
     name: 'Icon',

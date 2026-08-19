@@ -557,7 +557,7 @@ describe('SessionAssignment', () => {
     await deletionStarted.promise
 
     await expect(harness.coordinator.moveSessionToAgent('s1', 'target')).rejects.toThrow(
-      'DeepChat Agent is being deleted: target'
+      'JiaorongAI Agent is being deleted: target'
     )
     expect(harness.deepchat.setSessionAgentContext).not.toHaveBeenCalled()
     expect(harness.sessions.updateAgentId).not.toHaveBeenCalled()

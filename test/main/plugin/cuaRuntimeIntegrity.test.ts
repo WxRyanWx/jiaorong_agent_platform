@@ -230,7 +230,7 @@ describe('CuaRuntimeIntegrityVerifier', () => {
       'DeepChat.app',
       'Contents',
       'Helpers',
-      'DeepChat Computer Use.app'
+      'JiaorongAI Computer Use.app'
     )
     const externalBinary = path.join(externalApp, 'Contents', 'MacOS', 'deepchat-cua-driver')
     const infoPlist = path.join(externalApp, 'Contents', 'Info.plist')
@@ -250,17 +250,17 @@ describe('CuaRuntimeIntegrityVerifier', () => {
       runtimeVersion: '0.14.1',
       target: 'darwin/arm64',
       runtimeRoot: 'runtime/darwin/arm64',
-      binaryPath: 'DeepChat Computer Use.app/Contents/MacOS/deepchat-cua-driver',
+      binaryPath: 'JiaorongAI Computer Use.app/Contents/MacOS/deepchat-cua-driver',
       catalogPath: 'tool-catalog.json',
       files: {
-        'DeepChat Computer Use.app/Contents/Info.plist': await sha256(infoPlist),
-        'DeepChat Computer Use.app/Contents/MacOS/deepchat-cua-driver':
+        'JiaorongAI Computer Use.app/Contents/Info.plist': await sha256(infoPlist),
+        'JiaorongAI Computer Use.app/Contents/MacOS/deepchat-cua-driver':
           await sha256(externalBinary),
         'tool-catalog.json': await sha256(catalogPath)
       },
-      executablePaths: ['DeepChat Computer Use.app/Contents/MacOS/deepchat-cua-driver'],
+      executablePaths: ['JiaorongAI Computer Use.app/Contents/MacOS/deepchat-cua-driver'],
       macos: {
-        bundlePath: 'DeepChat Computer Use.app',
+        bundlePath: 'JiaorongAI Computer Use.app',
         bundleIdentifier: 'com.deepchat.computeruse.helper',
         signatureType: 'developer-id',
         teamId: 'Y7P5QLKLYG',
@@ -301,7 +301,7 @@ describe('CuaRuntimeIntegrityVerifier', () => {
       const pluginRoot = await mkdtemp(path.join(os.tmpdir(), 'deepchat-cua-signed-integrity-'))
       tempRoots.push(pluginRoot)
       const runtimeRoot = path.join(pluginRoot, 'runtime', 'darwin', process.arch)
-      const helperApp = path.join(runtimeRoot, 'DeepChat Computer Use.app')
+      const helperApp = path.join(runtimeRoot, 'JiaorongAI Computer Use.app')
       const helperBinary = path.join(helperApp, 'Contents', 'MacOS', 'deepchat-cua-driver')
       const catalogPath = path.join(runtimeRoot, 'tool-catalog.json')
       await mkdir(path.dirname(helperBinary), { recursive: true })
@@ -333,7 +333,7 @@ describe('CuaRuntimeIntegrityVerifier', () => {
         { encoding: 'utf8' }
       )
       const files = {
-        ...(await collectFileHashes(helperApp, 'DeepChat Computer Use.app')),
+        ...(await collectFileHashes(helperApp, 'JiaorongAI Computer Use.app')),
         'tool-catalog.json': await sha256(catalogPath)
       }
       const descriptor = parseCuaRuntimeIntegrityDescriptor({
@@ -343,12 +343,12 @@ describe('CuaRuntimeIntegrityVerifier', () => {
         runtimeVersion: '0.14.1',
         target: `darwin/${process.arch}`,
         runtimeRoot: `runtime/darwin/${process.arch}`,
-        binaryPath: 'DeepChat Computer Use.app/Contents/MacOS/deepchat-cua-driver',
+        binaryPath: 'JiaorongAI Computer Use.app/Contents/MacOS/deepchat-cua-driver',
         catalogPath: 'tool-catalog.json',
         files,
-        executablePaths: ['DeepChat Computer Use.app/Contents/MacOS/deepchat-cua-driver'],
+        executablePaths: ['JiaorongAI Computer Use.app/Contents/MacOS/deepchat-cua-driver'],
         macos: {
-          bundlePath: 'DeepChat Computer Use.app',
+          bundlePath: 'JiaorongAI Computer Use.app',
           bundleIdentifier: 'com.deepchat.computeruse.helper',
           signatureType: 'ad-hoc',
           teamId: null,

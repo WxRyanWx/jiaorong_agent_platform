@@ -173,7 +173,7 @@ export class LiveDelegationAgentTool {
       server: {
         name: LIVE_DELEGATION_AGENT_TOOL_SERVER_NAME,
         icons: '⑂',
-        description: 'DeepChat persistent live Subagents'
+        description: 'JiaorongAI persistent live Subagents'
       }
     }
   }

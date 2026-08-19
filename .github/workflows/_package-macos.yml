@@ -19,6 +19,11 @@ on:
         description: Compare installers with the committed package-size baseline.
         required: true
         type: boolean
+      build-script:
+        description: pnpm script for electron-vite (build or build:test).
+        required: false
+        type: string
+        default: build
     secrets:
       RTK_GITHUB_TOKEN:
         required: false
@@ -58,7 +63,7 @@ jobs:
       TARGET_PLATFORM: darwin
       TARGET_ARCH: ${{ inputs.arch }}
       PACKAGE_PURPOSE: ${{ inputs.artifact-purpose }}
-      APP_DIRECTORY: ${{ inputs.arch == 'arm64' && 'dist/mac-arm64/DeepChat.app' || 'dist/mac/DeepChat.app' }}
+      APP_DIRECTORY: ${{ inputs.arch == 'arm64' && 'dist/mac-arm64/JiaorongAI.app' || 'dist/mac/JiaorongAI.app' }}
     steps:
       - name: Validate immutable source input
         run: |
@@ -151,17 +156,8 @@ jobs:
           pnpm run smoke:duckdb:vss -- --platform darwin --arch ${{ inputs.arch }}
 
       - name: Build and package macOS
-        run: |
-          if [[ "${PACKAGE_PURPOSE}" == 'verification' ]]; then
-            unset CSC_LINK CSC_KEY_PASSWORD
-            unset DEEPCHAT_APPLE_NOTARY_USERNAME DEEPCHAT_APPLE_NOTARY_TEAM_ID
-            unset DEEPCHAT_APPLE_NOTARY_PASSWORD
-          fi
-          pnpm run build
-          pnpm run plugin:bundle -- --name cua --platform darwin --arch "${TARGET_ARCH}" --purpose "${PACKAGE_PURPOSE}"
-          pnpm run plugin:bundle -- --name feishu --platform darwin --arch "${TARGET_ARCH}"
-          pnpm exec electron-builder --mac --"${TARGET_ARCH}" --publish=never
         env:
+          BUILD_SCRIPT: ${{ inputs.build-script }}
           CSC_LINK: ${{ secrets.DEEPCHAT_CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.DEEPCHAT_CSC_KEY_PASS }}
           CSC_IDENTITY_AUTO_DISCOVERY: ${{ inputs.artifact-purpose == 'verification' && 'false' || '' }}
@@ -173,6 +169,23 @@ jobs:
           VITE_GITHUB_CLIENT_SECRET: ${{ secrets.DC_GITHUB_CLIENT_SECRET }}
           VITE_GITHUB_REDIRECT_URI: ${{ secrets.DC_GITHUB_REDIRECT_URI }}
           NODE_OPTIONS: '--max-old-space-size=4096'
+        run: |
+          if [[ "${PACKAGE_PURPOSE}" == 'verification' ]]; then
+            unset CSC_LINK CSC_KEY_PASSWORD
+            unset DEEPCHAT_APPLE_NOTARY_USERNAME DEEPCHAT_APPLE_NOTARY_TEAM_ID
+            unset DEEPCHAT_APPLE_NOTARY_PASSWORD
+          fi
+          case "${BUILD_SCRIPT:-build}" in
+            build|build:test) ;;
+            *)
+              echo "build-script must be build or build:test" >&2
+              exit 1
+              ;;
+          esac
+          pnpm run "${BUILD_SCRIPT:-build}"
+          pnpm run plugin:bundle -- --name cua --platform darwin --arch "${TARGET_ARCH}" --purpose "${PACKAGE_PURPOSE}"
+          pnpm run plugin:bundle -- --name feishu --platform darwin --arch "${TARGET_ARCH}"
+          pnpm exec electron-builder --mac --"${TARGET_ARCH}" --publish=never
 
       - name: Verify packaged DuckDB VSS
         run: |

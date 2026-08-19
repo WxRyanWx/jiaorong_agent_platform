@@ -26,7 +26,7 @@ action.
 ## Setup Is Explicit
 
 `get_browser_state` is read-only and never enables debugging or changes a profile. If it returns
-`browser_requires_setup`, use `browser_prepare` only after the corresponding DeepChat approval.
+`browser_requires_setup`, use `browser_prepare` only after the corresponding JiaorongAI approval.
 Prefer a driver-owned isolated profile when existing cookies or login state are unnecessary.
 Attaching to a personal authenticated profile has broad authority and must not be hidden inside a
 read or navigation step.

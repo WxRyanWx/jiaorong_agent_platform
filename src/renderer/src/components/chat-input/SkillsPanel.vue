@@ -19,7 +19,9 @@
                 @update:checked="$emit('toggle', skill.name)"
               />
               <Icon icon="lucide:wand-2" class="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-              <span class="text-sm truncate">{{ skill.name }}</span>
+              <span class="text-sm truncate">{{
+                getSkillDisplayLabel(skill.name, skill.metadata)
+              }}</span>
             </label>
           </TooltipTrigger>
           <TooltipContent v-if="skill.description || skill.allowedTools?.length" side="right">
@@ -53,6 +55,7 @@ import {
   TooltipTrigger
 } from '@shadcn/components/ui/tooltip'
 import type { SkillMetadata } from '@shared/types/skill'
+import { getSkillDisplayLabel } from '@/lib/slashMenuDisplayText'
 
 const props = defineProps<{
   skills: SkillMetadata[]

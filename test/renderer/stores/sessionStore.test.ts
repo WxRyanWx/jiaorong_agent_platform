@@ -1203,7 +1203,7 @@ describe('sessionStore streaming cleanup', () => {
     expect(setCurrentSessionId).toHaveBeenCalledWith('session-b')
   })
 
-  it('hydrates the selected active session before routing to chat', async () => {
+  it('routes to chat before activating the selected session', async () => {
     const { store, sessionClient, pageRouter, agentStore } = await setupStore({
       selectedAgentId: 'deepchat'
     })
@@ -1229,8 +1229,8 @@ describe('sessionStore streaming cleanup', () => {
     expect(store.activeSession.value?.status).toBe('working')
     expect(agentStore.setSelectedAgent).toHaveBeenCalledWith('dimcode')
     expect(pageRouter.goToChat).toHaveBeenCalledWith('session-acp')
-    expect(pageRouter.goToChat.mock.invocationCallOrder[0]).toBeGreaterThan(
-      sessionClient.getActive.mock.invocationCallOrder[0]
+    expect(pageRouter.goToChat.mock.invocationCallOrder[0]).toBeLessThan(
+      sessionClient.activate.mock.invocationCallOrder[0]
     )
   })
 
@@ -1709,8 +1709,9 @@ describe('sessionStore streaming cleanup', () => {
     await firstSelection
 
     expect(store.activeSessionId.value).toBe('session-b')
+    expect(pageRouter.goToChat).toHaveBeenCalledWith('session-a')
     expect(pageRouter.goToChat).toHaveBeenCalledWith('session-b')
-    expect(pageRouter.goToChat).not.toHaveBeenCalledWith('session-a')
+    expect(pageRouter.goToChat).toHaveBeenLastCalledWith('session-b')
   })
 
   it('rejects stale session hydration after an A-B-A activation cycle', async () => {

@@ -346,7 +346,7 @@ export class AcpProcessManager implements AgentProcessManager<AcpProcessHandle, 
    * Keeps file access constrained to a temp directory rather than the entire filesystem.
    */
   private getFallbackWorkdir(): string {
-    const tempDir = path.join(app.getPath('temp'), 'deepchat-acp', 'sessions')
+    const tempDir = path.join(app.getPath('temp'), 'jiaorong-acp', 'sessions')
     try {
       fs.mkdirSync(tempDir, { recursive: true })
     } catch (error) {
@@ -982,7 +982,7 @@ export class AcpProcessManager implements AgentProcessManager<AcpProcessHandle, 
           enableFs: true,
           enableTerminal: true
         }),
-        clientInfo: { name: 'DeepChat', version: app.getVersion() }
+        clientInfo: { name: 'JiaorongAI', version: app.getVersion() }
       }
       this.debugLog.append(agent.id, {
         kind: 'request',

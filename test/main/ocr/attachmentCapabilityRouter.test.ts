@@ -1081,6 +1081,29 @@ describe('AttachmentCapabilityRouter', () => {
     })
   })
 
+  it('surfaces helper handshake identity failures as runtime unavailability', async () => {
+    const extraction = createExtraction({
+      extractBatch: vi.fn(async () => [
+        {
+          status: 'rejected',
+          reason: new LightOcrProcessHostError(
+            'invalid_protocol',
+            'OCR helper handshake mismatch (protocol 2, Node v24.12.0)'
+          )
+        }
+      ])
+    })
+    const { router } = createRouter({ extraction })
+
+    const result = await prepare(router, { text: '', files: [image()] })
+
+    expect(result.summary).toEqual({
+      status: 'needs_user_action',
+      issues: [{ attachmentIndex: 0, reason: 'ocr_runtime_unavailable' }],
+      suggestedActions: ['switch_to_vision_model', 'send_without_image_content']
+    })
+  })
+
   it('preserves helper queue saturation as an actionable reason', async () => {
     const extraction = createExtraction({
       extractBatch: vi.fn(async () => [

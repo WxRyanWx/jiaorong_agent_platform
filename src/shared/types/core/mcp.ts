@@ -64,6 +64,7 @@ export interface MCPToolDefinitionBase {
       }
   function: {
     name: string
+    displayName?: string
     description: string
     parameters: {
       type: string

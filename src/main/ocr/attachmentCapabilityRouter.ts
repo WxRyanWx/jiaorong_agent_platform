@@ -885,8 +885,11 @@ function mapExtractionFailure(error: unknown): AttachmentUnavailableReason {
         return 'ocr_failed'
     }
   }
-  if (error instanceof LightOcrProcessHostError && error.code === 'queue_full') {
-    return 'ocr_queue_full'
+  if (error instanceof LightOcrProcessHostError) {
+    if (error.code === 'queue_full') return 'ocr_queue_full'
+    if (error.code === 'invalid_protocol' || error.code === 'runtime_missing') {
+      return 'ocr_runtime_unavailable'
+    }
   }
   return 'ocr_failed'
 }
@@ -905,6 +908,9 @@ function mapDocumentExtractionFailure(error: unknown): AttachmentUnavailableReas
   if (error instanceof LightOcrProcessHostError) {
     if (error.code === 'queue_full') return 'ocr_queue_full'
     if (error.code === 'input_too_large') return 'document_too_large'
+    if (error.code === 'invalid_protocol' || error.code === 'runtime_missing') {
+      return 'ocr_runtime_unavailable'
+    }
     if (error.code === 'helper_error' && error.helperCode === 'resource_limit_exceeded') {
       return 'ocr_resource_limited'
     }

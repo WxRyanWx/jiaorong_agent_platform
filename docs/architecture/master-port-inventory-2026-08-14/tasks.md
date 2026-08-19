@@ -1,0 +1,58 @@
+# 搬迁执行顺序（migrate/2026-08-17 上）
+
+- [x] 本机已加 `upstream` → `https://github.com/ThinkInAIXYZ/deepchat.git`（同事各自加即可）
+- [x] 本仓库本地 `main` = 上游 `dev` 干净树；快照 `9cc481589`（#2152）
+- [x] 从 DeepChat `dev` / 本地 `main` 拉出 `migrate/2026-08-17`（已删除误建的 `migrate/2026-08-14`）
+- [x] `backup/master-before-2026-08-14`、`main`、`migrate/2026-08-17` 已 push origin
+- [x] P0 工程骨架：alias / tsconfig / appIdentity / electron-builder
+- [x] P0 整包拷贝 `src/jiaorong_src`；登录路由/门禁/扫码 deeplink/侧栏入口已接线；已补 `less`（DeepChat 无此预处理器）
+- [x] P1 路由/侧栏入口（技能/知识库图标；主题钮隐藏）；设置白名单文件已在包内，设置页 CSS 未接
+- [x] P1 主进程 deeplink `AUTH_LOGIN` 已接（typed event）；skill 开关 / 提示词 finalize / 强制 light 已接
+- [x] P2 技能中心全链路（市场/详情/上传/试一试/默认种子）：本地扫盘已改 SkillClient；安装走 FileClient.writeTemp；开关过滤 `/` 列表；技能 i18n 键已补
+- [x] P2 知识库菜单 + picker + MCP：输入区 picker/chips 已接；发送前 `prepareKnowledgeBaseSendFiles`
+- [x] P3 session cursor 已在 SessionClient / message store 做 plain clone；首屏 restore / 滚动加载沿用上游窗口化
+- [x] P3 对话耗时日志已对位 WindowPresenter + RuntimeHookScope；工具中文名沿用 slashMenuDisplayText
+- [x] P4 品牌 class、隐藏主题、i18n（CI 仍待按现网重接）
+- [x] P5 对照清单补漏：管理员白名单、MCP 默认开、跳过引导、JSON store 隔离、slash 刷新/中文排序、欢迎页探活、设置技能 jiaorong-settings、Skills 中文说明、关于页去 DeepChat 外链、内置 Agent 非管理员隐藏
+- [x] P6 对照上游后：壳启动水合、侧栏 Agent 分区、工具中文接线（含静态对照表 H117）、Linux afterPack 可执行名、内置 SKILL.md displayName
+- [x] P6 明确不搬：悬浮球拖拽/位置持久化（上游已有完整拖拽+吸附+persist）；Win 覆盖安装（SkillUploadDialog 已有）
+- [x] 搬迁漏项（按 master 原逻辑）：非管理员 `speLabel` 藏模型选择；气泡 `duihua`+「交融对话」；技能四件套+设置五件套中文 displayName；设置侧栏 `getSettingsSidebarNavigationGroups`；`jiaorong-settings` 工具组；会话乐观 `goToChat`；上翻 prefetch 200px/25% 视口。首屏 restore idle 调度不搬（属于上游窗口化）
+- [x] 搬迁漏项：内置 `jiaorong` Provider（enable+原 apiKey/baseUrl）；无已启用模型时自动 enable `jiaorong-deepseek-v4-pro`；托盘三图标；用户可见 DeepChat→JiaorongAI（托盘/窗标题/导出/同步目录/mime/MCP 客户端名/ACP 临时目录/远程控制文案/UA）；MCP 内置服务说明「交融超级智能体」；技能/会话默认路径 `.jiaorongchat`
+- [x] 搬迁漏项：非管理员只藏模型选择、主动协作保留；设置侧栏藏调试；内置 SKILL.md YAML `description` 中文；zh-CN 工具/设置总览等壳文案
+- [x] 全量 980 文件记录：`docs/architecture/master-port-inventory-2026-08-14/files.md`；已按表补 Apple/Artifacts 工具中文名与描述
+- [x] 搬迁漏项：技能四件套 + 设置五件套 `description` 中文（按 master 原文）；工具定义/失败文案/系统段用户可见 DeepChat→JiaorongAI
+- [x] 搬迁漏项：启动页 JiaorongAI；技能 Runtime Context / 同步目录 README；验证段仓库名与 hostPromptLocalize 对齐；上下文溢出用户可见文案品牌词
+- [x] 搬迁漏项：MCP App host 名/`userAgent`、Live Delegation 交接标题、Auto Approve 审阅提示用 `APP_NAME`（不改 CLI / `source: 'DeepChat'`）
+- [x] 搬迁漏项：Win AppUserModelId `com.wefonk.jiaorong`；deeplink env `jiaorongchat_deeplink`；技能/Agent 临时目录前缀；压缩文案 JiaorongAI；notarize/afterPack 回退 `JiaorongAI.app`；CUA/飞书 publisher + CUA hostBundleId/helper 显示名（可执行文件仍 `deepchat-cua-driver`，不覆盖 vendor Swift）
+- [x] 搬迁漏项：Agent 删除/技能绑定用户可见错误文案 JiaorongAI；skillSync 注释；README/CONTRIBUTING 身份块；`.env.example` 交融 API 注释（GitHub 徽章仍 ThinkInAIXYZ）
+- [x] 搬迁漏项：CI/e2e 产物认 `JiaorongAI.app` / `JiaorongAI.exe`；less 预处理；会话迁移「Target JiaorongAI agent」；忽略 `.jiaorongchat/`；版本文件下载名 `JiaorongAI-*`（不搬 Gitee）
+- [x] 搬迁漏项：自动更新 generic `https://c4ai.ccccltd.cn/xkprosdk/` channel `jrsi`；`dev-app-update.yml`；检查时强制 jrsi；产物名 `${name}-{os}-{arch}` 对齐现网
+- [x] 搬迁漏项：包版本以 master `0.7.0` 为准；登录页隐藏升级按钮；对话耗时日志补 Agent 名/会话标题
+- [x] 搬迁漏项：知识库 MCP 免确认仅限 `jiaorong-knowledge-base`（宿主 `shouldBrokerMcpTool`）；不恢复全局 `autoApprove`
+- [x] 搬迁漏项：欢迎页 Agent 卡按 `partitionSidebarAgents`（deepchat 置顶 + 8 个用户 Agent）；关于页隐藏渠道选择与 GitHub/官网下载（按 master）
+- [x] 搬迁漏项：新会话知识库选中固定 `__new_thread__`，不跟 ACP draft sessionId（与发送 `prepareKnowledgeBaseSendFiles(null)` 对齐）
+- [x] 搬迁漏项：知识库 MCP 按 server 名走普通 HTTP 启停（H96，避开上游「未注册插件」闸门）；合成附件正文内联进 prompt（H97）
+- [x] 搬迁漏项：旧会话 Tape bootstrap 缺 `tapeIncarnationId` 时启动回填（H98），发送路径也会自愈
+- [x] 搬迁漏项：环境段模型名写死 `Jiaorong-Ai`（H99）；技能 sidecar `.jiaorongchat-meta`，仍兼容读取 `.deepchat-meta`（H100）
+- [x] 搬迁漏项：新分层 skill/sync、ACP capabilities、agentToolManager 设置工具注释/失败日志 DeepChat→JiaorongAI（H101）；不改 `mapDeepChatTools` / CLI / 类型错误
+- [x] 搬迁漏项：单实例锁失败日志 `Another JiaorongAI instance is already running`（H102）
+- [x] 搬迁漏项：Linux afterPack 首次运行注册 `jiaorongchat://`（H103）；skill-creator 新技能强制 `~/.jiaorongchat/skills`（H104）；技能脚本环境注入 `JIAORONG_SKILLS_DIR`（H105）；配置路径 `~/.deepchat/skills` 修到 `~/.jiaorongchat/skills`（H106）
+- [x] 搬迁漏项：`SkillSettings.getPath()` 按 master 修复并写回 `skillsPath`（H107）；便携路径修复仍在 `SkillService.resolveSkillsDir`
+- [x] 搬迁漏项：会话根目录走 `appIdentity.getSessionsRoot()`（H108），访问时迁移 `~/.deepchat`
+- [x] 搬迁漏项：新会话「选择项目」外边距；Jiaorong 模型图标；非管理员隐藏高级配置里的模型参数（H109）
+- [x] 搬迁漏项：技能中心创建技能预填后带入 `skill-creator`；`setContent` 失败不丢 pending skills（H110）
+- [x] 搬迁漏项：输入框知识库回显区 `max-height: min(11.25rem, 25vh)` + 超出滚动（H111）
+- [x] 搬迁漏项：模型选择 logo 按 master 直接渲染 img，不等 @load（H112）
+- [x] 搬迁漏项：模型 logo 不被 Tailwind preflight 压成 0；技能/知识库页不挂收起钮和会话列（H113）
+- [x] 搬迁漏项：删除重复的 `deepchat-settings`；`memory-management`/`jiaorong-cli` 补中文名和描述（H114）
+- [x] 搬迁漏项：旧网页检索卡片兼容 `application/deepchat-webpage`（H115）
+- [x] 搬迁漏项：技能开关 map 写入 config；主进程 `get/setActiveSkills` 过滤关闭技能，不写回会话钉选（H24）
+- [x] 搬迁漏项：GitHub 测试环境打包 `build-test.yml` + `pnpm run build:test`（H116）
+- [x] 设置侧栏：记忆页保持对所有人可见；插件设置页从隐藏名单拿掉
+- [x] 搬迁漏项：静态工具中文名对照表，斜杠菜单 `knowledge_base_retrieve` 显示「知识库检索」（H117）
+- [x] 搬迁漏项：管理员底栏模型选择按 master 传 providerId，画出服务商 logo（H118）
+- [x] 2026-08-18 内容复扫：`jiaorong_src` 141 文件齐全；980 表「路径已对上」不等于内容已搬。用户可见缺口补完：
+  - 斜杠 `insert-tool` 写入 `@${displayLabel}`（H119）
+  - 技能芯片 / SessionSkillsIndicator 走 `getSkillDisplayLabel`（H120）
+  - ModelIcon 恢复 master 裸 img，尺寸 class 打在 img 上（H112）
+- [ ] CI / Win + Mac 冒烟后替换 `master`

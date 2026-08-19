@@ -332,6 +332,7 @@ describe('main kernel contracts', () => {
         'sync.import',
         'sync.listBackups',
         'sync.startBackup',
+        'tools.displayCatalog',
         'tools.listDefinitions',
         'upgrade.check',
         'upgrade.clearMock',

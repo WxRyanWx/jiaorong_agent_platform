@@ -35,7 +35,7 @@ const upstreamDarwinThemeAuthoringExecutableName = 'cua-cursor-theme'
 export const darwinHelperAppDirName = CUA_DARWIN_HELPER_APP_NAME
 export const darwinHelperBinaryName = CUA_DARWIN_HELPER_EXECUTABLE_NAME
 export const darwinHelperBundleIdentifier = CUA_DARWIN_HELPER_BUNDLE_IDENTIFIER
-const darwinHelperBundleName = 'DeepChat Computer Use'
+const darwinHelperBundleName = 'JiaorongAI Computer Use'
 
 const targetAssetKeys = {
   'darwin/arm64': 'darwin-arm64',

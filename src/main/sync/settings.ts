@@ -31,7 +31,7 @@ export class SyncSettings {
 
   getFolderPath(): string {
     return (
-      this.settings.get<string>('syncFolderPath') || path.join(app.getPath('home'), 'DeepchatSync')
+      this.settings.get<string>('syncFolderPath') || path.join(app.getPath('home'), 'JiaorongchatSync')
     )
   }
 

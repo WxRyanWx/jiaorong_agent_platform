@@ -118,6 +118,37 @@ describe('resolveSlashSelectionAction', () => {
     expect(action).toEqual({ kind: 'insert-tool', text: '@read_file ' })
   })
 
+  it('inserts the Chinese display label for tools instead of the function id', () => {
+    const tool: MCPToolDefinition = {
+      execution: TOOL_EXECUTION.write,
+      type: 'function',
+      function: {
+        name: 'mail',
+        displayName: '邮件',
+        description: '与 Apple Mail 交互',
+        parameters: {
+          type: 'object',
+          properties: {}
+        }
+      },
+      server: {
+        name: 'apple',
+        icons: '',
+        description: ''
+      }
+    }
+
+    const item: SlashSuggestionItem = {
+      id: 'tool:apple:mail',
+      category: 'tool',
+      label: '邮件',
+      payload: tool
+    }
+
+    const action = resolveSlashSelectionAction(item)
+    expect(action).toEqual({ kind: 'insert-tool', text: '@邮件 ' })
+  })
+
   it('opens prompt args flow when prompt has arguments', () => {
     const prompt: PromptListEntry = {
       name: 'summarize',

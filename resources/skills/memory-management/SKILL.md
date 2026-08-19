@@ -1,6 +1,8 @@
 ---
 name: memory-management
-description: Guide the agent to recall, remember, and route durable learning into Memory, Skills, Scheduled Tasks, or Tape.
+description: 指导智能体回忆、记住，并把可沉淀的学习写入记忆、技能、定时任务或 Tape。当任务可能产生长期经验，或用户要求回忆、记住、接续先前工作、保留原话、记录可复用流程或处理周期性需求时使用。
+metadata:
+  displayName: 记忆管理
 ---
 
 # Memory Management

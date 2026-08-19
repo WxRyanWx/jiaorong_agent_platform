@@ -9,6 +9,12 @@ import type { PromptListEntry } from '@shared/types/mcp'
 import { useMcpStore } from '@/stores/mcp'
 import { useSkillsStore } from '@/stores/skillsStore'
 import {
+  filterEnabledSkills,
+  JIAORONG_SKILL_SWITCH_EVENT,
+  refreshSkillsCatalog
+} from '@jiaorong/utils'
+import { resolveSkillDisplay, resolveToolDisplay } from '@/lib/slashMenuDisplayText'
+import {
   buildChatInputWorkspaceReferenceText,
   resolveChatInputWorkspaceReferencePath
 } from '@/lib/chatInputWorkspaceReference'
@@ -167,7 +173,13 @@ export function useChatInputMentions(options: UseChatInputMentionsOptions) {
     }
   }
 
+  const skillSwitchVersion = ref(0)
+  const bumpSkillSwitchVersion = () => {
+    skillSwitchVersion.value += 1
+  }
+
   const slashItems = computed<SlashSuggestionItem[]>(() => {
+    void skillSwitchVersion.value
     const items: SlashSuggestionItem[] = []
     if (
       shouldShowManualCompactionCommand({
@@ -189,12 +201,15 @@ export function useChatInputMentions(options: UseChatInputMentionsOptions) {
       })
     }
 
-    for (const skill of skillsStore.getSkillsForAgent(normalizedAgentId.value)) {
+    for (const skill of filterEnabledSkills(
+      skillsStore.getSkillsForAgent(normalizedAgentId.value)
+    )) {
+      const display = resolveSkillDisplay(skill)
       items.push({
         id: `skill:${skill.name}`,
         category: 'skill',
-        label: skill.name,
-        description: skill.description,
+        label: display.label,
+        description: display.description,
         payload: { name: skill.name }
       })
     }
@@ -210,21 +225,31 @@ export function useChatInputMentions(options: UseChatInputMentionsOptions) {
     }
 
     for (const tool of mcpStore.visibleTools) {
+      const display = resolveToolDisplay({
+        name: tool.function.name ?? '',
+        displayName: tool.function.displayName,
+        description: tool.function.description
+      })
       items.push({
         id: `tool:${tool.server.name}:${tool.function.name ?? ''}`,
         category: 'tool',
-        label: tool.function.name ?? '',
-        description: tool.function.description || '',
+        label: display.label,
+        description: display.description || '',
         payload: tool
       })
     }
 
     for (const tool of mcpStore.pluginTools) {
+      const display = resolveToolDisplay({
+        name: tool.function.name ?? '',
+        displayName: tool.function.displayName,
+        description: tool.function.description
+      })
       items.push({
         id: `plugin-tool:${tool.server.name}:${tool.function.name ?? ''}`,
         category: 'tool',
-        label: tool.function.name ?? '',
-        description: tool.function.description || '',
+        label: display.label,
+        description: display.description || '',
         payload: tool
       })
     }
@@ -380,6 +405,20 @@ export function useChatInputMentions(options: UseChatInputMentionsOptions) {
     return filterSlashSuggestionItems(slashItems.value, query)
   }
 
+  let slashCatalogRefresh: Promise<void> | null = null
+  let slashItemsSeq = 0
+
+  const ensureSlashSkillsFresh = async () => {
+    if (!slashCatalogRefresh) {
+      slashCatalogRefresh = refreshSkillsCatalog()
+        .then(() => undefined)
+        .catch((error) => {
+          console.warn('[ChatInputMentions] Failed to refresh skills for slash menu:', error)
+        })
+    }
+    await slashCatalogRefresh
+  }
+
   const createRenderer = () => {
     let component: VueRenderer | null = null
     let popup: ReturnType<typeof tippy> | null = null
@@ -438,6 +477,7 @@ export function useChatInputMentions(options: UseChatInputMentionsOptions) {
       },
       onExit: () => {
         isSuggestionMenuOpen.value = false
+        slashCatalogRefresh = null
         popup?.[0]?.destroy()
         popup = null
         component?.destroy()
@@ -470,7 +510,14 @@ export function useChatInputMentions(options: UseChatInputMentionsOptions) {
   const slashSuggestion = {
     char: '/',
     allowedPrefixes: null,
-    items: ({ query }: { query: string }) => filterSlashItems(query),
+    items: async ({ query }: { query: string }) => {
+      const seq = ++slashItemsSeq
+      await ensureSlashSkillsFresh()
+      if (seq !== slashItemsSeq) {
+        return []
+      }
+      return filterSlashItems(query)
+    },
     command: ({
       editor,
       range,
@@ -528,11 +575,13 @@ export function useChatInputMentions(options: UseChatInputMentionsOptions) {
     void mcpStore.loadTools()
 
     unsubscribeAcpCommandsReady = sessionClient.onAcpCommandsReady(handleAcpCommandsReady)
+    window.addEventListener(JIAORONG_SKILL_SWITCH_EVENT, bumpSkillSwitchVersion)
   })
 
   onUnmounted(() => {
     unsubscribeAcpCommandsReady?.()
     unsubscribeAcpCommandsReady = null
+    window.removeEventListener(JIAORONG_SKILL_SWITCH_EVENT, bumpSkillSwitchVersion)
   })
 
   return {

@@ -21,9 +21,11 @@ type BootstrapOptions = {
   onError?: (message: string, error: unknown) => void
 }
 
+const JIAORONG_BOOTSTRAP_LOCALE = 'zh-CN' as const
+
 const fallbackLanguageState: RendererLanguageState = {
-  requestedLanguage: FALLBACK_LOCALE,
-  locale: FALLBACK_LOCALE,
+  requestedLanguage: JIAORONG_BOOTSTRAP_LOCALE,
+  locale: JIAORONG_BOOTSTRAP_LOCALE,
   direction: 'auto'
 }
 

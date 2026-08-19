@@ -1,5 +1,10 @@
-appId: com.wefonk.deepchat
-productName: DeepChat
+appId: com.wefonk.jiaorong
+productName: JiaorongAI
+protocols:
+  - name: JiaorongChat
+    schemes:
+      - jiaorongchat
+      - deepchat
 directories:
   buildResources: build
 files:
@@ -84,9 +89,9 @@ electronLanguages:
   - he-IL
   - he
 win:
-  executableName: DeepChat
+  executableName: JiaorongAI
 nsis:
-  artifactName: ${name}-${version}-windows-${arch}.${ext}
+  artifactName: ${name}-windows-${arch}.${ext}
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
@@ -98,7 +103,7 @@ artifactBuildCompleted: scripts/notarize-dmg.js
 afterPack: scripts/afterPack.js
 mac:
   signIgnore:
-    - '/Contents/Helpers/DeepChat Computer Use[.]app(?:/|$)'
+    - '/Contents/Helpers/JiaorongAI Computer Use[.]app(?:/|$)'
   entitlementsInherit: build/entitlements.mac.plist
   extraFiles:
     - from: ./build/managed-helpers/
@@ -114,7 +119,7 @@ mac:
   target:
     - target: dmg
     - target: zip
-  artifactName: ${name}-${version}-mac-${arch}.${ext}
+  artifactName: ${name}-mac-${arch}.${ext}
 dmg:
   background: build/dmg-background.png
   iconSize: 96
@@ -133,13 +138,15 @@ linux:
   target:
     - AppImage
     - tar.gz
-  maintainer: ThinkInAIXYZ
+  maintainer: JiaoRong
   category: Utility
-  artifactName: ${name}-${version}-linux-${arch}.${ext}
+  artifactName: ${name}-linux-${arch}.${ext}
   mimeTypes:
+    - x-scheme-handler/jiaorongchat
     - x-scheme-handler/deepchat
+  executableName: jiaorongsuperintelligentagent
 npmRebuild: true
 publish:
-  provider: github
-  owner: ThinkInAIXYZ
-  repo: deepchat
+  provider: generic
+  url: https://c4ai.ccccltd.cn/xkprosdk/
+  channel: jrsi

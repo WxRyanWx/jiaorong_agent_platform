@@ -8279,7 +8279,7 @@ describe('dispatch', () => {
               type: 'resource',
               resource: {
                 uri: 'https://example.com',
-                mimeType: 'application/deepchat-webpage',
+                mimeType: 'application/jiaorong-webpage',
                 text: searchResource
               }
             }
@@ -8291,7 +8291,7 @@ describe('dispatch', () => {
                 type: 'resource',
                 resource: {
                   uri: 'https://example.com',
-                  mimeType: 'application/deepchat-webpage',
+                  mimeType: 'application/jiaorong-webpage',
                   text: searchResource
                 }
               }

@@ -11,6 +11,7 @@ import { approvalClosedEvent, approvalRequestedEvent } from './events/approvals.
 import {
   appRuntimeGuidedOnboardingResumeRequestedEvent,
   appRuntimeGuidedOnboardingStartRequestedEvent,
+  appRuntimeAuthLoginRequestedEvent,
   appRuntimeMcpInstallRequestedEvent,
   appRuntimeShortcutRequestedEvent,
   appRuntimeStartDeeplinkRequestedEvent,
@@ -203,6 +204,7 @@ export const DEEPCHAT_EVENT_CATALOG = {
   [acpTerminalExternalDependenciesRequiredEvent.name]: acpTerminalExternalDependenciesRequiredEvent,
   [appRuntimeStartDeeplinkRequestedEvent.name]: appRuntimeStartDeeplinkRequestedEvent,
   [appRuntimeMcpInstallRequestedEvent.name]: appRuntimeMcpInstallRequestedEvent,
+  [appRuntimeAuthLoginRequestedEvent.name]: appRuntimeAuthLoginRequestedEvent,
   [appRuntimeGuidedOnboardingStartRequestedEvent.name]:
     appRuntimeGuidedOnboardingStartRequestedEvent,
   [appRuntimeGuidedOnboardingResumeRequestedEvent.name]:

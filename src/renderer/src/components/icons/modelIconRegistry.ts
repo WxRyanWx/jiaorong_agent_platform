@@ -27,7 +27,8 @@ import stepfunColorIcon from '@/assets/llm-icons/stepfun-color.svg?url'
 import qingyanColorIcon from '@/assets/llm-icons/qingyan-color.svg?url'
 import qwenColorIcon from '@/assets/llm-icons/qwen-color.svg?url'
 import deepseekColorIcon from '@/assets/llm-icons/deepseek-color.svg?url'
-import openaiColorIcon from '@/assets/llm-icons/openai.svg?url'
+import openaiColorIcon from '@/assets/llm-icons/duihua.png?url'
+import duihuaIcon from '@/assets/llm-icons/duihua.png?url'
 import openaiCodexColorIcon from '@/assets/llm-icons/openai-codex.svg?url'
 import ollamaColorIcon from '@/assets/llm-icons/ollama.svg?url'
 import doubaoColorIcon from '@/assets/llm-icons/doubao-color.svg?url'
@@ -190,6 +191,9 @@ export const modelIcons = {
   'novita.ai': novitaAiIcon,
   astraflow: astraflowIcon,
   'astraflow-cn': astraflowIcon,
+  jiaorong: duihuaIcon,
+  'openai-completions': duihuaIcon,
+  duihua: duihuaIcon,
   default: defaultIcon
 } as const
 
@@ -198,6 +202,9 @@ export type ModelIconKey = keyof typeof modelIcons
 export const DEFAULT_MODEL_ICON_KEY = 'default' satisfies ModelIconKey
 
 const ICON_CANDIDATE_KEYS = Object.keys(modelIcons) as ModelIconKey[]
+const ICON_CANDIDATE_KEYS_BY_LENGTH = [...ICON_CANDIDATE_KEYS].sort((left, right) => {
+  return right.length - left.length
+})
 const iconMatchCache = new Map<string, ModelIconKey>()
 
 export const resolveModelIconKey = (source: string | undefined): ModelIconKey | undefined => {
@@ -211,7 +218,17 @@ export const resolveModelIconKey = (source: string | undefined): ModelIconKey | 
     return cachedIconKey
   }
 
-  const matchedIconKey = ICON_CANDIDATE_KEYS.find((key) => normalizedSource.includes(key))
+  if (normalizedSource in modelIcons) {
+    const exactIconKey = normalizedSource as ModelIconKey
+    iconMatchCache.set(normalizedSource, exactIconKey)
+    return exactIconKey
+  }
+
+  const prefixIconKey = ICON_CANDIDATE_KEYS_BY_LENGTH.find(
+    (key) => normalizedSource === key || normalizedSource.startsWith(`${key}-`)
+  )
+  const matchedIconKey =
+    prefixIconKey ?? ICON_CANDIDATE_KEYS_BY_LENGTH.find((key) => normalizedSource.includes(key))
   if (matchedIconKey) {
     iconMatchCache.set(normalizedSource, matchedIconKey)
     return matchedIconKey
@@ -221,7 +238,6 @@ export const resolveModelIconKey = (source: string | undefined): ModelIconKey | 
 }
 
 const monoIconUrls = new Set<string>([
-  openaiColorIcon,
   openaiCodexColorIcon,
   dimcodeColorIcon,
   ollamaColorIcon,

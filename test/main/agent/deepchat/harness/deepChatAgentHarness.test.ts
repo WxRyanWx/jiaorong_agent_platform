@@ -3879,7 +3879,7 @@ describe('DeepChatAgentHarness', () => {
         source: 'agent',
         execution: TOOL_EXECUTION.read.parallel
       })
-      const question = agentTool('deepchat_question')
+      const question = agentTool('jiaorong_question')
       const hidden = agentTool('hidden_capability')
       const definitions = [question, hidden]
       providerSettings.getModelConfig.mockReturnValue({
@@ -3929,13 +3929,13 @@ describe('DeepChatAgentHarness', () => {
       await agent.initSession('s1', { providerId: 'openai', modelId: 'gpt-4' })
       await agent.processMessage('s1', 'Hello')
 
-      expect(providerToolNames).toEqual([['deepchat_question', TOOL_SEARCH_AGENT_TOOL_NAME]])
+      expect(providerToolNames).toEqual([['jiaorong_question', TOOL_SEARCH_AGENT_TOOL_NAME]])
       expect(bindings.map((binding) => binding.snapshot.adapterMode)).toEqual(['native-activation'])
       expect(
         bindings[0].snapshot.eligibleCatalog.entries.map(
           (entry) => entry.target.providerVisibleName
         )
-      ).toEqual(['deepchat_question', 'hidden_capability', TOOL_SEARCH_AGENT_TOOL_NAME])
+      ).toEqual(['jiaorong_question', 'hidden_capability', TOOL_SEARCH_AGENT_TOOL_NAME])
       expect(
         sqlitePresenter.deepchatTapeEntriesTable
           .getBySession('s1')
@@ -3956,7 +3956,7 @@ describe('DeepChatAgentHarness', () => {
         source: 'agent',
         execution: TOOL_EXECUTION.read.parallel
       })
-      const question = agentTool('deepchat_question')
+      const question = agentTool('jiaorong_question')
       const required = agentTool('skill_required')
       const hidden = agentTool('skill_optional_hidden')
       const definitions = [question, required, hidden]
@@ -4022,7 +4022,7 @@ describe('DeepChatAgentHarness', () => {
         expect(params.controls?.getActiveSkillNames?.()).toEqual(['session-skill'])
         expect(params.run.resources.activeSkillNames).toEqual(['session-skill'])
         expect(params.run.resources.toolDefinitions.map((tool) => tool.function.name)).toEqual([
-          'deepchat_question'
+          'jiaorong_question'
         ])
         if (preparation?.kind !== 'prepared') {
           throw new Error('Expected a prepared Skill activation.')
@@ -4032,7 +4032,7 @@ describe('DeepChatAgentHarness', () => {
         expect(params.controls?.getActiveSkillNames?.()).toEqual(['review-skill', 'session-skill'])
         expect(params.run.resources.activeSkillNames).toEqual(['review-skill', 'session-skill'])
         expect(params.run.resources.toolDefinitions.map((tool) => tool.function.name)).toEqual([
-          'deepchat_question',
+          'jiaorong_question',
           'skill_required',
           'skill_optional_hidden'
         ])
@@ -4078,7 +4078,7 @@ describe('DeepChatAgentHarness', () => {
       })
       expect(bindings).toHaveLength(2)
       expect(bindings[1].snapshot.toolDefinitions.map((tool) => tool.function.name)).toEqual([
-        'deepchat_question',
+        'jiaorong_question',
         TOOL_SEARCH_AGENT_TOOL_NAME,
         'skill_required'
       ])
@@ -4093,7 +4093,7 @@ describe('DeepChatAgentHarness', () => {
       const question: MCPToolDefinition = {
         type: 'function',
         function: {
-          name: 'deepchat_question',
+          name: 'jiaorong_question',
           description: 'Ask a question',
           parameters: { type: 'object', properties: {} }
         },
@@ -4134,7 +4134,7 @@ describe('DeepChatAgentHarness', () => {
         })
         expect(params.run.resources.activeSkillNames).toEqual([])
         expect(params.run.resources.toolDefinitions.map((tool) => tool.function.name)).toEqual([
-          'deepchat_question'
+          'jiaorong_question'
         ])
         return { status: 'completed', stopReason: 'complete' }
       })
@@ -4203,7 +4203,7 @@ describe('DeepChatAgentHarness', () => {
         execution: TOOL_EXECUTION.write,
         type: 'function',
         function: {
-          name: 'deepchat_question',
+          name: 'jiaorong_question',
           description: 'Ask the user a question',
           parameters: { type: 'object', properties: {} }
         },
@@ -4323,7 +4323,7 @@ describe('DeepChatAgentHarness', () => {
       await agent.initSession('s1', { providerId: 'openai', modelId: 'gpt-4' })
       await agent.processMessage('s1', 'Hello')
 
-      expect(providerToolNamesAtEntry).toEqual([['exec', 'deepchat_question'], []])
+      expect(providerToolNamesAtEntry).toEqual([['exec', 'jiaorong_question'], []])
       expect(providerExecStdinSchemas).toEqual([
         expect.objectContaining({
           type: 'string',
@@ -4406,7 +4406,7 @@ describe('DeepChatAgentHarness', () => {
             (tool: { target: { originalName: string } }) => tool.target.originalName
           )
         )
-      ).toEqual([['deepchat_question', 'exec'], []])
+      ).toEqual([['jiaorong_question', 'exec'], []])
       for (let index = 0; index < providerFacts.length; index += 1) {
         const activeTargets = new Set(
           providerFacts[index].activeEntries.map((entry: any) => entry.stableTargetKey)
@@ -12437,7 +12437,7 @@ describe('DeepChatAgentHarness', () => {
         {
           type: 'error',
           error_message:
-            'The provider reported a context overflow after response output began. DeepChat preserved the partial output and did not retry.',
+            'The provider reported a context overflow after response output began. JiaorongAI preserved the partial output and did not retry.',
           failure: { code: 'context_overflow_after_output', retryable: false }
         }
       ])
@@ -13845,7 +13845,7 @@ describe('DeepChatAgentHarness', () => {
       })
 
       await expect(agent.compactSession('s1')).rejects.toThrow(
-        'Manual compaction is only available for DeepChat agent sessions.'
+        'Manual compaction is only available for JiaorongAI agent sessions.'
       )
       expect(prepareSpy).not.toHaveBeenCalled()
     })
@@ -16191,6 +16191,9 @@ describe('DeepChatAgentHarness', () => {
         )
         expect(cleanupSpy).toHaveBeenCalledOnce()
         expect(cleanupSpy).toHaveBeenCalledWith(originalOffloadPath)
+        await expect(
+          fs.access(path.join(tempHome, '.jiaorongchat', 'sessions', 's1', 'tool_tc1.offload'))
+        ).rejects.toThrow()
         expect(processStream).toHaveBeenCalledTimes(1)
       } finally {
         hasContextBudgetSpy.mockRestore()

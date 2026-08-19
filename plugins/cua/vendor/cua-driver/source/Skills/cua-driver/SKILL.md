@@ -14,9 +14,9 @@ asks to drive a native macOS app, follow the loop in this skill rather
 than calling tools ad-hoc — the snapshot-before-action invariant is not
 optional and silently breaks if you skip it.
 
-## DeepChat MCP mode
+## JiaorongAI MCP mode
 
-When DeepChat auto-pins this skill because the Computer Use MCP server is
+When JiaorongAI auto-pins this skill because the Computer Use MCP server is
 enabled, use the available Computer Use tools in the current tool list
 directly. Treat examples such as `click({...})` or
 `get_window_state({...})` as calls to the matching MCP tool with the same
@@ -277,13 +277,13 @@ editor state.
    any missing grants, so the user can grant on the spot. If either
    grant still reads `false` after that (user dismissed the dialog),
    tell them to open System Settings → Privacy & Security and grant
-   Accessibility and Screen Recording to `DeepChat Computer Use.app`, then stop.
+   Accessibility and Screen Recording to `JiaorongAI Computer Use.app`, then stop.
    Pass `'{"prompt":false}'` for a purely read-only status check that
    won't steal focus.
-3. Start the daemon with `open -n -g -a "DeepChat Computer Use" --args serve` (the
+3. Start the daemon with `open -n -g -a "JiaorongAI Computer Use" --args serve` (the
    recommended form — goes through LaunchServices so TCC attributes
-   the process to DeepChat Computer Use.app). `cua-driver serve &` also works;
-   the CLI auto-relaunches through `open -n -g -a "DeepChat Computer Use"` when it
+   the process to JiaorongAI Computer Use.app). `cua-driver serve &` also works;
+   the CLI auto-relaunches through `open -n -g -a "JiaorongAI Computer Use"` when it
    detects a wrong-TCC context (any IDE-spawned shell: Claude Code,
    Cursor, VS Code, Conductor). Verify with `cua-driver status`.
 
@@ -293,7 +293,7 @@ Tool names are `snake_case`, management subcommands are
 `kebab-case` — no ambiguity. Tools invoked as `cua-driver
 <tool-name> '<JSON-args>'`. Management subcommands:
 
-- `open -n -g -a "DeepChat Computer Use" --args serve` — start persistent daemon
+- `open -n -g -a "JiaorongAI Computer Use" --args serve` — start persistent daemon
   (**required** for `element_index` workflows; without it each CLI
   invocation spawns a fresh process and the per-pid element cache
   dies between calls). `cua-driver serve &` also works — the CLI
@@ -306,7 +306,7 @@ Tool names are `snake_case`, management subcommands are
 Canonical multi-step workflow:
 
 ```
-open -n -g -a "DeepChat Computer Use" --args serve
+open -n -g -a "JiaorongAI Computer Use" --args serve
 cua-driver launch_app '{"bundle_id":"com.apple.calculator"}'
 # → {pid: 844, windows: [{window_id: 10725, ...}]}
 cua-driver get_window_state '{"pid":844,"window_id":10725}'

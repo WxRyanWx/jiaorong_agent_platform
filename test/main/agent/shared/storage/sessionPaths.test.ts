@@ -1,4 +1,5 @@
 import { createHash } from 'crypto'
+import { APP_HOME_DIR_NAME } from '@shared/appIdentity'
 import os from 'os'
 import path from 'path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -21,7 +22,7 @@ describe('sessionPaths offload path sanitization', () => {
     expect(filePath).toBe(
       path.join(
         homeDir,
-        '.deepchat',
+        APP_HOME_DIR_NAME,
         'sessions',
         'session-a',
         `tool_function.cdp_send_11_${fingerprint}.offload`

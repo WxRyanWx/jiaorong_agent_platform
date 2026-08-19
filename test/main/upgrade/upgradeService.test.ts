@@ -36,6 +36,7 @@ vi.mock('electron', () => ({
   app: {
     getPath: appGetPathMock,
     getVersion: appGetVersionMock,
+    isPackaged: true,
     quit: appQuitMock,
     relaunch: appRelaunchMock,
     exit: appExitMock
@@ -181,6 +182,7 @@ describe('UpgradeService', () => {
 
     await service.checkUpdate()
 
+    expect(electronUpdater.autoUpdater.channel).toBe('jrsi')
     expect(electronUpdater.autoUpdater.checkForUpdates).toHaveBeenCalledTimes(1)
   })
 

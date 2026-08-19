@@ -45,6 +45,13 @@ type ParsedMessageCacheEntry = {
   parsedMetadata?: MessageMetadata
 }
 
+function toPlainMessagePageCursor(
+  cursor: MessagePageCursor | { orderSeq: number; id: string } | null | undefined
+): { orderSeq: number; id: string } | null {
+  if (!cursor) return null
+  return { orderSeq: cursor.orderSeq, id: cursor.id }
+}
+
 // --- Store ---
 
 export const useMessageStore = defineStore('message', () => {
@@ -632,7 +639,7 @@ export const useMessageStore = defineStore('message', () => {
 
     while (messages.length < desiredCount && hasMoreValue && nextCursorValue) {
       const page = await sessionClient.listMessagesPage(sessionId, {
-        cursor: nextCursorValue,
+        cursor: toPlainMessagePageCursor(nextCursorValue),
         limit: Math.min(Math.max(desiredCount - messages.length, 1), 500)
       })
       if (!isCurrentLoadRequest(requestId, sessionId)) {
@@ -756,7 +763,7 @@ export const useMessageStore = defineStore('message', () => {
     isLoadingHistory.value = true
     try {
       const page = await sessionClient.listMessagesPage(sessionId, {
-        cursor: nextCursor.value,
+        cursor: toPlainMessagePageCursor(nextCursor.value),
         limit: 100
       })
       if (!isCurrentHistoryRequest(requestId, sessionId)) {

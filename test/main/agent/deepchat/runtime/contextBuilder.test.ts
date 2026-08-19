@@ -525,6 +525,34 @@ describe('buildContext', () => {
     expect(result[0].content).not.toEqual(expect.stringContaining('important attachment content'))
   })
 
+  it('inlines jiaorong knowledge-base context even when other file content is omitted', () => {
+    const store = createMockMessageStore([])
+    const result = buildContext(
+      's1',
+      {
+        text: '查零信任',
+        files: [
+          {
+            name: '知识库',
+            path: 'jiaorong-kb://context',
+            mimeType: 'application/x-jiaorong-kb-context',
+            content: '[交融知识库 · 强制工具调用]\n请使用 knowledge_base_retrieve'
+          } as any
+        ]
+      },
+      '',
+      10000,
+      4096,
+      store
+    )
+
+    expect(result[0].content).toEqual(expect.stringContaining('[交融知识库 · 强制工具调用]'))
+    expect(result[0].content).toEqual(expect.stringContaining('knowledge_base_retrieve'))
+    expect(result[0].content).not.toEqual(
+      expect.stringContaining('content: [omitted; use read if needed]')
+    )
+  })
+
   it('includes single prior exchange', () => {
     const messages = [makeUserRecord(1, 'First message'), makeAssistantRecord(2, 'First reply')]
     const store = createMockMessageStore(messages)
@@ -1775,7 +1803,7 @@ describe('buildResumeContext', () => {
             timestamp: Date.now(),
             tool_call: {
               id: 'tc-question',
-              name: 'deepchat_question',
+              name: 'jiaorong_question',
               params: '{"question":"Pick one"}',
               response: oversizedAnswer
             }
@@ -1788,7 +1816,7 @@ describe('buildResumeContext', () => {
             content: '',
             tool_call: {
               id: 'tc-question',
-              name: 'deepchat_question',
+              name: 'jiaorong_question',
               params: '{"question":"Pick one"}'
             },
             extra: { needsUserAction: false, answerText: 'selected option' }
@@ -1816,7 +1844,7 @@ describe('buildResumeContext', () => {
           {
             id: 'tc-question',
             type: 'function',
-            function: { name: 'deepchat_question', arguments: '{"question":"Pick one"}' }
+            function: { name: 'jiaorong_question', arguments: '{"question":"Pick one"}' }
           }
         ]
       },

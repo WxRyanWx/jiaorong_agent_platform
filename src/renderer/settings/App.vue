@@ -2,11 +2,11 @@
   <TooltipProvider :delay-duration="200">
     <div
       data-testid="settings-page"
-      class="w-full h-screen flex flex-col"
+      class="settings-page w-full h-screen flex flex-col"
       :class="isWinMacOS ? '' : 'bg-background'"
     >
       <div
-        class="w-full h-9 window-drag-region shrink-0 justify-end flex flex-row relative border border-b-0 border-window-inner-border box-border rounded-t-[10px]"
+        class="settings-page-header w-full h-9 window-drag-region shrink-0 justify-end flex flex-row relative border border-b-0 border-window-inner-border box-border rounded-t-[10px]"
         :class="[
           isMacOS ? '' : 'rounded-t-none',
           isMacOS ? 'bg-window-background' : 'bg-window-background/10'
@@ -29,11 +29,14 @@
         ></div>
         <div
           data-testid="settings-navigation"
-          class="w-60 h-full border-r border-border shrink-0 overflow-y-auto bg-muted/10"
+          class="settings-navigation w-60 h-full border-r border-border shrink-0 overflow-y-auto bg-muted/10"
         >
           <div class="flex flex-col gap-4 p-3">
             <div v-for="group in settingGroups" :key="group.key" class="flex flex-col gap-1">
-              <div class="px-2 text-xs font-medium text-muted-foreground">
+              <div
+                class="px-2 text-xs font-medium text-muted-foreground"
+                :class="{ hidden: isSidebarGroupVisuallyHidden(group) }"
+              >
                 {{ t(group.titleKey) }}
               </div>
               <div class="flex flex-col gap-1">
@@ -43,8 +46,11 @@
                   type="button"
                   :data-testid="getSettingsTabTestId(setting.name)"
                   :class="[
-                    'flex w-full min-w-0 flex-row items-center gap-2 rounded-md px-2 py-2 text-start transition-colors hover:bg-accent',
-                    route.name === setting.name ? 'bg-accent text-accent-foreground' : '',
+                    'settings-navigation-item w-full min-w-0 items-center gap-2 rounded-md px-2 py-2 text-start transition-colors hover:bg-accent',
+                    isSidebarItemVisuallyHidden(setting.name) ? 'hidden' : 'flex flex-row',
+                    route.name === setting.name
+                      ? 'settings-navigation-item-active bg-accent text-accent-foreground'
+                      : '',
                     pendingRouteName === setting.name ? 'cursor-wait' : ''
                   ]"
                   :aria-busy="pendingRouteName === setting.name"
@@ -56,7 +62,11 @@
                     v-if="pendingRouteName === setting.name"
                     class="size-4 shrink-0 text-muted-foreground"
                   />
-                  <Icon v-else :icon="setting.icon" class="size-4 shrink-0 text-muted-foreground" />
+                  <Icon
+                    v-else
+                    :icon="setting.icon"
+                    class="settings-navigation-icon size-4 shrink-0 text-muted-foreground"
+                  />
                   <span class="min-w-0 truncate text-sm font-medium">{{ t(setting.title) }}</span>
                 </button>
               </div>
@@ -130,13 +140,18 @@ import { settingsLeaveGuard } from './services/settingsLeaveGuard'
 import { installSettingsRouteLeaveGuard } from './services/settingsRouteLeaveGuard'
 import { nanoid } from 'nanoid'
 import {
-  getSettingsNavigationGroups,
+  getSettingsSidebarNavigationGroups,
   getSettingsRouteItems,
   resolveSettingsNavigationPath
 } from '@shared/settingsNavigation'
 import type { SettingsNavigationPayload } from '@shared/settingsNavigation'
 import { useStartupWorkloadStore } from '@/stores/startupWorkloadStore'
 import { preloadSettingsRoute } from './settingsRouteComponents'
+import {
+  getDefaultSettingsRouteName,
+  isForbiddenSettingsLandingRoute,
+  isSettingsSidebarItemVisuallyHidden
+} from '@jiaorong/config/settingsSidebarAdmin'
 
 const DATABASE_REPAIR_SECTION = 'database-repair'
 const SETTINGS_SECTION_EVENT = 'deepchat:settings-section'
@@ -192,6 +207,19 @@ const isProcessingProviderPreview = ref(false)
 const startupTimeOrigin = typeof performance !== 'undefined' ? performance.now() : Date.now()
 const hasLoggedFirstRouteResolved = ref(false)
 const pendingRouteName = ref<string | null>(null)
+
+const isSidebarItemVisuallyHidden = isSettingsSidebarItemVisuallyHidden
+
+const isSidebarGroupVisuallyHidden = (group: { items: { name: string }[] }) =>
+  group.items.length > 0 && group.items.every((item) => isSidebarItemVisuallyHidden(item.name))
+
+const redirectForbiddenLandingRoute = () => {
+  if (!isForbiddenSettingsLandingRoute(route.name)) {
+    return
+  }
+
+  void router.replace({ name: getDefaultSettingsRouteName() })
+}
 
 const logSettingsStartup = (phase: string) => {
   const now = typeof performance !== 'undefined' ? performance.now() : Date.now()
@@ -275,7 +303,9 @@ const semanticNotificationController = new SemanticNotificationController({
 let cleanupSemanticNotifications: (() => void) | undefined
 
 const handleSettingsNavigate = async (payload?: SettingsNavigationPayload) => {
-  const routeName = payload?.routeName
+  const routeName = isForbiddenSettingsLandingRoute(payload?.routeName)
+    ? getDefaultSettingsRouteName()
+    : payload?.routeName
   const params = normalizeRouteParams(payload?.params)
   if (!routeName || !router.hasRoute(routeName)) return
   await router.isReady()
@@ -529,22 +559,24 @@ const settings: Ref<
 )
 
 const settingGroups = ref(
-  getSettingsNavigationGroups(runtimePlatform, runtimeArch, import.meta.env.DEV).map((group) => ({
-    key: group.key,
-    titleKey: group.titleKey,
-    items: group.items.map((item) => ({
-      title: item.titleKey,
-      name: item.routeName,
-      icon: item.icon,
-      path: resolveSettingsNavigationPath(
-        item.routeName,
-        undefined,
-        runtimePlatform,
-        runtimeArch,
-        import.meta.env.DEV
-      )
-    }))
-  }))
+  getSettingsSidebarNavigationGroups(runtimePlatform, runtimeArch, import.meta.env.DEV).map(
+    (group) => ({
+      key: group.key,
+      titleKey: group.titleKey,
+      items: group.items.map((item) => ({
+        title: item.titleKey,
+        name: item.routeName,
+        icon: item.icon,
+        path: resolveSettingsNavigationPath(
+          item.routeName,
+          undefined,
+          runtimePlatform,
+          runtimeArch,
+          import.meta.env.DEV
+        )
+      }))
+    })
+  )
 )
 
 onMounted(() => {
@@ -580,6 +612,8 @@ watch(
   },
   { immediate: true }
 )
+
+watch(() => route.name, redirectForbiddenLandingRoute, { immediate: true })
 
 type SettingsNavigationItem = {
   name: string
@@ -657,6 +691,7 @@ watch(
 )
 
 const handleWindowFocus = () => {
+  redirectForbiddenLandingRoute()
   void syncPendingProviderInstall()
 }
 

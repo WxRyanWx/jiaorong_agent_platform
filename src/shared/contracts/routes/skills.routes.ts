@@ -452,7 +452,9 @@ export const skillsGetFolderTreeRoute = defineRouteContract({
 
 export const skillsOpenFolderRoute = defineRouteContract({
   name: 'skills.openFolder',
-  input: AgentSkillScopeSchema,
+  input: AgentSkillScopeSchema.extend({
+    name: z.string().optional()
+  }),
   output: z.object({
     opened: z.literal(true)
   })

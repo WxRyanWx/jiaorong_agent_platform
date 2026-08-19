@@ -18,6 +18,8 @@
     "src/preload/*.d.ts",
     "src/renderer/api/**/*",
     "src/renderer/services/**/*",
+    "src/jiaorong_src/**/*",
+    "src/jiaorong_src/**/*.vue",
     "src/shared/**/*",
     "src/shadcn/**/*",
     "src/dc-ui/**/*",
@@ -53,6 +55,12 @@
       ],
       "@dc-ui/*": [
         "./src/dc-ui/*"
+      ],
+      "@jiaorong": [
+        "./src/jiaorong_src/index.ts"
+      ],
+      "@jiaorong/*": [
+        "./src/jiaorong_src/*"
       ]
     }
   }

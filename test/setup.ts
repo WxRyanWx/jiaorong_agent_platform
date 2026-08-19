@@ -62,6 +62,8 @@ function getDefaultDeepchatInvokeResult(
       return { isDirectory: false }
     case 'file.writeImageBase64':
       return { path: '/tmp/mock-image.png' }
+    case 'file.writeTemp':
+      return { path: '/tmp/mock-temp.bin' }
     case 'device.getInfo':
       return {
         info: {

@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto'
+import { createReadStream } from 'node:fs'
 import { createRequire } from 'node:module'
 import { access, readFile } from 'node:fs/promises'
 import path from 'node:path'
@@ -50,6 +52,7 @@ export interface OcrRuntimeAssetResolverOptions {
   platform?: NodeJS.Platform
   arch?: string
   nodeRuntimePath?: string | null
+  hashNodeExecutable?: (nodeExecutable: string) => Promise<string>
 }
 
 interface PackagedRuntimeManifest {
@@ -248,6 +251,7 @@ export class OcrRuntimeAssetResolver {
           )
         })
       ])
+      await this.verifyNodeExecutableIdentity(assets.nodeExecutable)
       const [
         facadePackage,
         runtimePackage,
@@ -305,6 +309,27 @@ export class OcrRuntimeAssetResolver {
       throw new RuntimeAssetError('assets_missing', 'OCR runtime assets are incomplete', {
         cause: error
       })
+    }
+  }
+
+  private async verifyNodeExecutableIdentity(nodeExecutable: string): Promise<void> {
+    // Packaged Node is codesigned after afterPack; the unsigned pin must not be rechecked here.
+    if (this.options.isPackaged) return
+
+    const expectedSha256 = getPinnedNodeExecutableSha256(this.platform, this.arch)
+    if (!expectedSha256) {
+      throw new RuntimeAssetError(
+        'unsupported_platform',
+        'OCR Node runtime integrity metadata is missing for this target'
+      )
+    }
+    const hashNodeExecutable = this.options.hashNodeExecutable ?? sha256File
+    const actualSha256 = await hashNodeExecutable(nodeExecutable)
+    if (actualSha256 !== expectedSha256) {
+      throw new RuntimeAssetError(
+        'asset_identity_mismatch',
+        'Bundled Node runtime does not match the pinned OCR helper identity'
+      )
     }
   }
 
@@ -479,6 +504,25 @@ function groupArtifactInventory(
 
 function expectedNativePayloadEncoding(platform: NodeJS.Platform): LightOcrNativePayloadEncoding {
   return platform === 'darwin' ? 'gzip-base64-v1' : 'direct'
+}
+
+function getPinnedNodeExecutableSha256(platform: NodeJS.Platform, arch: string): string | null {
+  const artifacts = runtimeVersions.nodeArtifacts as Record<
+    string,
+    { executableSha256?: unknown } | undefined
+  >
+  const sha256 = artifacts[`${platform}-${arch}`]?.executableSha256
+  return typeof sha256 === 'string' && sha256.length === 64 ? sha256 : null
+}
+
+function sha256File(filePath: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const hash = createHash('sha256')
+    const stream = createReadStream(filePath)
+    stream.on('data', (chunk) => hash.update(chunk))
+    stream.once('error', reject)
+    stream.once('end', () => resolve(hash.digest('hex')))
+  })
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -1,5 +1,5 @@
 <template>
-  <div data-testid="settings-deepchat-agents-page" class="flex h-full w-full">
+  <div data-testid="settings-deepchat-agents-page" class="settings-agents-page flex h-full w-full">
     <aside class="flex w-[300px] shrink-0 flex-col border-r border-border">
       <div class="flex items-center justify-between gap-3 px-4 py-4">
         <div>
@@ -27,14 +27,14 @@
           class="w-full rounded-2xl border p-4 text-left transition-colors"
           :class="
             selectedAgentId === agent.id
-              ? 'border-primary bg-accent/40'
+              ? 'settings-agent-card-selected border-primary bg-accent/40'
               : 'border-border hover:bg-accent/20'
           "
           @click="selectAgent(agent.id)"
         >
           <div class="flex items-start gap-3">
             <div
-              class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-border/70 bg-muted/40"
+              class="settings-agent-avatar-container flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-border/70 bg-muted/40"
             >
               <AgentAvatar
                 :agent="{
@@ -64,7 +64,7 @@
       </div>
     </aside>
 
-    <main class="agent-editor-main min-w-0 flex-1 overflow-y-auto">
+    <main v-if="isEditorVisible" class="agent-editor-main min-w-0 flex-1 overflow-y-auto">
       <div
         data-testid="deepchat-agents-sticky-header"
         class="sticky top-0 z-20 border-b border-border/80 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85"
@@ -145,10 +145,17 @@
             <div
               class="flex h-10 items-center justify-between rounded-lg border border-border px-3"
             >
-              <span class="text-sm text-muted-foreground">
+              <span
+                class="text-sm text-muted-foreground"
+                :class="form.enabled ? 'settings-agent-status-enabled' : ''"
+              >
                 {{ form.enabled ? t('common.enabled') : t('common.disabled') }}
               </span>
-              <Switch :model-value="form.enabled" @update:model-value="form.enabled = $event" />
+              <Switch
+                class="settings-agent-switch"
+                :model-value="form.enabled"
+                @update:model-value="form.enabled = $event"
+              />
             </div>
           </label>
           <label class="space-y-2 md:col-span-2">
@@ -173,12 +180,14 @@
               class="rounded-xl border px-4 py-3 text-left"
               :class="
                 form.avatarKind === option.value
-                  ? 'border-primary bg-accent/40'
+                  ? 'settings-agent-avatar-option-selected border-primary bg-accent/40'
                   : 'border-border hover:bg-accent/20'
               "
               @click="form.avatarKind = option.value"
             >
-              <div class="text-sm font-medium">{{ option.label }}</div>
+              <div class="settings-agent-avatar-option-label text-sm font-medium">
+                {{ option.label }}
+              </div>
               <div class="mt-1 text-xs text-muted-foreground">{{ option.description }}</div>
             </button>
           </div>
@@ -251,7 +260,7 @@
                   <DcButton
                     variant="outline"
                     size="sm"
-                    class="h-8 w-full min-w-0 justify-between gap-1.5 rounded-lg px-2.5 text-xs"
+                    class="settings-agent-select h-8 w-full min-w-0 justify-between gap-1.5 rounded-lg px-2.5 text-xs"
                   >
                     <div class="flex min-w-0 items-center gap-1.5">
                       <ModelIcon
@@ -886,6 +895,7 @@ import {
   DEFAULT_AGENT_OUTPUT_LIMITS
 } from '@shared/lib/agentOutputLimits'
 import { settingsLeaveGuard } from '../services/settingsLeaveGuard'
+import { isSettingsSidebarAdmin } from '@shared/settingsSidebarAdmin'
 
 type ModelKey = 'chatModel' | 'assistantModel' | 'visionModel' | 'imageGenerationModel'
 type AvatarKind = 'default' | 'lucide' | 'monogram'
@@ -942,6 +952,7 @@ type FormState = {
 
 const LUCIDE_ICONS = ['bot', 'sparkles', 'brain', 'code', 'book-open', 'pen-tool', 'rocket']
 const DRAFT_AGENT_ID = '__draft_deepchat_agent__'
+const BUILT_IN_AGENT_ID = 'deepchat'
 const CURRENT_SUBAGENT_TARGET = '__current_agent__'
 const AUTO_COMPACTION_TRIGGER_THRESHOLD_DEFAULT = 80
 const AUTO_COMPACTION_TRIGGER_THRESHOLD_MIN = 5
@@ -973,7 +984,7 @@ const GROUP_ORDER = [
   'agent-core',
   'agent-image-generation',
   'agent-skills',
-  'deepchat-settings',
+  'jiaorong-settings',
   'yobrowser'
 ]
 const { t } = useI18n()
@@ -993,6 +1004,17 @@ const { status: saveStatus, run: runSave } = useDcFormSubmit()
 const saving = computed(() => saveStatus.value === 'submitting')
 const deleting = ref(false)
 const selectedAgentId = ref<string | null>(null)
+const isSettingsSidebarAdminUser = computed(() => isSettingsSidebarAdmin())
+const isBuiltInAgentId = (agentId: string | null | undefined) => agentId === BUILT_IN_AGENT_ID
+const isBuiltInAgentRestricted = (agentId: string | null | undefined) =>
+  isBuiltInAgentId(agentId) && !isSettingsSidebarAdminUser.value
+const isEditorVisible = computed(() => {
+  const agentId = selectedAgentId.value
+  if (!agentId || isBuiltInAgentRestricted(agentId)) {
+    return false
+  }
+  return true
+})
 const chatOpen = ref(false)
 const assistantOpen = ref(false)
 const visionOpen = ref(false)
@@ -1146,6 +1168,7 @@ const getGroupLabel = (serverName: string) => {
       return t('chat.input.tools.groups.agentImageGeneration')
     case 'agent-skills':
       return t('chat.input.tools.groups.agentSkills')
+    case 'jiaorong-settings':
     case 'deepchat-settings':
       return t('chat.input.tools.groups.deepchatSettings')
     case 'yobrowser':
@@ -1239,20 +1262,22 @@ const draftSidebarAgent = computed<SidebarAgentItem>(() => ({
   avatar: buildAvatar()
 }))
 const sidebarAgents = computed<SidebarAgentItem[]>(() => {
-  const savedAgents = deepchatAgents.value.map((agent) => ({
-    id: agent.id,
-    name: agent.name,
-    enabled: agent.enabled,
-    protected: Boolean(agent.protected),
-    avatar: agent.avatar ?? null,
-    icon: agent.icon
-  }))
+  const savedAgents = deepchatAgents.value
+    .filter((agent) => isSettingsSidebarAdminUser.value || !isBuiltInAgentId(agent.id))
+    .map((agent) => ({
+      id: agent.id,
+      name: agent.name,
+      enabled: agent.enabled,
+      protected: Boolean(agent.protected),
+      avatar: agent.avatar ?? null,
+      icon: agent.icon
+    }))
 
   if (selectedAgentId.value !== DRAFT_AGENT_ID) {
     return savedAgents
   }
 
-  if (savedAgents[0]?.id === 'deepchat') {
+  if (savedAgents[0]?.id === BUILT_IN_AGENT_ID) {
     return [savedAgents[0], draftSidebarAgent.value, ...savedAgents.slice(1)]
   }
 
@@ -1696,9 +1721,11 @@ const loadAgents = async (preferredId?: string | null) => {
   const list = await configClient.listAgents()
   allAgents.value = list
   const nextId =
-    preferredId && deepchatAgents.value.some((agent) => agent.id === preferredId)
+    preferredId &&
+    !isBuiltInAgentRestricted(preferredId) &&
+    deepchatAgents.value.some((agent) => agent.id === preferredId)
       ? preferredId
-      : (deepchatAgents.value[0]?.id ?? null)
+      : (deepchatAgents.value.find((agent) => !isBuiltInAgentRestricted(agent.id))?.id ?? null)
   selectedAgentId.value = nextId
   assignForm(fromAgent(deepchatAgents.value.find((agent) => agent.id === nextId) ?? null))
 }
@@ -1739,6 +1766,9 @@ const activateDraft = () => {
   assignForm(emptyForm())
 }
 const activateAgent = (agentId: string) => {
+  if (isBuiltInAgentRestricted(agentId)) {
+    return
+  }
   if (agentId === DRAFT_AGENT_ID) {
     activateDraft()
     return
@@ -1771,6 +1801,7 @@ const resetEditor = () => {
 }
 const saveAgent = () => {
   if (saving.value || !isDirty.value || !form.name.trim()) return
+  if (isBuiltInAgentRestricted(form.id)) return
 
   saveError.value = null
   void runSave(async () => {

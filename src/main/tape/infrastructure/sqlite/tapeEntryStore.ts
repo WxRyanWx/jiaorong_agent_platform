@@ -1087,17 +1087,40 @@ export class DeepChatTapeEntriesTable
   }
 
   ensureBootstrapAnchor(sessionId: string): void {
-    const existing = this.db
+    if (this.getBootstrapIncarnation(sessionId)) {
+      return
+    }
+
+    const startRow = this.db
       .prepare(
-        `SELECT entry_id
+        `SELECT entry_id, meta_json
          FROM deepchat_tape_entries
-         WHERE session_id = ? AND kind = 'anchor'
+         WHERE session_id = ? AND kind = 'anchor' AND name = 'session/start'
          ORDER BY entry_id ASC
          LIMIT 1`
       )
-      .get(sessionId) as { entry_id: number } | undefined
+      .get(sessionId) as { entry_id: number; meta_json: string } | undefined
 
-    if (existing) {
+    if (startRow) {
+      let meta: Record<string, unknown> = {}
+      try {
+        const parsed = JSON.parse(startRow.meta_json) as unknown
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          meta = parsed as Record<string, unknown>
+        }
+      } catch {
+        meta = {}
+      }
+      if (typeof meta[TAPE_INCARNATION_META_KEY] !== 'string' || !meta[TAPE_INCARNATION_META_KEY]) {
+        meta[TAPE_INCARNATION_META_KEY] = randomUUID()
+        this.db
+          .prepare(
+            `UPDATE deepchat_tape_entries
+             SET meta_json = ?
+             WHERE session_id = ? AND entry_id = ?`
+          )
+          .run(JSON.stringify(meta), sessionId, startRow.entry_id)
+      }
       return
     }
 

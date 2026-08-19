@@ -77,7 +77,7 @@ describe('DesktopSettings', () => {
       publishDeepchatEventMock
     )
 
-    expect(desktopSettings.getLanguage()).toBe('zh-HK')
+    expect(desktopSettings.getLanguage()).toBe('zh-CN')
 
     settings.get.mockReturnValue('fr-CA')
     expect(desktopSettings.getRequestedLanguage()).toBe('fr-FR')

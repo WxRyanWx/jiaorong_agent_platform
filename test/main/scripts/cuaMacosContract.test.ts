@@ -93,19 +93,19 @@ driver (architecture arm64):
   it('excludes only the managed CUA helper subtree from electron-builder signing', async () => {
     const config = parse(await readFile('electron-builder.yml', 'utf8'))
     expect(config.mac.signIgnore).toEqual([
-      '/Contents/Helpers/DeepChat Computer Use[.]app(?:/|$)'
+      '/Contents/Helpers/JiaorongAI Computer Use[.]app(?:/|$)'
     ])
 
     const ignored = config.mac.signIgnore.map((pattern: string) => new RegExp(pattern))
     const matches = (filePath: string) => ignored.some((pattern: RegExp) => pattern.test(filePath))
-    const helperPath = '/tmp/DeepChat.app/Contents/Helpers/DeepChat Computer Use.app'
+    const helperPath = '/tmp/JiaorongAI.app/Contents/Helpers/JiaorongAI Computer Use.app'
 
     expect(matches(helperPath)).toBe(true)
     expect(matches(`${helperPath}/Contents/MacOS/deepchat-cua-driver`)).toBe(true)
     expect(matches(`${helperPath}.backup/Contents/MacOS/deepchat-cua-driver`)).toBe(false)
-    expect(matches('/tmp/DeepChat.app/Contents/Helpers/DeepChat Helper.app')).toBe(false)
+    expect(matches('/tmp/JiaorongAI.app/Contents/Helpers/JiaorongAI Helper.app')).toBe(false)
     expect(
-      matches('/tmp/DeepChat.app/Contents/Resources/DeepChat Computer Use.app')
+      matches('/tmp/JiaorongAI.app/Contents/Resources/JiaorongAI Computer Use.app')
     ).toBe(false)
   })
 })

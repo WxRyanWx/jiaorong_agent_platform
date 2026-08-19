@@ -10,6 +10,7 @@ import type {
   KeyStatus,
   LLM_EMBEDDING_ATTRS
 } from '@shared/types/provider'
+import { HTTP_X_TITLE } from '@jiaorong/brand'
 import { DeviceService } from '../device'
 import { jsonrepair } from 'jsonrepair'
 import logger from '@shared/logger'
@@ -18,6 +19,8 @@ import { normalizeToolInputSchema } from './aiSdk/toolMapper'
 import type { ProviderLocalePort } from './ports'
 
 export const AUDIO_TRANSCRIPTION_NOT_SUPPORTED_ERROR = 'audio-transcription-not-supported'
+
+const defaultEnabledModels = ['jiaorong-deepseek-v4-pro']
 
 export function isAudioTranscriptionNotSupportedError(error: unknown): boolean {
   return error instanceof Error && error.message === AUDIO_TRANSCRIPTION_NOT_SUPPORTED_ERROR
@@ -53,7 +56,7 @@ export abstract class BaseLLMProvider {
 
   protected defaultHeaders: Record<string, string> = {
     'HTTP-Referer': 'https://deepchatai.cn',
-    'X-Title': 'DeepChat'
+    'X-Title': HTTP_X_TITLE
   }
 
   constructor(
@@ -245,11 +248,12 @@ export abstract class BaseLLMProvider {
       this.providerSettings.getModelStatus(providerId, model.id)
     )
 
-    // 不再自动启用模型，让用户手动选择启用需要的模型
     if (!hasEnabledModels) {
-      logger.info(
-        `Provider ${this.provider.name} models loaded, please manually enable the models you need`
-      )
+      this.models.forEach((model) => {
+        if (defaultEnabledModels.includes(model.id)) {
+          this.providerSettings.setModelStatus(providerId, model.id, true)
+        }
+      })
     }
   }
 

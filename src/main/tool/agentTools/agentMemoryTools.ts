@@ -81,7 +81,7 @@ function buildToolDefinition(
     server: {
       name: AGENT_MEMORY_TOOL_SERVER_NAME,
       icons: '🧠',
-      description: 'DeepChat long-term memory tools'
+      description: 'JiaorongAI long-term memory tools'
     }
   }
 }

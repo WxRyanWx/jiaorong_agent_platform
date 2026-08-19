@@ -840,6 +840,7 @@ export interface StartupBootstrapShell {
   activeSession?: SessionListItem | null
   agents: AgentBootstrapItem[]
   defaultProjectPath: string | null
+  defaultChatWorkspacePath?: string | null
 }
 
 export type ToolInteractionResponse =

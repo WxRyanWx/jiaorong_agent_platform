@@ -1,11 +1,17 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
+import { getToken, setupAuthGuard } from '@jiaorong/auth/host'
+import { createJiaorongRoutes } from '@jiaorong/router'
 
+/**
+ * 交融私有路由由 `@jiaorong/router` 统一聚合（login / skills / knowledge-base）。
+ * 宿主只挂载，不在此展开各子模块 loader。
+ */
 const router = createRouter({
   history: createWebHashHistory(import.meta.env.BASE_URL),
   routes: [
     {
       path: '/',
-      redirect: '/chat'
+      redirect: () => (getToken() ? '/chat' : '/login')
     },
     {
       path: '/chat',
@@ -97,8 +103,11 @@ const router = createRouter({
         titleKey: 'routes.welcome',
         icon: 'lucide:message-square'
       }
-    }
+    },
+    ...createJiaorongRoutes()
   ]
 })
+
+setupAuthGuard(router)
 
 export default router

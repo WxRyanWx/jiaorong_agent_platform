@@ -8,6 +8,7 @@ import type {
 import {
   DEFAULT_MODEL_TIMEOUT,
   DEFAULT_MODEL_CAPABILITY_FALLBACKS,
+  applyBuiltInModelCapabilityOverrides,
   resolveDerivedModelMaxTokens,
   resolveModelContextLength,
   resolveModelFunctionCall
@@ -500,7 +501,7 @@ export class ModelConfigHelper {
         apiEndpoint: ApiEndpointType.Chat,
         endpointType: undefined,
         thinkingBudget: undefined,
-        forceInterleavedThinkingCompat: undefined,
+        forceInterleavedThinkingCompat: true,
         reasoningEffort: undefined,
         verbosity: undefined,
         enableSearch: false,
@@ -512,7 +513,10 @@ export class ModelConfigHelper {
     }
 
     const normalizedFinalConfig = this.applyProviderSpecificPolicies(providerId, modelId, {
-      ...this.applyProviderFacts(finalConfig, providerFacts),
+      ...this.applyProviderFacts(
+        applyBuiltInModelCapabilityOverrides(providerId, modelId, finalConfig),
+        providerFacts
+      ),
       ...definedConfigFields(userConfig),
       isUserDefined: Boolean(userConfig)
     })

@@ -3210,7 +3210,7 @@ describe('DeepChatContextCoordinator', () => {
     expect(thrown).toEqual(
       expect.objectContaining({
         message:
-          'The provider reported a context overflow after response output began. DeepChat preserved the partial output and did not retry.'
+          'The provider reported a context overflow after response output began. JiaorongAI preserved the partial output and did not retry.'
       })
     )
     expect(thrown).not.toBe(rawError)

@@ -136,7 +136,7 @@ export function createSessionPermissionPort(dependencies: {
         }
       }
 
-      if (serverName === 'deepchat-settings' && toolName) {
+      if ((serverName === 'jiaorong-settings' || serverName === 'deepchat-settings') && toolName) {
         const leaseId = settingsPermissionService.approveProvisional(sessionId, toolName)
         return {
           kind: 'granted',

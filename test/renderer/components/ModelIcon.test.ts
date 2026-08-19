@@ -32,7 +32,7 @@ describe('ModelIcon', () => {
 
     const image = wrapper.get('img')
 
-    expect(image.attributes('alt')).toBe('dimcode')
+    expect(image.attributes('alt')).toBe('dimcode-acp')
     expect(image.attributes('src')).toBe(dimcodeIcon)
   })
 
@@ -79,6 +79,57 @@ describe('ModelIcon', () => {
 
     expect(image.attributes('alt')).toBe('kimi-for-coding')
     expect(image.attributes('src')).toBe(kimiIcon)
+  })
+
+  it('renders the local icon immediately without waiting for a load event', async () => {
+    const ModelIcon = (await import('@/components/icons/ModelIcon.vue')).default
+    const wrapper = mount(ModelIcon, {
+      props: {
+        modelId: 'jiaorong-deepseek-v4-pro',
+        customClass: 'w-3.5 h-3.5 shrink-0'
+      }
+    })
+
+    const image = wrapper.get('img')
+    expect(image.classes()).toEqual(
+      expect.arrayContaining(['w-3.5', 'h-3.5', 'shrink-0', 'model-icon-img'])
+    )
+    expect(image.classes()).not.toContain('opacity-0')
+  })
+
+  it('resolves jiaorong provider ids to the duihua icon', async () => {
+    const ModelIcon = (await import('@/components/icons/ModelIcon.vue')).default
+    const duihuaIcon = (await import('@/assets/llm-icons/duihua.png?url')).default
+    const wrapper = mount(ModelIcon, {
+      props: {
+        modelId: 'jiaorong'
+      }
+    })
+
+    const image = wrapper.get('img')
+
+    expect(image.attributes('alt')).toBe('jiaorong')
+    expect(image.attributes('src')).toBe(duihuaIcon)
+  })
+
+  it('resolves openai-completions and jiaorong model ids to the duihua icon', async () => {
+    const ModelIcon = (await import('@/components/icons/ModelIcon.vue')).default
+    const duihuaIcon = (await import('@/assets/llm-icons/duihua.png?url')).default
+    const apiType = mount(ModelIcon, {
+      props: {
+        modelId: 'openai-completions'
+      }
+    })
+    const modelId = mount(ModelIcon, {
+      props: {
+        modelId: 'jiaorong-deepseek-v4-pro'
+      }
+    })
+
+    expect(apiType.get('img').attributes('alt')).toBe('openai-completions')
+    expect(apiType.get('img').attributes('src')).toBe(duihuaIcon)
+    expect(modelId.get('img').attributes('alt')).toBe('jiaorong')
+    expect(modelId.get('img').attributes('src')).toBe(duihuaIcon)
   })
 
   it('resolves the basic API-key provider icons', async () => {
@@ -154,7 +205,7 @@ describe('ModelIcon', () => {
 
   it('keeps fuzzy matching for common model ids and provider apiType fallback', async () => {
     const ModelIcon = (await import('@/components/icons/ModelIcon.vue')).default
-    const openaiIcon = (await import('@/assets/llm-icons/openai.svg?url')).default
+    const duihuaIcon = (await import('@/assets/llm-icons/duihua.png?url')).default
     const claudeIcon = (await import('@/assets/llm-icons/claude-color.svg?url')).default
     const geminiIcon = (await import('@/assets/llm-icons/gemini-color.svg?url')).default
 
@@ -182,12 +233,12 @@ describe('ModelIcon', () => {
     })
 
     expect(gpt.get('img').attributes('alt')).toBe('gpt')
-    expect(gpt.get('img').attributes('src')).toBe(openaiIcon)
+    expect(gpt.get('img').attributes('src')).toBe(duihuaIcon)
     expect(claude.get('img').attributes('alt')).toBe('claude')
     expect(claude.get('img').attributes('src')).toBe(claudeIcon)
     expect(gemini.get('img').attributes('alt')).toBe('gemini')
     expect(gemini.get('img').attributes('src')).toBe(geminiIcon)
     expect(apiTypeFallback.get('img').attributes('alt')).toBe('openai')
-    expect(apiTypeFallback.get('img').attributes('src')).toBe(openaiIcon)
+    expect(apiTypeFallback.get('img').attributes('src')).toBe(duihuaIcon)
   })
 })

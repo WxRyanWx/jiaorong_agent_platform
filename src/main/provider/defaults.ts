@@ -2,6 +2,21 @@ import type { LLM_PROVIDER_BASE } from '@shared/types/provider'
 
 export const DEFAULT_PROVIDERS: LLM_PROVIDER_BASE[] = [
   {
+    id: 'jiaorong',
+    name: 'Jiaorong',
+    apiType: 'openai-completions',
+    apiKey: 'sk-ChWjO4ISHz6FmVIBrcI7mpki2CVJsQhz',
+    baseUrl: 'https://c4ai.ccccltd.cn/api/compatible/v1',
+    enable: true,
+    websites: {
+      official: 'https://c4ai.ccccltd.cn/',
+      apiKey: '',
+      docs: '',
+      models: '',
+      defaultBaseUrl: 'https://c4ai.ccccltd.cn/api/compatible/v1'
+    }
+  },
+  {
     id: 'ollama',
     name: 'Ollama',
     apiType: 'ollama',

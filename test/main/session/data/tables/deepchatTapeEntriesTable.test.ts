@@ -466,6 +466,49 @@ describeIfSqlite('DeepChatTapeEntriesTable', () => {
     db.close()
   })
 
+  it('backfills tapeIncarnationId onto a legacy session/start anchor', () => {
+    const { db, table } = createTable()
+    table.appendAnchor({
+      sessionId: 'legacy',
+      name: 'session/start',
+      source: { type: 'session', id: 'legacy', seq: 0 },
+      state: { owner: 'human' },
+      meta: {},
+      idempotent: true
+    })
+    expect(table.getBootstrapIncarnation('legacy')).toBeUndefined()
+
+    table.ensureBootstrapAnchor('legacy')
+
+    const incarnation = table.getBootstrapIncarnation('legacy')
+    expect(incarnation).toEqual(expect.any(String))
+    expect(table.getBySession('legacy')).toHaveLength(1)
+    table.ensureBootstrapAnchor('legacy')
+    expect(table.getBootstrapIncarnation('legacy')).toBe(incarnation)
+
+    db.close()
+  })
+
+  it('creates session/start even when another anchor already exists', () => {
+    const { db, table } = createTable()
+    table.appendAnchor({
+      sessionId: 's1',
+      name: 'compaction/manual',
+      state: { summary: 'old', cursorOrderSeq: 1 }
+    })
+    expect(table.getBootstrapIncarnation('s1')).toBeUndefined()
+
+    table.ensureBootstrapAnchor('s1')
+
+    expect(table.getBootstrapIncarnation('s1')).toEqual(expect.any(String))
+    expect(table.getBySession('s1').map((row) => row.name)).toEqual([
+      'compaction/manual',
+      'session/start'
+    ])
+
+    db.close()
+  })
+
   it('deletes Tape and its mutation projection through the lifecycle adapter', () => {
     const db = new DatabaseCtor(':memory:')
     const projection = {

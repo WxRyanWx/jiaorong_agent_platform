@@ -410,7 +410,7 @@ export class AcpLaunchSpecService {
     expectedSha256?: string
   ): Promise<DownloadedArchive> {
     const safeAgentId = sanitizeInstallSegment(agent.id, 'agent id')
-    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), `deepchat-acp-${safeAgentId}-`))
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), `jiaorong-acp-${safeAgentId}-`))
     try {
       const archiveName = path.basename(new URL(url).pathname)
       if (!archiveName) {

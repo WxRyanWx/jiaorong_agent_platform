@@ -1,6 +1,6 @@
 # Computer Use Workflow
 
-This skill uses DeepChat's plugin-provided Computer Use tools.
+This skill uses JiaorongAI's plugin-provided Computer Use tools.
 
 Core workflow:
 
@@ -43,4 +43,4 @@ Unsupported bundled targets:
 
 - `linux/arm64`
 
-Do not ask the user to install CUA manually for DeepChat's bundled plugin.
+Do not ask the user to install CUA manually for JiaorongAI's bundled plugin.

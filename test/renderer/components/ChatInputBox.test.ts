@@ -105,6 +105,7 @@ vi.mock('@tiptap/vue-3', () => {
           meta: {},
           setSelection: vi.fn(() => tr),
           delete: vi.fn(() => tr),
+          split: vi.fn(() => tr),
           setMeta: vi.fn((key: string, value: unknown) => {
             tr.meta[key] = value
             return tr
@@ -143,6 +144,10 @@ vi.mock('@tiptap/vue-3', () => {
           this.commandMock({ command: 'insertContentAt', args })
           return api
         }),
+        command: (fn: (props: { tr: any }) => boolean) => {
+          fn({ tr: this.state.tr })
+          return api
+        },
         deleteRange: vi.fn(() => api),
         run: () => true,
         setHardBreak: () => ({
@@ -800,6 +805,63 @@ describe('ChatInputBox attachments', () => {
 
     expect(pendingSkillsRef.value).toEqual(['review', 'commit'])
     expect((wrapper.vm as any).getPendingSkillsSnapshot()).toEqual(['review', 'commit'])
+  })
+
+  it('exposes activateSkill for start-deeplink skill chips', async () => {
+    const wrapper = await mountComponent()
+
+    await (wrapper.vm as any).activateSkill('skill-creator')
+
+    expect(activateSkillMock).toHaveBeenCalledWith('skill-creator')
+  })
+
+  it('inserts new skill chips at the start of the first line', async () => {
+    const wrapper = await mountComponent()
+    lastEditorInstance.commandMock.mockClear()
+
+    activeSkillsRef.value = ['skill-creator']
+    await nextTick()
+
+    expect(lastEditorInstance.commandMock).toHaveBeenCalledWith({
+      command: 'insertContentAt',
+      args: [
+        1,
+        [{ type: 'skillChip', attrs: { skillName: 'skill-creator' } }],
+        { updateSelection: false }
+      ]
+    })
+  })
+
+  it('keeps pending skills when replacing editor content throws', async () => {
+    const wrapper = await mountComponent()
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    lastEditorInstance.commands.setContent.mockImplementation(() => {
+      throw new TypeError("Cannot read properties of undefined (reading 'props')")
+    })
+
+    try {
+      await wrapper.setProps({ modelValue: '创建一个新的技能，这个技能的功能是：' })
+      ;(wrapper.vm as any).setPendingSkills(['skill-creator'])
+      expect(pendingSkillsRef.value).toEqual(['skill-creator'])
+    } finally {
+      warn.mockRestore()
+    }
+  })
+
+  it('does not erase a prefilled prompt when the editor only has skill chips', async () => {
+    const wrapper = await mountComponent()
+    await wrapper.setProps({ modelValue: '创建一个新的技能，这个技能的功能是：' })
+    lastEditorInstance.getText = () => ''
+    lastEditorInstance.state.doc.descendants = (callback: (node: any, pos: number) => void) => {
+      callback(node('skillChip', { skillName: 'skill-creator' }), 0)
+    }
+
+    lastEditorOptions.onUpdate({
+      editor: lastEditorInstance,
+      transaction: { getMeta: vi.fn(() => false) }
+    })
+
+    expect(wrapper.emitted('update:modelValue') ?? []).not.toContainEqual([''])
   })
 
   it('exposes editor document snapshots and reports session skill draft changes', async () => {

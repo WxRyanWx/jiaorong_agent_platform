@@ -195,6 +195,20 @@ const ProgrammaticToolBatchStepSchema = z
 
 const MCPToolDefinitionSchema = z.custom<MCPToolDefinition>()
 
+const ToolDisplayMetadataSchema = z.object({
+  name: z.string().min(1),
+  displayName: z.string().optional(),
+  description: z.string().optional()
+})
+
+export const toolsDisplayCatalogRoute = defineRouteContract({
+  name: 'tools.displayCatalog',
+  input: z.object({}),
+  output: z.object({
+    tools: z.array(ToolDisplayMetadataSchema)
+  })
+})
+
 export const toolsListDefinitionsRoute = defineRouteContract({
   name: 'tools.listDefinitions',
   input: z.object({

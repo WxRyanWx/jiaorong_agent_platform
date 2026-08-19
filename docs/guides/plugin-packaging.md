@@ -120,8 +120,8 @@ Runtime detection inside the package uses architecture-specific paths. Packaged 
 the helper staged into the main app bundle, then fall back to the plugin-local helper:
 
 ```text
-app-helper:DeepChat Computer Use.app/Contents/MacOS/deepchat-cua-driver
-plugin:runtime/darwin/<arch>/DeepChat Computer Use.app/Contents/MacOS/deepchat-cua-driver
+app-helper:JiaorongAI Computer Use.app/Contents/MacOS/deepchat-cua-driver
+plugin:runtime/darwin/<arch>/JiaorongAI Computer Use.app/Contents/MacOS/deepchat-cua-driver
 plugin:runtime/win32/<arch>/cua-driver.exe
 plugin:runtime/linux/<arch>/cua-driver
 ```
@@ -188,10 +188,10 @@ Electron Builder embeds `.dcplugin` files from `build/bundled-plugins/` into:
 <app>/resources/app.asar.unpacked/plugins/               (Windows/Linux)
 ```
 
-On macOS, Electron Builder also embeds `build/managed-helpers/DeepChat Computer Use.app` into:
+On macOS, Electron Builder also embeds `build/managed-helpers/JiaorongAI Computer Use.app` into:
 
 ```text
-<app>/Contents/Helpers/DeepChat Computer Use.app
+<app>/Contents/Helpers/JiaorongAI Computer Use.app
 ```
 
 Each reusable target job verifies the expected bundled `.dcplugin` files inside the packaged app

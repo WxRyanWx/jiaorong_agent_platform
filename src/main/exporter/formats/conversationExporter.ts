@@ -36,7 +36,7 @@ export function generateExportFilename(
     .replace('T', '_')
     .substring(0, 19)
 
-  return `export_deepchat_${formattedTimestamp}.${extension}`
+  return `export_jiaorongchat_${formattedTimestamp}.${extension}`
 }
 
 export function buildConversationExportContent(

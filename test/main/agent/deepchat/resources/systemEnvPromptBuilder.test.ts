@@ -35,6 +35,9 @@ describe('buildSystemEnvPrompt', () => {
 
     expect(prompt).toContain('Working directory: /tmp/deepchat-env-prompt-missing')
     expect(prompt).toContain('Shell: sh.')
+    expect(prompt).toContain('You are powered by the model named Jiaorong-Ai.')
+    expect(prompt).toContain('The exact model ID is Jiaorong-Ai')
+    expect(prompt).not.toContain('unknown-model')
     expect(prompt).not.toContain('Instructions from:')
     expect(logger.warn).not.toHaveBeenCalledWith(
       '[SystemEnvPromptBuilder] Failed to read AGENTS.md',

@@ -70,11 +70,11 @@ platforms.forEach((platform) => {
   }
   // Start of Selection
   if (os === 'windows') {
-    platformData.githubUrl = `https://github.com/ThinkInAIXYZ/deepchat/releases/download/v${params.version}/DeepChat-${params.version}-windows-${arch}.exe`
+    platformData.githubUrl = `https://github.com/ThinkInAIXYZ/deepchat/releases/download/v${params.version}/JiaorongAI-${params.version}-windows-${arch}.exe`
   } else if (os === 'mac') {
-    platformData.githubUrl = `https://github.com/ThinkInAIXYZ/deepchat/releases/download/v${params.version}/DeepChat-${params.version}-mac-${arch}.dmg`
+    platformData.githubUrl = `https://github.com/ThinkInAIXYZ/deepchat/releases/download/v${params.version}/JiaorongAI-${params.version}-mac-${arch}.dmg`
   } else if (os === 'linux') {
-    platformData.githubUrl = `https://github.com/ThinkInAIXYZ/deepchat/releases/download/v${params.version}/DeepChat-${params.version}-linux-${arch}.tar.gz`
+    platformData.githubUrl = `https://github.com/ThinkInAIXYZ/deepchat/releases/download/v${params.version}/JiaorongAI-${params.version}-linux-${arch}.tar.gz`
   }
   // 写入文件
   const outputPath = path.join(process.cwd(), `${platform}.json`)

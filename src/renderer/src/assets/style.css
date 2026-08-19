@@ -7,6 +7,7 @@
 @plugin "tailwindcss-animate";
 
 @source '../**/*.{vue,ts,tsx,js,jsx}';
+@source '../../../jiaorong_src/**/*.{vue,ts,tsx,js,jsx}';
 @source '../../services/**/*.{vue,ts,tsx,js,jsx}';
 @source '../../browser/**/*.{vue,ts,tsx,js,jsx}';
 @source '../../../shadcn/components/**/*.{vue,ts,tsx,js,jsx}';
@@ -939,6 +940,13 @@
       transition-duration: 1ms !important;
       animation-duration: 1ms !important;
       animation-iteration-count: 1 !important;
+    }
+
+    /* 加载指示器保留旋转（否则看起来像卡住）；需压过上方 * 的 !important */
+    .skill-center-page__state-spinner,
+    .animate-spin {
+      animation-duration: 1s !important;
+      animation-iteration-count: infinite !important;
     }
   }
 

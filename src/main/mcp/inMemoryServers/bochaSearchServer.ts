@@ -211,7 +211,7 @@ export class BochaSearchServer {
                 type: 'resource',
                 resource: {
                   uri: item.url,
-                  mimeType: 'application/deepchat-webpage', // 保持你的类型
+                  mimeType: 'application/jiaorong-webpage', // 保持你的类型
                   text: JSON.stringify(blobContent)
                 }
               }
@@ -279,7 +279,7 @@ export class BochaSearchServer {
                           type: 'resource',
                           resource: {
                             uri: item.url,
-                            mimeType: 'application/deepchat-webpage', // 保持你的类型
+                            mimeType: 'application/jiaorong-webpage', // 保持你的类型
                             text: JSON.stringify(blobContent)
                           }
                         })

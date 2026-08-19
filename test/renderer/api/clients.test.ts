@@ -907,6 +907,8 @@ describe('renderer api clients', () => {
               return { path: '/workspace', version: 1 }
             case 'tools.listDefinitions':
               return { tools: [] }
+            case 'tools.displayCatalog':
+              return { tools: [] }
             case 'memory.add':
               addedMemoryCategory = payload?.category ?? null
               return { result: { action: 'created', memoryId: 'mem-added' } }

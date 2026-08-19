@@ -775,6 +775,29 @@ describe('McpService', () => {
     expect(serverManagerMocks.stopServer).not.toHaveBeenCalled()
   })
 
+  it('starts jiaorong knowledge-base MCP through the generic route despite plugin metadata', async () => {
+    const providerSettings = createProviderSettings(true, false, {
+      'jiaorong-knowledge-base': {
+        enabled: true,
+        type: 'http',
+        source: 'plugin',
+        ownerPluginId: 'jiaorong'
+      }
+    })
+    const presenter = createMcpService(providerSettings)
+    ;(presenter as any).serverManager = {
+      startServer: serverManagerMocks.startServer
+    }
+    serverManagerMocks.startServer.mockResolvedValue('connected')
+
+    await presenter.startServer('jiaorong-knowledge-base')
+
+    expect(serverManagerMocks.startServer).toHaveBeenCalledWith(
+      'jiaorong-knowledge-base',
+      expect.objectContaining({ waitForConnection: false })
+    )
+  })
+
   it('keeps plugin-owned tool definitions available when MCP is globally disabled', async () => {
     const providerSettings = createProviderSettings(false, false, {
       regular: { enabled: true },

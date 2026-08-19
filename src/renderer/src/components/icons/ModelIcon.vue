@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useProviderStore } from '@/stores/providerStore'
 import { useAgentStore } from '@/stores/ui/agent'
 import AcpAgentIcon from './AcpAgentIcon.vue'
@@ -24,16 +24,6 @@ const props = withDefaults(defineProps<Props>(), {
 const providerStore = useProviderStore()
 const agentStore = useAgentStore()
 const iconLoadFailed = ref(false)
-const iconLoaded = ref(false)
-const imgRef = ref<HTMLImageElement | null>(null)
-
-const syncCachedIconLoad = async () => {
-  await nextTick()
-  const img = imgRef.value
-  if (img?.complete && img.naturalWidth > 0) {
-    iconLoaded.value = true
-  }
-}
 
 const provider = computed(() => {
   if (!props.modelId) return undefined
@@ -80,21 +70,13 @@ watch(
   () => [props.modelId, dynamicAgentIcon.value] as const,
   () => {
     iconLoadFailed.value = false
-    iconLoaded.value = false
-    void syncCachedIconLoad()
-  },
-  { immediate: true }
+  }
 )
 
 const handleIconError = () => {
   if (dynamicAgentIcon.value) {
     iconLoadFailed.value = true
   }
-  iconLoaded.value = true
-}
-
-const handleIconLoad = () => {
-  iconLoaded.value = true
 }
 </script>
 
@@ -107,39 +89,30 @@ const handleIconLoad = () => {
     :fallback-text="props.modelId"
     :custom-class="customClass"
   />
-  <span
+  <img
     v-else
-    class="model-icon-shell relative inline-flex shrink-0 items-center justify-center overflow-hidden"
-    :class="customClass"
-  >
-    <span
-      v-if="!iconLoaded"
-      class="model-icon-skeleton absolute inset-0 rounded-sm bg-muted/70"
-      aria-hidden="true"
-    />
-    <img
-      ref="imgRef"
-      :src="resolvedIconSrc"
-      :alt="iconKey"
-      :class="[
-        'size-full object-contain',
-        { invert },
-        invert
-          ? iconLoaded
-            ? 'opacity-50'
-            : 'opacity-0'
-          : iconLoaded
-            ? 'opacity-100'
-            : 'opacity-0'
-      ]"
-      decoding="async"
-      @load="handleIconLoad"
-      @error="handleIconError"
-    />
-  </span>
+    :src="resolvedIconSrc"
+    :alt="iconKey"
+    :class="[
+      customClass,
+      'model-icon-img shrink-0 object-contain',
+      { invert },
+      invert ? 'opacity-50' : ''
+    ]"
+    @error="handleIconError"
+  />
 </template>
 
 <style scoped>
+/* Size class must stay on the replaced img (master). Preflight
+   `img { max-width:100%; height:auto }` collapses percentage-sized imgs in flex. */
+.model-icon-img {
+  display: block;
+  max-width: none;
+  max-height: none;
+  flex-shrink: 0;
+}
+
 .invert {
   filter: invert(1);
 }

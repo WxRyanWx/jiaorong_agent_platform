@@ -40,7 +40,7 @@ describe('settings navigation helpers', () => {
     expect(resolveSettingsNavigationPath('settings-provider')).toBe('/provider')
   })
 
-  it('keeps plugin settings route available but hidden from settings sidebar', () => {
+  it('keeps plugin settings in the settings sidebar on supported targets', () => {
     expect(
       getSettingsRouteItems('darwin', 'arm64').some((item) => item.routeName === 'settings-plugins')
     ).toBe(true)
@@ -48,22 +48,12 @@ describe('settings navigation helpers', () => {
       getSettingsNavigationItems('darwin', 'arm64').some(
         (item) => item.routeName === 'settings-plugins'
       )
-    ).toBe(false)
+    ).toBe(true)
     expect(
       getSettingsNavigationItems('win32', 'x64').some(
         (item) => item.routeName === 'settings-plugins'
       )
-    ).toBe(false)
-    expect(
-      getSettingsNavigationItems('win32', 'arm64').some(
-        (item) => item.routeName === 'settings-plugins'
-      )
-    ).toBe(false)
-    expect(
-      getSettingsNavigationItems('linux', 'x64').some(
-        (item) => item.routeName === 'settings-plugins'
-      )
-    ).toBe(false)
+    ).toBe(true)
     expect(resolveSettingsNavigationPath('settings-plugins', undefined, 'darwin', 'arm64')).toBe(
       '/plugins'
     )
@@ -76,7 +66,7 @@ describe('settings navigation helpers', () => {
       )
     ).toBe(false)
     expect(resolveSettingsNavigationPath('settings-plugins', undefined, 'linux', 'arm64')).toBe(
-      '/overview'
+      '/deepchat-agents'
     )
   })
 

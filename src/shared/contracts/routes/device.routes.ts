@@ -39,7 +39,8 @@ export const deviceSelectFilesRoute = defineRouteContract({
           })
         )
         .optional(),
-      multiple: z.boolean().optional()
+      multiple: z.boolean().optional(),
+      allowDirectory: z.boolean().optional()
     })
     .default({}),
   output: z.object({

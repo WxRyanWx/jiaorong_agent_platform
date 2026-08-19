@@ -78,7 +78,8 @@ describe('SkillService shared Skills', () => {
           throw new Error('Simulated settings write failure')
         }
         storedState = structuredClone(state)
-      }
+      },
+      getJiaorongSkillSwitchSetting: () => undefined
     } as unknown as SkillSettingsPort
     const sessionState = {
       hasNewSession: vi.fn(async () => true),

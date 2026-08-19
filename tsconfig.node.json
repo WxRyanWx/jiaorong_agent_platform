@@ -5,7 +5,14 @@
     "src/cli/**/*",
     "src/main/**/*",
     "src/preload/**/*",
-    "src/shared/**/*"
+    "src/shared/**/*",
+    "src/jiaorong_src/prompts/**/*",
+    "src/jiaorong_src/config/**/*",
+    "src/jiaorong_src/brand/**/*",
+    "src/jiaorong_src/logging/**/*",
+    "src/jiaorong_src/utils/skillSwitchCore.ts",
+    "src/jiaorong_src/knowledgeBase/mcp/knowledgeBaseMcpConstants.ts",
+    "src/jiaorong_src/api/auth/config.ts"
   ],
   "compilerOptions": {
     "composite": true,
@@ -21,6 +28,12 @@
       ],
       "@shared/*": [
         "./src/shared/*"
+      ],
+      "@jiaorong": [
+        "./src/jiaorong_src/index.ts"
+      ],
+      "@jiaorong/*": [
+        "./src/jiaorong_src/*"
       ]
     }
   }

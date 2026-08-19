@@ -33,7 +33,8 @@ export const DEV_EVENTS = {
 export const DEEPLINK_EVENTS = {
   PROTOCOL_RECEIVED: 'deeplink:protocol-received',
   START: 'deeplink:start',
-  MCP_INSTALL: 'deeplink:mcp-install'
+  MCP_INSTALL: 'deeplink:mcp-install',
+  AUTH_LOGIN: 'deeplink:auth-login'
 }
 
 export const SHORTCUT_EVENTS = {

@@ -1,4 +1,5 @@
 import '@/assets/main.css'
+import '@jiaorong/brand/theme.less'
 import { createPinia } from 'pinia'
 import { PiniaColada } from '@pinia/colada'
 import { createApp } from 'vue'
@@ -6,7 +7,11 @@ import { createRouter, createWebHashHistory } from 'vue-router'
 
 import App from './App.vue'
 import { createRendererI18n } from '@/i18n/bootstrap'
-import { getSettingsRouteItems } from '@shared/settingsNavigation'
+import { getSettingsRouteItems, resolveSettingsNavigationPath } from '@shared/settingsNavigation'
+import {
+  getDefaultSettingsRouteName,
+  isForbiddenSettingsLandingRoute
+} from '@jiaorong/config/settingsSidebarAdmin'
 import { preloadIcons } from '../src/lib/iconLoader'
 import { createConfigClient } from '@api/ConfigClient'
 import { getRuntimeArch, getRuntimePlatform } from '@api/runtime'
@@ -15,6 +20,14 @@ import { settingsRouteComponents } from './settingsRouteComponents'
 const runtimePlatform = getRuntimePlatform()
 const runtimeArch = getRuntimeArch()
 const settingsRouteItems = getSettingsRouteItems(runtimePlatform, runtimeArch, import.meta.env.DEV)
+const defaultSettingsRouteName = getDefaultSettingsRouteName()
+const defaultSettingsPath = resolveSettingsNavigationPath(
+  defaultSettingsRouteName,
+  undefined,
+  runtimePlatform,
+  runtimeArch,
+  import.meta.env.DEV
+)
 
 // Create router instance specifically for settings
 const router = createRouter({
@@ -25,12 +38,14 @@ const router = createRouter({
         ? {
             path: item.path,
             name: item.routeName,
-            redirect: {
-              name: 'settings-overview',
-              query: {
-                section: 'usage'
-              }
-            },
+            redirect: isForbiddenSettingsLandingRoute(item.routeName)
+              ? { name: defaultSettingsRouteName }
+              : {
+                  name: 'settings-overview',
+                  query: {
+                    section: 'usage'
+                  }
+                },
             meta: {
               titleKey: item.titleKey,
               icon: item.icon,
@@ -50,9 +65,17 @@ const router = createRouter({
     ),
     {
       path: '/',
-      redirect: '/overview'
+      redirect: defaultSettingsPath
     }
   ]
+})
+
+router.beforeEach((to) => {
+  if (!isForbiddenSettingsLandingRoute(to.name) || to.name === defaultSettingsRouteName) {
+    return true
+  }
+
+  return { name: defaultSettingsRouteName }
 })
 
 async function bootstrap() {

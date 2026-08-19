@@ -18,6 +18,7 @@ export const BUILTIN_MCP_ALLOWLIST_COMPATIBILITY_KEY = 'builtin-mcp-allowlist-co
 export const DISABLED_SEARCH_TOOL_CLEANUP_V1_KEY = 'agent-disabled-search-tool-cleanup-v1'
 export const DISABLED_AGENT_TOOL_CAPABILITY_CLEANUP_KEY =
   'agent-disabled-tool-capability-cleanup-v2'
+export const TAPE_BOOTSTRAP_BACKFILL_KEY = 'tape-bootstrap-backfill-v1'
 
 export type SessionDataMigrationSQLitePort = Pick<SettingsDatabase, 'appSettingsTable'> &
   Pick<
@@ -357,7 +358,7 @@ export async function runBuiltinMcpAllowlistCompatibilityMigration({
       const updated = await agentSettings.updateDeepChatAgent(BUILTIN_DEEPCHAT_AGENT_ID, {
         config: { enabledMcpServerIds: null }
       })
-      if (!updated) throw new Error('Built-in DeepChat Agent not found')
+      if (!updated) throw new Error('Built-in JiaorongAI Agent not found')
     }
 
     const finishedAt = Date.now()
@@ -526,6 +527,105 @@ export async function runDisabledAgentToolCapabilityCleanupMigration(
       configProcessedCount,
       configUpdatedCount,
       error: error instanceof Error ? error.message : String(error)
+    })
+    throw error
+  }
+}
+
+type TapeBootstrapBackfillDependencies = {
+  sqlitePresenter: Pick<SessionDataMigrationSQLitePort, 'appSettingsTable' | 'getDatabase'>
+  ensureSessionTapeBootstrap: (sessionId: string) => void
+}
+
+/**
+ * 旧会话没有 Tape `session/start.tapeIncarnationId`（DeepChat 后加字段）。
+ * 升级/重装启动时给每条 new_sessions 补 bootstrap，否则继续对话会报
+ * “Session Tape bootstrap is missing or invalid.”
+ */
+export async function runTapeBootstrapBackfillMigration(
+  { sqlitePresenter, ensureSessionTapeBootstrap }: TapeBootstrapBackfillDependencies,
+  taskContext?: StartupWorkloadTaskContext
+): Promise<void> {
+  const current =
+    sqlitePresenter.appSettingsTable.getAppSetting<{ status?: 'running' | 'completed' | 'failed' }>(
+      TAPE_BOOTSTRAP_BACKFILL_KEY
+    ) ?? null
+  if (current?.status === 'completed') return
+
+  const startedAt = Date.now()
+  const batchSize = 50
+  let processedCount = 0
+  sqlitePresenter.appSettingsTable.setAppSetting(TAPE_BOOTSTRAP_BACKFILL_KEY, {
+    status: 'running',
+    startedAt,
+    finishedAt: null,
+    updatedAt: startedAt,
+    processedCount
+  })
+
+  try {
+    const db = sqlitePresenter.getDatabase()
+    const firstSessionBatch = db.prepare<[number], { id: string }>(
+      `SELECT id
+       FROM new_sessions
+       ORDER BY id ASC
+       LIMIT ?`
+    )
+    const nextSessionBatch = db.prepare<[string, number], { id: string }>(
+      `SELECT id
+       FROM new_sessions
+       WHERE id > ?
+       ORDER BY id ASC
+       LIMIT ?`
+    )
+    const yieldForBatch = async (): Promise<void> => {
+      sqlitePresenter.appSettingsTable.setAppSetting(TAPE_BOOTSTRAP_BACKFILL_KEY, {
+        status: 'running',
+        startedAt,
+        finishedAt: null,
+        updatedAt: Date.now(),
+        processedCount
+      })
+      await (taskContext?.yield() ?? yieldToEventLoop())
+    }
+
+    let cursorId: string | null = null
+    while (true) {
+      const sessionRows = cursorId
+        ? nextSessionBatch.all(cursorId, batchSize)
+        : firstSessionBatch.all(batchSize)
+      if (sessionRows.length === 0) break
+      for (const sessionRow of sessionRows) {
+        ensureSessionTapeBootstrap(sessionRow.id)
+        processedCount += 1
+        cursorId = sessionRow.id
+      }
+      await yieldForBatch()
+    }
+
+    const finishedAt = Date.now()
+    sqlitePresenter.appSettingsTable.setAppSetting(TAPE_BOOTSTRAP_BACKFILL_KEY, {
+      status: 'completed',
+      startedAt,
+      finishedAt,
+      updatedAt: finishedAt,
+      processedCount,
+      durationMs: finishedAt - startedAt
+    })
+    logger.info('[TapeBootstrapBackfill] Backfill completed', {
+      processedCount,
+      durationMs: finishedAt - startedAt
+    })
+  } catch (error) {
+    const finishedAt = Date.now()
+    sqlitePresenter.appSettingsTable.setAppSetting(TAPE_BOOTSTRAP_BACKFILL_KEY, {
+      status: 'failed',
+      startedAt,
+      finishedAt,
+      updatedAt: finishedAt,
+      processedCount,
+      error: error instanceof Error ? error.message : String(error),
+      durationMs: finishedAt - startedAt
     })
     throw error
   }

@@ -1,5 +1,5 @@
 import { mount, flushPromises } from '@vue/test-utils'
-import { reactive } from 'vue'
+import { defineComponent, reactive } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 
 const setup = async (
@@ -17,11 +17,14 @@ const setup = async (
       permissionMode: 'default' | 'full_access'
       disabledAgentTools: string[]
     }>
+    startDeeplinkSkills?: string[]
     awaitReady?: boolean
   }
 ) => {
   vi.resetModules()
 
+  const activateSkill = vi.fn().mockResolvedValue(undefined)
+  const setPendingSkills = vi.fn()
   const draftStore = reactive({
     providerId: undefined as string | undefined,
     modelId: undefined as string | undefined,
@@ -42,7 +45,8 @@ const setup = async (
       msg: '帮我总结一下这周的迭代状态',
       modelId: pendingModelId,
       systemPrompt: 'You are a concise project assistant.',
-      mentions: ['README.md', 'docs/spec.md']
+      mentions: ['README.md', 'docs/spec.md'],
+      skills: options?.startDeeplinkSkills
     },
     toGenerationSettings: vi.fn(() => undefined),
     clearPendingStartDeeplink: vi.fn(() => {
@@ -242,13 +246,17 @@ const setup = async (
         },
         ChatInputToolbar: true,
         ChatStatusBar: true,
-        ChatInputBox: {
+        ChatInputBox: defineComponent({
           name: 'ChatInputBox',
           props: ['modelValue', 'submitDisabled'],
           emits: ['submit', 'command-submit'],
+          setup(_, { expose }) {
+            expose({ activateSkill, setPendingSkills })
+            return {}
+          },
           template:
             '<div data-testid="chat-input" :data-submit-disabled="String(submitDisabled)">{{ modelValue }}<slot name="toolbar" /></div>'
-        }
+        })
       }
     }
   })
@@ -262,7 +270,9 @@ const setup = async (
     draftStore,
     projectStore,
     sessionStore,
-    modelStore
+    modelStore,
+    activateSkill,
+    setPendingSkills
   }
 }
 
@@ -277,6 +287,17 @@ describe('NewThreadPage start deeplink prefill', () => {
     expect(draftStore.providerId).toBe('openai')
     expect(draftStore.modelId).toBe('deepseek-chat')
     expect(draftStore.clearPendingStartDeeplink).toHaveBeenCalledTimes(1)
+  }, 20000)
+
+  it('activates pending skills from a start deeplink after prefilling the prompt', async () => {
+    const { wrapper, activateSkill, setPendingSkills } = await setup('deepseek-chat', {
+      startDeeplinkSkills: [' skill-creator ', 'skill-creator']
+    })
+
+    expect(wrapper.get('[data-testid="chat-input"]').text()).toContain('帮我总结一下这周的迭代状态')
+    expect(activateSkill).toHaveBeenCalledTimes(1)
+    expect(activateSkill).toHaveBeenCalledWith('skill-creator')
+    expect(setPendingSkills).not.toHaveBeenCalled()
   }, 20000)
 
   it('falls back to fuzzy model matching when no exact match exists', async () => {

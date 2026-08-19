@@ -1,10 +1,10 @@
 <p align='center'>
-<img src='./build/icon.png' width="150" height="150" alt="DeepChat AI Assistant Icon" />
+<img src='./build/icon.png' width="150" height="150" alt="JiaorongAI AI Assistant Icon" />
 </p>
 
-<h1 align="center">DeepChat - Open-Source Local-First AI Agent Desktop Client</h1>
+<h1 align="center">JiaorongAI - Powerful Open-Source AI Agent Platform</h1>
 
-<p align="center">DeepChat is an open-source, local-first AI agent desktop client with rich agent capabilities, designed around the Tape.systems philosophy, with support for MCP, Skills, ACP, and remote control integrations for messaging apps.</p>
+<p align="center">JiaorongAI is a feature-rich open-source AI agent platform that unifies models, tools, and agents: multi-LLM chat, MCP tool calling, Skills, ACP agent integration, and remote control.</p>
 
 <p align="center">
   <a href="https://github.com/ThinkInAIXYZ/deepchat/stargazers"><img src="https://img.shields.io/github/stars/ThinkInAIXYZ/deepchat" alt="Stars Badge"/></a>

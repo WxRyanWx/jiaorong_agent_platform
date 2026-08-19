@@ -46,19 +46,25 @@ import {
   SKILL_LIST_QUERY_MAX_BYTES
 } from '../../skill/routingCatalog'
 import { SkillExecutionService } from '../../skill/skillExecutionService'
-import { parseQuestionToolInput, questionToolSchema, QUESTION_TOOL_NAME } from './questionTool'
+import {
+  isQuestionToolName,
+  parseQuestionToolInput,
+  questionToolSchema,
+  QUESTION_TOOL_NAME
+} from './questionTool'
 import {
   ChatSettingsToolHandler,
   buildChatSettingsToolDefinitions,
   CHAT_SETTINGS_SKILL_NAME,
   CHAT_SETTINGS_TOOL_NAMES
 } from './chatSettingsTools'
+import { resolveLegacySkillName } from '@shared/legacyBrandAliases'
 import type {
   AgentDisplaySettingsPort,
   AgentToolDependencies,
   LiveDelegationStartAuthorization
 } from '../runtimePorts'
-import { YO_BROWSER_TOOL_NAMES } from '../browser/definitions'
+import { getYoBrowserToolDefinitions, YO_BROWSER_TOOL_NAMES } from '../browser/definitions'
 import { resolveSessionVisionTarget } from '@/agent/vision/sessionVisionResolver'
 import {
   AgentImageGenerationTool,
@@ -643,7 +649,7 @@ export class AgentToolManager {
       appendDefinitions([this.planTool.getToolDefinition()], 'user-configurable')
     }
 
-    // 2.15. Session tape tools (DeepChat sessions only)
+    // 2.15. Session tape tools (JiaorongAI sessions only)
     if (isAgentMode && acceptsExposure('system-model')) {
       try {
         if (
@@ -703,12 +709,12 @@ export class AgentToolManager {
       }
     }
 
-    // 2.3. Scheduled task tool (disabled by default in DeepChat agent settings)
+    // 2.3. Scheduled task tool (disabled by default in JiaorongAI agent settings)
     if (isAgentMode) {
       appendDefinitions([this.cronJobToolHandler.getToolDefinition()], 'user-configurable')
     }
 
-    // 2.5. Persistent live delegation (regular DeepChat sessions only)
+    // 2.5. Persistent live delegation (regular JiaorongAI sessions only)
     if (
       isAgentMode &&
       acceptsExposure('system-model') &&
@@ -748,14 +754,16 @@ export class AgentToolManager {
       }
     }
 
-    // 4. DeepChat settings tools (agent mode only, skill gated)
+    // 4. JiaorongAI settings tools (agent mode only, skill gated)
     if (isAgentMode && skillsEnabled && context.conversationId) {
       try {
         const activeSkills = isUniverseCatalog
           ? (context.activeSkillNames ?? [])
           : (context.activeSkillNames ??
             (await this.getSkillService().getActiveSkills(context.conversationId)))
-        if (activeSkills.includes(CHAT_SETTINGS_SKILL_NAME)) {
+        if (
+          activeSkills.some((name) => resolveLegacySkillName(name) === CHAT_SETTINGS_SKILL_NAME)
+        ) {
           const requiredSettingsTools = Object.values(CHAT_SETTINGS_TOOL_NAMES)
           let effectiveAllowedTools: string[] = requiredSettingsTools
           if (!isUniverseCatalog) {
@@ -778,7 +786,10 @@ export class AgentToolManager {
           appendDefinitions(settingsDefs, 'user-configurable')
         }
       } catch (error) {
-        handleAvailabilityError('[AgentToolManager] Failed to load DeepChat settings tools', error)
+        handleAvailabilityError(
+          '[AgentToolManager] Failed to load JiaorongAI settings tools',
+          error
+        )
       }
     }
 
@@ -816,7 +827,7 @@ export class AgentToolManager {
       })
     }
 
-    if (toolName === QUESTION_TOOL_NAME) {
+    if (isQuestionToolName(toolName)) {
       const parsedQuestion = parseQuestionToolInput(args)
       if (!parsedQuestion.success) {
         throw new Error(parsedQuestion.error)
@@ -984,7 +995,7 @@ export class AgentToolManager {
       return await this.callSkillExecutionTool(toolName, args, conversationId, options)
     }
 
-    // Route to DeepChat settings tools
+    // Route to JiaorongAI settings tools
     if (this.isChatSettingsTool(toolName)) {
       return await this.callChatSettingsTool(toolName, args, conversationId, options)
     }
@@ -2791,7 +2802,7 @@ export class AgentToolManager {
   }
 
   private getDefaultAgentWorkspacePath(): string {
-    const tempDir = path.join(app.getPath('temp'), 'deepchat-agent', 'workspaces')
+    const tempDir = path.join(app.getPath('temp'), 'jiaorong-agent', 'workspaces')
     try {
       fs.mkdirSync(tempDir, { recursive: true })
     } catch (error) {
@@ -2839,7 +2850,7 @@ export class AgentToolManager {
     }
     const activeSkills =
       activeSkillNames ?? (await this.getSkillService().getActiveSkills(conversationId))
-    return activeSkills.includes(CHAT_SETTINGS_SKILL_NAME)
+    return activeSkills.some((name) => resolveLegacySkillName(name) === CHAT_SETTINGS_SKILL_NAME)
   }
 
   private getSkillTools(): SkillTools {
@@ -2871,7 +2882,8 @@ export class AgentToolManager {
     if (!this.skillExecutionService) {
       this.skillExecutionService = new SkillExecutionService({
         resolveConversationWorkdir: (conversationId) =>
-          this.getWorkdirForConversation(conversationId)
+          this.getWorkdirForConversation(conversationId),
+        resolveSkillsDir: () => this.getSkillService().getSkillsDir()
       })
     }
     return this.skillExecutionService
@@ -2885,8 +2897,8 @@ export class AgentToolManager {
         type: 'function',
         function: {
           name: SKILL_LIST_AGENT_TOOL_NAME,
-          description:
-            'Search or browse available skills as bounded routing cards. Use query to find skills omitted from the system catalog and nextCursor to continue.',
+          displayName: '技能列表',
+          description: '列出所有可用技能及其激活状态。技能提供专业知识与行为指导。',
           parameters: toDeepChatJsonSchema(schemas.skill_list) as {
             type: string
             properties: Record<string, unknown>
@@ -2904,8 +2916,8 @@ export class AgentToolManager {
         type: 'function',
         function: {
           name: SKILL_VIEW_AGENT_TOOL_NAME,
-          description:
-            'Inspect a specific skill before relying on it. Returns the rendered SKILL.md body or a requested supporting file under the skill root.',
+          displayName: '查看技能',
+          description: '查看指定技能内容。返回 SKILL.md 正文或技能目录下的支持文件。',
           parameters: toDeepChatJsonSchema(schemas.skill_view) as {
             type: string
             properties: Record<string, unknown>
@@ -2923,8 +2935,9 @@ export class AgentToolManager {
         type: 'function',
         function: {
           name: SKILL_MANAGE_AGENT_TOOL_NAME,
+          displayName: '管理技能',
           description:
-            'Create or edit temporary draft skills in the conversation draft area. Use the returned draftId for follow-up draft operations. This cannot modify installed skills.',
+            '在会话草稿区创建或编辑临时技能草稿。返回 draftId 供后续操作。不能修改已安装技能。',
           parameters: toDeepChatJsonSchema(schemas.skill_manage) as {
             type: string
             properties: Record<string, unknown>
@@ -2946,8 +2959,8 @@ export class AgentToolManager {
       type: 'function',
       function: {
         name: SKILL_RUN_AGENT_TOOL_NAME,
-        description:
-          'Run a bundled script from a skill active in the current message/tool loop. This is the preferred way to execute skill-local Python, Node, or shell helpers without guessing paths.',
+        displayName: '运行技能',
+        description: '运行已钉选技能中的脚本。优先用此方式执行技能内 Python、Node 或 shell 助手。',
         parameters: toDeepChatJsonSchema(this.skillSchemas.skill_run) as {
           type: string
           properties: Record<string, unknown>
@@ -2960,6 +2973,65 @@ export class AgentToolManager {
         description: 'Agent Skills management'
       }
     }
+  }
+
+  /**
+   * UI-only catalog built from labeled Jiaorong/agent tools.
+   * Skips session/skill gates so labels stay available for display lookup.
+   */
+  getToolDisplayCatalog(): Array<{
+    name: string
+    displayName?: string
+    description?: string
+  }> {
+    const defs: MCPToolDefinition[] = []
+
+    try {
+      defs.push(...this.getFileSystemToolDefinitions())
+      defs.push(...this.getQuestionToolDefinitions())
+      defs.push(this.planTool.getToolDefinition())
+      defs.push(...this.getSkillToolDefinitions())
+      defs.push(this.getSkillRunToolDefinition())
+      defs.push(...buildChatSettingsToolDefinitions(Object.values(CHAT_SETTINGS_TOOL_NAMES)))
+
+      try {
+        defs.push(...getYoBrowserToolDefinitions())
+      } catch (error) {
+        logger.warn('[AgentToolManager] Failed to load YoBrowser display catalog', {
+          error
+        })
+      }
+
+      try {
+        defs.push(...this.tapeToolHandler.getToolDefinitions())
+      } catch (error) {
+        logger.warn('[AgentToolManager] Failed to load tape display catalog', {
+          error
+        })
+      }
+
+      defs.push(this.imageGenerationTool.getToolDefinition())
+    } catch (error) {
+      logger.warn('[AgentToolManager] Failed to build tool display catalog', {
+        error
+      })
+    }
+
+    const byName = new Map<string, MCPToolDefinition>()
+    for (const def of defs) {
+      const name = def.function.name?.trim()
+      if (!name || byName.has(name)) continue
+      byName.set(name, def)
+    }
+
+    return Array.from(byName.values()).map((tool) => {
+      const displayName = tool.function.displayName?.trim()
+      return {
+        name: tool.function.name,
+        ...(displayName ? { displayName } : {}),
+        ...(tool.function.description ? { description: tool.function.description } : {})
+      }
+    })
   }
 
   private isSkillTool(toolName: string): boolean {
@@ -3594,7 +3666,7 @@ export class AgentToolManager {
                 toolName,
                 serverName: CHAT_SETTINGS_SKILL_NAME,
                 permissionType: 'write',
-                description: 'Opening DeepChat settings requires approval.',
+                description: 'Opening JiaorongAI settings requires approval.',
                 conversationId,
                 rememberable: false
               }
@@ -3610,6 +3682,6 @@ export class AgentToolManager {
       )
       return { content: JSON.stringify(result) }
     }
-    throw new Error(`Unknown DeepChat settings tool: ${toolName}`)
+    throw new Error(`Unknown JiaorongAI settings tool: ${toolName}`)
   }
 }

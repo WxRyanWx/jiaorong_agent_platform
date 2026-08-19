@@ -53,7 +53,7 @@ const sleep = async (ms: number): Promise<void> => {
   await new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-const REMOTE_ASSET_ROOT = '.deepchat/remote-assets'
+const REMOTE_ASSET_ROOT = '.jiaorongchat/remote-assets'
 const REMOTE_GENERATED_ASSET_ROOT = 'remote-assets'
 const REMOTE_ATTACHMENT_FETCH_TIMEOUT_MS = 35_000
 
@@ -599,7 +599,7 @@ export class RemoteConversationRunner {
       const channelDefaultWorkdir = this.getChannelDefaultWorkdir(endpointKey)
       if (!channelDefaultWorkdir) {
         throw new Error(
-          'Cannot switch to ACP agent: this channel has no default workdir set. Configure the channel default workdir in DeepChat first.'
+          'Cannot switch to ACP agent: this channel has no default workdir set. Configure the channel default workdir in JiaorongAI first.'
         )
       }
     }

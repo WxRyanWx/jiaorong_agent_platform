@@ -70,6 +70,7 @@ import { ImportMode, SyncService, type SyncImportDatabasePort } from '../sync'
 import { SyncSettings } from '../sync/settings'
 import { DeeplinkService } from '../deeplink'
 import { createDeeplinkActions } from '../deeplink/actions'
+import { autoCompleteGuidedOnboardingIfPreconfigured } from '../onboarding/autoCompletePreconfiguredOnboarding'
 import { NotificationService } from '../desktop/notification'
 import {
   AggregatedWindowNotificationDiagnostics,
@@ -279,7 +280,8 @@ import { backgroundExecSessionManager } from '@/agent/shared/process/backgroundE
 import {
   runBuiltinMcpAllowlistCompatibilityMigration,
   runDisabledAgentToolCapabilityCleanupMigration,
-  runMainlineNormalizationMigration
+  runMainlineNormalizationMigration,
+  runTapeBootstrapBackfillMigration
 } from './startupMigrations/sessionDataMigrations'
 import { activateAppOnMac } from '@/lib/activateApp'
 import { SessionRuntimeEvents } from '@/session/runtimeEvents'
@@ -1344,7 +1346,8 @@ export async function createMainProcessControl(dependencies: {
   deeplinkService = new DeeplinkService(
     deeplinkActions.desktop,
     deeplinkActions.mcp,
-    deeplinkActions.provider
+    deeplinkActions.provider,
+    deeplinkActions.auth
   )
 
   // Initialize generic Workspace presenter (for all Agent modes)
@@ -2300,6 +2303,7 @@ export async function createMainProcessControl(dependencies: {
     hasInitialized = true
 
     const providers = providerSettings.getProviders()
+    autoCompleteGuidedOnboardingIfPreconfigured(dependencies.settingsStore, providers)
     console.info(`[Startup][Main] Main startup begin providers=${providers.length}`)
     scheduleMainStartupTask(
       mainRunId,
@@ -2483,6 +2487,15 @@ export async function createMainProcessControl(dependencies: {
       reportMainStartupComponentFailure(dependencies.startupRunId, 'mcp', 'unknown')
       console.error('Failed to initialize McpService:', error)
       return
+    }
+    try {
+      if (dependencies.mcpSettings.shouldApplyDefaultMcpEnabled()) {
+        logger.info('[MCP] Enabling MCP by default (same as settings toggle ON)')
+        await mcpService.setMcpEnabled(true)
+        dependencies.mcpSettings.markDefaultMcpEnabledApplied()
+      }
+    } catch (error) {
+      console.error('[MCP] Failed to apply default MCP enabled state:', error)
     }
     try {
       await pluginRuntimeSupervisor.reconcileAll()
@@ -3177,6 +3190,28 @@ export async function createMainProcessControl(dependencies: {
       },
       'Failed to start disabled agent tool capability cleanup:',
       { component: 'disabled_agent_tool_capability_cleanup', category: 'persistence' }
+    )
+
+    scheduleMainStartupTask(
+      startupRunId,
+      {
+        id: 'main:tape-bootstrap-backfill',
+        target: 'main',
+        phase: 'background',
+        resource: 'io',
+        labelKey: 'startup.main.tapeBootstrapBackfill',
+        run: async (taskContext) =>
+          runTapeBootstrapBackfillMigration(
+            {
+              sqlitePresenter: sessionDataMigrationSQLite,
+              ensureSessionTapeBootstrap: (sessionId) =>
+                sessionData.tapeStore.initializeSessionTape(sessionId)
+            },
+            taskContext
+          )
+      },
+      'Failed to start Tape bootstrap backfill:',
+      { component: 'tape_bootstrap_backfill', category: 'persistence' }
     )
   }
 

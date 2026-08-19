@@ -12,12 +12,13 @@ import { isInsecureTlsAllowed } from './lib/insecureTls'
 import { ensureRegularAppOnMac } from './lib/activateApp'
 import { startMainProcess, type MainProcessControl } from './app/mainProcess'
 import type { MainShutdownActionClaim } from './app/mainShutdownCoordinator'
+import logger from '@shared/logger'
 import { mainLogger, reportMainProcessFatal, reportNativeMainError } from './logging'
 import { classifyMainLogError, type MainLogShutdownReason } from './logging/mainLogEvents'
 import { elapsedMonotonicMs, readMonotonicNow } from './lib/monotonicTime'
 
 let appStarted = false
-const APP_NAME = 'DeepChat'
+const APP_NAME = 'JiaorongAI'
 
 export function startApp(): void {
   if (appStarted) {
@@ -80,6 +81,7 @@ export function startApp(): void {
 
   const gotSingleInstanceLock = app.requestSingleInstanceLock()
   if (!gotSingleInstanceLock) {
+    logger.info('Another JiaorongAI instance is already running. Exiting current process.')
     app.quit()
     return
   }

@@ -7,10 +7,36 @@ import {
   filePrepareFileRoute,
   fileReadFileRoute,
   fileSaveImageRoute,
-  fileWriteImageBase64Route
+  fileWriteImageBase64Route,
+  fileWriteTempRoute
 } from '@shared/contracts/routes'
 import { getDeepchatBridge } from './core'
 import { formatRuntimePathForInput, getRuntimePathForFile, toRuntimeRelativePath } from './runtime'
+
+function bytesToBase64(bytes: Uint8Array): string {
+  const chunkSize = 0x8000
+  const chunks: string[] = []
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const slice = bytes.subarray(i, i + chunkSize)
+    chunks.push(String.fromCharCode(...slice))
+  }
+  return btoa(chunks.join(''))
+}
+
+function encodeWriteTempContent(
+  content: string | ArrayBuffer | Uint8Array | number[]
+): { content: string; encoding: 'utf8' | 'base64' } {
+  if (typeof content === 'string') {
+    return { content, encoding: 'utf8' }
+  }
+  const bytes =
+    content instanceof ArrayBuffer
+      ? new Uint8Array(content)
+      : Array.isArray(content)
+        ? Uint8Array.from(content)
+        : content
+  return { content: bytesToBase64(bytes), encoding: 'base64' }
+}
 
 export function createFileClient(bridge: DeepchatBridge = getDeepchatBridge()) {
   async function getMimeType(path: string) {
@@ -43,6 +69,19 @@ export function createFileClient(bridge: DeepchatBridge = getDeepchatBridge()) {
     return result.path
   }
 
+  async function writeTemp(file: {
+    name: string
+    content: string | ArrayBuffer | Uint8Array | number[]
+  }) {
+    const { content, encoding } = encodeWriteTempContent(file.content)
+    const result = await bridge.invoke(fileWriteTempRoute.name, {
+      name: file.name,
+      content,
+      encoding
+    })
+    return result.path
+  }
+
   async function saveImage(file: { source: string; mimeType?: string; suggestedName?: string }) {
     return await bridge.invoke(fileSaveImageRoute.name, file)
   }
@@ -70,6 +109,7 @@ export function createFileClient(bridge: DeepchatBridge = getDeepchatBridge()) {
     readFile,
     isDirectory,
     writeImageBase64,
+    writeTemp,
     saveImage,
     copyImage,
     getPathForFile,

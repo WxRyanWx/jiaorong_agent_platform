@@ -1,6 +1,6 @@
 # Recording
 
-Recording is controlled through DeepChat tools:
+Recording is controlled through JiaorongAI tools:
 
 - `start_recording`
 - `stop_recording`

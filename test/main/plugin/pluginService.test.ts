@@ -951,11 +951,11 @@ describe('PluginService', () => {
         adapter: 'cua-embedded-v1',
         integrityDescriptor: integrityRelativePath,
         detect: [
-          'app-helper:DeepChat Computer Use.app/Contents/MacOS/deepchat-cua-driver',
-          'plugin:runtime/darwin/${arch}/DeepChat Computer Use.app/Contents/MacOS/deepchat-cua-driver'
+          'app-helper:JiaorongAI Computer Use.app/Contents/MacOS/deepchat-cua-driver',
+          'plugin:runtime/darwin/${arch}/JiaorongAI Computer Use.app/Contents/MacOS/deepchat-cua-driver'
         ],
         adapterContract: {
-          hostBundleId: 'com.wefonk.deepchat',
+          hostBundleId: 'com.wefonk.jiaorong',
           driverVersion: '0.14.1',
           contractVersion: '0.2.0',
           toolsListSchemaVersion: '1',
@@ -991,15 +991,15 @@ describe('PluginService', () => {
           runtimeVersion: '0.14.1',
           target: 'darwin/arm64',
           runtimeRoot: 'runtime/darwin/arm64',
-          binaryPath: 'DeepChat Computer Use.app/Contents/MacOS/deepchat-cua-driver',
+          binaryPath: 'JiaorongAI Computer Use.app/Contents/MacOS/deepchat-cua-driver',
           catalogPath: 'tool-catalog.json',
           files: {
-            'DeepChat Computer Use.app/Contents/MacOS/deepchat-cua-driver': 'a'.repeat(64),
+            'JiaorongAI Computer Use.app/Contents/MacOS/deepchat-cua-driver': 'a'.repeat(64),
             'tool-catalog.json': createHash('sha256').update(catalogContents).digest('hex')
           },
-          executablePaths: ['DeepChat Computer Use.app/Contents/MacOS/deepchat-cua-driver'],
+          executablePaths: ['JiaorongAI Computer Use.app/Contents/MacOS/deepchat-cua-driver'],
           macos: {
-            bundlePath: 'DeepChat Computer Use.app',
+            bundlePath: 'JiaorongAI Computer Use.app',
             bundleIdentifier: 'com.deepchat.computeruse.helper',
             signatureType: 'ad-hoc',
             teamId: null,
@@ -1153,7 +1153,7 @@ describe('PluginService', () => {
         detect: [`plugin:${commandName}`],
         adapter: 'cua-embedded-v1',
         adapterContract: {
-          hostBundleId: 'com.wefonk.deepchat',
+          hostBundleId: 'com.wefonk.jiaorong',
           driverVersion: '0.14.1',
           contractVersion: '1',
           toolsListSchemaVersion: '1',
@@ -1269,7 +1269,7 @@ describe('PluginService', () => {
       'runtime',
       'darwin',
       process.arch,
-      'DeepChat Computer Use.app'
+      'JiaorongAI Computer Use.app'
     )
     const helperCommand = path.join(helperAppPath, 'Contents', 'MacOS', 'deepchat-cua-driver')
     vi.mocked(shell.openPath).mockResolvedValue('')
@@ -1374,7 +1374,7 @@ describe('PluginService', () => {
     })
 
     const command = (presenter as any).resolveRuntimeCandidate(
-      'app-helper:DeepChat Computer Use.app/Contents/MacOS/deepchat-cua-driver',
+      'app-helper:JiaorongAI Computer Use.app/Contents/MacOS/deepchat-cua-driver',
       path.join(root, 'plugin')
     )
 
@@ -1384,7 +1384,7 @@ describe('PluginService', () => {
         'DeepChat.app',
         'Contents',
         'Helpers',
-        'DeepChat Computer Use.app',
+        'JiaorongAI Computer Use.app',
         'Contents',
         'MacOS',
         'deepchat-cua-driver'
@@ -1399,7 +1399,7 @@ describe('PluginService', () => {
     })
 
     const command = (presenter as any).resolveRuntimeCandidate(
-      'app-helper:DeepChat Computer Use.app/Contents/MacOS/deepchat-cua-driver',
+      'app-helper:JiaorongAI Computer Use.app/Contents/MacOS/deepchat-cua-driver',
       path.join('C:', 'plugin')
     )
 
@@ -1773,8 +1773,8 @@ describe('PluginService', () => {
     const server = manifest.mcpServers.find((item: { id: string }) => item.id === 'cua-driver')
 
     expect(manifest.runtime.detect).toEqual([
-      'app-helper:DeepChat Computer Use.app/Contents/MacOS/deepchat-cua-driver',
-      'plugin:runtime/darwin/${arch}/DeepChat Computer Use.app/Contents/MacOS/deepchat-cua-driver',
+      'app-helper:JiaorongAI Computer Use.app/Contents/MacOS/deepchat-cua-driver',
+      'plugin:runtime/darwin/${arch}/JiaorongAI Computer Use.app/Contents/MacOS/deepchat-cua-driver',
       'plugin:runtime/win32/${arch}/cua-driver.exe',
       'plugin:runtime/linux/${arch}/cua-driver'
     ])
@@ -1784,7 +1784,7 @@ describe('PluginService', () => {
       'runtime/${target.platform}/${arch}/integrity.json'
     )
     expect(manifest.runtime.adapterContract).toEqual({
-      hostBundleId: 'com.wefonk.deepchat',
+      hostBundleId: 'com.wefonk.jiaorong',
       driverVersion: '0.19.2',
       contractVersion: '0.6.0',
       toolsListSchemaVersion: '1',
@@ -1988,7 +1988,7 @@ describe('PluginService', () => {
     expect(policy.tools.set_electron_accessibility).toBeUndefined()
   })
 
-  it('keeps the CUA skill instructions aligned with DeepChat bundled tools', async () => {
+  it('keeps the CUA skill instructions aligned with JiaorongAI bundled tools', async () => {
     const manifest = JSON.parse(await readFile('plugins/cua/plugin.json', 'utf8'))
     const files = ['SKILL.md', 'README.md', 'WEB_APPS.md', 'RECORDING.md', 'TESTS.md']
     const contents = await Promise.all(
@@ -2027,7 +2027,7 @@ describe('PluginService', () => {
     expect(combined).toContain('read-only `get_text` or `query_dom`')
     expect(combined).toMatch(/Omit\s+`cursor_theme` during normal session setup/)
     expect(combined).toContain('`cua.default` is the bundled, verified theme')
-    expect(combined).toContain('DeepChat Computer Use.app')
+    expect(combined).toContain('JiaorongAI Computer Use.app')
     expect(combined).toContain('win32/x64')
     expect(combined).toContain('linux/x64')
     expect(combined).toContain('win32/arm64')
@@ -2176,7 +2176,7 @@ describe('PluginService', () => {
     expect(pluginScript).toContain("pkgArgs.push('--purpose', args.purpose)")
     expect(guide).toContain('build/bundled-plugins/')
     expect(guide).toContain('build/managed-helpers/')
-    expect(guide).toContain('Contents/Helpers/DeepChat Computer Use.app')
+    expect(guide).toContain('Contents/Helpers/JiaorongAI Computer Use.app')
     expect(guide).toContain('app.asar.unpacked/plugins/')
     expect(guide).toContain('win32/arm64')
     expect(guide).toContain('linux/arm64')

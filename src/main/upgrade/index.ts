@@ -183,6 +183,12 @@ export class UpgradeService {
     autoUpdater.autoDownload = false // 默认不自动下载，由我们手动控制
     autoUpdater.allowDowngrade = false
     autoUpdater.autoInstallOnAppQuit = true
+    // electron-updater skips checks when unpackaged unless forced; enable for local status checks
+    if (!app.isPackaged) {
+      autoUpdater.forceDevUpdateConfig = true
+      // out/main → project root (electron-vite); app.getAppPath() alone can miss the yml
+      autoUpdater.updateConfigPath = path.join(__dirname, '../../dev-app-update.yml')
+    }
 
     // 错误处理
     autoUpdater.on('error', (e) => {
@@ -464,7 +470,8 @@ export class UpgradeService {
 
       const updateChannel = normalizeUpdateChannel(this.settings.getChannel())
       autoUpdater.allowPrerelease = updateChannel === UPDATE_CHANNEL_BETA
-      autoUpdater.channel = updateChannel === UPDATE_CHANNEL_BETA ? UPDATE_CHANNEL_BETA : 'latest'
+      // autoUpdater.channel = updateChannel === UPDATE_CHANNEL_BETA ? UPDATE_CHANNEL_BETA : 'latest'
+      autoUpdater.channel = 'jrsi'
 
       await autoUpdater.checkForUpdates()
       this._lastCheckTime = Date.now()

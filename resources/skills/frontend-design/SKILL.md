@@ -1,6 +1,8 @@
 ---
 name: frontend-design
-description: Create distinctive, production-grade frontend interfaces with high design quality. Use this skill when the user asks to build web components, pages, artifacts, posters, or applications (examples include websites, landing pages, dashboards, React components, HTML/CSS layouts, or when styling/beautifying any web UI). Generates creative, polished code and UI design that avoids generic AI aesthetics.
+description: 创建具有高设计质量的独特的生产级前端界面。当用户要求构建web组件、页面、工件、海报或应用程序时（示例包括网站、登录页面、仪表板、React组件、HTML/CSS布局，或对任何web UI进行样式/美化时），请使用此技能。生成创造性的、精美的代码和UI设计，避免了通用的AI美学。
+metadata:
+  displayName: 前端设计
 license: Complete terms in LICENSE.txt
 ---
 

@@ -22,6 +22,7 @@ export default defineConfig({
       '@renderer-notifications': resolve('src/renderer/services/notifications'),
       '@shadcn': resolve('src/shadcn'),
       '@dc-ui': resolve('src/dc-ui'),
+      '@jiaorong': resolve('src/jiaorong_src'),
       '@shared': resolve('src/shared'),
       vue: 'vue/dist/vue.esm-bundler.js'
     }

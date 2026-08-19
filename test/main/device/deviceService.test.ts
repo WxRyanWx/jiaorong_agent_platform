@@ -36,18 +36,18 @@ describe('DeviceService', () => {
   })
 
   describe('getDefaultHeaders', () => {
-    it('should include User-Agent header with DeepChat/ prefix', () => {
+    it('should include User-Agent header with JiaorongAI/ prefix', () => {
       const headers = DeviceService.getDefaultHeaders()
 
       expect(headers).toHaveProperty('User-Agent')
-      expect(headers['User-Agent']).toMatch(/^DeepChat\//)
+      expect(headers['User-Agent']).toMatch(/^JiaorongAI\//)
     })
 
     it('should include HTTP-Referer and X-Title headers', () => {
       const headers = DeviceService.getDefaultHeaders()
 
       expect(headers['HTTP-Referer']).toBe('https://deepchatai.cn')
-      expect(headers['X-Title']).toBe('DeepChat')
+      expect(headers['X-Title']).toBe('JiaorongAI')
     })
   })
 

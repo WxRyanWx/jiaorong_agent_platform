@@ -171,7 +171,7 @@ describe('AcpProcessManager config cache fallback', () => {
     try {
       const resolved = (manager as any).resolveWorkdir('/tmp/missing-workspace')
 
-      expect(normalizePathValue(resolved)).toContain('/tmp/deepchat-acp/sessions')
+      expect(normalizePathValue(resolved)).toContain('/tmp/jiaorong-acp/sessions')
     } finally {
       existsSpy.mockRestore()
     }
@@ -429,7 +429,7 @@ describe('AcpProcessManager config cache fallback', () => {
     const terminalRequest = createTerminal.mock.calls[0]?.[0]
     expect(terminalRequest.sessionId).toBe('missing-session')
     expect(terminalRequest.command).toBe('pwd')
-    expect(normalizePathValue(terminalRequest.cwd)).toContain('/deepchat-acp/sessions')
+    expect(normalizePathValue(terminalRequest.cwd)).toContain('/jiaorong-acp/sessions')
   })
 
   it('keeps explicit PATH overrides ahead of bundled runtime and shell PATH', async () => {

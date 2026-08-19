@@ -57,6 +57,8 @@ import { Icon } from '@iconify/vue'
 import { h, computed, onMounted, watch } from 'vue'
 import NodeRenderer, { setCustomComponents, PreCodeNode } from 'markstream-vue'
 import { ensureMarkdownWorkers } from '@/lib/markdownWorkerLifecycle'
+import { localizeThinkingContent } from '@/lib/slashMenuDisplayText'
+import { useToolDisplayLabelOptions } from '@/composables/useToolDisplayLabelOptions'
 
 const props = defineProps<{
   label: string
@@ -65,10 +67,14 @@ const props = defineProps<{
   content?: string
 }>()
 
+const { displayLabelOptions } = useToolDisplayLabelOptions()
+
 // Strip <style> tags to prevent global style pollution
 const sanitizedContent = computed(() => {
   if (!props.content) return ''
-  return props.content.replace(/<style[\s\S]*?<\/style>/gi, '')
+  const withoutStyles = props.content.replace(/<style[\s\S]*?<\/style>/gi, '')
+  const { skills, tools } = displayLabelOptions.value
+  return localizeThinkingContent(withoutStyles, skills, tools)
 })
 
 defineEmits<{

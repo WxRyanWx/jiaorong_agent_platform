@@ -636,7 +636,7 @@ describe('SessionTurn', () => {
     const harness = createHarness({ providerId: 'acp' })
 
     await expect(harness.coordinator.compactSession('s1')).rejects.toThrow(
-      'Manual compaction is only available for DeepChat agent sessions.'
+      'Manual compaction is only available for JiaorongAI agent sessions.'
     )
     expect(harness.compaction.compact).not.toHaveBeenCalled()
   })

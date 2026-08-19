@@ -35,7 +35,7 @@ const TOOL_SURFACE_SELECTION_BOUNDS = Object.freeze({
 })
 
 const CODE_CORE_TOOL_NAMES = Object.freeze([
-  'deepchat_question',
+  'jiaorong_question',
   'edit',
   'exec',
   'glob',
@@ -45,7 +45,7 @@ const CODE_CORE_TOOL_NAMES = Object.freeze([
   'update_plan',
   'write'
 ])
-const GENERAL_CORE_TOOL_NAMES = Object.freeze(['deepchat_question', 'update_plan'])
+const GENERAL_CORE_TOOL_NAMES = Object.freeze(['jiaorong_question', 'update_plan'])
 
 export interface ToolSurfacePolicySelectionInputs {
   readonly policyRequiredStableTargetKeys: readonly string[]

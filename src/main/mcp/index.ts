@@ -59,6 +59,7 @@ import { McpAppHost } from './apps/appHost'
 import { hasMcpIdentityBearingChange } from './serverIdentity'
 import type { CacheImageOptions } from '@/platform/imageCache'
 import { awaitWithAbort } from '@/lib/awaitWithAbort'
+import { isJiaorongKnowledgeBaseMcpServer } from '@jiaorong/knowledgeBase/mcp/knowledgeBaseMcpConstants'
 
 type McpToolAccessContext = {
   enabledTools?: string[]
@@ -306,7 +307,15 @@ export class McpService implements McpServicePort {
     return this.privacy.isEnabled()
   }
 
-  private isPluginOwnedServerConfig(config?: Partial<MCPServerConfig> | null): boolean {
+  private isPluginOwnedServerConfig(
+    config?: Partial<MCPServerConfig> | null,
+    serverName?: string
+  ): boolean {
+    // 知识库 HTTP MCP 沿用 master 的 source/plugin 元数据，但没有真实插件运行时。
+    // 按 server 名走普通 MCP 启停，否则 startServer 会报「未注册插件」。
+    if (isJiaorongKnowledgeBaseMcpServer(serverName)) {
+      return false
+    }
     return Boolean(config?.ownerPluginId || config?.source === 'plugin')
   }
 
@@ -315,7 +324,7 @@ export class McpService implements McpServicePort {
       return true
     }
     const servers = await this.mcpSettings.getMcpServers()
-    return this.isPluginOwnedServerConfig(servers[serverName])
+    return this.isPluginOwnedServerConfig(servers[serverName], serverName)
   }
 
   private isServerAllowedByContext(serverName: string, context: McpToolAccessContext): boolean {
@@ -372,7 +381,7 @@ export class McpService implements McpServicePort {
             serverConfig &&
             !startingServers.has(serverName) &&
             mcpEnabled &&
-            !this.isPluginOwnedServerConfig(serverConfig) &&
+            !this.isPluginOwnedServerConfig(serverConfig, serverName) &&
             !this.pluginRuntimeSupervisor.ownsServer(serverName)
           ) {
             logger.info(`[MCP] Attempting to start enabled server: ${serverName}`)
@@ -530,7 +539,7 @@ export class McpService implements McpServicePort {
       }
       const servers = await this.mcpSettings.getMcpServers()
       const serverConfig = servers[serverName]
-      if (this.isPluginOwnedServerConfig(serverConfig)) {
+      if (this.isPluginOwnedServerConfig(serverConfig, serverName)) {
         console.warn(
           `[MCP] Refusing to restart unregistered plugin-owned server ${serverName} after authentication`
         )
@@ -777,7 +786,7 @@ export class McpService implements McpServicePort {
         `Plugin-owned MCP server "${serverName}" is controlled by its plugin, not MCP settings`
       )
     }
-    if (this.isPluginOwnedServerConfig(serverConfig)) {
+    if (this.isPluginOwnedServerConfig(serverConfig, serverName)) {
       throw new Error(
         `Plugin-owned MCP server "${serverName}" is not registered by an enabled plugin`
       )
@@ -788,7 +797,7 @@ export class McpService implements McpServicePort {
     }
     await this.mcpSettings.setMcpServerEnabled(serverName, enabled)
     if (
-      !this.isPluginOwnedServerConfig(serverConfig) &&
+      !this.isPluginOwnedServerConfig(serverConfig, serverName) &&
       !(await this.mcpSettings.getMcpEnabled())
     ) {
       return
@@ -832,7 +841,7 @@ export class McpService implements McpServicePort {
     const servers = await this.mcpSettings.getMcpServers()
     if (
       this.pluginRuntimeSupervisor.ownsServer(serverName) ||
-      this.isPluginOwnedServerConfig(servers[serverName])
+      this.isPluginOwnedServerConfig(servers[serverName], serverName)
     ) {
       throw new Error(
         `Plugin-owned MCP server "${serverName}" cannot be edited through MCP settings`
@@ -876,7 +885,7 @@ export class McpService implements McpServicePort {
     const currentServers = await this.mcpSettings.getMcpServers()
     if (
       this.pluginRuntimeSupervisor.ownsServer(serverName) ||
-      this.isPluginOwnedServerConfig(currentServers[serverName])
+      this.isPluginOwnedServerConfig(currentServers[serverName], serverName)
     ) {
       throw new Error(`Plugin-owned MCP server "${serverName}" must be removed by its plugin`)
     }
@@ -1181,7 +1190,7 @@ export class McpService implements McpServicePort {
       ? configuredEnabledServerNames.filter(
           (serverName) =>
             (!selectedServerNames || selectedServerNames.has(serverName)) &&
-            !this.isPluginOwnedServerConfig(serverConfigs[serverName]) &&
+            !this.isPluginOwnedServerConfig(serverConfigs[serverName], serverName) &&
             !this.pluginRuntimeSupervisor.ownsServer(serverName)
         )
       : []
@@ -1547,7 +1556,7 @@ export class McpService implements McpServicePort {
       for (const serverName of enabledServers) {
         if (
           this.pluginRuntimeSupervisor.ownsServer(serverName) ||
-          this.isPluginOwnedServerConfig(servers[serverName])
+          this.isPluginOwnedServerConfig(servers[serverName], serverName)
         ) {
           continue
         }
@@ -1567,7 +1576,7 @@ export class McpService implements McpServicePort {
         continue
       }
       try {
-        if (this.isPluginOwnedServerConfig(servers[client.serverName])) {
+        if (this.isPluginOwnedServerConfig(servers[client.serverName], client.serverName)) {
           await this.stopServerDirect(client.serverName)
         } else {
           await this.stopServer(client.serverName)

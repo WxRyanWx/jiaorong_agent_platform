@@ -75,6 +75,13 @@ vi.mock('@/stores/ui/liveDelegation', () => ({
   useLiveDelegationStore: () => liveDelegationStoreMock
 }))
 
+vi.mock('@/composables/useToolDisplayLabelOptions', () => ({
+  useToolDisplayLabelOptions: () => ({
+    displayLabelOptions: { value: { skills: [], tools: [] } },
+    refreshToolDisplayCatalog: vi.fn()
+  })
+}))
+
 vi.mock('markstream-vue', () => ({
   CodeBlockNode: defineComponent({
     name: 'CodeBlockNode',

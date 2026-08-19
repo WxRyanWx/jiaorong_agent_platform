@@ -19,6 +19,8 @@ import type {
 import type { CapabilitySnapshotQuery } from '@shared/types/model-capabilities'
 import { isAttachmentPreparationCandidate } from '@shared/utils/attachmentRepresentation'
 import { switchAttachmentToVisionModel } from '@/components/chat/attachmentModelPicker'
+import { prepareKnowledgeBaseSendFiles } from '@jiaorong/knowledgeBase/picker/prepareKnowledgeBaseSendFiles'
+import { clearKnowledgeBaseSelectionForSession } from '@jiaorong/knowledgeBase/picker/useKnowledgeBaseSelection'
 import {
   applyAcceptedComposerSubmission,
   composerDraftFingerprint,
@@ -417,6 +419,24 @@ export function useComposerSubmit(options: UseComposerSubmitOptions) {
     }
   }
 
+  async function prepareOutgoingFiles(
+    sessionId: string,
+    text: string,
+    files: MessageFile[]
+  ): Promise<MessageFile[] | null> {
+    const filtered = await prepareFilesForCurrentModel(files)
+    const kb = await prepareKnowledgeBaseSendFiles(sessionId, text, filtered)
+    if (!kb.ok) {
+      notify({
+        kind: 'error',
+        code: 'chat.knowledgeBase.prepareFailed',
+        title: kb.error
+      })
+      return null
+    }
+    return kb.files
+  }
+
   const getComposerSkillsSnapshot = (): string[] => {
     return Array.from(new Set(chatInputRef.value?.getPendingSkillsSnapshot?.() ?? []))
   }
@@ -722,6 +742,7 @@ export function useComposerSubmit(options: UseComposerSubmitOptions) {
   }
 
   function consumeAcceptedDraft(sessionId: string, snapshot: ComposerSubmissionSnapshot): void {
+    clearKnowledgeBaseSelectionForSession(sessionId)
     const isActiveSession = sessionId === activeDraftSessionId && sessionId === options.sessionId()
     if (!isActiveSession && sessionId === activeDraftSessionId) {
       enqueuePendingAcceptedSubmission(sessionId, snapshot)
@@ -1004,7 +1025,8 @@ export function useComposerSubmit(options: UseComposerSubmitOptions) {
       const restoreRequestId = options.currentRestoreRequestId()
       const seed = captureSubmissionSeed(sessionId)
       const text = seed.draft.rawMessage.trim()
-      const files = await prepareFilesForCurrentModel(seed.draft.files)
+      const files = await prepareOutgoingFiles(sessionId, text, seed.draft.files)
+      if (!files) return
       if (preparation.cancelled) return
       if (!options.canWriteSessionView(sessionId, restoreRequestId)) return
       if (!text && files.length === 0) return
@@ -1067,7 +1089,8 @@ export function useComposerSubmit(options: UseComposerSubmitOptions) {
         return
       }
 
-      const files = await prepareFilesForCurrentModel(seed.draft.files)
+      const files = await prepareOutgoingFiles(sessionId, text, seed.draft.files)
+      if (!files) return
       if (preparation.cancelled) return
       if (!options.canWriteSessionView(sessionId, restoreRequestId)) return
       const payload = createSubmissionPayload(text, files, seed)
@@ -1104,7 +1127,8 @@ export function useComposerSubmit(options: UseComposerSubmitOptions) {
       const restoreRequestId = options.currentRestoreRequestId()
       const seed = captureSubmissionSeed(sessionId)
       const text = seed.draft.rawMessage.trim()
-      const files = await prepareFilesForCurrentModel(seed.draft.files)
+      const files = await prepareOutgoingFiles(sessionId, text, seed.draft.files)
+      if (!files) return
       if (preparation.cancelled) return
       if (!options.canWriteSessionView(sessionId, restoreRequestId)) return
       if (!text && files.length === 0) return
@@ -1138,7 +1162,8 @@ export function useComposerSubmit(options: UseComposerSubmitOptions) {
       const restoreRequestId = options.currentRestoreRequestId()
       const seed = captureSubmissionSeed(sessionId)
       const text = seed.draft.rawMessage.trim()
-      const files = await prepareFilesForCurrentModel(seed.draft.files)
+      const files = await prepareOutgoingFiles(sessionId, text, seed.draft.files)
+      if (!files) return
       if (preparation.cancelled) return
       if (!options.canWriteSessionView(sessionId, restoreRequestId)) return
       if (!text && files.length === 0) return

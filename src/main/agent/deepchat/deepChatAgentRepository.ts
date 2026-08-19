@@ -165,13 +165,14 @@ export class DeepChatAgentRepository {
     config?: DeepChatAgentConfig | null
   }): AgentRow {
     const { rows } = this.dependencies
+    const builtinName = defaults?.name?.trim() || '交融对话'
     const existing = rows.get(BUILTIN_DEEPCHAT_AGENT_ID)
     if (!existing) {
       rows.create({
         id: BUILTIN_DEEPCHAT_AGENT_ID,
         agentType: 'deepchat',
         source: 'builtin',
-        name: defaults?.name?.trim() || 'DeepChat',
+        name: builtinName,
         enabled: true,
         protected: true,
         icon: sanitizeString(defaults?.icon),
@@ -179,7 +180,12 @@ export class DeepChatAgentRepository {
         configJson: stringifyJson(defaults?.config ? prepareConfigWrite(defaults.config) : null)
       })
     } else {
-      rows.update(BUILTIN_DEEPCHAT_AGENT_ID, { enabled: true, protected: true })
+      const shouldRename = existing.name === 'DeepChat' && builtinName !== 'DeepChat'
+      rows.update(BUILTIN_DEEPCHAT_AGENT_ID, {
+        enabled: true,
+        protected: true,
+        ...(shouldRename ? { name: builtinName } : {})
+      })
     }
     return rows.get(BUILTIN_DEEPCHAT_AGENT_ID) as AgentRow
   }

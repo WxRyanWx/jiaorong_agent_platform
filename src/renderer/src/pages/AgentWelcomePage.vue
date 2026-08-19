@@ -9,57 +9,111 @@
         {{ t('welcome.agentPage.title') }}
       </h1>
 
-      <div class="grid w-full max-w-3xl grid-cols-3 gap-3">
-        <button
-          v-for="agent in displayedAgents"
-          :key="agent.id"
-          class="flex items-center gap-3 rounded-xl border border-border/60 bg-card/40 px-4 py-3 text-left transition-all duration-150 hover:border-border hover:bg-accent/40"
-          @click="selectAgent(agent.id)"
-        >
-          <div
-            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted/50 text-foreground"
+      <div class="flex w-full max-w-3xl flex-col items-center gap-6">
+        <div class="grid w-full grid-cols-3 gap-3">
+          <button
+            v-for="card in displayedAgentCards"
+            :key="card.id"
+            class="flex items-center gap-3 rounded-xl border border-border/60 bg-card/40 px-4 py-3 text-left transition-all duration-150 hover:border-border hover:bg-accent/40"
+            @click="selectAgentCard(card)"
           >
-            <AgentAvatar :agent="agent" class-name="h-6 w-6" fallback-class-name="rounded-lg" />
-          </div>
-          <div class="min-w-0 flex-1">
-            <div class="truncate text-sm font-semibold text-foreground">{{ agent.name }}</div>
-            <div class="truncate text-xs text-muted-foreground">
-              {{
-                agent.type === 'deepchat'
-                  ? t('welcome.agentPage.deepchatType')
-                  : t('welcome.agentPage.acpType')
-              }}
+            <div
+              class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted/50 text-foreground"
+            >
+              <AgentAvatar
+                :agent="card.agent"
+                class-name="h-6 w-6"
+                fallback-class-name="rounded-lg"
+              />
             </div>
-          </div>
-          <Icon icon="lucide:chevron-right" class="h-4 w-4 text-muted-foreground/50" />
+            <div class="min-w-0 flex-1">
+              <div class="truncate text-sm font-semibold text-foreground">
+                {{ card.name }}
+              </div>
+              <div class="truncate text-xs text-muted-foreground">
+                {{ card.subtitle }}
+              </div>
+            </div>
+            <Icon icon="lucide:chevron-right" class="h-4 w-4 text-muted-foreground/50" />
+          </button>
+        </div>
+
+        <button
+          class="text-xs text-muted-foreground transition-colors hover:text-foreground"
+          @click="openAgentSettings"
+        >
+          {{ t('welcome.agentPage.manageAgents') }}
         </button>
       </div>
-
-      <button
-        class="mt-8 text-xs text-muted-foreground transition-colors hover:text-foreground"
-        @click="openAgentSettings"
-      >
-        {{ t('welcome.agentPage.manageAgents') }}
-      </button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { useI18n } from 'vue-i18n'
 import { createSettingsClient } from '@api/SettingsClient'
-import { useAgentStore } from '@/stores/ui/agent'
+import { useAgentStore, type UIAgent } from '@/stores/ui/agent'
+import { partitionSidebarAgents } from '@shared/sidebarAgents'
+import { forceRevalidateAuthSession, getToken } from '@jiaorong/auth/host'
 import AgentAvatar from '@/components/icons/AgentAvatar.vue'
 
+type AgentWelcomeCard = {
+  id: string
+  agent: UIAgent
+  name: string
+  subtitle: string
+}
+
+const MAX_USER_AGENT_CARDS = 8
+
 const { t } = useI18n()
+const router = useRouter()
 const settingsClient = createSettingsClient()
 const agentStore = useAgentStore()
-const displayedAgents = computed(() => agentStore.enabledAgents.slice(0, 9))
+const sidebarAgentPartitions = computed(() => partitionSidebarAgents(agentStore.enabledAgents))
 
-const selectAgent = (agentId: string) => {
-  agentStore.setSelectedAgent(agentId)
+const displayedAgentCards = computed<AgentWelcomeCard[]>(() => {
+  const cards: AgentWelcomeCard[] = []
+  const { deepchat, userAgents } = sidebarAgentPartitions.value
+
+  if (deepchat) {
+    cards.push({
+      id: deepchat.id,
+      agent: deepchat,
+      name: deepchat.name,
+      subtitle: t('welcome.agentPage.deepchatType')
+    })
+  }
+
+  for (const agent of userAgents.slice(0, MAX_USER_AGENT_CARDS)) {
+    cards.push({
+      id: agent.id,
+      agent,
+      name: agent.name,
+      subtitle:
+        agent.type === 'deepchat'
+          ? t('welcome.agentPage.deepchatType')
+          : t('welcome.agentPage.acpType')
+    })
+  }
+
+  return cards
+})
+
+const selectAgentCard = (card: AgentWelcomeCard) => {
+  if (!getToken()) {
+    void router.push({ name: 'login' })
+    return
+  }
+  void forceRevalidateAuthSession().then((valid) => {
+    if (!valid) {
+      void router.push({ name: 'login' })
+    }
+  })
+  agentStore.setSelectedAgent(card.id)
 }
 
 const openAgentSettings = async () => {

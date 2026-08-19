@@ -1,6 +1,6 @@
 ---
 name: computer-use
-description: Drive native desktop apps through DeepChat's built-in Computer Use tools. Use when the user asks to operate, inspect, automate, or perform a GUI task in a real desktop application.
+description: Drive native desktop apps through JiaorongAI's built-in Computer Use tools. Use when the user asks to operate, inspect, automate, or perform a GUI task in a real desktop application.
 platforms:
   - darwin
   - win32
@@ -11,9 +11,9 @@ metadata:
 
 # computer-use
 
-Use DeepChat's plugin-provided Computer Use tools as the only action surface for this skill. Do not
+Use JiaorongAI's plugin-provided Computer Use tools as the only action surface for this skill. Do not
 ask the user to install `cua-driver`, configure an external server, or put anything on PATH for the
-bundled DeepChat plugin.
+bundled JiaorongAI plugin.
 
 ## Runtime Context
 
@@ -24,8 +24,8 @@ bundled DeepChat plugin.
   `linux/x64`.
 - Unsupported targets: `linux/arm64`.
 - macOS runtime bundle: packaged builds prefer
-  `DeepChat.app/Contents/Helpers/DeepChat Computer Use.app`; the plugin-local fallback is
-  `${PLUGIN_ROOT}/runtime/darwin/${PROCESS_ARCH}/DeepChat Computer Use.app`.
+  `JiaorongAI.app/Contents/Helpers/JiaorongAI Computer Use.app`; the plugin-local fallback is
+  `${PLUGIN_ROOT}/runtime/darwin/${PROCESS_ARCH}/JiaorongAI Computer Use.app`.
 - Windows helper binary: `${PLUGIN_ROOT}/runtime/win32/${PROCESS_ARCH}/cua-driver.exe`.
 - Linux helper binary: `${PLUGIN_ROOT}/runtime/linux/${PROCESS_ARCH}/cua-driver`.
 
@@ -43,7 +43,7 @@ bundled DeepChat plugin.
    `include_screenshot: true` for the initial view, sparse or ambiguous accessibility trees, pixel
    actions, and visual verification. Pass `include_screenshot: false` for a routine cheap re-index
    when the accessibility target is already unambiguous.
-6. Act with the matching DeepChat tool: `click`, `right_click`, `double_click`, `drag`, `scroll`,
+6. Act with the matching JiaorongAI tool: `click`, `right_click`, `double_click`, `drag`, `scroll`,
    `type_text`, `press_key`, `hotkey`, `set_value`, `set_window_frame`, `invoke_menu`, or
    `launch_app` with URLs/files when supported by the platform. Follow `WEB_APPS.md` for browser
    page content.
@@ -114,7 +114,7 @@ screen asks for it.
 ## Platform Notes
 
 - macOS: use `check_permissions` for Accessibility and Screen Recording status. The embedded
-  daemon is a direct child of DeepChat, so the grants belong to the signed DeepChat host app. Do
+  daemon is a direct child of JiaorongAI, so the grants belong to the signed JiaorongAI host app. Do
   not ask the user to grant a second helper identity.
 - Windows: prefer background dispatch when available. Resolve targets with `list_apps`, then call
   `launch_app` with a Windows `name`, `path`, `launch_path`, or `aumid`. Do not use macOS bundle
@@ -168,7 +168,7 @@ target is outside the current visible window.
 ## Clipboard
 
 Prefer direct element or browser typing over the shared system clipboard. `clipboard_read` is
-intentionally denied because clipboard plaintext is privacy-sensitive and DeepChat has no reviewed
+intentionally denied because clipboard plaintext is privacy-sensitive and JiaorongAI has no reviewed
 model/transcript retention path for it. Do not request a policy override. Use `clipboard_write`
 only when the user's task actually requires shared clipboard state, avoid placing unrelated
 sensitive data there, and continue only after the normal tool approval.

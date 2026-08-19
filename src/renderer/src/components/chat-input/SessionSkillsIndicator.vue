@@ -25,7 +25,7 @@
           :key="skillName"
           class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm"
         >
-          <span class="min-w-0 flex-1 truncate">{{ skillName }}</span>
+          <span class="min-w-0 flex-1 truncate">{{ skillLabel(skillName) }}</span>
           <DcButton
             type="button"
             variant="ghost"
@@ -51,6 +51,8 @@ import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { DcButton } from '@dc-ui/components/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@shadcn/components/ui/popover'
+import { useSkillsStore } from '@/stores/skillsStore'
+import { getSkillDisplayLabel } from '@/lib/slashMenuDisplayText'
 
 const props = defineProps<{
   activeSkills: string[]
@@ -65,4 +67,10 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const panelOpen = ref(false)
+const skillsStore = useSkillsStore()
+
+function skillLabel(skillName: string) {
+  const skill = skillsStore.skills.find((item) => item.name === skillName)
+  return getSkillDisplayLabel(skillName, skill?.metadata)
+}
 </script>

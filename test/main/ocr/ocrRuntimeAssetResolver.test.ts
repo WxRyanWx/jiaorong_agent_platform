@@ -3,6 +3,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
+import runtimeVersions from '../../../resources/runtime-versions.json'
 import { OcrRuntimeAssetResolver } from '../../../src/main/ocr/ocrRuntimeAssetResolver'
 
 const lightOcrVersion = '0.5.7'
@@ -13,6 +14,18 @@ const bundleId = 'ppocrv6-small-native-20260719.1'
 const runtimePackage = '@arcships/light-ocr-runtime'
 const modelPackage = '@arcships/light-ocr-model-ppocrv6-small'
 const nativePackage = '@arcships/light-ocr-darwin-arm64'
+const pinnedNodeSha256 = (
+  runtimeVersions.nodeArtifacts as Record<string, { executableSha256: string }>
+)['darwin-arm64'].executableSha256
+
+function withPinnedNodeHash(): {
+  hashNodeExecutable: (nodeExecutable: string) => Promise<string>
+} {
+  return {
+    hashNodeExecutable: async () => pinnedNodeSha256
+  }
+}
+
 const nativeArtifactInventory = {
   nativeCode: ['native/light_ocr_node.node'],
   pdfiumCode: ['pdfium/libpdfium.dylib', 'pdfium/pdfium.node'],
@@ -313,12 +326,73 @@ describe('OcrRuntimeAssetResolver', () => {
       isPackaged: false,
       platform: 'darwin',
       arch: 'arm64',
-      nodeRuntimePath
+      nodeRuntimePath,
+      ...withPinnedNodeHash()
     }).resolve()
 
     expect(availability).toMatchObject({
       status: 'available',
       assets: { bundlePath: await realpath(path.join(modelDir, 'bundle')) }
     })
+  })
+
+  it('rejects a bundled Node executable that does not match the pinned artifact', async () => {
+    await writeJson(path.join(tempDir, 'package.json'), { name: 'fixture', type: 'module' })
+    await seedAssetIdentity(tempDir)
+    const nodeRuntimePath = path.join(tempDir, 'runtime', 'node')
+    await writeText(path.join(nodeRuntimePath, 'bin', 'node'))
+    await writeText(path.join(tempDir, 'out', 'main', 'lightOcrHelper.js'))
+
+    await expect(
+      new OcrRuntimeAssetResolver({
+        appPath: tempDir,
+        isPackaged: false,
+        platform: 'darwin',
+        arch: 'arm64',
+        nodeRuntimePath,
+        hashNodeExecutable: async () => '0'.repeat(64)
+      }).resolve()
+    ).resolves.toMatchObject({ status: 'unavailable', reason: 'asset_identity_mismatch' })
+  })
+
+  it('does not hash-check the packaged Node executable after code signing', async () => {
+    const appPath = path.join(tempDir, 'resources', 'app.asar')
+    const unpackedRoot = path.join(tempDir, 'resources', 'app.asar.unpacked')
+    const { modelDir } = await seedAssetIdentity(unpackedRoot)
+    await writeText(path.join(unpackedRoot, 'runtime', 'node', 'bin', 'node'))
+    await writeText(path.join(unpackedRoot, 'out', 'main', 'lightOcrHelper.js'))
+    await writeJson(path.join(unpackedRoot, 'runtime', 'ocr', 'manifest.json'), {
+      schemaVersion: 3,
+      supported: true,
+      platform: 'darwin',
+      arch: 'arm64',
+      facadeVersion: lightOcrVersion,
+      runtimeVersion,
+      modelVersion,
+      nativeVersion,
+      pdfSupport: true,
+      bundleId,
+      nativePayloadEncoding: 'gzip-base64-v1',
+      nativePackage,
+      nativeArtifactInventory,
+      paths: {
+        node: 'runtime/node/bin/node',
+        helper: 'out/main/lightOcrHelper.js',
+        facade: 'node_modules/@arcships/light-ocr',
+        runtime: 'node_modules/@arcships/light-ocr-runtime',
+        bundle: path.relative(unpackedRoot, path.join(modelDir, 'bundle')),
+        native: 'node_modules/@arcships/light-ocr-darwin-arm64'
+      }
+    })
+
+    await expect(
+      new OcrRuntimeAssetResolver({
+        appPath,
+        isPackaged: true,
+        platform: 'darwin',
+        arch: 'arm64',
+        hashNodeExecutable: async () => '0'.repeat(64)
+      }).resolve()
+    ).resolves.toMatchObject({ status: 'available' })
   })
 })

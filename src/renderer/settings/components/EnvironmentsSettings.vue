@@ -4,6 +4,7 @@
     :description="t('settings.environments.description')"
     :eyebrow="t('settings.controlCenter.groups.setup')"
     data-testid="settings-environments-page"
+    class="settings-environments-page"
   >
     <template #actions>
       <DcButton
@@ -654,7 +655,10 @@ const EnvironmentRow = defineComponent({
                   ]),
                   h(
                     'span',
-                    { class: 'mt-1 block break-all text-xs text-muted-foreground' },
+                    {
+                      class:
+                        'settings-environment-path mt-1 block break-all text-xs text-muted-foreground'
+                    },
                     props.environment.path
                   ),
                   h('span', { class: 'mt-1 block text-xs text-muted-foreground' }, [

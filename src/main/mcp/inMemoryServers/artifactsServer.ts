@@ -1,6 +1,7 @@
 import { Server, Transport } from '@modelcontextprotocol/server'
 import { z } from 'zod'
 import { toDeepChatJsonSchema } from '@shared/lib/zodJsonSchema'
+import { ARTIFACTS_FOOTER } from '@jiaorong/brand'
 // Artifacts 相关的常量定义
 const ARTIFACTS_INFO = `
 <artifacts_info>
@@ -178,7 +179,7 @@ ${ARTIFACT_INSTRUCTIONS_HEAD}
       - It is inappropriate to use "text/html" when sharing snippets, code samples & example HTML or CSS code, as it would be rendered as a webpage and the source code would be obscured. The assistant should instead use "application/vnd.ant.code" defined above.
       - If the assistant is unable to follow the above requirements for any reason, use "application/vnd.ant.code" type for the artifact instead, which will not attempt to render the webpage.
       - Do not put HTML code in a code block when using artifacts.
-      - do not forget to add AI information in the footer: "Generated with [DeepChat](https://github.com/ThinkInAIXYZ/deepchat) | All page content is AI-generated and for reference only" ,ensure it matches the page language
+      - do not forget to add AI information in the footer: "${ARTIFACTS_FOOTER}" ,ensure it matches the page language
 ${ARTIFACT_INSTRUCTIONS_TAIL}
 <example>
   <user_query>Can you create a simple HTML landing page for a fictional coffee shop called "Morning Brew"?</user_query>
@@ -375,7 +376,7 @@ ${ARTIFACT_INSTRUCTIONS_TAIL}
     </section>
 
     <footer>
-      Generated with <a href="https://github.com/ThinkInAIXYZ/deepchat">DeepChat</a> | All page content is AI-generated and for reference only
+      ${ARTIFACTS_FOOTER}
     </footer>
 </body>
 </html>
@@ -572,14 +573,10 @@ export class ArtifactsServer {
           {
             name: 'get_artifact_instructions',
             description:
-              'Only call this function when you need instructions for a specific artifact type, and call it only once per type. ' +
-              'This tool provides guidance on creating and referencing artifacts, including code, documents, HTML, SVG, Mermaid diagrams, or React components. ' +
-              'Do not call this function repeatedly if instructions or definitions for the requested artifact type are already available in the current context. ' +
-              'Specify the desired artifact category through the type parameter: code, documents, html, svg, mermaid, or react. ' +
-              'After obtaining the instructions, use them appropriately and avoid duplicate calls for the same type.',
+              '仅在需要特定工件类型的指令时调用此函数，并且每种类型只调用一次。该工具提供了创建和引用工件的指导，包括代码、文档、HTML、SVG、Mermaid图或React组件。如果所请求的工件类型的指令或定义在当前上下文中已经可用，则不要重复调用此函数。通过type参数指定所需的工件类别：代码、文档、html、svg、mermaid或react。获得说明后，适当使用它们，避免对同一类型的重复调用。',
             inputSchema: toDeepChatJsonSchema(GetArtifactInstructionsArgsSchema),
             annotations: {
-              title: 'Get Artifact Instructions',
+              title: '获取工件说明',
               readOnlyHint: true
             }
           }

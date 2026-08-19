@@ -20,6 +20,8 @@ export interface StartDeeplinkPayload {
   modelId: string | null
   systemPrompt: string
   mentions: string[]
+  skills?: string[]
+  autoSend?: boolean
 }
 
 // --- Store ---

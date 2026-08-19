@@ -1,12 +1,17 @@
 import './assets/main.css'
+import '@arco-design/web-vue/dist/arco.css'
+import '@jiaorong/brand/theme.less'
 import { createPinia } from 'pinia'
 import { PiniaColada } from '@pinia/colada'
 import { createApp } from 'vue'
+import ArcoVue from '@arco-design/web-vue'
 import 'vue-virtual-scroller/dist/vue-virtual-scroller.css'
 import 'katex/dist/katex.min.css'
 
 import App from './App.vue'
 import router from './router'
+import { bootstrapJiaorongRendererAuth } from '@jiaorong/auth/host'
+import { APP_DOCUMENT_TITLE } from '@jiaorong/brand'
 import { createRendererI18n } from './i18n/bootstrap'
 import { preloadIcons } from './lib/iconLoader'
 import { createConfigClient } from '@api/ConfigClient'
@@ -18,6 +23,8 @@ async function bootstrap() {
   })
 
   document.documentElement.dir = languageState.direction === 'rtl' ? 'rtl' : 'auto'
+  document.title = APP_DOCUMENT_TITLE
+  await bootstrapJiaorongRendererAuth(router)
 
   // Icons will be loaded asynchronously on app mount to improve startup performance
   const pinia = createPinia()
@@ -33,7 +40,18 @@ async function bootstrap() {
   })
   app.use(router)
   app.use(i18n)
+  app.use(ArcoVue)
   app.mount('#app')
+
+  const scheduleJiaorongMount =
+    typeof window !== 'undefined' && 'requestIdleCallback' in window
+      ? (cb: () => void) => window.requestIdleCallback(cb, { timeout: 2000 })
+      : (cb: () => void) => window.setTimeout(cb, 0)
+  scheduleJiaorongMount(() => {
+    void import('@jiaorong').then(({ mountJiaorong }) => {
+      mountJiaorong()
+    })
+  })
 
   // Preload icons asynchronously after app mount to improve perceived startup time
   setTimeout(() => {

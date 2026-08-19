@@ -20,7 +20,25 @@ describe('SkillSettings', () => {
 
     expect(settings.isEnabled()).toBe(true)
     expect(settings.isDraftSuggestionsEnabled()).toBe(false)
-    expect(settings.getPath()).toBe('/home/tester/.deepchat/skills')
+    expect(settings.getPath()).toBe('/home/tester/.jiaorongchat/skills')
+    expect(store.set).not.toHaveBeenCalled()
+  })
+
+  it('repairs current-user legacy .deepchat skills paths and persists them', () => {
+    const settings = new SkillSettings(store as never)
+    values.set('skillsPath', '/home/tester/.deepchat/skills')
+
+    expect(settings.getPath()).toBe('/home/tester/.jiaorongchat/skills')
+    expect(values.get('skillsPath')).toBe('/home/tester/.jiaorongchat/skills')
+    expect(store.set).toHaveBeenCalledWith('skillsPath', '/home/tester/.jiaorongchat/skills')
+  })
+
+  it('leaves custom skills paths unchanged', () => {
+    const settings = new SkillSettings(store as never)
+    values.set('skillsPath', '/opt/custom-skills')
+
+    expect(settings.getPath()).toBe('/opt/custom-skills')
+    expect(store.set).not.toHaveBeenCalled()
   })
 
   it('reads and writes Skill-owned settings', () => {

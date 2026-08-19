@@ -46,8 +46,8 @@
 
 <script setup lang="ts">
 import { inject, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { createStartupClient } from '@api/StartupClient'
 import type { RendererStartupWorkloadTaskId } from '@shared/contracts/routes'
+import { ensureShellBootstrap } from '@/lib/shellBootstrap'
 import ChatSidePanel from '@/components/sidepanel/ChatSidePanel.vue'
 import AgentBrowserPiP from '@/components/browser/AgentBrowserPiP.vue'
 import AgentComputerUsePiP from '@/components/computerUse/AgentComputerUsePiP.vue'
@@ -134,47 +134,39 @@ onMounted(async () => {
   let criticalLoadPromises: Promise<void> | null = null
 
   try {
-    const startupClient = createStartupClient()
-    const bootstrap = await startupClient.getBootstrap()
-    performanceReporter?.recordStartup('bootstrap-ready', {
-      startupRunId: bootstrap.startupRunId
-    })
-    console.info(
-      `[Startup][Renderer] startup.bootstrap.ready run=${bootstrap.startupRunId} agents=${bootstrap.agents.length} activeSession=${bootstrap.activeSessionId ?? 'none'}`
-    )
+    const bootstrap = await ensureShellBootstrap()
+    if (bootstrap) {
+      performanceReporter?.recordStartup('bootstrap-ready', {
+        startupRunId: bootstrap.startupRunId
+      })
 
-    await sessionStore.applyBootstrapShell({
-      activeSessionId: bootstrap.activeSessionId,
-      activeSession: bootstrap.activeSession ?? null
-    })
-    agentStore.applyBootstrapAgents(bootstrap.agents)
-    projectStore.applyBootstrapDefaultProjectPath(
-      bootstrap.defaultProjectPath,
-      bootstrap.defaultChatWorkspacePath ?? null
-    )
+      await pageRouter.initialize({
+        activeSessionId: sessionStore.activeSessionId ?? bootstrap.activeSessionId
+      })
+      performanceReporter?.recordStartup('route-ready')
 
-    await pageRouter.initialize({
-      activeSessionId: bootstrap.activeSessionId
-    })
-    performanceReporter?.recordStartup('route-ready')
-
-    // Start loading agents, projects, models, and ollama immediately after router init
-    // Don't block on them, they load in background while we mark interactive
-    criticalLoadPromises = Promise.allSettled([
-      agentStore.fetchAgents(),
-      projectStore.fetchProjects(),
-      modelStore.initialize(),
-      ollamaStore.initialize()
-    ]).then(() => {
-      console.info('[Startup][Renderer] ChatTabView critical loads complete')
-    })
+      // Agents already hydrated by ensureShellBootstrap(); load the rest in background.
+      criticalLoadPromises = Promise.allSettled([
+        projectStore.fetchProjects(),
+        modelStore.initialize(),
+        ollamaStore.initialize()
+      ]).then(() => {
+        console.info('[Startup][Renderer] ChatTabView critical loads complete')
+      })
+    } else {
+      performanceReporter?.recordStartup('bootstrap-fallback', {
+        fallback: true,
+        outcome: 'failed'
+      })
+      await initializeRouteFromFallbackState()
+      performanceReporter?.recordStartup('route-ready', { fallback: true })
+    }
   } catch (error) {
     performanceReporter?.recordStartup('bootstrap-fallback', {
       fallback: true,
       outcome: 'failed'
     })
     console.warn('[Startup][Renderer] ChatTabView critical hydration failed:', error)
-    await Promise.allSettled([agentStore.fetchAgents(), projectStore.loadDefaultProjectPath()])
     await initializeRouteFromFallbackState()
     performanceReporter?.recordStartup('route-ready', { fallback: true })
   } finally {

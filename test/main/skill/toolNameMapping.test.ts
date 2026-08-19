@@ -32,8 +32,25 @@ describe('toolNameMapping', () => {
     expect(result.warnings.some((msg) => msg.includes('Unknown allowedTools entry'))).toBe(true)
   })
 
-  it('recognizes built-in DeepChat settings tools', () => {
+  it('recognizes built-in JiaorongAI settings tools and legacy aliases', () => {
     const result = normalizeSkillAllowedTools([
+      'jiaorong_settings_toggle',
+      'jiaorong_settings_set_language',
+      'jiaorong_settings_set_theme',
+      'jiaorong_settings_set_font_size',
+      'jiaorong_settings_open'
+    ])
+
+    expect(result.tools).toEqual([
+      'jiaorong_settings_toggle',
+      'jiaorong_settings_set_language',
+      'jiaorong_settings_set_theme',
+      'jiaorong_settings_set_font_size',
+      'jiaorong_settings_open'
+    ])
+    expect(result.warnings).toEqual([])
+
+    const legacy = normalizeSkillAllowedTools([
       'deepchat_settings_toggle',
       'deepchat_settings_set_language',
       'deepchat_settings_set_theme',
@@ -41,13 +58,13 @@ describe('toolNameMapping', () => {
       'deepchat_settings_open'
     ])
 
-    expect(result.tools).toEqual([
+    expect(legacy.tools).toEqual([
       'deepchat_settings_toggle',
       'deepchat_settings_set_language',
       'deepchat_settings_set_theme',
       'deepchat_settings_set_font_size',
       'deepchat_settings_open'
     ])
-    expect(result.warnings).toEqual([])
+    expect(legacy.warnings).toEqual([])
   })
 })

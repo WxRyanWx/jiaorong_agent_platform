@@ -3,7 +3,7 @@ import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statS
 import path from 'node:path'
 
 const OFFICIAL_PLUGIN_SOURCE = 'deepchat-official'
-const CUA_MANAGED_HELPER_APP = 'DeepChat Computer Use.app'
+const CUA_MANAGED_HELPER_APP = 'JiaorongAI Computer Use.app'
 const CUA_MANAGED_HELPER_EXECUTABLE = 'deepchat-cua-driver'
 
 function parseArgs(argv) {

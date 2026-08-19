@@ -1,0 +1,95 @@
+# 测试环境安装包（API → Vite mode=test → jiaorong auth/config.ts 测试服）
+# 覆盖：mac x64、mac arm64、win x64、win arm64、linux x64、linux arm64
+name: Build Test Application
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: 选择构建平台
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - windows
+          - linux
+          - mac
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
+jobs:
+  package-windows:
+    name: build-windows-test(${{ matrix.arch }})
+    if: inputs.platform == 'all' || inputs.platform == 'windows'
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x64, arm64]
+    uses: ./.github/workflows/_package-windows.yml
+    with:
+      source-sha: ${{ github.sha }}
+      arch: ${{ matrix.arch }}
+      artifact-purpose: distribution
+      enforce-installer-size: false
+      build-script: build:test
+    secrets:
+      RTK_GITHUB_TOKEN: ${{ secrets.RTK_GITHUB_TOKEN }}
+      DC_GITHUB_CLIENT_ID: ${{ secrets.DC_GITHUB_CLIENT_ID }}
+      DC_GITHUB_CLIENT_SECRET: ${{ secrets.DC_GITHUB_CLIENT_SECRET }}
+      DC_GITHUB_REDIRECT_URI: ${{ secrets.DC_GITHUB_REDIRECT_URI }}
+
+  package-linux:
+    name: build-linux-test(${{ matrix.arch }})
+    if: inputs.platform == 'all' || inputs.platform == 'linux'
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x64, arm64]
+    uses: ./.github/workflows/_package-linux.yml
+    with:
+      source-sha: ${{ github.sha }}
+      arch: ${{ matrix.arch }}
+      artifact-purpose: distribution
+      enforce-installer-size: false
+      build-script: build:test
+    secrets:
+      RTK_GITHUB_TOKEN: ${{ secrets.RTK_GITHUB_TOKEN }}
+      DC_GITHUB_CLIENT_ID: ${{ secrets.DC_GITHUB_CLIENT_ID }}
+      DC_GITHUB_CLIENT_SECRET: ${{ secrets.DC_GITHUB_CLIENT_SECRET }}
+      DC_GITHUB_REDIRECT_URI: ${{ secrets.DC_GITHUB_REDIRECT_URI }}
+
+  package-macos:
+    name: build-macos-test(${{ matrix.arch }})
+    if: inputs.platform == 'all' || inputs.platform == 'mac'
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x64, arm64]
+    uses: ./.github/workflows/_package-macos.yml
+    with:
+      source-sha: ${{ github.sha }}
+      arch: ${{ matrix.arch }}
+      artifact-purpose: distribution
+      enforce-installer-size: false
+      build-script: build:test
+    secrets:
+      RTK_GITHUB_TOKEN: ${{ secrets.RTK_GITHUB_TOKEN }}
+      DC_GITHUB_CLIENT_ID: ${{ secrets.DC_GITHUB_CLIENT_ID }}
+      DC_GITHUB_CLIENT_SECRET: ${{ secrets.DC_GITHUB_CLIENT_SECRET }}
+      DC_GITHUB_REDIRECT_URI: ${{ secrets.DC_GITHUB_REDIRECT_URI }}
+      DEEPCHAT_CSC_LINK: ${{ secrets.DEEPCHAT_CSC_LINK }}
+      DEEPCHAT_CSC_KEY_PASS: ${{ secrets.DEEPCHAT_CSC_KEY_PASS }}
+      DEEPCHAT_APPLE_NOTARY_USERNAME: ${{ secrets.DEEPCHAT_APPLE_NOTARY_USERNAME }}
+      DEEPCHAT_APPLE_NOTARY_TEAM_ID: ${{ secrets.DEEPCHAT_APPLE_NOTARY_TEAM_ID }}
+      DEEPCHAT_APPLE_NOTARY_PASSWORD: ${{ secrets.DEEPCHAT_APPLE_NOTARY_PASSWORD }}

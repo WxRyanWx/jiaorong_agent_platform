@@ -2,6 +2,7 @@ import type { DeepchatBridge } from '@shared/contracts/bridge'
 import {
   appRuntimeGuidedOnboardingResumeRequestedEvent,
   appRuntimeGuidedOnboardingStartRequestedEvent,
+  appRuntimeAuthLoginRequestedEvent,
   appRuntimeMcpInstallRequestedEvent,
   appRuntimeShortcutRequestedEvent,
   appRuntimeStartDeeplinkRequestedEvent,
@@ -23,6 +24,12 @@ export function createAppRuntimeClient(bridge: DeepchatBridge = getDeepchatBridg
     listener: (payload: DeepchatEventPayload<'appRuntime.mcpInstallRequested'>) => void
   ) {
     return bridge.on(appRuntimeMcpInstallRequestedEvent.name, listener)
+  }
+
+  function onAuthLoginRequested(
+    listener: (payload: DeepchatEventPayload<'appRuntime.authLoginRequested'>) => void
+  ) {
+    return bridge.on(appRuntimeAuthLoginRequestedEvent.name, listener)
   }
 
   function onGuidedOnboardingStartRequested(listener: () => void) {
@@ -60,6 +67,7 @@ export function createAppRuntimeClient(bridge: DeepchatBridge = getDeepchatBridg
   return {
     onStartDeeplink,
     onMcpInstallRequested,
+    onAuthLoginRequested,
     onGuidedOnboardingStartRequested,
     onGuidedOnboardingResumeRequested,
     onWindowFocused,

@@ -13,14 +13,7 @@
       >
         <div class="shrink-0 w-5 h-5 flex items-center justify-center">
           <ModelIcon
-            v-if="currentMessage.model_provider === 'acp'"
-            :model-id="currentMessage.model_id"
-            :is-dark="themeStore.isDark"
-            custom-class="w-[18px] h-[18px]"
-          />
-          <ModelIcon
-            v-else
-            :model-id="currentMessage.model_provider"
+            :model-id="'duihua'"
             custom-class="w-[18px] h-[18px]"
             :is-dark="themeStore.isDark"
             :alt="currentMessage.role"
@@ -28,7 +21,7 @@
         </div>
 
         <div class="flex min-w-0 flex-col w-full space-y-1.5">
-          <MessageInfo :name="currentMessage.model_name" :timestamp="currentMessage.timestamp" />
+          <MessageInfo :name="'交融对话'" :timestamp="currentMessage.timestamp" />
           <div class="flex flex-col w-full gap-1.5" data-message-content="true">
             <Spinner
               v-if="
@@ -249,6 +242,7 @@ import MessageToolbar from './MessageToolbar.vue'
 import MessageInfo from './MessageInfo.vue'
 import { useUiSettingsStore } from '@/stores/uiSettingsStore'
 import ModelIcon from '@/components/icons/ModelIcon.vue'
+import { useThemeStore } from '@/stores/theme'
 import { Spinner } from '@shadcn/components/ui/spinner'
 import MessageBlockAction from './MessageBlockAction.vue'
 import { useI18n } from 'vue-i18n'
@@ -276,7 +270,6 @@ import {
   ContextMenuTrigger
 } from '@shadcn/components/ui/context-menu'
 import { createDeviceClient } from '@api/DeviceClient'
-import { useThemeStore } from '@/stores/theme'
 import { notifyRenderer } from '@renderer-notifications/rendererNotificationPort'
 import { useMemoryActivityStore } from '@/stores/ui/memoryActivity'
 const props = defineProps<{
@@ -291,9 +284,9 @@ const props = defineProps<{
   allowGuardStopContinue?: boolean
 }>()
 
-const themeStore = useThemeStore()
 const deviceClient = createDeviceClient()
 const uiSettingsStore = useUiSettingsStore()
+const themeStore = useThemeStore()
 const { t } = useI18n()
 const memoryActivity = useMemoryActivityStore()
 

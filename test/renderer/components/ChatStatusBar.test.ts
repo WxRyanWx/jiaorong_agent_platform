@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { defineComponent, reactive, ref } from 'vue'
 import { flushPromises, mount } from '@vue/test-utils'
@@ -60,6 +62,7 @@ type SetupOptions = {
   defaultModel?: { providerId: string; modelId: string } | null
   preferredModel?: { providerId: string; modelId: string } | null
   extraModelGroups?: ExtraModelGroup[]
+  isAdmin?: boolean
   reasoningEffortDefault?: ReasoningEffort
   modelConfig?: Partial<TestGenerationSettings>
   sessionSettings?: Partial<TestGenerationSettings> | null
@@ -683,6 +686,10 @@ const setup = async (options: SetupOptions = {}) => {
   vi.doMock('@/stores/providerStore', () => ({
     useProviderStore: () => providerStore
   }))
+  vi.doMock('@shared/settingsSidebarAdmin', () => ({
+    isSettingsSidebarAdmin: () => options.isAdmin !== false,
+    isSettingsSidebarItemVisuallyHidden: () => false
+  }))
   vi.doMock('@/stores/ui/agent', () => ({
     useAgentStore: () => agentStore
   }))
@@ -1113,6 +1120,54 @@ describe('ChatStatusBar model and session panels', () => {
     },
     TEST_TIMEOUT_MS
   )
+
+  it('imports ModelIcon so every provider logo in the picker can render', () => {
+    const source = readFileSync(
+      resolve('src/renderer/src/components/chat/ChatStatusBar.vue'),
+      'utf8'
+    )
+    expect(source).toContain("import ModelIcon from '@/components/icons/ModelIcon.vue'")
+  })
+
+  it('passes the provider id to ModelIcon so Jiaorong shows the vendor logo', async () => {
+    const { wrapper } = await setup({
+      agentId: 'deepchat',
+      hasActiveSession: true,
+      isAdmin: true,
+      activeProviderId: 'jiaorong',
+      activeModelId: 'jiaorong-deepseek-v4-pro',
+      defaultModel: { providerId: 'jiaorong', modelId: 'jiaorong-deepseek-v4-pro' },
+      preferredModel: { providerId: 'jiaorong', modelId: 'jiaorong-deepseek-v4-pro' },
+      extraModelGroups: [
+        {
+          providerId: 'jiaorong',
+          providerName: 'Jiaorong',
+          apiType: 'openai-completions',
+          models: [{ id: 'jiaorong-deepseek-v4-pro', name: 'jiaorong-deepseek-v4-pro' }]
+        }
+      ]
+    })
+
+    expect(
+      wrapper.get('[data-testid="app-model-switcher"] .model-icon-stub').attributes('data-model-id')
+    ).toBe('jiaorong')
+  })
+
+  it('hides the model switcher for non-admin users', async () => {
+    const { wrapper } = await setup({
+      agentId: 'deepchat',
+      hasActiveSession: true,
+      isAdmin: false
+    })
+
+    expect(wrapper.get('[data-testid="app-model-switcher"]').element.closest('.speLabel')).not.toBe(
+      null
+    )
+    expect(wrapper.get('[data-testid="orchestration-control"]').element.closest('.speLabel')).toBe(
+      null
+    )
+    expect(wrapper.find('[data-testid="generation-settings-trigger"]').exists()).toBe(false)
+  })
 
   it('renders the auto approve permission mode for active sessions', async () => {
     const { wrapper, agentSessionPresenter } = await setup({

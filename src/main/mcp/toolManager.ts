@@ -562,12 +562,18 @@ export class ToolManager {
           )
 
           const serverConfig = serverConfigs[source.serverName]
+          const displayNameCandidate =
+            (typeof tool.title === 'string' && tool.title.trim()) ||
+            (typeof tool.annotations?.title === 'string' &&
+              String(tool.annotations.title).trim()) ||
+            ''
           const definition: MCPToolDefinition = {
             // Server annotations are untrusted hints and must not weaken local execution policy.
             execution: TOOL_EXECUTION.write,
             type: 'function',
             function: {
               name: finalName,
+              ...(displayNameCandidate ? { displayName: displayNameCandidate } : {}),
               description: finalDescription,
               parameters: {
                 type: 'object',
@@ -1002,7 +1008,7 @@ export class ToolManager {
         return this.createPreDispatchErrorResponse(
           toolCall.id,
           'tool_not_allowed',
-          `MCP server '${toolServerName}' is not allowed for DeepChat agent '${accessContext.agentId ?? 'unknown'}'. Configure MCP access in DeepChat agent settings.`,
+          `MCP server '${toolServerName}' is not allowed for JiaorongAI agent '${accessContext.agentId ?? 'unknown'}'. Configure MCP access in JiaorongAI agent settings.`,
           access?.throwPreDispatchErrors
         )
       }

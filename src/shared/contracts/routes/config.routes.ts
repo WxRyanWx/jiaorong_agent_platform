@@ -119,7 +119,8 @@ export const CONFIG_ENTRY_KEYS = [
   'providerOrder',
   'providerTimestamps',
   'sidebar_group_mode',
-  'input_enabledMcpTools'
+  'input_enabledMcpTools',
+  'jiaorong_skill_switch_map'
 ] as const
 
 export const ConfigEntryKeySchema = z.enum(CONFIG_ENTRY_KEYS)
@@ -138,7 +139,8 @@ export const ConfigEntryValuesSchema = z.object({
   providerOrder: z.array(z.string()),
   providerTimestamps: z.record(z.string(), z.number().int()),
   sidebar_group_mode: z.string(),
-  input_enabledMcpTools: z.array(z.string())
+  input_enabledMcpTools: z.array(z.string()),
+  jiaorong_skill_switch_map: z.record(z.string(), z.union([z.literal(0), z.literal(1)]))
 })
 
 export const ConfigEntryChangeSchema = z.discriminatedUnion('key', [
@@ -197,6 +199,10 @@ export const ConfigEntryChangeSchema = z.discriminatedUnion('key', [
   z.object({
     key: z.literal('input_enabledMcpTools'),
     value: z.array(z.string())
+  }),
+  z.object({
+    key: z.literal('jiaorong_skill_switch_map'),
+    value: z.record(z.string(), z.union([z.literal(0), z.literal(1)]))
   })
 ])
 

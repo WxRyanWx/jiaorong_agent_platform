@@ -10,6 +10,7 @@ export interface DeviceServicePort {
   selectFiles(options?: {
     filters?: { name: string; extensions: string[] }[]
     multiple?: boolean
+    allowDirectory?: boolean
   }): Promise<{ canceled: boolean; filePaths: string[] }>
   restartApp(): Promise<void>
   cacheImage(imageData: string): Promise<string>

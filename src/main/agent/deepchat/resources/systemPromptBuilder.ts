@@ -33,6 +33,7 @@ import {
   renderSkillRoutingCatalog,
   type SkillRoutingCatalogProjection
 } from '@/skill/routingCatalog'
+import { finalizeJiaorongSystemPrompt } from '@jiaorong/prompts/systemPromptFinalize'
 
 export type AgentExtensionPolicy = {
   enabledMcpServerIds?: string[] | null
@@ -411,7 +412,10 @@ export async function buildSystemPromptAssemblyWithSkills(
   dependencies.logSlowStep(sessionId, 'system-prompt.compose', stepStartedAt)
 
   dependencies.assertCurrent(sessionId, resourceInstance)
-  return assembly
+  return {
+    ...assembly,
+    prompt: finalizeJiaorongSystemPrompt(assembly.prompt)
+  }
 }
 
 export async function buildSystemPromptWithSkills(
@@ -507,7 +511,7 @@ function buildVerificationPolicyPrompt(workdir: string | null): string {
 
   if (isDeepChatWorkspace) {
     lines.push(
-      'In the DeepChat repository, prioritize `pnpm run format`, `pnpm run i18n`, and `pnpm run lint` after feature work.'
+      'In the JiaorongAI repository, prioritize `pnpm run format`, `pnpm run i18n`, and `pnpm run lint` after feature work.'
     )
   } else if (verificationScripts.length > 0) {
     const suggestedScripts = verificationScripts
@@ -544,37 +548,35 @@ function buildSkillsMetadataPrompt(
   let hasContent = false
 
   if (capabilities.canListSkills || capabilities.canViewSkills) {
-    lines.push('Before replying, always scan available skills.')
+    lines.push('回复前先扫一眼可用技能列表。')
     hasContent = true
   }
   if (capabilities.canViewSkills) {
-    lines.push('If any skill plausibly matches the task, call `skill_view` first.')
+    lines.push('若有技能可能与当前任务相关，先调用 `skill_view` 查看。')
     lines.push(
-      'Viewing a skill root `SKILL.md` activates that skill for the current message/tool loop; it does not pin the skill to the conversation. Viewing linked skill files is read-only and does not activate the skill.'
+      '查看技能根目录的 `SKILL.md` 会将该技能用于当前消息/工具循环；查看技能关联文件仅为只读，不会激活技能。'
     )
   }
   if (capabilities.canListSkills) {
     lines.push(
-      'If the catalog is incomplete or no visible card matches, use `skill_list` with a query before concluding that no relevant skill exists.'
+      '若目录不完整或没有可见卡片匹配，先用 `skill_list` 查询，再判断没有相关技能。'
     )
     hasContent = true
   }
   if (capabilities.canRunSkillScripts) {
     lines.push(
-      'Use `skill_run` only for skills that are active in the current message/tool loop, including manually pinned skills and skills activated by `skill_view`.'
+      '仅对当前消息/工具循环中已激活的技能使用 `skill_run`，包括手动固定的技能和由 `skill_view` 激活的技能。'
     )
     hasContent = true
   }
   if (capabilities.canManageDraftSkills && skillDraftSuggestionsEnabled) {
     lines.push(
-      'After completing a complex task, solving a tricky bug, or discovering a non-trivial workflow, you may draft a reusable skill with `skill_manage`.'
+      '完成复杂任务、解决棘手问题或发现可复用流程后，可用 `skill_manage` 起草可复用技能。'
     )
     lines.push(
-      'Only propose one draft per task, do it after the main answer is complete, and use `deepchat_question` to ask whether the user wants to keep the draft.'
+      '每个任务最多提议一份草稿，且须在主回答完成之后；用 `jiaorong_question` 询问用户是否保留草稿。'
     )
-    lines.push(
-      'Do not modify installed skills with `skill_manage`; it is draft-only in this version.'
-    )
+    lines.push('不要用 `skill_manage` 修改已安装技能；当前版本仅支持草稿。')
     hasContent = true
   }
 
@@ -600,8 +602,9 @@ function buildPinnedSkillsPrompt(skillSections: string[], sessionPersistentOnly 
   return [
     '## Active Skills',
     sessionPersistentOnly
-      ? 'These Session Skills are persistent context for this conversation. Follow them when relevant.'
-      : 'These skills are active for the current message context. Some may be manually pinned for the conversation; others may have been activated by `skill_view` for this message/tool loop only. Follow them when relevant.',
+      ? '以下技能已预载到本会话。相关时请遵循其说明。'
+      : '以下技能已用于当前消息上下文。部分可能已手动固定到会话，其余可能由 `skill_view` 仅在本轮工具循环中激活。相关时请遵循其说明。',
+    '注意：技能正文 / description 的语言（常为英文）只是参考材料，**不是**用户语言；思考与回答只跟 role=user 的用户消息语言一致。',
     '',
     skillSections.join('\n\n')
   ].join('\n')

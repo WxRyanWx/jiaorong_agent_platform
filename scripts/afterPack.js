@@ -15,7 +15,7 @@ import {
   isEncodedMacLightOcrArtifact
 } from './light-ocr-artifacts.mjs'
 
-const LINUX_APP_NAME = 'deepchat'
+const LINUX_APP_NAME = 'jiaorongsuperintelligentagent'
 const VSS_EXTENSION_NAME = 'vss.duckdb_extension'
 const LIGHT_OCR_FACADE_PACKAGE = '@arcships/light-ocr'
 const LIGHT_OCR_RUNTIME_MANIFEST = path.join('runtime', 'ocr', 'manifest.json')
@@ -171,7 +171,7 @@ function getResourcesDir(context) {
   const { appOutDir, electronPlatformName, packager } = context
 
   if (electronPlatformName === 'darwin') {
-    const productFilename = packager?.appInfo?.productFilename ?? 'DeepChat'
+    const productFilename = packager?.appInfo?.productFilename ?? 'JiaorongAI'
     return path.join(appOutDir, `${productFilename}.app`, 'Contents', 'Resources')
   }
 
@@ -791,14 +791,81 @@ export async function packageLightOcrAssets(context) {
   })
 }
 
-function isLinux(targets) {
-  const re = /AppImage|snap|deb|rpm|freebsd|pacman/i
-  return !!targets.find((target) => re.test(target.name))
+function isLinux(context) {
+  const { targets, electronPlatformName } = context
+  if (electronPlatformName === 'linux') {
+    return true
+  }
+  if (!targets?.length) {
+    return false
+  }
+  const re = /AppImage|snap|deb|rpm|freebsd|pacman|tar\.gz|dir/i
+  return targets.some((target) => re.test(target.name))
 }
 
-async function afterPackLinux({ appOutDir }) {
-  const scriptPath = path.join(appOutDir, LINUX_APP_NAME)
-  const script = `#!/bin/bash\n"\${BASH_SOURCE%/*}"/${LINUX_APP_NAME}.bin --no-sandbox "$@"`
+export function buildLinuxLauncherScript(executableName, productName = 'JiaorongAI') {
+  return `#!/bin/bash
+APP_DIR="$(cd "$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
+EXECUTABLE="\${APP_DIR}/${executableName}"
+DESKTOP_FILE="\${HOME}/.local/share/applications/jiaorong-ai.desktop"
+DESKTOP_DIR="\${HOME}/.local/share/applications"
+ICON="\${APP_DIR}/resources/app.ico"
+
+register_jiaorongchat_protocol() {
+  if [ -z "\${XDG_CURRENT_DESKTOP:-}" ] && [ -z "\${DISPLAY:-}" ] && [ -z "\${WAYLAND_DISPLAY:-}" ]; then
+    return 0
+  fi
+
+  mkdir -p "\${DESKTOP_DIR}"
+
+  cat > "\${DESKTOP_FILE}" << EOF
+[Desktop Entry]
+Name=${productName}
+Comment=${productName}
+Exec="\${EXECUTABLE}" %u
+Icon=\${ICON}
+Type=Application
+Categories=Utility;
+StartupWMClass=${executableName}
+MimeType=x-scheme-handler/jiaorongchat;x-scheme-handler/deepchat;
+EOF
+
+  if command -v update-desktop-database >/dev/null 2>&1; then
+    update-desktop-database "\${DESKTOP_DIR}" >/dev/null 2>&1 || true
+  fi
+
+  if command -v xdg-mime >/dev/null 2>&1; then
+    xdg-mime default jiaorong-ai.desktop x-scheme-handler/jiaorongchat >/dev/null 2>&1 || true
+    xdg-mime default jiaorong-ai.desktop x-scheme-handler/deepchat >/dev/null 2>&1 || true
+  fi
+}
+
+register_jiaorongchat_protocol
+
+exec "\${APP_DIR}/${executableName}.bin" --no-sandbox "$@"
+`
+}
+
+async function afterPackLinux(context) {
+  const { appOutDir, packager } = context
+  const executableName =
+    typeof packager?.appInfo?.executableName === 'string' && packager.appInfo.executableName.trim()
+      ? packager.appInfo.executableName.trim()
+      : typeof packager?.appInfo?.productFilename === 'string' &&
+          packager.appInfo.productFilename.trim()
+        ? packager.appInfo.productFilename.trim()
+        : LINUX_APP_NAME
+  const productName =
+    typeof packager?.appInfo?.productName === 'string' && packager.appInfo.productName.trim()
+      ? packager.appInfo.productName.trim()
+      : 'JiaorongAI'
+
+  const scriptPath = path.join(appOutDir, executableName)
+  if (!(await pathExists(scriptPath))) {
+    console.warn(`可执行文件不存在，跳过重命名: ${scriptPath}`)
+    return
+  }
+  const script = buildLinuxLauncherScript(executableName, productName)
   await fs.rename(scriptPath, `${scriptPath}.bin`)
   await fs.writeFile(scriptPath, script)
   await fs.chmod(scriptPath, 0o755)
@@ -831,8 +898,6 @@ async function encodeMacVssExtension(context) {
 }
 
 async function afterPack(context) {
-  const { targets, appOutDir } = context
-
   await copyFffNativePackages(context)
   await copyParcelWatcherNativePackages(context)
   await copyOpendalNativePackages(context)
@@ -840,8 +905,8 @@ async function afterPack(context) {
   await validateNativeKitPrebuilds(context)
   await encodeMacVssExtension(context)
 
-  if (isLinux(targets)) {
-    await afterPackLinux({ appOutDir })
+  if (isLinux(context)) {
+    await afterPackLinux(context)
   }
 }
 

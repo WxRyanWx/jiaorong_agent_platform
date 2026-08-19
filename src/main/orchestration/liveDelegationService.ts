@@ -4,6 +4,7 @@ import { performance } from 'node:perf_hooks'
 import { nanoid } from 'nanoid'
 import { approximateTokenSize } from 'tokenx'
 import { z } from 'zod'
+import { APP_NAME } from '@jiaorong/brand'
 import {
   LIVE_DELEGATION_HANDOFF_TOKEN_BUDGET,
   LIVE_DELEGATION_MAX_WAITS_PER_PARENT,
@@ -1981,7 +1982,7 @@ export class LiveDelegationService {
 function buildTurnHandoff(delegation: LiveDelegation, turn: LiveDelegationTurn): string {
   const [handoffSection, ...remainingSections] = LIVE_DELEGATION_REQUIRED_HANDOFF_SECTIONS
   return [
-    '# DeepChat Live Delegation',
+    `# ${APP_NAME} Live Delegation`,
     '',
     `Delegation: ${delegation.id}`,
     `Turn: ${turn.seq}`,

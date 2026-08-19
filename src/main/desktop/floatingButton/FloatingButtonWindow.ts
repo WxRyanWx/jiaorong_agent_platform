@@ -70,7 +70,7 @@ export class FloatingButtonWindow {
           nodeIntegration: false,
           contextIsolation: true,
           preload: path.join(__dirname, '../preload/floating.mjs'),
-          webSecurity: false,
+          webSecurity: false, // 与主窗口一致；暂关隔离
           devTools: is.dev,
           sandbox: false
         }

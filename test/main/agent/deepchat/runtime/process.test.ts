@@ -1526,7 +1526,7 @@ describe('processStream', () => {
         yield {
           type: 'tool_call_start',
           tool_call_id: 'question-1',
-          tool_call_name: 'deepchat_question'
+          tool_call_name: 'jiaorong_question'
         } as LLMCoreStreamEvent
         yield {
           type: 'tool_call_end',
@@ -1540,7 +1540,7 @@ describe('processStream', () => {
       }) as unknown as ProcessParams['coreStream']
 
       const result = await processStream(
-        createParams({ coreStream, tools: [makeTool('deepchat_question')] })
+        createParams({ coreStream, tools: [makeTool('jiaorong_question')] })
       )
 
       expect(result.status).toBe('paused')
@@ -1583,7 +1583,7 @@ describe('processStream', () => {
         yield {
           type: 'tool_call_start',
           tool_call_id: 'question-1',
-          tool_call_name: 'deepchat_question'
+          tool_call_name: 'jiaorong_question'
         } as LLMCoreStreamEvent
         yield {
           type: 'tool_call_end',
@@ -1599,7 +1599,7 @@ describe('processStream', () => {
       const result = await processStream(
         createParams({
           coreStream,
-          tools: [makeTool('deepchat_question')],
+          tools: [makeTool('jiaorong_question')],
           initialBlocks: [
             {
               type: 'tool_call',
@@ -1644,7 +1644,7 @@ describe('processStream', () => {
         yield {
           type: 'tool_call_start',
           tool_call_id: 'question-1',
-          tool_call_name: 'deepchat_question'
+          tool_call_name: 'jiaorong_question'
         } as LLMCoreStreamEvent
         yield {
           type: 'tool_call_end',
@@ -1662,7 +1662,7 @@ describe('processStream', () => {
         createParams({
           coreStream,
           toolExecution: createToolExecutionPort(toolService),
-          tools: [makeTool('action'), makeTool('deepchat_question')]
+          tools: [makeTool('action'), makeTool('jiaorong_question')]
         })
       )
 
@@ -3173,7 +3173,7 @@ describe('processStream', () => {
       yield {
         type: 'tool_call_start',
         tool_call_id: 'question-provider-cap',
-        tool_call_name: 'deepchat_question'
+        tool_call_name: 'jiaorong_question'
       } as LLMCoreStreamEvent
       yield {
         type: 'tool_call_end',
@@ -3189,7 +3189,7 @@ describe('processStream', () => {
     const pausedResult = await processStream(
       createParams({
         coreStream: pauseCoreStream,
-        tools: [makeTool('deepchat_question')],
+        tools: [makeTool('jiaorong_question')],
         maxProviderRounds: 1
       })
     )

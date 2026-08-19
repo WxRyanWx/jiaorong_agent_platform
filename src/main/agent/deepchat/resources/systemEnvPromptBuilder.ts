@@ -61,51 +61,6 @@ function logSlowSystemEnvStep(step: string, startedAt: number): void {
   logger.warn(`[SystemEnvPromptBuilder] step slow step=${step} elapsed=${elapsed}ms`)
 }
 
-function resolveModelDisplayName(
-  providerId: string,
-  modelId: string,
-  modelLookup?: Pick<ProviderCatalogPort, 'getProviderModels' | 'getCustomModels'>
-): string | undefined {
-  try {
-    const models = modelLookup?.getProviderModels(providerId) || []
-    const match = models.find((model) => model.id === modelId)
-    if (match?.name) {
-      return match.name
-    }
-
-    const customModels = modelLookup?.getCustomModels(providerId) || []
-    const customMatch = customModels.find((model) => model.id === modelId)
-    if (customMatch?.name) {
-      return customMatch.name
-    }
-  } catch (error) {
-    console.warn(
-      `[SystemEnvPromptBuilder] Failed to resolve model display name for ${providerId}/${modelId}:`,
-      error
-    )
-  }
-
-  return undefined
-}
-
-function resolveModelIdentity(
-  providerId?: string,
-  modelId?: string,
-  modelLookup?: Pick<ProviderCatalogPort, 'getProviderModels' | 'getCustomModels'>
-): {
-  modelName: string
-  exactModelId: string
-} {
-  const trimmedProviderId = providerId?.trim() || 'unknown-provider'
-  const trimmedModelId = modelId?.trim() || 'unknown-model'
-  const displayName = resolveModelDisplayName(trimmedProviderId, trimmedModelId, modelLookup)
-
-  return {
-    modelName: displayName || trimmedModelId,
-    exactModelId: `${trimmedProviderId}/${trimmedModelId}`
-  }
-}
-
 function resolveWorkdir(workdir?: string | null): string {
   const normalized = workdir?.trim()
   if (normalized) {
@@ -289,19 +244,14 @@ export async function buildSystemEnvPromptAssembly(
   const agentsInstructions = await readAgentsInstructions(agentsFilePath)
   logSlowSystemEnvStep('read-agents', stepStartedAt)
   stepStartedAt = Date.now()
-  const { modelName, exactModelId } = resolveModelIdentity(
-    options.providerId,
-    options.modelId,
-    options.modelLookup
-  )
-  logSlowSystemEnvStep('model-identity', stepStartedAt)
-  stepStartedAt = Date.now()
   const isGitRepo = isGitRepository(workdir)
   logSlowSystemEnvStep('git-detect', stepStartedAt)
 
+  // 交融产品：环境段不暴露真实模型名/ID（master 写死 Jiaorong-Ai），
+  // 与默认系统提示「禁止体现具体型号」一致。
   const environmentContent = [
-    `You are powered by the model named ${modelName}.`,
-    `The exact model ID is ${exactModelId}`,
+    'You are powered by the model named Jiaorong-Ai.',
+    'The exact model ID is Jiaorong-Ai',
     `Here is some useful information about the environment you are running in:`,
     '<env>',
     `Working directory: ${workdir}`,

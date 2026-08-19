@@ -76,6 +76,14 @@ import type {
 } from '@shared/types/skillManagement'
 import type { DeepchatEventPublisher } from '@shared/contracts/events'
 import logger from '@shared/logger'
+import {
+  APP_HOME_DIR_NAME,
+  LEGACY_APP_HOME_DIR_NAME,
+  getDefaultSkillsPath,
+  repairLegacySkillsPath,
+  repairPortableDefaultSkillsPath
+} from '@shared/appIdentity'
+import { filterEnabledSkillNamesFromSetting } from '@jiaorong/utils/skillSwitchCore'
 import { normalizeSkillAllowedTools } from './toolNameMapping'
 import { discoverSkillMetadataInWorker, logSkillDiscoveryWorkerWarnings } from './discoveryWorker'
 import {
@@ -85,7 +93,7 @@ import {
 } from './agentSkillRoots'
 
 const execFileAsync = promisify(execFile)
-const READ_ONLY_BUNDLED_SKILL_NAMES = new Set(['deepchat-cli'])
+const READ_ONLY_BUNDLED_SKILL_NAMES = new Set(['jiaorong-cli'])
 const MAX_METADATA_SNAPSHOT_ITEMS = 4_096
 const EFFECTIVE_SKILL_CONTENT_BUILDER_VERSION = 'skill-effective-content-v3'
 // SHA-256 values cover the canonical manifest and complete pre-declaration resource tree.
@@ -123,14 +131,20 @@ export const SKILL_CONFIG = {
   WATCHER_POLL_INTERVAL: 100, // ms
 
   /** Sidecar configuration directory name */
-  SIDECAR_DIR: '.deepchat-meta',
+  SIDECAR_DIR: '.jiaorongchat-meta',
+  /** 上游 / 已跑过搬迁树可能仍写在此目录，扫描时一并跳过 */
+  LEGACY_SIDECAR_DIR: '.deepchat-meta',
 
   /** Draft skill configuration */
-  DRAFT_ROOT_DIR: 'deepchat-skill-drafts',
+  DRAFT_ROOT_DIR: 'jiaorong-skill-drafts',
   DRAFT_MAX_CONTENT_CHARS: 100000,
   DRAFT_RETENTION_MS: 7 * 24 * 60 * 60 * 1000,
   MAX_LINKED_FILE_SIZE: 1024 * 1024
 } as const
+
+function isSkillSidecarDirName(name: string): boolean {
+  return name === SKILL_CONFIG.SIDECAR_DIR || name === SKILL_CONFIG.LEGACY_SIDECAR_DIR
+}
 
 const SUPPORTED_SCRIPT_EXTENSIONS: Record<string, SkillScriptRuntime> = {
   '.py': 'python',
@@ -146,7 +160,11 @@ const DEFAULT_RUNTIME_POLICY: SkillRuntimePolicy = {
 }
 
 const SKILL_NAME_PATTERN = /^[a-z0-9][a-z0-9._-]*$/
-const SKILL_NAME_ALIASES = new Map([['cua-driver', 'computer-use']])
+const SKILL_NAME_ALIASES = new Map([
+  ['cua-driver', 'computer-use'],
+  ['deepchat-settings', 'jiaorong-settings'],
+  ['deepchat-cli', 'jiaorong-cli']
+])
 const BINARY_LIKE_EXTENSIONS = new Set([
   '.png',
   '.jpg',
@@ -355,7 +373,7 @@ function sanitizeSkillExtensionConfig(input: unknown): SkillExtensionConfig {
  * SkillService manages the skills system.
  *
  * Responsibilities:
- * - Discover and parse SKILL.md files from ~/.deepchat/skills/
+ * - Discover and parse SKILL.md files from ~/.jiaorongchat/skills/
  * - Progressive loading: metadata always in memory, full content on demand
  * - Hot-reload skill files when they change
  * - Manage skill activation state per conversation
@@ -396,7 +414,7 @@ export class SkillService implements SkillServicePort {
     private readonly publishEvent: DeepchatEventPublisher,
     private readonly agentScopePort?: SkillAgentScopePort
   ) {
-    // Skills directory: ~/.deepchat/skills/
+    // Skills directory: ~/.jiaorongchat/skills/
     this.skillsDir = this.resolveSkillsDir()
     this.sidecarDir = path.join(this.skillsDir, SKILL_CONFIG.SIDECAR_DIR)
     this.draftsRoot = path.join(app.getPath('temp'), SKILL_CONFIG.DRAFT_ROOT_DIR)
@@ -408,10 +426,16 @@ export class SkillService implements SkillServicePort {
     const normalized = configuredPath?.trim()
     const homePath = app.getPath('home')
     const homeDir = homePath ? path.resolve(homePath) : path.resolve('.')
-    const fallbackDir = path.join(homeDir, '.deepchat', 'skills')
+    const fallbackDir = getDefaultSkillsPath(homeDir)
     const resolved = normalized ? path.resolve(normalized) : fallbackDir
+    const repairedLegacyPath = normalized ? repairLegacySkillsPath(normalized, homeDir) : null
+
+    if (repairedLegacyPath) {
+      return repairedLegacyPath
+    }
+
     const repairedDefaultPath = normalized
-      ? this.repairPortableDefaultSkillsPath(normalized, homeDir)
+      ? repairPortableDefaultSkillsPath(normalized, homeDir)
       : null
 
     if (repairedDefaultPath) {
@@ -419,34 +443,24 @@ export class SkillService implements SkillServicePort {
     }
 
     // Repair malformed paths like: C:\Users\name.deepchat\skills
-    const brokenPrefix = `${homeDir}.deepchat`
-    const compareResolved = process.platform === 'win32' ? resolved.toLowerCase() : resolved
-    const compareBrokenPrefix =
-      process.platform === 'win32' ? brokenPrefix.toLowerCase() : brokenPrefix
-    const hasBrokenPrefix = compareResolved.startsWith(compareBrokenPrefix)
-    const nextChar = compareResolved.charAt(compareBrokenPrefix.length)
-    const hasBoundaryAfterPrefix =
-      compareResolved.length === compareBrokenPrefix.length || nextChar === '/' || nextChar === '\\'
-    if (hasBrokenPrefix && hasBoundaryAfterPrefix) {
-      const suffix = resolved.slice(brokenPrefix.length).replace(/^[\\/]+/, '')
-      return path.join(homeDir, '.deepchat', suffix)
+    for (const dirName of [LEGACY_APP_HOME_DIR_NAME, APP_HOME_DIR_NAME]) {
+      const brokenPrefix = `${homeDir}${dirName}`
+      const compareResolved = process.platform === 'win32' ? resolved.toLowerCase() : resolved
+      const compareBrokenPrefix =
+        process.platform === 'win32' ? brokenPrefix.toLowerCase() : brokenPrefix
+      const hasBrokenPrefix = compareResolved.startsWith(compareBrokenPrefix)
+      const nextChar = compareResolved.charAt(compareBrokenPrefix.length)
+      const hasBoundaryAfterPrefix =
+        compareResolved.length === compareBrokenPrefix.length ||
+        nextChar === '/' ||
+        nextChar === '\\'
+      if (hasBrokenPrefix && hasBoundaryAfterPrefix) {
+        const suffix = resolved.slice(brokenPrefix.length).replace(/^[\\/]+/, '')
+        return path.join(homeDir, APP_HOME_DIR_NAME, suffix)
+      }
     }
 
     return resolved
-  }
-
-  private repairPortableDefaultSkillsPath(configuredPath: string, homeDir: string): string | null {
-    const slashPath = configuredPath.replace(/\\/g, '/')
-    const match =
-      slashPath.match(/^\/Users\/[^/]+\/\.deepchat\/skills(?:\/(.*))?$/i) ??
-      slashPath.match(/^[A-Za-z]:\/Users\/[^/]+\/\.deepchat\/skills(?:\/(.*))?$/i)
-
-    if (!match) {
-      return null
-    }
-
-    const suffixParts = (match[1] ?? '').split('/').filter(Boolean)
-    return path.join(homeDir, '.deepchat', 'skills', ...suffixParts)
   }
 
   /**
@@ -467,7 +481,7 @@ export class SkillService implements SkillServicePort {
     const normalizedAgentId = assertSafeSkillAgentId(agentId)
     this.assertAgentScopeActive(normalizedAgentId)
     if (this.agentScopePort && !(await this.agentScopePort.isDeepChatAgent(normalizedAgentId))) {
-      throw new Error(`DeepChat Agent not found: ${normalizedAgentId}`)
+      throw new Error(`JiaorongAI Agent not found: ${normalizedAgentId}`)
     }
     this.assertServiceActive()
     this.assertAgentScopeActive(normalizedAgentId)
@@ -509,7 +523,7 @@ export class SkillService implements SkillServicePort {
 
   private assertAgentScopeActive(agentId: string): void {
     if (this.deletedAgentScopes.has(agentId)) {
-      throw new Error(`DeepChat Agent Skill bindings are being deleted: ${agentId}`)
+      throw new Error(`JiaorongAI Agent Skill bindings are being deleted: ${agentId}`)
     }
   }
 
@@ -1289,6 +1303,7 @@ export class SkillService implements SkillServicePort {
     const normalizedAgentId = await this.requireAgentScope(agentId)
     await this.ensureAgentCatalogDiscovered(normalizedAgentId)
     await this.ensureAgentBindingsInitialized(normalizedAgentId)
+    await this.pruneMissingPhysicalSkills(normalizedAgentId)
     return this.getVisibleMetadataFromCache(normalizedAgentId)
   }
 
@@ -1793,6 +1808,7 @@ export class SkillService implements SkillServicePort {
 
   async getAllSkills(): Promise<UnifiedSkillItem[]> {
     await this.ensureAgentCatalogDiscovered(BUILTIN_SKILL_AGENT_ID)
+    await this.pruneMissingPhysicalSkills(BUILTIN_SKILL_AGENT_ID)
     const state = this.getStoredManagementState()
     return this.sortSkillMetadata(Array.from(this.metadataCache.values())).map((skill) =>
       this.toUnifiedSkillItem(skill, BUILTIN_SKILL_AGENT_ID, state, true)
@@ -2891,7 +2907,7 @@ export class SkillService implements SkillServicePort {
         action: 'install',
         draftId: normalizedDraftId,
         skillName: viewed.skillName,
-        error: 'No DeepChat Agent context available for draft installation'
+        error: 'No JiaorongAI Agent context available for draft installation'
       }
     }
     const result = await this.installFromDirectory(draftPath, {
@@ -2968,7 +2984,7 @@ export class SkillService implements SkillServicePort {
   ): string {
     const scripts = scriptInventory.filter((script) => script.enabled)
     const lines = [
-      '## DeepChat Runtime Context',
+      '## JiaorongAI Runtime Context',
       `- Skill root: \`${metadata.skillRoot}\`.`,
       '- Relative paths mentioned by this skill are relative to the skill root unless stated otherwise.',
       '- When this skill needs script execution, prefer `skill_run` over `exec`.'
@@ -2995,6 +3011,8 @@ export class SkillService implements SkillServicePort {
    * Install built-in skills from resources
    */
   async installBuiltinSkills(): Promise<void> {
+    this.pruneLegacyDuplicateSettingsSkill()
+    this.pruneLegacyDuplicateCliSkill()
     const builtinDir = this.resolveBuiltinSkillsDir()
     if (!builtinDir || !fs.existsSync(builtinDir)) {
       this.readOnlyBundledSkills = []
@@ -3024,8 +3042,25 @@ export class SkillService implements SkillServicePort {
         })
       }
 
+      const userSkillDir = path.join(this.skillsDir, entry.name)
+      const userExists = fs.existsSync(path.join(userSkillDir, 'SKILL.md'))
+      if (userExists) {
+        try {
+          const [builtinHash, userHash] = await Promise.all([
+            this.createBoundedSkillTreeHash(skillDir),
+            this.createBoundedSkillTreeHash(userSkillDir)
+          ])
+          if (builtinHash === userHash) continue
+        } catch (error) {
+          logger.warn('[SkillService] Builtin skill hash compare failed; overwriting.', {
+            name: entry.name,
+            error
+          })
+        }
+      }
+
       const result = await this.installFromDirectory(skillDir, {
-        options: { overwrite: false },
+        options: { overwrite: userExists },
         sourceType: 'builtin',
         assignToAgent: managementStateIsV3,
         persistManagementState: managementStateIsV3
@@ -3038,6 +3073,32 @@ export class SkillService implements SkillServicePort {
       }
     }
     this.readOnlyBundledSkills = await this.discoverReadOnlyBundledSkills()
+  }
+
+  /** 上游 deepchat-settings 与 jiaorong-settings 重复；只保留交融设置技能 */
+  private pruneLegacyDuplicateSettingsSkill(): void {
+    const legacyDir = path.join(this.skillsDir, 'deepchat-settings')
+    if (!fs.existsSync(legacyDir)) {
+      return
+    }
+    try {
+      fs.rmSync(legacyDir, { recursive: true, force: true })
+    } catch (error) {
+      logger.warn('[SkillService] Failed to remove leftover deepchat-settings skill.', { error })
+    }
+  }
+
+  /** 上游 deepchat-cli 已改名为 jiaorong-cli；清掉用户目录残留以免双卡 */
+  private pruneLegacyDuplicateCliSkill(): void {
+    const legacyDir = path.join(this.skillsDir, 'deepchat-cli')
+    if (!fs.existsSync(legacyDir)) {
+      return
+    }
+    try {
+      fs.rmSync(legacyDir, { recursive: true, force: true })
+    } catch (error) {
+      logger.warn('[SkillService] Failed to remove leftover deepchat-cli skill.', { error })
+    }
   }
 
   private async migrateLegacyBuiltinExecutionSupport(
@@ -3337,7 +3398,7 @@ export class SkillService implements SkillServicePort {
       return { success: false, error: 'Zip file not found', errorCode: 'not_found' }
     }
 
-    const tempDir = fs.mkdtempSync(path.join(app.getPath('temp'), 'deepchat-skill-'))
+    const tempDir = fs.mkdtempSync(path.join(app.getPath('temp'), 'jiaorong-skill-'))
     try {
       await extractSkillArchive(zipPath, tempDir, {
         maxArchiveBytes: SKILL_CONFIG.ZIP_MAX_SIZE
@@ -3383,7 +3444,7 @@ export class SkillService implements SkillServicePort {
   ): Promise<SkillInstallResult> {
     const normalizedAgentId = await this.requireAgentScope(agentId)
     const finishOperation = this.beginAgentScopeOperation(normalizedAgentId)
-    const tempZipPath = path.join(app.getPath('temp'), `deepchat-skill-${randomUUID()}.zip`)
+    const tempZipPath = path.join(app.getPath('temp'), `jiaorong-skill-${randomUUID()}.zip`)
     try {
       await downloadSkillArchive(url, tempZipPath, {
         maxBytes: SKILL_CONFIG.ZIP_MAX_SIZE,
@@ -4170,7 +4231,12 @@ export class SkillService implements SkillServicePort {
   private backupExistingSkill(skillName: string): string {
     const sourceDir = path.join(this.skillsDir, skillName)
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-    const backupRoot = path.join(app.getPath('home'), '.deepchat', 'backups', 'skill-installs')
+    const backupRoot = path.join(
+      app.getPath('home'),
+      APP_HOME_DIR_NAME,
+      'backups',
+      'skill-installs'
+    )
     fs.mkdirSync(backupRoot, { recursive: true })
     const backupDir = path.join(backupRoot, `${skillName}-${timestamp}-${randomUUID()}`)
     fs.renameSync(sourceDir, backupDir)
@@ -4245,7 +4311,7 @@ export class SkillService implements SkillServicePort {
   }
 
   private async cloneGitSkillRepo(repoUrl: string): Promise<string> {
-    const operationRoot = path.join(app.getPath('home'), '.deepchat', 'tmp', 'skill-installs')
+    const operationRoot = path.join(app.getPath('home'), APP_HOME_DIR_NAME, 'tmp', 'skill-installs')
     fs.mkdirSync(operationRoot, { recursive: true })
     const cloneDir = path.join(operationRoot, `${Date.now()}-${randomUUID()}`)
     try {
@@ -4522,7 +4588,7 @@ export class SkillService implements SkillServicePort {
     if (!fs.existsSync(readmePath)) {
       fs.writeFileSync(
         readmePath,
-        '# DeepChat Skills\n\nThis directory stores portable DeepChat skills under `skills/`.\n',
+        '# JiaorongAI Skills\n\nThis directory stores portable JiaorongAI skills under `skills/`.\n',
         'utf-8'
       )
     }
@@ -4656,7 +4722,7 @@ export class SkillService implements SkillServicePort {
   private collectSkillDirectoryFiles(root: string, current: string = root): string[] {
     const files: string[] = []
     for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
-      if (entry.isSymbolicLink() || entry.name === SKILL_CONFIG.SIDECAR_DIR) {
+      if (entry.isSymbolicLink() || isSkillSidecarDirName(entry.name)) {
         continue
       }
       const fullPath = path.join(current, entry.name)
@@ -4755,7 +4821,7 @@ export class SkillService implements SkillServicePort {
     }
 
     const skillDir = path.resolve(metadata.skillRoot)
-    const backupRoot = path.join(app.getPath('home'), '.deepchat', 'backups', 'skill-deletes')
+    const backupRoot = path.join(app.getPath('home'), APP_HOME_DIR_NAME, 'backups', 'skill-deletes')
     fs.mkdirSync(backupRoot, { recursive: true })
     const backupDir = path.join(backupRoot, `${name}-${Date.now()}-${randomUUID()}`)
     const sessions = this.agentScopePort ? await this.agentScopePort.listSessions() : []
@@ -4813,7 +4879,7 @@ export class SkillService implements SkillServicePort {
   async cleanupAgentSkills(agentId: string): Promise<void> {
     const normalizedAgentId = assertSafeSkillAgentId(agentId)
     if (normalizedAgentId === BUILTIN_SKILL_AGENT_ID) {
-      throw new Error('The built-in DeepChat Agent Skill bindings cannot be deleted')
+      throw new Error('The built-in JiaorongAI Agent Skill bindings cannot be deleted')
     }
 
     this.deletedAgentScopes.add(normalizedAgentId)
@@ -5151,7 +5217,8 @@ export class SkillService implements SkillServicePort {
     }
     const confinedSkillPath = await this.resolvePhysicalSkillPath(metadata.skillRoot, metadata.path)
     if (!confinedSkillPath) {
-      throw new Error(`Skill manifest is outside the physical Skill root: ${name}`)
+      this.forgetMissingPhysicalSkill(normalizedAgentId, name)
+      throw new Error(`Skill "${name}" not found`)
     }
 
     const stats = await fs.promises.stat(confinedSkillPath)
@@ -5197,7 +5264,7 @@ export class SkillService implements SkillServicePort {
 
       for (const entry of entries) {
         // Skip symbolic links to prevent infinite recursion
-        if (entry.isSymbolicLink?.() || entry.name === SKILL_CONFIG.SIDECAR_DIR) {
+        if (entry.isSymbolicLink?.() || isSkillSidecarDirName(entry.name)) {
           continue
         }
 
@@ -5226,17 +5293,31 @@ export class SkillService implements SkillServicePort {
   }
 
   /**
-   * Open the skills folder in file explorer
+   * Open the skills folder in file explorer.
+   * When `name` is provided, open that discovered skill's own directory.
    */
-  async openSkillsFolder(): Promise<void> {
-    await this.openSkillsFolderForAgent(BUILTIN_SKILL_AGENT_ID)
+  async openSkillsFolder(name?: string): Promise<void> {
+    await this.openSkillsFolderForAgent(BUILTIN_SKILL_AGENT_ID, name)
   }
 
-  async openSkillsFolderForAgent(agentId: string): Promise<void> {
+  async openSkillsFolderForAgent(agentId: string, name?: string): Promise<void> {
     const normalizedAgentId = await this.requireAgentScope(agentId)
     const finishOperation = this.beginAgentScopeOperation(normalizedAgentId)
     try {
-      await shell.openPath(this.skillsDir)
+      let targetPath = this.skillsDir
+      const skillName = name?.trim()
+      if (skillName) {
+        await this.ensureAgentCatalogDiscovered(normalizedAgentId)
+        const metadata = this.getMetadataCacheForAgent(normalizedAgentId).get(skillName)
+        if (!metadata) {
+          throw new Error(`Skill "${skillName}" not found`)
+        }
+        targetPath = metadata.skillRoot
+      }
+      const errorMessage = await shell.openPath(targetPath)
+      if (errorMessage) {
+        throw new Error(errorMessage)
+      }
     } finally {
       finishOperation()
     }
@@ -5325,12 +5406,15 @@ export class SkillService implements SkillServicePort {
   }
 
   private removeLegacySidecarDirIfEmpty(): void {
-    try {
-      if (fs.existsSync(this.sidecarDir) && fs.readdirSync(this.sidecarDir).length === 0) {
-        fs.rmSync(this.sidecarDir, { force: true, recursive: false })
+    const dirs = [this.sidecarDir, path.join(this.skillsDir, SKILL_CONFIG.LEGACY_SIDECAR_DIR)]
+    for (const dir of dirs) {
+      try {
+        if (fs.existsSync(dir) && fs.readdirSync(dir).length === 0) {
+          fs.rmSync(dir, { force: true, recursive: false })
+        }
+      } catch {
+        // Keep legacy residue for the next migration attempt.
       }
-    } catch {
-      // Keep legacy residue for the next migration attempt.
     }
   }
 
@@ -5483,6 +5567,14 @@ export class SkillService implements SkillServicePort {
     })
   }
 
+  /** 按交融全局开关过滤已关闭技能（不注入模型 / 不可激活） */
+  private filterJiaorongEnabledSkills(skillNames: string[]): string[] {
+    return filterEnabledSkillNamesFromSetting(
+      skillNames,
+      this.settings.getJiaorongSkillSwitchSetting()
+    )
+  }
+
   /**
    * Snapshot persisted active names without validation, repair, or persistence.
    */
@@ -5510,7 +5602,8 @@ export class SkillService implements SkillServicePort {
       if (!this.areSkillListsEqual(validSkills, skills)) {
         this.setPersistedNewSessionSkills(conversationId, validSkills)
       }
-      return validSkills
+      // 开关过滤只影响本次返回，不写回会话，避免关闭后再开启时会话里技能丢失
+      return this.filterJiaorongEnabledSkills(validSkills)
     }
 
     return []
@@ -5566,8 +5659,10 @@ export class SkillService implements SkillServicePort {
       if (this.retiredSessionSkillScopes.has(conversationId)) return []
       const isNewSession = await this.isNewAgentSession(conversationId)
       const agentId = await this.resolveSessionAgentId(conversationId)
-      // Validate skill names against the owning Agent's catalog.
-      const validSkills = agentId ? await this.validateSkillNames(agentId, skills) : []
+      // Validate skill names（并剔除交融侧已关闭技能）
+      const validSkills = this.filterJiaorongEnabledSkills(
+        agentId ? await this.validateSkillNames(agentId, skills) : []
+      )
       if (this.retiredSessionSkillScopes.has(conversationId)) return []
       if (!isNewSession || !agentId) {
         this.warnLegacySkillRetired(conversationId)
@@ -5777,6 +5872,8 @@ export class SkillService implements SkillServicePort {
     return [
       `${root}/${SKILL_CONFIG.SIDECAR_DIR}/**`,
       `${root}/**/${SKILL_CONFIG.SIDECAR_DIR}/**`,
+      `${root}/${SKILL_CONFIG.LEGACY_SIDECAR_DIR}/**`,
+      `${root}/**/${SKILL_CONFIG.LEGACY_SIDECAR_DIR}/**`,
       `${root}/.agent-scopes/**`,
       `${root}/${SKILL_INSTALL_STAGING_PREFIX}*/**`,
       `${root}/${SHARED_SKILL_MIGRATION_DIR}/**`
@@ -5790,15 +5887,24 @@ export class SkillService implements SkillServicePort {
     }
 
     for (const event of batch.events) {
-      if (!this.isWatchedSkillMarkdownPath(event.path)) continue
       if (this.isWithinAgentScopesDirectory(event.path)) continue
       const agentId = BUILTIN_SKILL_AGENT_ID
       if (event.type === 'create') {
+        if (!this.isWatchedSkillMarkdownPath(event.path)) continue
         await this.handleSkillFileAdded(event.path, agentId)
       } else if (event.type === 'update') {
+        if (!this.isWatchedSkillMarkdownPath(event.path)) continue
         await this.handleSkillFileChanged(event.path, agentId)
       } else if (event.type === 'delete') {
-        await this.handleSkillFileDeleted(event.path, agentId)
+        if (this.isWatchedSkillMarkdownPath(event.path)) {
+          await this.handleSkillFileDeleted(event.path, agentId)
+          continue
+        }
+        const skillName = this.findSkillNameByExactRoot(event.path, agentId)
+        if (!skillName) continue
+        const metadata = this.getMetadataCacheForAgent(agentId).get(skillName)
+        if (!metadata) continue
+        await this.handleSkillFileDeleted(metadata.path, agentId)
       }
     }
   }
@@ -5846,6 +5952,7 @@ export class SkillService implements SkillServicePort {
     return (
       !segments[0]?.startsWith('.') &&
       !segments.includes(SKILL_CONFIG.SIDECAR_DIR) &&
+      !segments.includes(SKILL_CONFIG.LEGACY_SIDECAR_DIR) &&
       segments.length - 1 <= SKILL_CONFIG.FOLDER_TREE_MAX_DEPTH
     )
   }
@@ -5970,7 +6077,7 @@ export class SkillService implements SkillServicePort {
       if (entry.isSymbolicLink()) {
         throw new Error(`Symbolic links are not allowed in Skill snapshots: ${src}`)
       }
-      if (entry.name === SKILL_CONFIG.SIDECAR_DIR) {
+      if (isSkillSidecarDirName(entry.name)) {
         continue
       }
 
@@ -6035,7 +6142,7 @@ export class SkillService implements SkillServicePort {
 
   private shouldIgnoreSkillsRootEntry(entryName: string): boolean {
     return (
-      entryName === SKILL_CONFIG.SIDECAR_DIR ||
+      isSkillSidecarDirName(entryName) ||
       BUILTIN_SKILL_ROOT_EXCLUDED_DIRS.has(entryName) ||
       entryName.includes('.backup-') ||
       entryName.startsWith('.')
@@ -6043,7 +6150,15 @@ export class SkillService implements SkillServicePort {
   }
 
   private getSidecarPath(name: string): string {
-    return path.join(this.sidecarDir, `${name}.json`)
+    const current = path.join(this.sidecarDir, `${name}.json`)
+    if (fs.existsSync(current)) {
+      return current
+    }
+    const legacy = path.join(this.skillsDir, SKILL_CONFIG.LEGACY_SIDECAR_DIR, `${name}.json`)
+    if (fs.existsSync(legacy)) {
+      return legacy
+    }
+    return current
   }
 
   private async collectScriptDescriptors(
@@ -6546,6 +6661,35 @@ export class SkillService implements SkillServicePort {
       }
     }
     return null
+  }
+
+  private findSkillNameByExactRoot(
+    dirPath: string,
+    agentId: string = BUILTIN_SKILL_AGENT_ID
+  ): string | null {
+    const resolved = path.resolve(dirPath)
+    for (const metadata of this.getMetadataCacheForAgent(agentId).values()) {
+      if (path.resolve(metadata.skillRoot) === resolved) {
+        return metadata.name
+      }
+    }
+    return null
+  }
+
+  private forgetMissingPhysicalSkill(agentId: string, name: string): void {
+    this.getMetadataCacheForAgent(agentId).delete(name)
+    this.invalidateSkillContent(name)
+  }
+
+  /** 用户手删目录后 watcher 可能只报文件夹、不报 SKILL.md；列表读取时再核对一次磁盘。 */
+  private async pruneMissingPhysicalSkills(agentId: string): Promise<void> {
+    const cache = this.getMetadataCacheForAgent(agentId)
+    for (const [name, metadata] of [...cache.entries()]) {
+      if (metadata.readOnly || metadata.ownerPluginId) continue
+      const confined = await this.resolvePhysicalSkillPath(metadata.skillRoot, metadata.path)
+      if (confined) continue
+      this.forgetMissingPhysicalSkill(agentId, name)
+    }
   }
 
   private removeEmptyDraftConversationDir(conversationId: string): void {

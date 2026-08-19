@@ -2,8 +2,8 @@ import logger from '@shared/logger'
 import type { MCPServerConfig, McpEnterpriseIdentityProfile } from '@shared/types/mcp'
 import type { BuiltinKnowledgeConfig } from '@shared/types/knowledge'
 import ElectronStore from 'electron-store'
-// app is used in DEFAULT_INMEMORY_SERVERS but removed buildInFileSystem
-// import { app } from 'electron'
+import { app } from 'electron'
+import { prepareJsonStoreFile } from '@/config/jsonStoreRecovery'
 import { compare } from 'compare-versions'
 import { isBuiltinKnowledgeSupported } from '../knowledge/support'
 import type { StoreLike } from '../config/storeLike'
@@ -74,7 +74,7 @@ const PLATFORM_SPECIFIC_SERVERS: Record<string, Omit<MCPServerConfig, 'enabled'>
     ? {
         'deepchat/apple-server': {
           args: [],
-          descriptions: 'DeepChat内置Apple系统集成服务 (仅macOS)',
+          descriptions: '交融超级智能体内置 Apple 系统集成服务（仅 macOS）',
           icons: '🍎',
           type: 'inmemory' as MCPServerType,
           command: 'deepchat/apple-server',
@@ -89,7 +89,7 @@ const PLATFORM_SPECIFIC_SERVERS: Record<string, Omit<MCPServerConfig, 'enabled'>
     ? {
         // 'deepchat-inmemory/windows-server': {
         //   args: [],
-        //   descriptions: 'DeepChat built-in Windows system integration service (Windows only)',
+        //   descriptions: 'JiaorongAI built-in Windows system integration service (Windows only)',
         //   icons: '🪟',
         //   type: 'inmemory' as MCPServerType,
         //   command: 'deepchat-inmemory/windows-server',
@@ -104,7 +104,7 @@ const PLATFORM_SPECIFIC_SERVERS: Record<string, Omit<MCPServerConfig, 'enabled'>
     ? {
         // 'deepchat-inmemory/linux-server': {
         //   args: [],
-        //   descriptions: 'DeepChat built-in Linux system integration service (Linux only)',
+        //   descriptions: 'JiaorongAI built-in Linux system integration service (Linux only)',
         //   icons: '🐧',
         //   type: 'inmemory' as MCPServerType,
         //   command: 'deepchat-inmemory/linux-server',
@@ -120,7 +120,7 @@ const DEFAULT_INMEMORY_SERVERS: Record<string, Omit<MCPServerConfig, 'enabled'>>
   // buildInFileSystem has been removed - filesystem capabilities are now provided via Agent tools
   Artifacts: {
     args: [],
-    descriptions: 'DeepChat内置 artifacts mcp服务',
+    descriptions: '交融超级智能体内置 Artifacts MCP 服务',
     icons: '🎨',
     type: 'inmemory' as MCPServerType,
     command: 'artifacts',
@@ -129,7 +129,7 @@ const DEFAULT_INMEMORY_SERVERS: Record<string, Omit<MCPServerConfig, 'enabled'>>
   },
   bochaSearch: {
     args: [],
-    descriptions: 'DeepChat内置博查搜索服务',
+    descriptions: '交融超级智能体内置博查搜索服务',
     icons: '🔍',
     type: 'inmemory' as MCPServerType,
     command: 'bochaSearch',
@@ -140,7 +140,7 @@ const DEFAULT_INMEMORY_SERVERS: Record<string, Omit<MCPServerConfig, 'enabled'>>
   },
   braveSearch: {
     args: [],
-    descriptions: 'DeepChat内置Brave搜索服务',
+    descriptions: '交融超级智能体内置 Brave 搜索服务',
     icons: '🦁',
     type: 'inmemory' as MCPServerType,
     command: 'braveSearch',
@@ -151,7 +151,7 @@ const DEFAULT_INMEMORY_SERVERS: Record<string, Omit<MCPServerConfig, 'enabled'>>
   },
   difyKnowledge: {
     args: [],
-    descriptions: 'DeepChat内置Dify知识库检索服务',
+    descriptions: '交融超级智能体内置 Dify 知识库检索服务',
     icons: '📚',
     type: 'inmemory' as MCPServerType,
     command: 'difyKnowledge',
@@ -169,7 +169,7 @@ const DEFAULT_INMEMORY_SERVERS: Record<string, Omit<MCPServerConfig, 'enabled'>>
   },
   ragflowKnowledge: {
     args: [],
-    descriptions: 'DeepChat内置RAGFlow知识库检索服务',
+    descriptions: '交融超级智能体内置 RAGFlow 知识库检索服务',
     icons: '📚',
     type: 'inmemory' as MCPServerType,
     command: 'ragflowKnowledge',
@@ -187,7 +187,7 @@ const DEFAULT_INMEMORY_SERVERS: Record<string, Omit<MCPServerConfig, 'enabled'>>
   },
   fastGptKnowledge: {
     args: [],
-    descriptions: 'DeepChat内置FastGPT知识库检索服务',
+    descriptions: '交融超级智能体内置 FastGPT 知识库检索服务',
     icons: '📚',
     type: 'inmemory' as MCPServerType,
     command: 'fastGptKnowledge',
@@ -205,7 +205,7 @@ const DEFAULT_INMEMORY_SERVERS: Record<string, Omit<MCPServerConfig, 'enabled'>>
   },
   builtinKnowledge: {
     args: [],
-    descriptions: 'DeepChat内置知识库检索服务',
+    descriptions: '交融超级智能体内置知识库检索服务',
     icons: '📚',
     type: 'inmemory' as MCPServerType,
     command: 'builtinKnowledge',
@@ -215,7 +215,7 @@ const DEFAULT_INMEMORY_SERVERS: Record<string, Omit<MCPServerConfig, 'enabled'>>
   'deepchat-inmemory/deep-research-server': {
     args: [],
     descriptions:
-      'DeepChat内置深度研究服务，使用博查搜索(注意该服务需要较长的上下文模型，请勿在短上下文的模型中使用)',
+      '交融超级智能体内置深度研究服务，使用博查搜索（注意该服务需要较长的上下文模型，请勿在短上下文的模型中使用）',
     icons: '🔬',
     type: 'inmemory' as MCPServerType,
     command: 'deepchat-inmemory/deep-research-server',
@@ -226,7 +226,7 @@ const DEFAULT_INMEMORY_SERVERS: Record<string, Omit<MCPServerConfig, 'enabled'>>
   },
   'deepchat-inmemory/auto-prompting-server': {
     args: [],
-    descriptions: 'DeepChat内置自动模板提示词服务',
+    descriptions: '交融超级智能体内置自动模板提示词服务',
     icons: '📜',
     type: 'inmemory' as MCPServerType,
     command: 'deepchat-inmemory/auto-prompting-server',
@@ -235,7 +235,7 @@ const DEFAULT_INMEMORY_SERVERS: Record<string, Omit<MCPServerConfig, 'enabled'>>
   },
   'deepchat-inmemory/conversation-search-server': {
     args: [],
-    descriptions: 'DeepChat built-in conversation history search service',
+    descriptions: '交融超级智能体内置对话历史搜索服务，可搜索历史对话记录和消息内容',
     icons: '🔍',
     type: 'inmemory' as MCPServerType,
     command: 'deepchat-inmemory/conversation-search-server',
@@ -263,7 +263,7 @@ const DEFAULT_MCP_SERVERS = {
       type: 'http' as MCPServerType,
       baseUrl: 'http://localhost:14242/mcp',
       customHeaders: {
-        APP: 'DeepChat'
+        APP: 'JiaorongAI'
       }
     },
     'mcd-mcp': {
@@ -283,6 +283,7 @@ const DEFAULT_MCP_SERVERS = {
   } satisfies Record<string, Omit<MCPServerConfig, 'enabled'>>,
   mcpEnabled: false // MCP functionality is disabled by default
 }
+const MCP_ENABLED_DEFAULT_MIGRATION_KEY = 'mcpEnabledDefaultV3'
 const BUILT_IN_SERVER_NAMES = new Set<string>(Object.keys(DEFAULT_MCP_SERVERS.mcpServers))
 // This part of MCP has system logic to determine whether to enable, not controlled by user configuration, but by software environment
 export const SYSTEM_INMEM_MCP_SERVERS: Record<string, MCPServerConfig> = {
@@ -294,9 +295,10 @@ export class McpSettings {
   private mcpDatabase?: McpDatabase
 
   constructor() {
-    // Initialize MCP settings storage
+    prepareJsonStoreFile(app.getPath('userData'), 'mcp-settings')
     this.mcpStore = new ElectronStore<IMcpSettings>({
       name: 'mcp-settings',
+      clearInvalidConfig: true,
       defaults: {
         mcpServers: this.buildDefaultServerConfigs(),
         mcpEnabled: DEFAULT_MCP_SERVERS.mcpEnabled,
@@ -717,6 +719,18 @@ export class McpSettings {
     }
     mcpServers[serverName] = { ...server, enabled }
     await this.setMcpServers(mcpServers)
+  }
+
+  shouldApplyDefaultMcpEnabled(): boolean {
+    if (this.mcpStore.get(MCP_ENABLED_DEFAULT_MIGRATION_KEY)) {
+      return false
+    }
+
+    return this.mcpStore.get('mcpEnabled') !== true
+  }
+
+  markDefaultMcpEnabledApplied(): void {
+    this.mcpStore.set(MCP_ENABLED_DEFAULT_MIGRATION_KEY, true)
   }
 
   // 设置MCP启用状态

@@ -1,11 +1,12 @@
 import { app } from 'electron'
-import path from 'path'
 import type { SettingsStore } from '@/config/settingsStore'
 import type { ScanCache } from '@shared/types/skillSync'
 import type {
   SkillManagementState,
   StoredSkillManagementState
 } from '@shared/types/skillManagement'
+import { getDefaultSkillsPath, repairLegacySkillsPath } from '@shared/appIdentity'
+import { JIAORONG_SKILL_SWITCH_SETTING_KEY } from '@jiaorong/utils/skillSwitchCore'
 import { BUILTIN_SKILL_AGENT_ID } from './agentSkillRoots'
 
 const SKILL_MANAGEMENT_STATE_KEY = 'skills.managementState'
@@ -24,6 +25,7 @@ export interface SkillSettingsPort {
   ): void
   getScanCache(): ScanCache | null
   setScanCache(cache: ScanCache): void
+  getJiaorongSkillSwitchSetting(): unknown
 }
 
 export class SkillSettings implements SkillSettingsPort {
@@ -42,9 +44,19 @@ export class SkillSettings implements SkillSettingsPort {
   }
 
   getPath(): string {
-    return (
-      this.store.get<string>('skillsPath') || path.join(app.getPath('home'), '.deepchat', 'skills')
-    )
+    const home = app.getPath('home')
+    const configured = this.store.get<string>('skillsPath')
+    if (!configured) {
+      return getDefaultSkillsPath(home)
+    }
+
+    const repaired = repairLegacySkillsPath(configured, home)
+    if (repaired && repaired !== configured) {
+      this.store.set('skillsPath', repaired)
+      return repaired
+    }
+
+    return configured
   }
 
   getManagementState(): StoredSkillManagementState | null {
@@ -102,5 +114,9 @@ export class SkillSettings implements SkillSettingsPort {
 
   setScanCache(cache: ScanCache): void {
     this.store.set(SKILL_SCAN_CACHE_KEY, cache)
+  }
+
+  getJiaorongSkillSwitchSetting(): unknown {
+    return this.store.get(JIAORONG_SKILL_SWITCH_SETTING_KEY)
   }
 }

@@ -381,7 +381,7 @@ const GROUP_ORDER = [
   'agent-filesystem',
   'agent-core',
   'agent-skills',
-  'deepchat-settings',
+  'jiaorong-settings',
   'yobrowser'
 ]
 const TOOL_MODE_OPTIONS: readonly ToolMode[] = ['agent', 'code', 'minimal']
@@ -563,6 +563,7 @@ const getGroupLabel = (serverName: string) => {
       return t('chat.input.tools.groups.agentCore')
     case 'agent-skills':
       return t('chat.input.tools.groups.agentSkills')
+    case 'jiaorong-settings':
     case 'deepchat-settings':
       return t('chat.input.tools.groups.deepchatSettings')
     case 'yobrowser':
