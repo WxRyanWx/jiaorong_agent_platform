@@ -23,7 +23,7 @@ vi.mock('vue-i18n', () => ({
     t: (key: string) =>
       ({
         'routes.plugins': 'Plugins',
-        'routes.plugins-skills': 'Skills',
+        'routes.skills': 'Skills',
         'routes.settings-mcp': 'MCP',
         'settings.pluginsHub.acpUnavailableTitle': 'Plugins are unavailable',
         'settings.pluginsHub.acpUnavailableDescription':

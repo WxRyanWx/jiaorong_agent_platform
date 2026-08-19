@@ -32,6 +32,26 @@ describe('jiaorong system prompt language finalize', () => {
     expect(localized).not.toContain('## Permission Rules')
   })
 
+  it('localizes the short YoBrowser runtime bullet and orchestration policy', () => {
+    const raw = [
+      '## Runtime Capabilities',
+      '- YoBrowser tools are available for browser automation when needed.',
+      '',
+      '## Multi-Agent Orchestration Policy',
+      'The session uses explicit multi-Agent collaboration. This revokes any earlier instruction to delegate proactively.',
+      'Use `subagent` for bounded child tasks. Use `spawn` to start work, `send` for non-triggering context, and `follow_up` only to start another child turn.'
+    ].join('\n')
+
+    const localized = localizeHostSystemPromptSections(raw)
+    expect(localized).toContain('## 运行时能力')
+    expect(localized).toContain('- 需要浏览器自动化时使用 YoBrowser。')
+    expect(localized).not.toContain('YoBrowser tools are available')
+    expect(localized).toContain('## 多 Agent 编排策略')
+    expect(localized).toContain('本会话使用显式多 Agent 协作')
+    expect(localized).toContain('用 `subagent` 做有界子任务')
+    expect(localized).not.toContain('## Multi-Agent Orchestration Policy')
+  })
+
   it('appends language tail after host sections and keeps it last', () => {
     const withHost = [
       '## Base',
@@ -48,7 +68,9 @@ describe('jiaorong system prompt language finalize', () => {
     expect(out).toContain('## 会话交接状态')
     expect(out.indexOf('运行时能力')).toBeLessThan(out.indexOf('语言强制约束'))
     expect(out.trim().endsWith(SYSTEM_PROMPT_LANGUAGE_TAIL.trim())).toBe(true)
-    expect(out).toContain('role=user')
+    expect(out).toContain('用户**亲手输入的当前问题文本**')
+    expect(out).toContain('没有分隔时，整段用户输入都是判定源')
+    expect(out).toContain('Conversation Checkpoint')
   })
 
   it('is idempotent when called twice', () => {
@@ -77,7 +99,7 @@ describe('jiaorong system prompt language finalize', () => {
   it('builds chinese pinned skills header with language disclaimer', () => {
     const prompt = buildJiaorongPinnedSkillsPrompt(['### demo\nbody'])
     expect(prompt).toContain('## 已固定技能')
-    expect(prompt).toContain('role=user')
+    expect(prompt).toContain('亲手输入')
     expect(prompt).toContain('不是**用户语言')
   })
 

@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 const setupStore = async (options?: {
   hasActiveSession?: boolean
+  hideProviderSettings?: boolean
   historyHits?: Array<Record<string, unknown>>
   selectedAgent?: {
     type: 'deepchat' | 'acp'
@@ -91,6 +92,11 @@ const setupStore = async (options?: {
     useProviderStore: () => providerStore
   }))
 
+  vi.doMock('@shared/settingsSidebarAdmin', () => ({
+    isSettingsSpotlightItemHidden: (routeName?: string | null) =>
+      Boolean(options?.hideProviderSettings) && routeName === 'settings-provider'
+  }))
+
   vi.doMock('@shared/settingsNavigation', () => ({
     SETTINGS_NAVIGATION_ITEMS: []
   }))
@@ -164,6 +170,44 @@ describe('spotlightStore new-chat action', () => {
       expect.arrayContaining([
         expect.objectContaining({
           id: 'setting:provider:acp'
+        })
+      ])
+    )
+  })
+
+  it('hides provider settings from non-admin spotlight results', async () => {
+    const { store } = await setupStore({ hideProviderSettings: true })
+
+    store.setOpen(true)
+    await flushPromises()
+    expect(store.results.value).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'action:open-providers'
+        })
+      ])
+    )
+    expect(store.results.value).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: 'action:open-mcp' }),
+        expect.objectContaining({ id: 'action:open-agents' }),
+        expect.objectContaining({ id: 'action:open-remote' })
+      ])
+    )
+
+    store.setQuery('openai')
+    await flushPromises()
+    expect(store.results.value).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          routeName: 'settings-provider'
+        })
+      ])
+    )
+    expect(store.results.value).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'action:open-providers'
         })
       ])
     )

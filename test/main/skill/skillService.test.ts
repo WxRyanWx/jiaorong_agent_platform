@@ -3244,13 +3244,14 @@ describe('SkillService', () => {
         isFile: () => true,
         size: 6 * 1024 * 1024
       })
+      ;(fs.promises.readFile as Mock).mockClear()
 
       await expect(skillService.readSkillFile('test-skill')).rejects.toThrow(
         '[SkillService] Skill file too large: 6291456 bytes (max: 5242880)'
       )
 
-      // Discovery parses frontmatter once; the oversized content must not be read after stat
-      expect(fs.promises.readFile).toHaveBeenCalledTimes(1)
+      // Oversized content must not be read after stat
+      expect(fs.promises.readFile).not.toHaveBeenCalled()
     })
 
     it('forgets a user skill when its directory is gone from disk', async () => {
@@ -3375,6 +3376,9 @@ describe('SkillService', () => {
 
       expect(active).toEqual([])
       expect(newSessionActiveSkillsStore.get('new-session-switch')).toEqual(['skill-1'])
+      expect((await skillService.getMetadataList()).map((skill) => skill.name)).toEqual([])
+      expect(await skillService.validateSkillNames(['skill-1'])).toEqual(['skill-1'])
+      expect((await skillService.getAllSkills())[0].assignedAgentIds).toEqual(['deepchat'])
     })
 
     it('rejects activating a jiaorong-disabled skill', async () => {

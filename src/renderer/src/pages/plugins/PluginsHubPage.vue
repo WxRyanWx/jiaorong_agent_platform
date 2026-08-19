@@ -73,12 +73,12 @@ const tabs = [
     titleKey: 'routes.plugins',
     icon: 'lucide:puzzle'
   },
-  {
-    key: 'skills',
-    name: 'plugins-skills',
-    titleKey: 'routes.plugins-skills',
-    icon: 'lucide:wand-sparkles'
-  },
+  // {
+  //   key: 'skills',
+  //   name: 'skills',
+  //   titleKey: 'routes.skills',
+  //   icon: 'lucide:wand-sparkles'
+  // },
   {
     key: 'mcp',
     name: 'plugins-mcp',

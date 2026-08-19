@@ -107,4 +107,10 @@ describe('skillSwitch hydrate', () => {
     await pending
     expect(finished).toBe(true)
   })
+
+  it('does not rewrite Agent assignments when turning a Skill on', async () => {
+    await setSkillSwitchStatus('docx', SkillSwitchStatus.On)
+
+    expect(setSkillDisabled).not.toHaveBeenCalled()
+  })
 })

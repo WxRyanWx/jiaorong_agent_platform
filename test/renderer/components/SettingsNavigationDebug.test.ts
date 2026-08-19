@@ -7,7 +7,9 @@ import {
 import {
   getDefaultSettingsRouteName,
   isForbiddenSettingsLandingRoute,
-  isSettingsSidebarItemVisuallyHidden
+  isSettingsSidebarItemVisuallyHidden,
+  isSettingsSpotlightItemHidden,
+  SETTINGS_SPOTLIGHT_HIDDEN_ROUTES
 } from '@shared/settingsSidebarAdmin'
 
 describe('debug settings navigation', () => {
@@ -42,6 +44,13 @@ describe('debug settings navigation', () => {
 
   it('visually hides the debug settings item for non-admin users', () => {
     expect(isSettingsSidebarItemVisuallyHidden('settings-debug')).toBe(true)
+  })
+
+  it('hides only listed routes from non-admin spotlight', () => {
+    expect(SETTINGS_SPOTLIGHT_HIDDEN_ROUTES).toEqual(['settings-provider'])
+    expect(isSettingsSpotlightItemHidden('settings-provider')).toBe(true)
+    expect(isSettingsSpotlightItemHidden('settings-mcp')).toBe(false)
+    expect(isSettingsSpotlightItemHidden('settings-remote')).toBe(false)
   })
 
   it('defaults non-admin settings landing to common instead of overview', () => {

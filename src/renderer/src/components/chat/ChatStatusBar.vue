@@ -441,7 +441,7 @@
                   <span class="min-w-0 flex-1">
                     <span class="block text-xs font-medium">{{ t('settings.model.title') }}</span>
                     <span class="block truncate text-[11px] text-muted-foreground">
-                      {{ generationSettingsModelText }}
+                    {{ generationSettingsModelText }}
                     </span>
                   </span>
                   <Icon
@@ -2052,7 +2052,8 @@ const generationSettingsModelText = computed(() => {
     return ''
   }
   const providerName = providerNameMap.value.get(selection.providerId) ?? selection.providerId
-  return `${providerName} / ${selection.modelId}`
+  // return `${providerName} / ${selection.modelId}`
+   return `${providerName} `
 })
 
 const isGenerationSettingsReady = computed(() => {

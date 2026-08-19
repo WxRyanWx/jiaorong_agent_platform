@@ -1121,23 +1121,62 @@ export class SkillService implements SkillServicePort {
     if (changed) this.saveManagementState(state)
   }
 
+  private async fillMissingSkillBindings(
+    agentState: AgentSkillBindingState,
+    agentId: string
+  ): Promise<boolean> {
+    let changed = false
+    for (const metadata of this.metadataCache.values()) {
+      if (agentState.bindings[metadata.name]) continue
+      let extension = createDefaultSkillExtensionConfig()
+      let sidecarPath: string | null = null
+      if (agentId === BUILTIN_SKILL_AGENT_ID) {
+        sidecarPath = this.getSidecarPath(metadata.name)
+        if (await this.pathExists(sidecarPath)) {
+          try {
+            extension = sanitizeSkillExtensionConfig(
+              JSON.parse(await fs.promises.readFile(sidecarPath, 'utf-8'))
+            )
+          } catch {
+            sidecarPath = null
+            extension = createDefaultSkillExtensionConfig()
+          }
+        } else {
+          sidecarPath = null
+        }
+      }
+      const previous: AgentSkillBinding = {
+        assigned: true,
+        extension: createDefaultSkillExtensionConfig()
+      }
+      agentState.bindings[metadata.name] = {
+        assigned: true,
+        extension,
+        runtimeBindingId: this.nextSkillRuntimeBindingId(previous, extension)
+      }
+      changed = true
+      if (!sidecarPath) continue
+      try {
+        fs.rmSync(sidecarPath, { force: true })
+        this.removeLegacySidecarDirIfEmpty()
+      } catch (cleanupError) {
+        logger.warn('[SkillService] Failed to remove migrated skill sidecar', {
+          name: metadata.name,
+          error: cleanupError
+        })
+      }
+    }
+    return changed
+  }
+
   private async materializeProviderBindingsForExistingAgents(): Promise<void> {
     const agentIds = this.agentScopePort
       ? (await this.agentScopePort.listDeepChatAgents()).map((agent) => agent.id)
       : [BUILTIN_SKILL_AGENT_ID]
-    const providerSkills = Array.from(this.metadataCache.values()).filter(
-      (skill) => skill.readOnly || skill.ownerPluginId
-    )
     const state = this.getStoredManagementState()
     let changed = false
     for (const agentId of agentIds) {
-      const bindings = this.getAgentBindingState(state, agentId).bindings
-      for (const skill of providerSkills) {
-        if (bindings[skill.name]) continue
-        bindings[skill.name] = {
-          assigned: true,
-          extension: createDefaultSkillExtensionConfig()
-        }
+      if (await this.fillMissingSkillBindings(this.getAgentBindingState(state, agentId), agentId)) {
         changed = true
       }
     }
@@ -1347,8 +1386,16 @@ export class SkillService implements SkillServicePort {
     )
   }
 
+  private isJiaorongSkillSwitchOn(name: string): boolean {
+    return this.filterJiaorongEnabledSkills([name]).length === 1
+  }
+
   private isSkillVisible(metadata: SkillMetadata, agentId: string): boolean {
-    return Boolean(metadata) && this.isSkillAssigned(agentId, metadata.name)
+    return (
+      Boolean(metadata) &&
+      this.isSkillAssigned(agentId, metadata.name) &&
+      this.isJiaorongSkillSwitchOn(metadata.name)
+    )
   }
 
   private createDefaultManagementState(): SkillManagementState {
@@ -1647,16 +1694,10 @@ export class SkillService implements SkillServicePort {
 
   private async ensureAgentBindingsInitialized(agentId: string): Promise<void> {
     const state = this.getStoredManagementState()
-    if (state.agents[agentId]) return
     const agentState = this.getAgentBindingState(state, agentId)
-    for (const metadata of this.metadataCache.values()) {
-      if (!metadata.readOnly && !metadata.ownerPluginId) continue
-      agentState.bindings[metadata.name] = {
-        assigned: true,
-        extension: createDefaultSkillExtensionConfig()
-      }
+    if (await this.fillMissingSkillBindings(agentState, agentId)) {
+      this.saveManagementState(state)
     }
-    this.saveManagementState(state)
   }
 
   async getSkillManagementState(): Promise<SkillManagementState> {
@@ -1809,6 +1850,7 @@ export class SkillService implements SkillServicePort {
   async getAllSkills(): Promise<UnifiedSkillItem[]> {
     await this.ensureAgentCatalogDiscovered(BUILTIN_SKILL_AGENT_ID)
     await this.pruneMissingPhysicalSkills(BUILTIN_SKILL_AGENT_ID)
+    await this.materializeProviderBindingsForExistingAgents()
     const state = this.getStoredManagementState()
     return this.sortSkillMetadata(Array.from(this.metadataCache.values())).map((skill) =>
       this.toUnifiedSkillItem(skill, BUILTIN_SKILL_AGENT_ID, state, true)
@@ -5745,8 +5787,14 @@ export class SkillService implements SkillServicePort {
       ? BUILTIN_SKILL_AGENT_ID
       : await this.requireAgentScope(agentIdOrNames)
     const names = Array.isArray(agentIdOrNames) ? agentIdOrNames : (maybeNames ?? [])
-    const available = await this.getMetadataList(agentId)
-    const availableNames = new Set(available.map((s) => s.name))
+    await this.ensureAgentCatalogDiscovered(agentId)
+    await this.ensureAgentBindingsInitialized(agentId)
+    await this.pruneMissingPhysicalSkills(agentId)
+    const availableNames = new Set(
+      Array.from(this.getMetadataCacheForAgent(agentId).values())
+        .filter((skill) => this.isSkillAssigned(agentId, skill.name))
+        .map((skill) => skill.name)
+    )
     const seen = new Set<string>()
     const validNames: string[] = []
     for (const name of names) {
@@ -6034,6 +6082,7 @@ export class SkillService implements SkillServicePort {
 
     metadataCache.set(metadata.name, metadata)
     this.reconcileSkillManagementState()
+    await this.materializeProviderBindingsForExistingAgents()
     this.publishEvent('skills.catalog.changed', {
       reason: 'installed',
       name: metadata.name,

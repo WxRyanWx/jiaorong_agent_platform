@@ -28,7 +28,7 @@
 | H21 | `filePresenter.writeTemp` + legacy 类型 | 支持 `number[]` 二进制内容（IPC 序列化 Uint8Array） | skills upload | 低 | 上传 md/zip 临时包 |
 | H22 | `useSkillsData.ts` | 过滤关闭技能；监听开关事件 | skill switch | 低 | `@jiaorong/utils`；目录、会话钉选、pending consume 都过滤 |
 | H23 | `useChatInputMentions.ts` / `mentions/utils.ts` | slash 过滤关闭项；打开 `/` 刷新目录；CJK 排序；选工具插入中文 label | skill switch + catalog | 低 | `@jiaorong/utils` `refreshSkillsCatalog` / `compareSlashSuggestionLabels`；`insert-tool` 用 `item.label`（H119） |
-| H24 | `src/main/skill/index.ts` `skill/settings.ts` `config.routes.ts` | `get/setActiveSkills` 读 `jiaorong_skill_switch_map`；关闭不走 `setSkillDisabled` | skill switch | 中 | 过滤只影响返回/激活，不写回会话钉选；开启时回补 assignment |
+| H24 | `src/main/skill/index.ts` `skill/settings.ts` `config.routes.ts` | `get/setActiveSkills` 读 `jiaorong_skill_switch_map`；开关不改 assignment | skill switch | 中 | 过滤只影响返回/激活，不写回会话钉选；关闭后 `getMetadataList` 对所有 Agent 隐藏；开启不再 `setSkillDisabled(false)` |
 | H25 | `test/renderer/components/WindowSideBar.test.ts` | skills + auth session mock | skills+auth | 低 | |
 | H28 | `src/jiaorong_src/auth/lib/ensureSm4.ts` + `auth/vendor/sm4` | 账号密码登录按需加载 SM4 | auth | 中 | `public/sm4` 与 `index.html` 全局 script 已无；宿主仅 H13 记移除 |
 | H30 | `src/renderer/src/stores/ui/draft.ts` / `pages/NewThreadPage.vue` / `components/chat/ChatInputBox.vue` | 通用对话启动参数支持待激活技能，并复用现有 pending skills 流程 | skills | 中 | 交融业务入口与编排保留在 `jiaorong_src`；宿主仅消费通用启动参数 |
@@ -124,6 +124,10 @@
 | H120 | `SkillChipView.vue` `SessionSkillsIndicator.vue` | 技能芯片/指示器中文名 | skills | 低 | `getSkillDisplayLabel`；remove 仍用英文 skillName |
 | H122 | `src/main/skill/index.ts` | 手删技能目录后踢掉过期缓存 | skills | 中 | `getAllSkills`/`getMetadataList`/`readSkillFile` 核对物理路径；watcher 认技能根目录 delete，不只认 SKILL.md |
 | H123 | `NewThreadPage.vue` | 未选项目时触发器显示「聊天」 | brand | 低 | `selectionSource === 'none'` 不再用 `common.project.select`；内置工作区仍靠 `defaultChatWorkspacePath` 标成聊天 |
+| H124 | `defaultSystemPrompt.ts` `hostPromptLocalize.ts` `contextBuilder.ts` `skillContextMaterializer.ts` `systemPromptBuilder.ts` | 思考语言只跟用户亲手输入；技能/MCP/检查点不是判定源 | prompts | 高 | 上游把技能/检查点贴进 `role=user`；尾注排除这些材料；本轮技能头中文；用户正文前插语言分隔；ACP 也 finalize |
+| H125 | `src/main/skill/index.ts` | 新建 DeepChat Agent 默认绑定目录里全部技能 | skills | 中 | 缺 binding → `assigned: true`，不看开关；已有 `assigned: false` 不覆盖；`getAllSkills` 会给现有 Agent 补缺 |
+| H126 | `PluginsHubPage.vue` | 插件 Hub 技能 Tab 进交融 `/skills` | skills | 低 | `name: 'skills'`；上游 `plugins-skills` 路由仍保留 |
+| H127 | `src/renderer/src/stores/ui/spotlight.ts` | 非管理员搜索不出现服务商设置 | admin | 低 | 名单 `SETTINGS_SPOTLIGHT_HIDDEN_ROUTES`；当前仅 `settings-provider` |
 
 ## 下次合上游：值得抽到 `jiaorong_src` 的宿主文件
 
@@ -146,5 +150,5 @@
 
 ### 以后仍可只抽 helper
 
-- `contextBuilder.ts`（知识库内联 content）、`tapeEntryStore.ts`（incarnation 回填）、`systemPromptBuilder.ts`（`finalizeJiaorongSystemPrompt`）
+- `contextBuilder.ts`（知识库内联 content、用户正文前语言分隔）、`tapeEntryStore.ts`（incarnation 回填）、`systemPromptBuilder.ts`（`finalizeJiaorongSystemPrompt`）
 

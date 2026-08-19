@@ -195,14 +195,6 @@ export async function setSkillSwitchStatus(
     }
     writeLocalMap(map)
     await persistToConfig(map)
-    if (status === SkillSwitchStatus.On) {
-      try {
-        // 只在开启时回补 assignment：关闭不再走 setSkillDisabled，避免把会话钉选写回冲掉
-        await createSkillClient().setSkillDisabled(name, false)
-      } catch (error) {
-        console.warn('[jiaorong/skillSwitch] Failed to restore skill assignment:', error)
-      }
-    }
 
     if (status === SkillSwitchStatus.Off && options?.conversationId) {
       try {

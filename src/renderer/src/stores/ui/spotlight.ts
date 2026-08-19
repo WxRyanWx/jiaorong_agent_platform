@@ -9,6 +9,7 @@ import { useAgentStore } from './agent'
 import { usePageRouterStore } from './pageRouter'
 import { useSessionStore } from './session'
 import { SETTINGS_NAVIGATION_ITEMS, type SettingsNavigationItem } from '@shared/settingsNavigation'
+import { isSettingsSpotlightItemHidden } from '@shared/settingsSidebarAdmin'
 import type { HistorySearchHit } from '@shared/contracts/routes/sessions.routes'
 
 type SpotlightItemKind = 'session' | 'message' | 'agent' | 'setting' | 'action'
@@ -182,16 +183,18 @@ export const useSpotlightStore = defineStore('spotlight', () => {
     }))
 
   const buildActionItems = (): SpotlightItem[] =>
-    actionItems.map((action) => ({
-      id: `action:${action.id}`,
-      kind: 'action' as const,
-      icon: action.icon,
-      titleKey: action.titleKey,
-      actionId: action.id,
-      routeName: action.routeName,
-      score: 0,
-      keywords: action.keywords
-    }))
+    actionItems
+      .filter((action) => !isSettingsSpotlightItemHidden(action.routeName))
+      .map((action) => ({
+        id: `action:${action.id}`,
+        kind: 'action' as const,
+        icon: action.icon,
+        titleKey: action.titleKey,
+        actionId: action.id,
+        routeName: action.routeName,
+        score: 0,
+        keywords: action.keywords
+      }))
 
   const buildDefaultResults = (): SpotlightItem[] =>
     [...buildRecentSessionItems(), ...buildAgentItems().slice(0, 3), ...buildActionItems()]
@@ -231,8 +234,11 @@ export const useSpotlightStore = defineStore('spotlight', () => {
     }
   }
 
-  const buildProviderMatches = (normalizedQuery: string): SpotlightItem[] =>
-    providerStore.sortedProviders
+  const buildProviderMatches = (normalizedQuery: string): SpotlightItem[] => {
+    if (isSettingsSpotlightItemHidden('settings-provider')) {
+      return []
+    }
+    return providerStore.sortedProviders
       .filter((provider) => provider.id !== 'acp')
       .map((provider) => ({
         id: `setting:provider:${provider.id}`,
@@ -256,10 +262,14 @@ export const useSpotlightStore = defineStore('spotlight', () => {
         )
       }))
       .filter((item) => item.score > 0)
+  }
 
   const buildSettingMatches = (normalizedQuery: string): SpotlightItem[] =>
     SETTINGS_NAVIGATION_ITEMS.filter(
-      (item) => item.routeName !== 'settings-provider' && !item.hiddenInSidebar
+      (item) =>
+        item.routeName !== 'settings-provider' &&
+        !item.hiddenInSidebar &&
+        !isSettingsSpotlightItemHidden(item.routeName)
     )
       .map((item) => ({
         id: `setting:${item.routeName}`,

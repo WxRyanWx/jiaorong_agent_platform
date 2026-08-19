@@ -118,7 +118,7 @@ export function buildJiaorongPinnedSkillsPrompt(skillSections: string[]): string
   return [
     '## 已固定技能',
     '以下技能已预载到本会话。相关时请遵循其说明。',
-    '注意：技能正文 / description 的语言（常为英文）只是参考材料，**不是**用户语言；思考与回答只跟 role=user 的用户消息语言一致。',
+    '注意：技能正文 / description 的语言（常为英文）只是参考材料，**不是**用户语言；思考与回答只跟用户亲手输入的当前问题语言一致。',
     '',
     skillSections.join('\n\n')
   ].join('\n')

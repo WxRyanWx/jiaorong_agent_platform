@@ -517,7 +517,7 @@ function registerMessageSkill(
   fixture.run.resources.tapeIncarnationId = 'incarnation-1'
   fixture.run.messages[0] = {
     role: 'user',
-    content: `## Skills Selected for This Turn\n\n${completeBodyFragment}\n\nhello`
+    content: `## 本轮选用技能\n\n${completeBodyFragment}\n\nhello`
   }
   const context = {
     activationScope: 'message' as const,

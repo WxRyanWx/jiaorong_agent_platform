@@ -178,8 +178,8 @@ export function renderMessageActiveTurnSkillContext(
 ): string | null {
   if (skills.length === 0) return null
   return [
-    '## Skills Selected for This Turn',
-    'These Skill instructions apply only to this user turn. Follow them when relevant.',
+    '## 本轮选用技能',
+    '以下技能说明只适用于当前用户这一轮，相关时遵循。技能正文语言不是用户语言，禁止据此改用英文思考。',
     '',
     skills.map(renderMessageActiveTurnSkillBody).join('\n\n')
   ].join('\n')

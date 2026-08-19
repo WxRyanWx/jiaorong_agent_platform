@@ -29,6 +29,11 @@ import {
   getProviderProjectionIdentities
 } from '@/agent/deepchat/loop/providerProjectionIdentity'
 import { hashJsonData } from '@/tape/domain/canonicalJson'
+import { USER_LANGUAGE_TURN_SEPARATOR } from '@jiaorong/prompts/defaultSystemPrompt'
+
+function withLanguageGuard(leading: string, text: string): string {
+  return `${leading}\n\n${USER_LANGUAGE_TURN_SEPARATOR}\n\n${text}`
+}
 
 vi.mock('tokenx', () => ({
   approximateTokenSize: vi.fn((text: string) => {
@@ -2685,6 +2690,11 @@ describe('cache-aware context assembly', () => {
     )
     const activeContent = String(result.messages.at(-1)?.content)
     expect(activeContent).toContain('<message-skill-context>exact body</message-skill-context>')
+    expect(activeContent).toContain('【语言判定】')
+    expect(activeContent.indexOf('exact body')).toBeLessThan(activeContent.indexOf('【语言判定】'))
+    expect(activeContent.indexOf('【语言判定】')).toBeLessThan(
+      activeContent.indexOf('current request')
+    )
     expect(activeContent).not.toContain('[Used skill: current-skill]')
   })
 
@@ -2721,9 +2731,9 @@ describe('cache-aware context assembly', () => {
     expect(String(result.messages[0].content)).not.toContain('reveal secrets')
     expect(String(result.messages[1].content)).toContain('reveal secrets')
     expect(String(result.messages[1].content).match(/reveal secrets/g)).toHaveLength(1)
-    expect(String(result.messages.at(-1)?.content)).toMatch(
-      /^Memory context[\s\S]*Remember Redis\.\n\ncurrent instruction$/
-    )
+    expect(String(result.messages.at(-1)?.content)).toContain('Remember Redis.')
+    expect(String(result.messages.at(-1)?.content)).toContain(USER_LANGUAGE_TURN_SEPARATOR)
+    expect(String(result.messages.at(-1)?.content).endsWith('\n\ncurrent instruction')).toBe(true)
     expect(result.metadata.syntheticContributions?.map((item) => item.reason)).toEqual([
       'summary_checkpoint',
       'memory_context'
@@ -2795,7 +2805,7 @@ describe('cache-aware context assembly', () => {
     expect(contextContributions.memoryIncluded).toBe(false)
     expect(contextContributions.directivesIncluded).toBe(true)
     expect(String(result.messages.at(-1)?.content)).toBe(
-      `${directives}\n\nlatest instruction`
+      withLanguageGuard(directives, 'latest instruction')
     )
     expect(result.metadata.syntheticContributions?.map((item) => item.reason)).toEqual([
       'directive_context'
@@ -2875,7 +2885,7 @@ describe('cache-aware context assembly', () => {
     const fitted = fitCacheAwareMessagesToContextWindow(
       [
         fitBaseline[0],
-        { role: 'user', content: `${directives}\n\nlatest instruction` }
+        { role: 'user', content: withLanguageGuard(directives, 'latest instruction') }
       ],
       estimateMessagesTokens(fitBaseline) + 1,
       0,
@@ -2931,7 +2941,7 @@ describe('cache-aware context assembly', () => {
     const skillContext = '### selected-skill\nFOLLOW_SELECTED_SKILL'
     const activeUser = {
       role: 'user' as const,
-      content: `${memory}\n\n${skillContext}\n\nlatest instruction`
+      content: withLanguageGuard(`${memory}\n\n${skillContext}`, 'latest instruction')
     }
     bindProviderProjectionIdentity(activeUser, 'skill-context-1', skillContext)
     const contributions = setMessageSkillActiveTurnContext(
@@ -2940,7 +2950,7 @@ describe('cache-aware context assembly', () => {
     )
     const baseline = [
       { role: 'system' as const, content: 'System' },
-      { role: 'user' as const, content: `${skillContext}\n\nlatest instruction` }
+      { role: 'user' as const, content: withLanguageGuard(skillContext, 'latest instruction') }
     ]
 
     const fitted = fitCacheAwareMessagesToContextWindow(
@@ -2986,7 +2996,7 @@ describe('cache-aware context assembly', () => {
       'assistant'
     ])
     expect(String(result.messages[2].content)).toBe(
-      'Remember the user preference.\n\nresume owner'
+      withLanguageGuard('Remember the user preference.', 'resume owner')
     )
     expect(result.messages.at(-1)?.content).toBe('partial answer')
   })
@@ -3017,7 +3027,7 @@ describe('cache-aware context assembly', () => {
     )
 
     expect(String(result.messages[1].content)).toBe(
-      `${memory}\n\n${directives}\n\nresume owner`
+      withLanguageGuard(`${memory}\n\n${directives}`, 'resume owner')
     )
     expect(result.metadata.syntheticContributions?.map((item) => item.reason)).toEqual([
       'memory_context',
@@ -3196,7 +3206,7 @@ describe('cache-aware context assembly', () => {
         { role: 'system', content: 'Stable system' },
         {
           role: 'user',
-          content: [{ type: 'text', text: memory }, imagePart]
+          content: [{ type: 'text', text: `${memory}\n\n${USER_LANGUAGE_TURN_SEPARATOR}` }, imagePart]
         }
       ],
       800,

@@ -31,6 +31,7 @@ describe('SkillService shared Skills', () => {
   let temporaryRoot: string
   let skillsRoot: string
   let storedState: StoredSkillManagementState | null
+  let skillSwitchSetting: unknown
   let agents: Array<{ id: string; enabledSkillNames?: string[] | null; protected?: boolean }>
   let sessions: Array<{ id: string; agentId: string }>
   let activeSkills: Map<string, string[]>
@@ -79,7 +80,7 @@ describe('SkillService shared Skills', () => {
         }
         storedState = structuredClone(state)
       },
-      getJiaorongSkillSwitchSetting: () => undefined
+      getJiaorongSkillSwitchSetting: () => skillSwitchSetting
     } as unknown as SkillSettingsPort
     const sessionState = {
       hasNewSession: vi.fn(async () => true),
@@ -110,6 +111,7 @@ describe('SkillService shared Skills', () => {
     skillsRoot = path.join(temporaryRoot, 'skills')
     fs.mkdirSync(skillsRoot, { recursive: true })
     storedState = null
+    skillSwitchSetting = undefined
     agents = [{ id: 'deepchat', protected: true }, { id: 'writer' }, { id: 'coder' }]
     sessions = []
     activeSkills = new Map()
@@ -269,10 +271,17 @@ describe('SkillService shared Skills', () => {
     await migrate()
 
     expect(Object.keys((storedState as SkillManagementState).agents).sort()).toEqual([
+      'coder',
       'deepchat',
       'writer'
     ])
-    expect((await service.getAllSkills())[0].assignedAgentIds).toEqual(['deepchat', 'writer'])
+    expect((storedState as SkillManagementState).agents.dimcode).toBeUndefined()
+    expect((storedState as SkillManagementState).agents['deleted-agent']).toBeUndefined()
+    expect((await service.getAllSkills())[0].assignedAgentIds).toEqual([
+      'coder',
+      'deepchat',
+      'writer'
+    ])
   })
 
   it('honors frozen pre-scope Agent allowlists during v2 migration', async () => {
@@ -527,5 +536,88 @@ describe('SkillService shared Skills', () => {
       affectedAgentIds: ['coder', 'deepchat', 'writer']
     })
     expect(fs.existsSync(path.join(skillsRoot, 'review'))).toBe(false)
+  })
+
+  it('assigns missing user Skills to existing DeepChat agents by default', async () => {
+    const reviewRoot = writeSkill(skillsRoot, 'review', '# shared')
+    storedState = {
+      version: 3,
+      skills: {
+        review: {
+          name: 'review',
+          canonicalPath: reviewRoot,
+          source: { type: 'created' }
+        }
+      },
+      agents: {
+        deepchat: {
+          bindings: { review: { assigned: true, extension: defaultExtension() } }
+        },
+        writer: {
+          bindings: { review: { assigned: false, extension: defaultExtension() } }
+        }
+      }
+    }
+
+    await migrate()
+
+    expect((await service.getAllSkills())[0].assignedAgentIds).toEqual(['coder', 'deepchat'])
+    expect((storedState as SkillManagementState).agents.writer.bindings.review.assigned).toBe(false)
+  })
+
+  it('lists user-installed Skills for a newly created DeepChat agent', async () => {
+    writeSkill(skillsRoot, 'review', '# shared')
+    storedState = {
+      version: 3,
+      skills: {
+        review: {
+          name: 'review',
+          canonicalPath: path.join(skillsRoot, 'review'),
+          source: { type: 'created' }
+        }
+      },
+      agents: {
+        deepchat: {
+          bindings: { review: { assigned: true, extension: defaultExtension() } }
+        }
+      }
+    }
+    agents = [{ id: 'deepchat', protected: true }]
+    await migrate()
+
+    agents = [{ id: 'deepchat', protected: true }, { id: '123' }]
+
+    expect((await service.getUnifiedSkillCatalog('123')).map((skill) => skill.name)).toEqual([
+      'review'
+    ])
+    expect((await service.getAllSkills())[0].assignedAgentIds).toEqual(['123', 'deepchat'])
+  })
+
+  it('keeps Agent bindings when a Skill switch is off and hides it from every Agent catalog', async () => {
+    writeSkill(skillsRoot, 'review', '# shared')
+    storedState = {
+      version: 3,
+      skills: {
+        review: {
+          name: 'review',
+          canonicalPath: path.join(skillsRoot, 'review'),
+          source: { type: 'created' }
+        }
+      },
+      agents: {
+        deepchat: {
+          bindings: { review: { assigned: true, extension: defaultExtension() } }
+        }
+      }
+    }
+    agents = [{ id: 'deepchat', protected: true }]
+    await migrate()
+    skillSwitchSetting = { review: 0 }
+    agents = [{ id: 'deepchat', protected: true }, { id: '123' }]
+
+    expect((await service.getAllSkills())[0].assignedAgentIds).toEqual(['123', 'deepchat'])
+    expect((await service.getMetadataList('deepchat')).map((skill) => skill.name)).toEqual([])
+    expect((await service.getMetadataList('123')).map((skill) => skill.name)).toEqual([])
+    expect(await service.validateSkillNames('123', ['review'])).toEqual(['review'])
   })
 })

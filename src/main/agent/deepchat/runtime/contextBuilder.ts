@@ -40,6 +40,7 @@ import { segmentAssistantBlocksByProviderReplay } from './providerReplaySegments
 import { inheritProviderProjectionIdentities } from '@/agent/deepchat/loop/providerProjectionIdentity'
 import { hashJsonData } from '@/tape/domain/canonicalJson'
 import { isJiaorongKnowledgeBaseContextAttachment } from '@jiaorong/knowledgeBase/mcp/knowledgeBaseMcpConstants'
+import { USER_LANGUAGE_TURN_SEPARATOR } from '@jiaorong/prompts/defaultSystemPrompt'
 
 export { estimateMessagesTokens } from '@shared/utils/messageTokens'
 
@@ -1495,7 +1496,8 @@ function buildActiveTurnLeadingContext(context: ContextRuntimeContributions): st
     context.directivesIncluded ? context.directives.content : null,
     context.messageSkillActiveTurnContext
   ].filter((value): value is string => Boolean(value))
-  return sections.length > 0 ? sections.join('\n\n') : null
+  if (sections.length === 0) return null
+  return [...sections, USER_LANGUAGE_TURN_SEPARATOR].join('\n\n')
 }
 
 function resolveFiniteInputBudget(
@@ -1623,7 +1625,7 @@ function omitMemoryFromActiveTurn(
   if (messages !== activeTurn) {
     context.memoryIncluded = false
   }
-  return messages
+  return stripOrphanedLanguageSeparator(messages, context)
 }
 
 function omitDirectivesFromActiveTurn(
@@ -1638,7 +1640,15 @@ function omitDirectivesFromActiveTurn(
   if (messages !== activeTurn) {
     context.directivesIncluded = false
   }
-  return messages
+  return stripOrphanedLanguageSeparator(messages, context)
+}
+
+function stripOrphanedLanguageSeparator(
+  activeTurn: ChatMessage[],
+  context: ContextRuntimeContributions
+): ChatMessage[] {
+  if (buildActiveTurnLeadingContext(context)) return activeTurn
+  return omitLeadingContributionFromActiveTurn(activeTurn, USER_LANGUAGE_TURN_SEPARATOR)
 }
 
 function omitLeadingContributionFromActiveTurn(

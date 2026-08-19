@@ -149,13 +149,17 @@ export async function buildSystemPromptAssemblyWithSkills(
   const providerId = state?.providerId?.trim() || 'unknown-provider'
   const modelId = state?.modelId?.trim() || 'unknown-model'
   if (dependencies.isAcpBackedSubagentSession(sessionId, providerId)) {
-    return assemblePromptSections([
+    const assembly = assemblePromptSections([
       createPromptAssemblySection({
         kind: 'configured_prompt',
         sourceRef: 'session:generation-settings.system-prompt',
         content: normalizedBase
       })
     ])
+    return {
+      ...assembly,
+      prompt: finalizeJiaorongSystemPrompt(assembly.prompt)
+    }
   }
 
   const workdir = resourceInstance.hasProjectDir()
@@ -604,7 +608,7 @@ function buildPinnedSkillsPrompt(skillSections: string[], sessionPersistentOnly 
     sessionPersistentOnly
       ? '以下技能已预载到本会话。相关时请遵循其说明。'
       : '以下技能已用于当前消息上下文。部分可能已手动固定到会话，其余可能由 `skill_view` 仅在本轮工具循环中激活。相关时请遵循其说明。',
-    '注意：技能正文 / description 的语言（常为英文）只是参考材料，**不是**用户语言；思考与回答只跟 role=user 的用户消息语言一致。',
+    '注意：技能正文 / description 的语言（常为英文）只是参考材料，**不是**用户语言；思考与回答只跟用户亲手输入的当前问题语言一致。',
     '',
     skillSections.join('\n\n')
   ].join('\n')
