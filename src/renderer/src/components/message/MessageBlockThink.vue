@@ -4,7 +4,7 @@
     :expanded="!collapse"
     :thinking="block.status === 'loading'"
     :content="block.content"
-    @toggle="collapse = !collapse"
+    @toggle="onToggleCollapse"
   />
 </template>
 
@@ -15,6 +15,10 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { createConfigClient } from '@api/ConfigClient'
 import type { DisplayAssistantMessageBlock } from '@/features/chat-page/model/displayMessage'
 import { useThrottleFn } from '@vueuse/core'
+import {
+  loadThinkCollapse,
+  rememberThinkCollapse
+} from '@/composables/chat/thinkCollapsePreference'
 const props = defineProps<{
   block: DisplayAssistantMessageBlock
   usage: {
@@ -32,7 +36,8 @@ const configClient = createConfigClient()
 
 // kept for potential future scroll anchoring; currently unused
 
-const collapse = ref(false)
+// Default collapsed. Hydrating think_collapse via IPC must not expand first.
+const collapse = ref(true)
 const displayedSeconds = ref(0)
 const UPDATE_INTERVAL = 1000
 const UPDATE_OFFSET = 80
@@ -119,13 +124,12 @@ const headerText = computed(() => {
     : t('chat.features.thoughtForSeconds', { seconds })
 })
 
-watch(
-  () => collapse.value,
-  (newValue) => {
-    void configClient.setSetting('think_collapse', newValue)
-    emit('toggle-collapse', !newValue)
-  }
-)
+function onToggleCollapse(): void {
+  collapse.value = !collapse.value
+  rememberThinkCollapse(collapse.value)
+  void configClient.setSetting('think_collapse', collapse.value)
+  emit('toggle-collapse', !collapse.value)
+}
 
 const statusWatchSource = () =>
   [props.block.status, reasoningTimeRange.value?.start, reasoningTimeRange.value?.end] as const
@@ -162,7 +166,8 @@ watch(
 )
 
 onMounted(async () => {
-  collapse.value = Boolean(await configClient.getSetting('think_collapse'))
+  const stored = await loadThinkCollapse(() => configClient.getSetting('think_collapse'))
+  collapse.value = stored
 })
 
 onBeforeUnmount(() => {

@@ -16,7 +16,7 @@
       :code-block-options="codeBlockOptions"
       :mermaid-props="mermaidProps"
       :fade="false"
-      :batch-rendering="true"
+      :batch-rendering="isStreaming"
       :initial-render-batch-size="initialRenderBatchSize"
       :render-batch-size="renderBatchSize"
       :render-batch-delay="renderBatchDelay"

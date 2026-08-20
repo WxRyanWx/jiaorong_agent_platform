@@ -58,13 +58,17 @@ describe('CLI bundle', () => {
 
       expect(source.startsWith('#!/usr/bin/env node')).toBe(true)
       expect(source).not.toMatch(/from\s+["']zod["']/)
-      expect(result.stdout).toContain('deepchat <domain> <verb>')
-      expect(launcherResult.stdout).toContain('deepchat <domain> <verb>')
+      expect(result.stdout).toContain('jiaorong <domain> <verb>')
+      expect(launcherResult.stdout).toContain('jiaorong <domain> <verb>')
       if (process.platform !== 'win32') {
         expect((await stat(path.join(outputDirectory, 'deepchat'))).mode & 0o111).toBe(0o111)
       }
       expect(await readFile(path.join(outputDirectory, 'deepchat'), 'utf8')).toBe(POSIX_LAUNCHER)
       expect(await readFile(path.join(outputDirectory, 'deepchat.cmd'), 'utf8')).toBe(
+        WINDOWS_LAUNCHER
+      )
+      expect(await readFile(path.join(outputDirectory, 'jiaorong'), 'utf8')).toBe(POSIX_LAUNCHER)
+      expect(await readFile(path.join(outputDirectory, 'jiaorong.cmd'), 'utf8')).toBe(
         WINDOWS_LAUNCHER
       )
       expect(POSIX_LAUNCHER).toContain('../runtime/node/bin/node')
@@ -118,7 +122,7 @@ describe('CLI bundle', () => {
     expect(config.extraResources).toContainEqual({
       from: './out/cli/',
       to: 'app.asar.unpacked/cli',
-      filter: ['deepchat', 'deepchat.cmd', 'deepchat.mjs']
+      filter: ['deepchat', 'deepchat.cmd', 'deepchat.mjs', 'jiaorong', 'jiaorong.cmd']
     })
   })
 })

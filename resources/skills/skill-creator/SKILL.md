@@ -1,6 +1,6 @@
 ---
 name: skill-creator
-description: 创建有效技能的指南。当用户想要创建一项新技能（或更新现有技能），通过专业知识、工作流程或工具集成扩展Claude的能力时，应该使用此技能。
+description: 创建有效技能的指南。当用户想要创建一项新技能（或更新现有技能），通过专业知识、工作流程或工具集成扩展交融AI的能力时，应该使用此技能。
 metadata:
   displayName: 技能创建
 license: Complete terms in LICENSE.txt

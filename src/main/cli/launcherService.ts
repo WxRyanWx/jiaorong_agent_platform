@@ -229,7 +229,7 @@ function createPosixCommand(source: CliSource): string {
     'runtime_node=' + quotePosixLiteral(source.runtimeNode),
     'cli_module=' + quotePosixLiteral(source.modulePath),
     'if [ ! -x "$runtime_node" ] || [ ! -f "$cli_module" ]; then',
-    '  echo "DeepChat CLI bundled resources are unavailable." >&2',
+    '  echo "JiaorongAI CLI bundled resources are unavailable." >&2',
     '  exit 127',
     'fi',
     'exec "$runtime_node" "$cli_module" "$@"',
@@ -250,7 +250,7 @@ function createWindowsCommand(source: CliSource): string {
     '"%runtime_node%" "%cli_module%" %*',
     'exit /b %errorlevel%',
     ':missing_runtime',
-    'echo DeepChat CLI bundled resources are unavailable. 1>&2',
+    'echo JiaorongAI CLI bundled resources are unavailable. 1>&2',
     'exit /b 127',
     ''
   ].join('\r\n')

@@ -40,6 +40,7 @@ export function useChatScrollController(options: ChatScrollControllerOptions) {
   let commitFrame: number | null = null
   let verifyFrame: number | null = null
   let writeCommittedThisFrame = false
+  let lastObservedTop = 0
   let committedScroll: {
     request: ChatScrollRequest
     expectedTop: number
@@ -193,6 +194,7 @@ export function useChatScrollController(options: ChatScrollControllerOptions) {
     nextSessionEpoch += 1
     activeSessionId = sessionId
     committedScroll = null
+    lastObservedTop = options.viewport.value?.scrollTop ?? 0
     arbiter.beginSession(sessionEpoch)
     activeOperation.value = null
     updateState({ type: 'begin-session', sessionEpoch })
@@ -235,6 +237,8 @@ export function useChatScrollController(options: ChatScrollControllerOptions) {
     committedScroll = null
     activeOperation.value = null
     updateState({ type: 'user-gesture-start' })
+    const viewport = options.viewport.value
+    if (viewport) lastObservedTop = viewport.scrollTop
   }
 
   const notifyUserGestureEnd = () => {
@@ -244,19 +248,24 @@ export function useChatScrollController(options: ChatScrollControllerOptions) {
   const notifyViewportScroll = (): ChatViewportScrollSource => {
     const viewport = options.viewport.value
     if (!viewport) return 'native'
-    const nearBottom =
-      viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight <= bottomThreshold
+    const top = viewport.scrollTop
+    const deltaTop = top - lastObservedTop
+    lastObservedTop = top
+    const nearBottom = viewport.scrollHeight - top - viewport.clientHeight <= bottomThreshold
     updateState({ type: 'bottom-proximity-changed', nearBottom })
 
     const committed = committedScroll
-    if (committed && Math.abs(viewport.scrollTop - committed.expectedTop) < 1) {
+    if (committed && Math.abs(top - committed.expectedTop) < 1) {
       committedScroll = null
       completeOperation(committed.request)
       return 'programmatic'
     }
 
     const userOwnedBeforeTransition = state.value.userOwned || state.value.activeGesture
-    if (nearBottom && state.value.userOwned && state.value.activeGesture) {
+    // Only treat motion toward newer messages as "user returned to bottom".
+    // Upward reading and layout clamps also land inside 80px and must not
+    // surrender ownership — that path wrote auto-follow after scrollend.
+    if (nearBottom && state.value.userOwned && state.value.activeGesture && deltaTop > 1) {
       updateState({ type: 'return-to-bottom' })
     }
     return userOwnedBeforeTransition ? 'user' : 'native'

@@ -108,6 +108,10 @@ const setup = async (props: Record<string, unknown> = {}) => {
           type: Boolean,
           default: undefined
         },
+        batchRendering: {
+          type: Boolean,
+          default: false
+        },
         codeBlockStream: {
           type: Boolean,
           default: false
@@ -145,6 +149,7 @@ const setup = async (props: Record<string, unknown> = {}) => {
             {
               'data-testid': 'node-renderer',
               'data-final': String(props.final),
+              'data-batch-rendering': String(props.batchRendering),
               'data-code-block-stream': String(props.codeBlockStream),
               'data-code-block-overflow': props.codeBlockOptions?.overflow,
               'data-code-block-font-family': props.codeBlockOptions?.fontFamily,
@@ -371,6 +376,15 @@ describe('MarkdownRenderer', () => {
 
     expect(nodeRenderer.attributes('data-final')).toBe('false')
     expect(nodeRenderer.attributes('data-code-block-stream')).toBe('true')
+    expect(nodeRenderer.attributes('data-batch-rendering')).toBe('true')
+  })
+
+  it('disables markstream batch rendering for settled content', async () => {
+    const { wrapper } = await setup({ streaming: false, final: true, virtualizeNodes: false })
+    const nodeRenderer = wrapper.get('[data-testid="node-renderer"]')
+
+    expect(nodeRenderer.attributes('data-final')).toBe('true')
+    expect(nodeRenderer.attributes('data-batch-rendering')).toBe('false')
   })
 
   it('suppresses only Markdown image nodes backed by promoted local images', async () => {

@@ -50,7 +50,7 @@ asarUnpack:
 extraResources:
   - from: ./out/cli/
     to: app.asar.unpacked/cli
-    filter: ['deepchat', 'deepchat.cmd', 'deepchat.mjs']
+    filter: ['deepchat', 'deepchat.cmd', 'deepchat.mjs', 'jiaorong', 'jiaorong.cmd']
   - from: ./runtime/
     to: app.asar.unpacked/runtime
     filter: ['**/*']

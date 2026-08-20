@@ -265,6 +265,30 @@ describe('useChatScrollController', () => {
     expect(controller.state.value.userOwned).toBe(true)
   })
 
+  it('does not return to bottom while scrolling upward inside the threshold', () => {
+    const { controller, setScrollTop } = setup()
+    setScrollTop(1000)
+    controller.notifyUserGestureStart('wheel')
+    controller.notifyViewportScroll()
+    setScrollTop(960)
+
+    expect(controller.notifyViewportScroll()).toBe('user')
+    expect(controller.state.value.mode).toBe('reading')
+    expect(controller.state.value.userOwned).toBe(true)
+  })
+
+  it('returns to following when scrolling downward inside the threshold', () => {
+    const { controller, setScrollTop } = setup()
+    setScrollTop(900)
+    controller.notifyUserGestureStart('wheel')
+    controller.notifyViewportScroll()
+    setScrollTop(980)
+
+    expect(controller.notifyViewportScroll()).toBe('user')
+    expect(controller.state.value.mode).toBe('following')
+    expect(controller.state.value.userOwned).toBe(false)
+  })
+
   it('rejects resize-driven following when auto-scroll is disabled', () => {
     const { controller, epoch, writes, setAutoFollowEnabled } = setup()
     controller.requestImmediate({

@@ -115,19 +115,24 @@
 | H111 | `ChatInputBox.vue` `KnowledgeBaseSelectionChips.vue/.less` | 输入框知识库回显区恢复 max-height + 超出滚动 | knowledgeBase | 低 | 对齐 master `.chat-input-attachments`：`max-height: min(11.25rem, 25vh)`、`overflow-y: auto`；无选中不占位 |
 | H112 | `ModelIcon.vue` | 模型选择 logo 按 master 直接画在 img 上 | brand | 中 | 不要 skeleton/`opacity-0` 等 @load；不要 span 包百分比 img；`w-3.5 h-3.5` 打在 img 上 |
 | H113 | `ModelIcon.vue` `ChatStatusBar.vue` `style.css` `WindowSideBar.vue` | 模型 logo 不被 preflight 压成 0；Tailwind 扫描 jiaorong_src；技能/KB 页不挂会话列和收起钮 | brand | 中 | `img { max-width:100% }` 在 flex 里会把 logo 塌掉，用 `.model-icon-img { max-width:none }`；底栏触发器改回 providerId（H118）；独占路由对齐 master `isSkillsRoute` |
-| H114 | `resources/skills/jiaorong-cli` `skill/index.ts` `memory-management` | 删除重复 deepchat-settings；CLI 技能 id 为 `jiaorong-cli`（别名 `deepchat-cli`） | skills | 中 | 别名 `deepchat-settings`→`jiaorong-settings`、`deepchat-cli`→`jiaorong-cli`；用户目录残留会删掉；**CLI 命令名仍 `deepchat`**，连 Electron userData/`local-control`，不走 `~/.jiaorongchat` |
+| H114 | `resources/skills/jiaorong-cli` `skill/index.ts` `memory-management` | 删除重复 deepchat-settings；CLI 技能 id 为 `jiaorong-cli`（别名 `deepchat-cli`） | skills | 中 | 别名 `deepchat-settings`→`jiaorong-settings`、`deepchat-cli`→`jiaorong-cli`；用户目录残留会删掉；技能正文用 `jiaorong`；模块仍 `deepchat.mjs`；PATH 安装器仍 `deepchat` |
 | H115 | `src/main/agent/deepchat/runtime/dispatch.ts` | 旧网页检索卡片兼容 `application/deepchat-webpage` | search | 低 | 新结果仍写 `jiaorong-webpage`；历史工具结果 mime 按 master 双认 |
 | H116 | `.github/workflows/build-test.yml` `package.json` `_package-*.yml` | 测试服安装包：`electron-vite build --mode test` | ci | 中 | GitHub Actions 手动触发；走现网可复用打包流水线，不整文件覆盖上游 `_package-*` |
 | H117 | `src/renderer/src/lib/slashMenuDisplayText.ts` + `jiaorong_src/tools/*` | 斜杠菜单中文展示 | skills | 中 | 实体 `@jiaorong/tools/slashMenuDisplayText`；宿主 re-export；静态表 `toolDisplayNames.ts`；runtime displayName 优先 |
 | H118 | `ChatStatusBar.vue` `ModelIcon.vue` | 底栏模型列表/触发器渲染各服务商 logo | brand | 中 | 必须 `import ModelIcon`；漏 import 时 Vue 当未知标签，所有服务商图标都空白。传 `providerId`；尺寸打在 img 上 |
 | H119 | `mentions/utils.ts` | 斜杠选工具插入 `@中文展示名 ` | skills | 中 | 列表 label 与输入框一致；函数 name 仍英文，发送仍 `editor.getText()` |
 | H120 | `SkillChipView.vue` `SessionSkillsIndicator.vue` | 技能芯片/指示器中文名 | skills | 低 | `getSkillDisplayLabel`；remove 仍用英文 skillName |
+| H121 | `ChatPage.vue` `MarkdownRenderer.vue` `MessageBlockThink.vue` `ThinkContent.vue` `useChatScrollController.ts` | 聊天列表关闭 markdown 虚拟化；已结束消息关闭 batch-rendering；思考块首屏收起；上滑不交还跟随 | chat | 中 | 虚拟化的 viewport-priority 滚近才换真高度，会钳回底部。流式仍批量。不要用列表 min-height 锁高度 |
 | H122 | `src/main/skill/index.ts` | 手删技能目录后踢掉过期缓存 | skills | 中 | `getAllSkills`/`getMetadataList`/`readSkillFile` 核对物理路径；watcher 认技能根目录 delete，不只认 SKILL.md |
 | H123 | `NewThreadPage.vue` | 未选项目时触发器显示「聊天」 | brand | 低 | `selectionSource === 'none'` 不再用 `common.project.select`；内置工作区仍靠 `defaultChatWorkspacePath` 标成聊天 |
 | H124 | `defaultSystemPrompt.ts` `hostPromptLocalize.ts` `contextBuilder.ts` `skillContextMaterializer.ts` `systemPromptBuilder.ts` | 思考语言只跟用户亲手输入；技能/MCP/检查点不是判定源 | prompts | 高 | 上游把技能/检查点贴进 `role=user`；尾注排除这些材料；本轮技能头中文；用户正文前插语言分隔；ACP 也 finalize |
 | H125 | `src/main/skill/index.ts` | 新建 DeepChat Agent 默认绑定目录里全部技能 | skills | 中 | 缺 binding → `assigned: true`，不看开关；已有 `assigned: false` 不覆盖；`getAllSkills` 会给现有 Agent 补缺 |
 | H126 | `PluginsHubPage.vue` | 插件 Hub 技能 Tab 进交融 `/skills` | skills | 低 | `name: 'skills'`；上游 `plugins-skills` 路由仍保留 |
 | H127 | `src/renderer/src/stores/ui/spotlight.ts` | 非管理员搜索不出现服务商设置 | admin | 低 | 名单 `SETTINGS_SPOTLIGHT_HIDDEN_ROUTES`；当前仅 `settings-provider` |
+| H128 | `resources/skills/*/SKILL.md` `scripts/build-cli.mjs` `agentCommandAccess.ts` `electron-builder.yml` | 内置技能描述去 DeepChat；CLI 技能示例用 `jiaorong` | skills | 低 | YAML 描述 Claude/claude.ai→交融AI；bundled 增加 `jiaorong` 启动器，仍调 `deepchat.mjs`；安装包 extraResources 必须带上 |
+| H129 | `src/cli/discovery.ts` | CLI 默认 userData 跟 `JiaorongAI` | cli | 中 | 原先找 `Application Support/DeepChat`，应用写在 `JiaorongAI`；优先 `JIAORONG_CLI_USER_DATA_DIR`，其次 `DEEPCHAT_E2E_USER_DATA_DIR` |
+| H130 | `agentCommandAccess.ts` `composition.ts` `localControl.ts` | 智能体 CLI 注入真实 userData | cli | 中 | 同时写 `JIAORONG_CLI_USER_DATA_DIR` 与 E2E 变量，兼容未重建的旧 `deepchat.mjs` |
+| H131 | `src/cli/{args,format,run,transport,artifacts,brand}.ts` | CLI 用户可见文案 DeepChat→JiaorongAI | cli | 低 | 帮助/用法用 `jiaorong`；协议头 `x-deepchat-*` 与 env 名不改 |
 
 ## 下次合上游：值得抽到 `jiaorong_src` 的宿主文件
 

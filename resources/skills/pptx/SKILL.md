@@ -1,6 +1,6 @@
 ---
 name: pptx
-description: 演示文稿的创建、编辑和分析。当Claude需要使用演示文稿（.pptx文件）进行以下操作时：（1）创建新的演示文稿，（2）修改或编辑内容，（3）使用布局，（4）添加评论或演讲者笔记，或执行任何其他演示任务
+description: 演示文稿的创建、编辑和分析。当交融AI需要使用演示文稿（.pptx文件）进行以下操作时：（1）创建新的演示文稿，（2）修改或编辑内容，（3）使用布局，（4）添加评论或演讲者笔记，或执行任何其他演示任务
 metadata:
   displayName: pptx
 license: Proprietary. LICENSE.txt has complete terms

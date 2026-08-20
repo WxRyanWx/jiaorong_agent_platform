@@ -23,6 +23,9 @@ export const LOCAL_CONTROL_UPLOAD_REQUEST_HEADER = 'x-deepchat-upload-request'
 export const LOCAL_CONTROL_MAX_UPLOAD_REQUEST_HEADER_BYTES = 4 * 1024
 export const LOCAL_CONTROL_ARTIFACT_PATH_PREFIX = '/v1/artifacts/'
 export const LOCAL_CONTROL_AGENT_TOKEN_ENV = 'DEEPCHAT_CLI_AGENT_TOKEN'
+/** Agent/CLI override; must win over the default Electron profile guess. */
+export const LOCAL_CONTROL_USER_DATA_DIR_ENV = 'JIAORONG_CLI_USER_DATA_DIR'
+export const LOCAL_CONTROL_E2E_USER_DATA_DIR_ENV = 'DEEPCHAT_E2E_USER_DATA_DIR'
 
 export const LOCAL_CONTROL_EFFECTS = [
   'read',

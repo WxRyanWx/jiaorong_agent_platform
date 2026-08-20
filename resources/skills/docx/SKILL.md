@@ -1,6 +1,6 @@
 ---
 name: docx
-description: 全面的文档创建、编辑和分析，支持跟踪更改、注释、格式保存和文本提取。当Claude需要使用专业文档（.docx文件）进行以下操作时：（1）创建新文档，（2）修改或编辑内容，（3）处理跟踪的更改，（4）添加注释或任何其他文档任务
+description: 全面的文档创建、编辑和分析，支持跟踪更改、注释、格式保存和文本提取。当交融AI需要使用专业文档（.docx文件）进行以下操作时：（1）创建新文档，（2）修改或编辑内容，（3）处理跟踪的更改，（4）添加注释或任何其他文档任务
 metadata:
   displayName: 文档
 license: Proprietary. LICENSE.txt has complete terms

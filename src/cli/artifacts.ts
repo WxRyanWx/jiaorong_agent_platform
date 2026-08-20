@@ -10,6 +10,7 @@ import {
 import type { ArtifactMetadata } from '@shared/contracts/routes/artifacts.routes'
 import { isHardlinkUnavailableError } from '@shared/utils/filesystem'
 import { CLI_EXIT_CODES, CliClientError, exitCodeForRemoteError } from './errors'
+import { cliUserAgent } from './brand'
 import { CLI_VERSION } from './transport'
 
 const MAX_ERROR_RESPONSE_BYTES = 64 * 1024
@@ -41,10 +42,10 @@ function abortReason(signal: AbortSignal): Error {
 function singularHeader(response: IncomingMessage, name: string): string | undefined {
   const values = response.headersDistinct[name]
   if (values && values.length !== 1) {
-    throw protocolFailure(`DeepChat returned multiple ${name} headers`)
+    throw protocolFailure(`JiaorongAI returned multiple ${name} headers`)
   }
   const value = values?.[0] ?? response.headers[name]
-  if (Array.isArray(value)) throw protocolFailure(`DeepChat returned an invalid ${name} header`)
+  if (Array.isArray(value)) throw protocolFailure(`JiaorongAI returned an invalid ${name} header`)
   return value
 }
 
@@ -73,7 +74,7 @@ async function readRemoteFailure(response: IncomingMessage): Promise<CliClientEr
     const chunk = Buffer.from(rawChunk)
     size += chunk.length
     if (size > MAX_ERROR_RESPONSE_BYTES) {
-      throw protocolFailure('DeepChat artifact error response exceeds the byte limit')
+      throw protocolFailure('JiaorongAI artifact error response exceeds the byte limit')
     }
     chunks.push(chunk)
   }
@@ -83,7 +84,7 @@ async function readRemoteFailure(response: IncomingMessage): Promise<CliClientEr
       JSON.parse(Buffer.concat(chunks, size).toString('utf8'))
     )
     if (parsed.ok)
-      throw protocolFailure('DeepChat returned a success envelope with an error status')
+      throw protocolFailure('JiaorongAI returned a success envelope with an error status')
     return new CliClientError(
       parsed.error.code,
       parsed.error.message,
@@ -92,7 +93,7 @@ async function readRemoteFailure(response: IncomingMessage): Promise<CliClientEr
     )
   } catch (error) {
     if (error instanceof CliClientError) return error
-    return protocolFailure('DeepChat returned an invalid artifact error response')
+    return protocolFailure('JiaorongAI returned an invalid artifact error response')
   }
 }
 
@@ -118,7 +119,7 @@ async function receiveArtifact(input: ArtifactDownloadInput, handle: FileHandle)
       headers: {
         authorization: `Bearer ${input.token}`,
         connection: 'close',
-        'user-agent': `DeepChat-CLI/${CLI_VERSION}`
+        'user-agent': cliUserAgent(CLI_VERSION)
       }
     })
 
@@ -133,16 +134,16 @@ async function receiveArtifact(input: ArtifactDownloadInput, handle: FileHandle)
         const artifactId = singularHeader(response, 'x-deepchat-artifact-id')
         const expectedHash = singularHeader(response, 'x-content-sha256')
         if (!contentLength || !/^(0|[1-9][0-9]*)$/.test(contentLength)) {
-          throw protocolFailure('DeepChat returned an invalid artifact Content-Length')
+          throw protocolFailure('JiaorongAI returned an invalid artifact Content-Length')
         }
         if (Number(contentLength) !== input.metadata.size) {
-          throw protocolFailure('DeepChat artifact size changed after description')
+          throw protocolFailure('JiaorongAI artifact size changed after description')
         }
         if (contentType?.trim().toLowerCase() !== input.metadata.mimeType.toLowerCase()) {
-          throw protocolFailure('DeepChat artifact MIME type changed after description')
+          throw protocolFailure('JiaorongAI artifact MIME type changed after description')
         }
         if (artifactId !== input.metadata.id || expectedHash !== input.metadata.sha256) {
-          throw protocolFailure('DeepChat artifact identity changed after description')
+          throw protocolFailure('JiaorongAI artifact identity changed after description')
         }
 
         const hash = createHash('sha256')
@@ -151,16 +152,16 @@ async function receiveArtifact(input: ArtifactDownloadInput, handle: FileHandle)
           if (input.signal.aborted) throw abortReason(input.signal)
           const chunk = Buffer.from(rawChunk)
           if (bytesWritten + chunk.length > input.metadata.size) {
-            throw protocolFailure('DeepChat artifact exceeded its declared size')
+            throw protocolFailure('JiaorongAI artifact exceeded its declared size')
           }
           hash.update(chunk)
           bytesWritten += await writeAll(handle, chunk, bytesWritten)
         }
         if (bytesWritten !== input.metadata.size) {
-          throw protocolFailure('DeepChat artifact was truncated')
+          throw protocolFailure('JiaorongAI artifact was truncated')
         }
         if (hash.digest('hex') !== input.metadata.sha256) {
-          throw protocolFailure('DeepChat artifact checksum did not match')
+          throw protocolFailure('JiaorongAI artifact checksum did not match')
         }
       })().then(
         () => finish(resolve),

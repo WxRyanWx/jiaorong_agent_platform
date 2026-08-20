@@ -33,23 +33,32 @@ describe('CLI descriptor discovery', () => {
   it('mirrors Electron default and explicit profile paths', () => {
     expect(
       resolveCliUserDataPath({ platform: 'darwin', homeDirectory: '/Users/test', env: {} })
-    ).toBe('/Users/test/Library/Application Support/DeepChat')
+    ).toBe('/Users/test/Library/Application Support/JiaorongAI')
     expect(
       resolveCliUserDataPath({ platform: 'linux', homeDirectory: '/home/test', env: {} })
-    ).toBe('/home/test/.config/DeepChat')
+    ).toBe('/home/test/.config/JiaorongAI')
     expect(
       resolveCliUserDataPath({
         platform: 'win32',
         homeDirectory: 'C:\\Users\\test',
         env: { APPDATA: 'D:\\Profiles' }
       })
-    ).toBe(path.join('D:\\Profiles', 'DeepChat'))
+    ).toBe(path.join('D:\\Profiles', 'JiaorongAI'))
     expect(
       resolveCliUserDataPath({
         env: { DEEPCHAT_E2E_USER_DATA_DIR: '  ./profile  ' },
         homeDirectory: '/unused'
       })
     ).toBe(path.resolve('./profile'))
+    expect(
+      resolveCliUserDataPath({
+        env: {
+          JIAORONG_CLI_USER_DATA_DIR: '  ./jiaorong-profile  ',
+          DEEPCHAT_E2E_USER_DATA_DIR: './e2e-profile'
+        },
+        homeDirectory: '/unused'
+      })
+    ).toBe(path.resolve('./jiaorong-profile'))
   })
 
   it('fails closed when an Agent token variable is present but invalid', () => {

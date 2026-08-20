@@ -10,16 +10,16 @@ allowedTools:
 
 # JiaorongAI CLI
 
-Use the bundled `deepchat` command to ask the running JiaorongAI main process to perform supported
+Use the bundled `jiaorong` command to ask the running JiaorongAI main process to perform supported
 operations. The main process remains the sole owner of providers, credentials, Skills, MCP servers,
 artifacts, Agent runs, and approvals.
 
 ## Command rules
 
-- Every command must begin exactly with `deepchat <domain> <verb>`. Put `--json`, `--jsonl`,
+- Every command must begin exactly with `jiaorong <domain> <verb>`. Put `--json`, `--jsonl`,
   `--timeout`, and all domain options after the domain and verb.
 - Execute one standalone command per `exec` call. Do not use pipes, redirection, command separators,
-  command substitution, environment assignments, or shell wrappers around `deepchat`.
+  command substitution, environment assignments, or shell wrappers around `jiaorong`.
 - Quote every user-controlled argument for the current shell. Never interpolate untrusted text into
   an unquoted command.
 - Prefer `--json` for one result and `--jsonl` for streaming or benchmark collection. Use text mode
@@ -28,8 +28,16 @@ artifacts, Agent runs, and approvals.
   is injected only after the command has passed the normal shell permission check.
 - A shell approval authorizes command execution. Sensitive mutations can additionally pause for a
   renderer approval; wait for that decision and never attempt to manufacture confirmation data.
-- Use `deepchat help` or `deepchat <domain> <verb> --help` only when the options below are
+- Use `jiaorong help` or `jiaorong <domain> <verb> --help` only when the options below are
   insufficient. Do not probe undocumented routes.
+
+## Current session vs CLI
+
+- If the user asks which model the **current conversation** is using, do not call this CLI. That
+  selection already belongs to the open chat session.
+- `provider list` / `model list` describe configured catalog entries, not the active chat model.
+- If the CLI cannot connect, report the CLI error. Do not treat `model-db/providers.json` as live
+  provider or API-key configuration.
 
 ## Agent file and recursion boundaries
 
@@ -46,13 +54,13 @@ artifacts, Agent runs, and approvals.
 ## Discovery and model calls
 
 ```text
-deepchat system status --json
-deepchat system capabilities --json
-deepchat system doctor --json
-deepchat provider list --enabled-only --json
-deepchat model list --provider <provider-id> --json
-deepchat model config-get --provider <provider-id> --model <model-id> --json
-deepchat model invoke --provider <provider-id> --model <model-id> --prompt <quoted-text> --jsonl
+jiaorong system status --json
+jiaorong system capabilities --json
+jiaorong system doctor --json
+jiaorong provider list --enabled-only --json
+jiaorong model list --provider <provider-id> --json
+jiaorong model config-get --provider <provider-id> --model <model-id> --json
+jiaorong model invoke --provider <provider-id> --model <model-id> --prompt <quoted-text> --jsonl
 ```
 
 Always discover provider and model IDs rather than guessing them. `model invoke` is a raw provider
@@ -61,13 +69,13 @@ call: it does not create a chat session, run tools, or start an Agent loop.
 ## Media, transcription, and OCR
 
 ```text
-deepchat image generate --provider <provider-id> --model <model-id> --prompt <quoted-text> --jsonl
-deepchat video generate --provider <provider-id> --model <model-id> --prompt <quoted-text> --jsonl
-deepchat audio speak --provider <provider-id> --model <model-id> --text <quoted-text> --jsonl
-deepchat audio transcribe --provider <provider-id> --model <model-id> --artifact <artifact-id> --json
-deepchat ocr status --json
-deepchat ocr extract --artifact <artifact-id> --json
-deepchat artifact describe --id <artifact-id> --json
+jiaorong image generate --provider <provider-id> --model <model-id> --prompt <quoted-text> --jsonl
+jiaorong video generate --provider <provider-id> --model <model-id> --prompt <quoted-text> --jsonl
+jiaorong audio speak --provider <provider-id> --model <model-id> --text <quoted-text> --jsonl
+jiaorong audio transcribe --provider <provider-id> --model <model-id> --artifact <artifact-id> --json
+jiaorong ocr status --json
+jiaorong ocr extract --artifact <artifact-id> --json
+jiaorong artifact describe --id <artifact-id> --json
 ```
 
 Use the provider/model lists to choose a compatible runtime. OCR is local and does not require a
@@ -78,9 +86,9 @@ provider. OCR text is returned inline and is not written to the artifact spool.
 Read-only operations:
 
 ```text
-deepchat settings get --json
-deepchat skill list --json
-deepchat mcp list --json
+jiaorong settings get --json
+jiaorong skill list --json
+jiaorong mcp list --json
 ```
 
 Agent callers may request renderer approval for preference-only settings, query-free HTTPS Skill
@@ -88,9 +96,9 @@ installation, and adding a new disabled HTTPS remote MCP configuration. Only per
 directly satisfies the user's request:
 
 ```text
-deepchat settings set --key <public-key> --value <json-scalar> --json
-deepchat skill install --url <https-url> --json
-deepchat mcp add --name <server-name> --stdin --json
+jiaorong settings set --key <public-key> --value <json-scalar> --json
+jiaorong skill install --url <https-url> --json
+jiaorong mcp add --name <server-name> --stdin --json
 ```
 
 The Agent setting allowlist is limited to presentation preferences such as font size/family,

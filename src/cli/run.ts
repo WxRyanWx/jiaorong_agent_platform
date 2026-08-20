@@ -17,6 +17,7 @@ import {
   sessionsRunDetachedRoute
 } from '@shared/contracts/routes/runs.routes'
 import { parseCliArguments, formatCliHelp, inferCliOutputMode, type CliOutputMode } from './args'
+import { CLI_COMMAND_NAME } from './brand'
 import {
   loadLocalControlDescriptor,
   selectLocalControlToken,
@@ -188,7 +189,7 @@ function parseStreamEventData(
   if (!parsed?.success) {
     throw new CliClientError(
       'internal_error',
-      'DeepChat emitted an invalid stream event',
+      'JiaorongAI emitted an invalid stream event',
       CLI_EXIT_CODES.internal
     )
   }
@@ -196,7 +197,7 @@ function parseStreamEventData(
   if (!data.success) {
     throw new CliClientError(
       'internal_error',
-      'DeepChat emitted a non-JSON stream event',
+      'JiaorongAI emitted a non-JSON stream event',
       CLI_EXIT_CODES.internal
     )
   }
@@ -206,7 +207,7 @@ function parseStreamEventData(
   ) {
     throw new CliClientError(
       'internal_error',
-      'DeepChat emitted an event for another run',
+      'JiaorongAI emitted an event for another run',
       CLI_EXIT_CODES.internal
     )
   }
@@ -232,7 +233,7 @@ export async function runCli(
     const outputMode = inferCliOutputMode(argv, env)
     if (outputMode === 'text') {
       writeHumanText(stderr, message)
-      writeHumanText(stderr, 'Run: deepchat help')
+      writeHumanText(stderr, `Run: ${CLI_COMMAND_NAME} help`)
     } else {
       writeClientError(
         new CliClientError('invalid_request', message, CLI_EXIT_CODES.usage),
@@ -456,7 +457,7 @@ export async function runCli(
     if (!result.success) {
       throw new CliClientError(
         'internal_error',
-        'DeepChat result did not match the command contract',
+        'JiaorongAI result did not match the command contract',
         CLI_EXIT_CODES.internal
       )
     }

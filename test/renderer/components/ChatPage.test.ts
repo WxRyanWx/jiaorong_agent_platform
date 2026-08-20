@@ -3555,7 +3555,7 @@ describe('ChatPage', () => {
     expect(wrapper.find('.chat-search-bar-stub').exists()).toBe(false)
     expect(
       wrapper.find('.message-list-stub').attributes('data-disable-markdown-virtualization')
-    ).toBe('false')
+    ).toBe('true')
   })
 
   it('uses message-window coordinates for search jumps without loading history', async () => {

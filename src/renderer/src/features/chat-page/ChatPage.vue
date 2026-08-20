@@ -97,7 +97,7 @@
               :trace-message-ids="traceMessageIds"
               :is-read-only="isReadOnlySession"
               :latest-assistant-message-id="latestAssistantMessageId"
-              :disable-markdown-virtualization="isChatSearchOpen"
+              :disable-markdown-virtualization="true"
               @retry="onMessageRetry"
               @delete="onMessageDelete"
               @fork="onMessageFork"

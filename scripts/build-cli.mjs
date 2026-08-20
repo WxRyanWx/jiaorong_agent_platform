@@ -31,7 +31,7 @@ cli_module="$script_dir/deepchat.mjs"
 if [ -x "$runtime_node" ] && [ -f "$cli_module" ]; then
   exec "$runtime_node" "$cli_module" "$@"
 fi
-echo "DeepChat CLI bundled resources are unavailable." >&2
+echo "JiaorongAI CLI bundled resources are unavailable." >&2
 exit 127
 `
 
@@ -43,7 +43,7 @@ if not exist "%~dp0deepchat.mjs" goto missing_runtime\r
 "%runtime_node%" "%~dp0deepchat.mjs" %*\r
 exit /b %errorlevel%\r
 :missing_runtime\r
-echo DeepChat CLI bundled resources are unavailable. 1>&2\r
+echo JiaorongAI CLI bundled resources are unavailable. 1>&2\r
 exit /b 127\r
 `
 
@@ -92,6 +92,9 @@ export async function buildCli(options = {}) {
   await writeFile(path.join(outDir, 'deepchat'), POSIX_LAUNCHER, { mode: 0o755 })
   await chmod(path.join(outDir, 'deepchat'), 0o755)
   await writeFile(path.join(outDir, 'deepchat.cmd'), WINDOWS_LAUNCHER, 'utf8')
+  await writeFile(path.join(outDir, 'jiaorong'), POSIX_LAUNCHER, { mode: 0o755 })
+  await chmod(path.join(outDir, 'jiaorong'), 0o755)
+  await writeFile(path.join(outDir, 'jiaorong.cmd'), WINDOWS_LAUNCHER, 'utf8')
 }
 
 if (process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url) {

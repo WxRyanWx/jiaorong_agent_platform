@@ -2,7 +2,11 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { LOCAL_CONTROL_AGENT_TOKEN_ENV } from '@shared/contracts/localControl'
+import {
+  LOCAL_CONTROL_AGENT_TOKEN_ENV,
+  LOCAL_CONTROL_E2E_USER_DATA_DIR_ENV,
+  LOCAL_CONTROL_USER_DATA_DIR_ENV
+} from '@shared/contracts/localControl'
 import { AgentCliCommandAccess, resolveBundledCliDirectory } from '@/cli/agentCommandAccess'
 import {
   AgentCliTokenAuthority,
@@ -75,6 +79,62 @@ describe('AgentCliCommandAccess', () => {
     })
     first.grant.release()
     expect(authority.beginRequest(agentToken)).toEqual({ status: 'quota-exhausted' })
+  })
+
+  it('injects the live userData directory so CLI discovery does not guess DeepChat', async () => {
+    const { directory } = await createCliDirectory()
+    const agentToken = 'a'.repeat(43)
+    const userDataDirectory = '/Users/test/Library/Application Support/JiaorongAI'
+    const authority = new AgentCliTokenAuthority({
+      now: () => 1_000,
+      createToken: () => agentToken,
+      createTokenId: () => 'token-id-conversation-1'
+    })
+    const access = new AgentCliCommandAccess({
+      tokenAuthority: authority,
+      commandPermission: new CommandPermissionService(),
+      resolveCliDirectory: () => directory,
+      resolveUserDataDirectory: () => userDataDirectory
+    })
+
+    expect(
+      createEnvironment(access, 'conversation-1', 'jiaorong provider list --enabled-only --json')
+        ?.variables
+    ).toEqual({
+      [LOCAL_CONTROL_AGENT_TOKEN_ENV]: agentToken,
+      [LOCAL_CONTROL_USER_DATA_DIR_ENV]: userDataDirectory,
+      [LOCAL_CONTROL_E2E_USER_DATA_DIR_ENV]: userDataDirectory
+    })
+
+    const params = { target: 'remote_search', arguments: {} }
+    const stdin = JSON.stringify(params)
+    const armed = {
+      token: 'p'.repeat(43),
+      conversationId: 'conversation-1',
+      programmaticOperation: {
+        command: { domain: 'tool', verb: 'call' },
+        route: 'tool.call',
+        canonicalInvocationHash: buildAgentCliProgrammaticInvocationHash({
+          command: { domain: 'tool', verb: 'call' },
+          route: 'tool.call',
+          params
+        }),
+        operation: { sessionId: 'conversation-1' }
+      }
+    } as unknown as ArmedAgentCliProgrammaticToken
+
+    expect(
+      access.createProgrammaticEnvironment(
+        armed,
+        'conversation-1',
+        'deepchat tool call',
+        stdin,
+        POSIX_COMMAND_SHELL
+      ).variables
+    ).toMatchObject({
+      [LOCAL_CONTROL_USER_DATA_DIR_ENV]: userDataDirectory,
+      [LOCAL_CONTROL_E2E_USER_DATA_DIR_ENV]: userDataDirectory
+    })
   })
 
   it('injects only an already armed exact-operation token without minting another grant', async () => {
@@ -179,7 +239,7 @@ describe('AgentCliCommandAccess', () => {
         stdin,
         POSIX_COMMAND_SHELL
       )
-    ).toThrow(/Bundled DeepChat CLI is unavailable/)
+    ).toThrow(/Bundled JiaorongAI CLI is unavailable/)
   })
 
   it('injects an exact discovery grant without stdin or human-token fallback', async () => {
@@ -476,7 +536,34 @@ describe('AgentCliCommandAccess', () => {
       prependPath: [directory],
       preserveCommand: true
     })
+    expect(createEnvironment(access, 'conversation-1', 'jiaorong help')).toEqual({
+      variables: { [LOCAL_CONTROL_AGENT_TOKEN_ENV]: '' },
+      prependPath: [directory],
+      preserveCommand: true
+    })
     expect(authority.snapshot()).toEqual({ tokens: 0, conversations: 0 })
+  })
+
+  it('accepts the jiaorong CLI binary alias', async () => {
+    const { directory } = await createCliDirectory()
+    const agentToken = 'c'.repeat(43)
+    const authority = new AgentCliTokenAuthority({
+      createToken: () => agentToken,
+      createTokenId: () => 'token-id-jiaorong'
+    })
+    const access = new AgentCliCommandAccess({
+      tokenAuthority: authority,
+      commandPermission: new CommandPermissionService(),
+      resolveCliDirectory: () => directory
+    })
+
+    expect(
+      createEnvironment(access, 'conversation-1', 'jiaorong model invoke --prompt hello --jsonl')
+    ).toEqual({
+      variables: { [LOCAL_CONTROL_AGENT_TOKEN_ENV]: agentToken },
+      prependPath: [directory],
+      preserveCommand: true
+    })
   })
 
   it('derives dynamic artifact command scopes from the Agent surface', async () => {

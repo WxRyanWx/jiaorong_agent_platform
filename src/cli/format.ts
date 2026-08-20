@@ -1,6 +1,7 @@
 import type { JsonValue } from '@shared/contracts/json'
 import type { LocalControlRpcResponse } from '@shared/contracts/localControl'
 import type { CliRpcContract } from './args'
+import { CLI_COMMAND_NAME, CLI_PRODUCT_NAME } from './brand'
 import { CLI_VERSION } from './transport'
 
 function formatDuration(milliseconds: number): string {
@@ -32,7 +33,7 @@ export function formatHumanResult(
     case 'cli.status': {
       const result = contract.output.parse(value)
       return [
-        result.running ? 'DeepChat is running' : 'DeepChat is stopped',
+        result.running ? `${CLI_PRODUCT_NAME} is running` : `${CLI_PRODUCT_NAME} is stopped`,
         `PID: ${result.pid}`,
         `Uptime: ${formatDuration(result.uptimeMs)}`,
         `Endpoint: ${result.endpointKind}`,
@@ -43,7 +44,7 @@ export function formatHumanResult(
     case 'cli.version': {
       const result = contract.output.parse(value)
       return [
-        `DeepChat ${result.appVersion}`,
+        `${CLI_PRODUCT_NAME} ${result.appVersion}`,
         `CLI ${CLI_VERSION}`,
         `Protocol ${result.protocolVersion}, surface ${result.surfaceVersion}`
       ].join('\n')
@@ -61,7 +62,7 @@ export function formatHumanResult(
     case 'cli.doctor': {
       const result = contract.output.parse(value)
       return [
-        `DeepChat CLI doctor: ${result.healthy ? 'healthy' : 'unhealthy'}`,
+        `${CLI_PRODUCT_NAME} CLI doctor: ${result.healthy ? 'healthy' : 'unhealthy'}`,
         ...result.checks.map(
           (check) => `[${check.status.toUpperCase()}] ${check.id}: ${check.message}`
         )
@@ -88,7 +89,7 @@ export function formatHumanResult(
       return [
         `Run ${result.runId} started (${result.status})`,
         `Session: ${result.sessionId}`,
-        `Watch: deepchat run watch --run ${result.runId}`
+        `Watch: ${CLI_COMMAND_NAME} run watch --run ${result.runId}`
       ].join('\n')
     }
     case 'runs.get': {
@@ -278,7 +279,7 @@ export function formatHumanResult(
         `Generated ${result.artifacts.length} ${noun} artifact${result.artifacts.length === 1 ? '' : 's'} in ${formatDuration(result.durationMs)}`,
         ...result.artifacts.flatMap((artifact) => [
           `${artifact.id}  ${artifact.mimeType}  ${artifact.size} bytes  ${artifact.filename}`,
-          `  Download: deepchat artifact get --id ${artifact.id} --out ${artifact.filename}`
+          `  Download: ${CLI_COMMAND_NAME} artifact get --id ${artifact.id} --out ${artifact.filename}`
         ])
       ].join('\n')
     }

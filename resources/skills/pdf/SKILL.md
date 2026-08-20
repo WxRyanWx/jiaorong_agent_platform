@@ -1,6 +1,6 @@
 ---
 name: pdf
-description: 全面的PDF操作工具包，用于提取文本和表格、创建新的PDF、合并/拆分文档以及处理表单。当Claude需要填写PDF表单或以编程方式处理、生成或大规模分析PDF文档时。
+description: 全面的PDF操作工具包，用于提取文本和表格、创建新的PDF、合并/拆分文档以及处理表单。当交融AI需要填写PDF表单或以编程方式处理、生成或大规模分析PDF文档时。
 metadata:
   displayName: pdf
 license: Proprietary. LICENSE.txt has complete terms

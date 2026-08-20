@@ -1105,7 +1105,8 @@ export async function createMainProcessControl(dependencies: {
   const agentCliCommandAccess = new AgentCliCommandAccess({
     tokenAuthority: agentCliTokenAuthority,
     commandPermission: commandPermissionHandler,
-    resolveCliDirectory
+    resolveCliDirectory,
+    resolveUserDataDirectory: () => app.getPath('userData')
   })
   commandPermissionService = commandPermissionHandler
   filePermissionService = new FilePermissionService()

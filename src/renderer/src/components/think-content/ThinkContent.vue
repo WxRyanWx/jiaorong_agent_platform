@@ -71,7 +71,7 @@ const { displayLabelOptions } = useToolDisplayLabelOptions()
 
 // Strip <style> tags to prevent global style pollution
 const sanitizedContent = computed(() => {
-  if (!props.content) return ''
+  if (!props.expanded || !props.content) return ''
   const withoutStyles = props.content.replace(/<style[\s\S]*?<\/style>/gi, '')
   const { skills, tools } = displayLabelOptions.value
   return localizeThinkingContent(withoutStyles, skills, tools)

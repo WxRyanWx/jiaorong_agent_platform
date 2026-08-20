@@ -7,6 +7,8 @@ import {
 } from '@shared/contracts/cliCommands'
 import {
   LOCAL_CONTROL_AGENT_TOKEN_ENV,
+  LOCAL_CONTROL_E2E_USER_DATA_DIR_ENV,
+  LOCAL_CONTROL_USER_DATA_DIR_ENV,
   type LocalControlScope
 } from '@shared/contracts/localControl'
 import type { CommandPermissionService } from '@/tool/permission/commandPermissionService'
@@ -18,7 +20,9 @@ import {
 import { getCliSurfaceEntry } from './surface'
 import type { ResolvedCommandShell } from '@shared/commandShell'
 
-const AGENT_CLI_COMMAND_PATTERN = /^deepchat\s+([a-z][a-z0-9-]*)\s+([a-z][a-z0-9-]*)(?:\s|$)/
+const AGENT_CLI_BASE_COMMANDS = new Set(['deepchat', 'jiaorong'])
+const AGENT_CLI_COMMAND_PATTERN =
+  /^(?:deepchat|jiaorong)\s+([a-z][a-z0-9-]*)\s+([a-z][a-z0-9-]*)(?:\s|$)/
 const AGENT_CLI_COMMAND_TOKEN_TTL_MS = 5 * 60_000
 
 function referencesAgentToken(command: string, commandShell: ResolvedCommandShell): boolean {
@@ -37,6 +41,7 @@ export type AgentCliCommandAccessOptions = Readonly<{
   tokenAuthority: Pick<AgentCliTokenAuthority, 'issue'>
   commandPermission: Pick<CommandPermissionService, 'extractBaseCommand' | 'hasShellControlSyntax'>
   resolveCliDirectory(): string | null
+  resolveUserDataDirectory?: () => string | null
 }>
 
 type AgentCliCommandCapability = Readonly<{
@@ -60,6 +65,10 @@ function createAgentCliCommandRegistry(): ReadonlyMap<string, AgentCliCommandCap
 }
 
 const AGENT_CLI_COMMANDS = createAgentCliCommandRegistry()
+
+function isAgentCliBaseCommand(baseCommand: string): boolean {
+  return AGENT_CLI_BASE_COMMANDS.has(baseCommand)
+}
 
 function unprivilegedAgentEnvironment(preserveCommand = false): AgentCommandEnvironment {
   return {
@@ -122,7 +131,7 @@ export class AgentCliCommandAccess {
       armed.programmaticOperation.operation.sessionId !== normalizedConversationId ||
       invocation.route !== armed.programmaticOperation.route ||
       invocation.canonicalInvocationHash !== armed.programmaticOperation.canonicalInvocationHash ||
-      this.options.commandPermission.extractBaseCommand(command) !== 'deepchat' ||
+      !isAgentCliBaseCommand(this.options.commandPermission.extractBaseCommand(command)) ||
       this.options.commandPermission.hasShellControlSyntax(command, commandShell.dialect) ||
       referencesAgentToken(command, commandShell)
     ) {
@@ -130,10 +139,10 @@ export class AgentCliCommandAccess {
     }
     const cliDirectory = this.options.resolveCliDirectory()
     if (!cliDirectory) {
-      throw new Error('Bundled DeepChat CLI is unavailable for the Programmatic invocation')
+      throw new Error('Bundled JiaorongAI CLI is unavailable for the Programmatic invocation')
     }
     return {
-      variables: { [LOCAL_CONTROL_AGENT_TOKEN_ENV]: armed.token },
+      variables: this.cliVariables(armed.token),
       prependPath: [cliDirectory],
       preserveCommand: true
     }
@@ -147,10 +156,11 @@ export class AgentCliCommandAccess {
     const normalizedConversationId = conversationId.trim()
     const normalizedCommand = command.trim()
     if (!normalizedConversationId) return undefined
-    if (this.options.commandPermission.extractBaseCommand(normalizedCommand) !== 'deepchat') {
+    const baseCommand = this.options.commandPermission.extractBaseCommand(normalizedCommand)
+    if (!isAgentCliBaseCommand(baseCommand)) {
       return unprivilegedAgentEnvironment()
     }
-    if (normalizedCommand === 'deepchat help') {
+    if (normalizedCommand === `${baseCommand} help`) {
       return localAgentEnvironment(this.options.resolveCliDirectory())
     }
 
@@ -177,9 +187,21 @@ export class AgentCliCommandAccess {
       maxCalls: 1
     })
     return {
-      variables: { [LOCAL_CONTROL_AGENT_TOKEN_ENV]: issued.token },
+      variables: this.cliVariables(issued.token),
       prependPath: [cliDirectory],
       preserveCommand: true
     }
+  }
+
+  private cliVariables(token: string): Record<string, string> {
+    const variables: Record<string, string> = {
+      [LOCAL_CONTROL_AGENT_TOKEN_ENV]: token
+    }
+    const userData = this.options.resolveUserDataDirectory?.()?.trim()
+    if (!userData) return variables
+    variables[LOCAL_CONTROL_USER_DATA_DIR_ENV] = userData
+    // Old bundled CLI only honors the E2E discovery key.
+    variables[LOCAL_CONTROL_E2E_USER_DATA_DIR_ENV] = userData
+    return variables
   }
 }

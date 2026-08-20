@@ -1,6 +1,6 @@
 ---
 name: web-artifacts-builder
-description: 使用现代前端web技术（React、Tailwind CSS、shadcn/ui）创建复杂的多组件claude.ai HTML工件的工具套件。用于需要状态管理、路由或shadcn/ui组件的复杂工件，而不是简单的单文件HTML/JSX工件。
+description: 使用现代前端web技术（React、Tailwind CSS、shadcn/ui）创建复杂的多组件网页 HTML 工件的工具套件。用于需要状态管理、路由或shadcn/ui组件的复杂工件，而不是简单的单文件HTML/JSX工件。
 metadata:
   displayName: web生成
 license: Complete terms in LICENSE.txt
