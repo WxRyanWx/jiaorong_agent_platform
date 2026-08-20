@@ -69,9 +69,18 @@ describe('splash loading', () => {
 
   it('starts with the circular splash shell loading state', () => {
     const wrapper = mountLoading()
+    const darkSrc = wrapper.get('.logo-mark--dark').attributes('src') ?? ''
+    const lightSrc = wrapper.get('.logo-mark--light').attributes('src') ?? ''
 
     expect(wrapper.get('.splash-shell').classes()).toContain('splash-shell')
     expect(wrapper.get('.loader-stage').attributes('aria-label')).toBe('JiaorongAI is starting')
+    expect(wrapper.get('.loader-stage--orb .aurora-background').exists()).toBe(true)
+    expect(wrapper.find('#splash-logo-knockout').exists()).toBe(true)
+    expect(darkSrc).toMatch(/logo\.png/)
+    expect(darkSrc).not.toMatch(/logo-dark/)
+    expect(lightSrc).toMatch(/logo-dark\.png/)
+    expect(wrapper.get('.logo-mark--dark').attributes('style')).toContain('splash-logo-knockout')
+    expect(wrapper.findAll('.logo-mark')).toHaveLength(2)
     expect(wrapper.classes()).not.toContain('splash-shell--manual-unlock')
   })
 
@@ -117,6 +126,8 @@ describe('splash loading', () => {
 
     expect(wrapper.classes()).toContain('splash-shell--manual-unlock')
     expect(wrapper.get('.unlock-panel--manual').exists()).toBe(true)
+    expect(wrapper.find('#splash-logo-knockout').exists()).toBe(true)
+    expect(wrapper.get('.unlock-logo--dark').attributes('style')).toContain('splash-logo-knockout')
   })
 
   it('renders a disabled recovery development preview', async () => {

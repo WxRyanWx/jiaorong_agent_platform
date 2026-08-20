@@ -100,6 +100,7 @@ export class SplashWindow {
         autoHideMenuBar: true,
         skipTaskbar: true,
         transparent: true,
+        hasShadow: false,
         backgroundColor: '#00000000',
         webPreferences: {
           nodeIntegration: false,

@@ -180,6 +180,7 @@ describe('SplashWindow display gating', () => {
 
     expect(browserWindowOptions[0]).toMatchObject({
       transparent: true,
+      hasShadow: false,
       backgroundColor: '#00000000'
     })
   })

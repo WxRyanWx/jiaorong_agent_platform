@@ -58,7 +58,7 @@
 | H54 | `src/renderer/src/stores/ui/session.ts` | 激活会话时按摘要 id 决定是否清空模型 | session UI | 低 | 再点当前会话/activate 竞态不丢 provider·model；私有目录无法覆盖 store |
 | H55 | `src/renderer/src/apps/chat-main/ChatTabView.vue` | 路由初始化用 live `sessionStore.activeSessionId` | skills use | 中 | 勿用缓存 bootstrap.activeSessionId，否则技能「使用」会回到旧会话 |
 | H56 | `src/main/desktop/window/index.ts` `jiaorongPrivateApiCors.ts` 浮窗 | 主窗口/设置窗/浮窗暂 `webSecurity: false`；CORS helper 仍只给当前 mode 私有 API origin 补头 | auth+skills+kb | 高 | 技能 zip、知识库 iframe/列表跨域时暂关隔离。XSS 可打任意源和 `file://`。后端注解不全时不要开 true |
-| H57 | `src/renderer/src/assets/logo.png` `logo-dark.png` / `resources/icon.png` | 交融 logo 覆盖 DeepChat 图标 | brand | 低 | Agent 欢迎页、头像、Dock 图标 |
+| H57 | `src/renderer/src/assets/logo.png` `logo-dark.png` / `resources/icon.png` | 交融 logo 覆盖 DeepChat 图标 | brand | 低 | Agent 欢迎页、头像、Dock、Splash `loading.vue` |
 | H58 | `src/main/config/jsonStoreRecovery.ts` | 损坏 JSON store 隔离恢复 | config | 中 | `app-settings` / `mcp-settings` 构造前 quarantine |
 | H59 | `src/main/mcp/settings.ts` + `composition.ts` | 默认开启 MCP（一次性迁移 `mcpEnabledDefaultV3`） | mcp | 中 | 与设置拨到 ON 等效 |
 | H60 | `src/main/onboarding/autoCompletePreconfiguredOnboarding.ts` | 预配 Provider 则自动 complete 引导 | onboarding | 中 | `composition.init` 在 getProviders 之后调用 |
@@ -84,7 +84,7 @@
 | H80 | `agentToolManager.ts` 技能四件套 | 按 master 写入中文 `description`（displayName 已有） | skills | 中 | 斜杠菜单描述读 function.description；函数 name 仍英文 |
 | H81 | `chatSettingsTools.ts` | 按 master 写入五条中文 description + `JiaorongAI settings control` | skills | 中 | schema/失败文案 DeepChat→JiaorongAI 同步 master |
 | H82 | `agentTapeTools` `tool/index.ts` `agentImageGenerationTool` `liveDelegationTool` `agentMemoryTools` `cronJobTool` | 用户/模型可见 DeepChat→JiaorongAI | brand | 低 | 不改协议字段 `source: 'DeepChat'`；tape 工具 API 保持上游 search/context，只换品牌词 |
-| H83 | `splashWindow.ts` `skill/index.ts` Runtime Context / Skills README | 启动页与技能同步目录按 master 品牌 | brand | 低 | 标题/hint `JiaorongAI`；`## JiaorongAI Runtime Context` |
+| H83 | `splashWindow.ts` `splash/loading.vue` `skill/index.ts` Runtime Context / Skills README | 启动页与技能同步目录按 master 品牌 | brand | 低 | 标题/hint `JiaorongAI`；Splash 圆底用电蓝/青，中间图用 H57 PNG |
 | H84 | `systemPromptBuilder.ts` 验证段 | `In the JiaorongAI repository` 以便 hostPromptLocalize 命中 | prompts | 低 | 包名检测仍走 format/i18n/lint 脚本启发式 |
 | H85 | `deepChatLoopRunner.ts` `contextCoordinator.ts` | 上下文溢出用户可见文案 DeepChat→JiaorongAI | brand | 低 | 类型错误里的 DeepChat Agent/session 不改；CLI 所有权标记不改 |
 | H86 | `McpAppView.vue` `liveDelegationService.ts` `toolPermissionReviewer.ts` | MCP App host / 委托交接 / 自动批准审阅品牌词 → `APP_NAME` | brand | 低 | 与 MCP 客户端 `{ name: 'JiaorongAI' }` 一致；不改 `source: 'DeepChat'`、CLI `DeepChat CLI` |

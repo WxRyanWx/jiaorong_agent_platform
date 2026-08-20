@@ -3,6 +3,11 @@
     class="splash-shell"
     :class="{ 'splash-shell--manual-unlock': mode === 'unlock' || mode === 'recovery' }"
   >
+    <svg class="logo-knockout-defs" aria-hidden="true" focusable="false">
+      <filter id="splash-logo-knockout" color-interpolation-filters="sRGB">
+        <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  1 1 1 0 0" />
+      </filter>
+    </svg>
     <div v-if="mode === 'unlock'" class="unlock-stage unlock-stage--manual">
       <div class="aurora-background" aria-hidden="true">
         <span class="aurora-ribbon aurora-ribbon--top"></span>
@@ -12,8 +17,18 @@
       </div>
       <form class="unlock-panel unlock-panel--manual" @submit.prevent="submitUnlock">
         <div class="unlock-brand" aria-hidden="true">
-          <div class="unlock-logo unlock-logo--dark" v-html="darkLogo" />
-          <div class="unlock-logo unlock-logo--light" v-html="lightLogo" />
+          <img
+            class="unlock-logo unlock-logo--dark"
+            :src="darkLogo"
+            alt=""
+            :style="logoKnockoutStyle"
+          />
+          <img
+            class="unlock-logo unlock-logo--light"
+            :src="lightLogo"
+            alt=""
+            :style="logoKnockoutStyle"
+          />
         </div>
         <div class="unlock-title">JiaorongAI</div>
         <div class="unlock-subtitle">Local database is encrypted</div>
@@ -61,8 +76,18 @@
       </div>
       <form class="unlock-panel unlock-panel--manual" @submit.prevent="submitRecoveryPassword">
         <div class="unlock-brand" aria-hidden="true">
-          <div class="unlock-logo unlock-logo--dark" v-html="darkLogo" />
-          <div class="unlock-logo unlock-logo--light" v-html="lightLogo" />
+          <img
+            class="unlock-logo unlock-logo--dark"
+            :src="darkLogo"
+            alt=""
+            :style="logoKnockoutStyle"
+          />
+          <img
+            class="unlock-logo unlock-logo--light"
+            :src="lightLogo"
+            alt=""
+            :style="logoKnockoutStyle"
+          />
         </div>
         <div class="unlock-title">DeepChat</div>
         <div class="unlock-subtitle">{{ recoverySubtitle }}</div>
@@ -120,8 +145,18 @@
       </div>
       <div class="unlock-panel unlock-panel--system">
         <div class="unlock-brand" aria-hidden="true">
-          <div class="unlock-logo unlock-logo--dark" v-html="darkLogo" />
-          <div class="unlock-logo unlock-logo--light" v-html="lightLogo" />
+          <img
+            class="unlock-logo unlock-logo--dark"
+            :src="darkLogo"
+            alt=""
+            :style="logoKnockoutStyle"
+          />
+          <img
+            class="unlock-logo unlock-logo--light"
+            :src="lightLogo"
+            alt=""
+            :style="logoKnockoutStyle"
+          />
         </div>
         <div class="unlock-title">JiaorongAI</div>
         <div class="unlock-subtitle">Unlocking local database</div>
@@ -144,16 +179,19 @@
         <span class="aurora-pool aurora-pool--violet"></span>
         <span class="aurora-pool aurora-pool--cyan"></span>
       </div>
-
       <div class="logo-loader" aria-hidden="true">
         <span class="logo-bloom"></span>
         <span class="logo-bloom logo-bloom--inner"></span>
         <span class="core-flare"></span>
         <span class="speed-line speed-line--one"></span>
         <span class="speed-line speed-line--two"></span>
-        <!-- Trusted local SVG sources are inlined so each original path can move independently. -->
-        <div class="logo-mark logo-mark--dark" v-html="darkLogo" />
-        <div class="logo-mark logo-mark--light" v-html="lightLogo" />
+        <img class="logo-mark logo-mark--dark" :src="darkLogo" alt="" :style="logoKnockoutStyle" />
+        <img
+          class="logo-mark logo-mark--light"
+          :src="lightLogo"
+          alt=""
+          :style="logoKnockoutStyle"
+        />
       </div>
     </div>
   </div>
@@ -167,11 +205,12 @@ import {
   type DatabaseUnlockProgressPayload,
   type DatabaseUnlockRequestPayload
 } from '@shared/contracts/databaseSecurity'
-import darkLogo from '@/assets/splash/logo-v3-dark.svg?raw'
-import lightLogo from '@/assets/splash/logo-v3-light.svg?raw'
+import darkLogo from '@/assets/logo.png?url'
+import lightLogo from '@/assets/logo-dark.png?url'
 import type { SplashDebugMode } from '@shared/contracts/splash'
 
 const { t } = useI18n()
+const logoKnockoutStyle = { filter: 'url(#splash-logo-knockout)' }
 
 const mode = ref<'loading' | 'system-unlock' | 'unlock' | 'recovery'>('loading')
 const requestId = ref('')
@@ -417,9 +456,11 @@ onBeforeUnmount(() => {
   left: 50%;
   width: 340px;
   height: 340px;
-  border: 1px solid rgb(148 163 184 / 26%);
+  border: 1px solid rgb(0 196 255 / 36%);
   border-radius: 50%;
-  box-shadow: inset 0 1px rgb(255 255 255 / 10%);
+  box-shadow:
+    inset 0 1px rgb(0 229 255 / 28%),
+    0 0 42px rgb(0 102 255 / 28%);
   transform: translate(-50%, -50%);
 }
 
@@ -433,8 +474,8 @@ onBeforeUnmount(() => {
   overflow: hidden;
   border-radius: inherit;
   background:
-    radial-gradient(ellipse 74% 54% at 50% 48%, rgb(25 99 190 / 28%), transparent 68%),
-    rgb(8 13 26 / 92%);
+    radial-gradient(ellipse 72% 54% at 50% 48%, rgb(0 102 255 / 38%), transparent 64%),
+    radial-gradient(circle at 50% 52%, rgb(0 28 64 / 82%) 0%, rgb(0 0 0 / 94%) 74%);
 }
 
 .aurora-ribbon,
@@ -459,8 +500,8 @@ onBeforeUnmount(() => {
   background: linear-gradient(
     100deg,
     transparent 9%,
-    rgb(41 116 255 / 58%) 35%,
-    rgb(33 195 255 / 46%) 62%,
+    rgb(0 102 255 / 62%) 35%,
+    rgb(0 229 255 / 48%) 62%,
     transparent 89%
   );
 }
@@ -472,8 +513,8 @@ onBeforeUnmount(() => {
   background: linear-gradient(
     95deg,
     transparent 6%,
-    rgb(99 54 235 / 42%) 34%,
-    rgb(46 102 255 / 40%) 64%,
+    rgb(0 168 255 / 40%) 34%,
+    rgb(0 102 255 / 44%) 64%,
     transparent 92%
   );
 }
@@ -490,24 +531,32 @@ onBeforeUnmount(() => {
 
 .aurora-pool--blue {
   animation: aurora-pool-one 14s ease-in-out infinite alternate;
-  background: radial-gradient(ellipse, rgb(22 142 255 / 45%), transparent 67%);
+  background: radial-gradient(ellipse, rgb(0 102 255 / 48%), transparent 67%);
 }
 
 .aurora-pool--violet {
   animation: aurora-pool-two 18s ease-in-out infinite alternate;
-  background: radial-gradient(ellipse, rgb(102 52 238 / 35%), transparent 67%);
+  background: radial-gradient(ellipse, rgb(0 168 255 / 32%), transparent 67%);
 }
 
 .aurora-pool--cyan {
   animation: aurora-pool-three 22s ease-in-out infinite alternate;
-  background: radial-gradient(ellipse, rgb(61 213 255 / 28%), transparent 66%);
+  background: radial-gradient(ellipse, rgb(0 229 255 / 30%), transparent 66%);
+}
+
+.logo-knockout-defs {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  pointer-events: none;
 }
 
 .logo-loader {
   position: relative;
   isolation: isolate;
-  width: 176px;
-  height: 176px;
+  width: 240px;
+  height: 240px;
 }
 
 .logo-bloom,
@@ -521,44 +570,44 @@ onBeforeUnmount(() => {
 }
 
 .logo-bloom {
-  top: 42px;
-  left: 22px;
-  width: 156px;
-  height: 92px;
+  top: 58px;
+  left: 30px;
+  width: 212px;
+  height: 125px;
   border-radius: 50%;
   background: radial-gradient(
     ellipse,
-    rgb(37 181 255 / 58%),
-    rgb(45 113 255 / 18%) 42%,
+    rgb(0 229 255 / 58%),
+    rgb(0 102 255 / 20%) 42%,
     transparent 72%
   );
   transform: scale(0.42);
 }
 
 .logo-bloom--inner {
-  top: 67px;
-  left: 30px;
-  width: 116px;
-  height: 38px;
+  top: 92px;
+  left: 41px;
+  width: 158px;
+  height: 52px;
   background: radial-gradient(
     ellipse,
-    rgb(162 235 255 / 92%),
-    rgb(36 140 255 / 18%) 48%,
+    rgb(180 248 255 / 92%),
+    rgb(0 168 255 / 18%) 48%,
     transparent 76%
   );
   transform: scaleX(0.12) scaleY(0.6);
 }
 
 .core-flare {
-  top: 64px;
-  left: 42px;
+  top: 87px;
+  left: 57px;
   width: 3px;
   height: 3px;
   border-radius: 999px;
   background: #dff8ff;
   box-shadow:
-    0 0 10px 3px rgb(103 221 255 / 90%),
-    0 0 30px 9px rgb(25 126 255 / 46%);
+    0 0 10px 3px rgb(0 229 255 / 90%),
+    0 0 30px 9px rgb(0 102 255 / 46%);
   opacity: 0;
   transform: scale(0.3);
 }
@@ -567,13 +616,13 @@ onBeforeUnmount(() => {
   position: absolute;
   z-index: 2;
   left: -14px;
-  width: 128px;
+  width: 168px;
   height: 2px;
   border-radius: 999px;
   background: linear-gradient(
     90deg,
     transparent,
-    rgb(88 181 255 / 78%) 42%,
+    rgb(0 168 255 / 78%) 42%,
     rgb(218 245 255 / 88%) 58%,
     transparent
   );
@@ -584,37 +633,25 @@ onBeforeUnmount(() => {
 }
 
 .speed-line--one {
-  top: 76px;
+  top: 103px;
 }
 
 .speed-line--two {
-  top: 108px;
-  width: 106px;
+  top: 147px;
+  width: 144px;
   opacity: 0.65;
 }
 
 .logo-mark {
   position: absolute;
-  top: 16px;
+  top: 0;
   left: 0;
-  width: 176px;
-  height: 144px;
+  width: 240px;
+  height: 240px;
   display: none;
+  object-fit: contain;
   opacity: 0;
-  transform: translateX(36px) scale(0.78);
-  will-change: opacity, transform;
-}
-
-.logo-mark :deep(svg) {
-  display: block;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-}
-
-.logo-mark :deep(path) {
-  transform-box: fill-box;
-  transform-origin: center;
+  transform: scale(0.92);
   will-change: opacity, transform;
 }
 
@@ -625,7 +662,15 @@ onBeforeUnmount(() => {
 @media (prefers-color-scheme: light) {
   .aurora-background {
     background:
-      radial-gradient(ellipse 74% 54% at 50% 48%, rgb(147 210 255 / 48%), transparent 68%), #eef7ff;
+      radial-gradient(ellipse 72% 54% at 50% 48%, rgb(0 168 255 / 36%), transparent 66%), #e7f6ff;
+  }
+
+  .loader-stage--orb .aurora-background,
+  .unlock-stage--orb .aurora-background {
+    border-color: rgb(0 140 220 / 28%);
+    box-shadow:
+      inset 0 1px rgb(255 255 255 / 70%),
+      0 0 36px rgb(0 168 255 / 18%);
   }
 
   .aurora-ribbon--top {
@@ -666,33 +711,7 @@ onBeforeUnmount(() => {
 }
 
 .loader-stage--animating .logo-mark {
-  animation: mech-frame-arrive 920ms cubic-bezier(0.16, 0.84, 0.32, 1) 80ms forwards;
-}
-
-/* The source fish path is clipped into native body and tail components for assembly. */
-.logo-mark :deep(.logo-tail) {
-  transform-box: view-box;
-  transform-origin: 688px 515px;
-}
-
-.loader-stage--animating .logo-mark :deep(.logo-wake) {
-  animation: mech-wake-deploy 1.05s cubic-bezier(0.16, 0.84, 0.32, 1) 170ms both;
-}
-
-.loader-stage--animating .logo-mark :deep(.logo-body) {
-  animation: mech-body-lock 900ms cubic-bezier(0.16, 0.84, 0.32, 1) 170ms both;
-}
-
-.loader-stage--animating .logo-mark :deep(.logo-tail) {
-  animation:
-    mech-tail-fold 760ms cubic-bezier(0.16, 0.84, 0.32, 1) 340ms both,
-    native-tail-idle 1.8s ease-in-out 1.22s infinite;
-}
-
-.loader-stage--animating .logo-mark :deep(.logo-eye) {
-  animation:
-    core-ignite 480ms cubic-bezier(0.16, 0.84, 0.32, 1) 790ms both,
-    eye-blink 2.1s ease-in-out 1.72s infinite;
+  animation: logo-arrive 420ms ease-out 40ms forwards;
 }
 
 .unlock-stage {
@@ -732,7 +751,7 @@ onBeforeUnmount(() => {
 .unlock-brand {
   position: relative;
   width: 52px;
-  height: 44px;
+  height: 52px;
   margin-bottom: 1px;
 }
 
@@ -740,21 +759,8 @@ onBeforeUnmount(() => {
   position: absolute;
   inset: 0;
   display: none;
+  object-fit: contain;
   animation: unlock-logo-float 2.6s ease-in-out infinite;
-}
-
-.unlock-logo :deep(svg) {
-  display: block;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-}
-
-/* Both logo variants retain their native third path as the white eye. */
-.unlock-logo :deep(path:nth-of-type(3)) {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: eye-blink 2.1s ease-in-out 500ms infinite;
 }
 
 .unlock-logo--dark {
@@ -1073,22 +1079,12 @@ onBeforeUnmount(() => {
   }
 }
 
-@keyframes mech-frame-arrive {
-  0% {
+@keyframes logo-arrive {
+  from {
     opacity: 0;
-    transform: scaleX(0.68) scaleY(0.8) skewY(-4deg);
+    transform: scale(0.92);
   }
-  28% {
-    opacity: 1;
-    transform: scaleX(0.94) scaleY(0.92) skewY(1deg);
-  }
-  56% {
-    transform: scaleX(1.045) scaleY(1.02) skewY(-0.75deg);
-  }
-  75% {
-    transform: scaleX(0.99) scaleY(1.01) skewY(0.2deg);
-  }
-  100% {
+  to {
     opacity: 1;
     transform: scale(1);
   }
@@ -1236,10 +1232,13 @@ onBeforeUnmount(() => {
   .core-flare,
   .speed-line,
   .logo-mark,
-  .logo-mark :deep(path),
-  .unlock-logo,
-  .unlock-logo :deep(path) {
+  .unlock-logo {
     animation: none;
+  }
+
+  .logo-mark {
+    opacity: 1;
+    transform: none;
   }
 
   .speed-line {
