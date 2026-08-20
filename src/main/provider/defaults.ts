@@ -1,11 +1,14 @@
 import type { LLM_PROVIDER_BASE } from '@shared/types/provider'
+import { revealBuiltinSecret } from '@jiaorong/provider/builtinSecret'
 
 export const DEFAULT_PROVIDERS: LLM_PROVIDER_BASE[] = [
   {
     id: 'jiaorong',
     name: 'Jiaorong',
     apiType: 'openai-completions',
-    apiKey: 'sk-ChWjO4ISHz6FmVIBrcI7mpki2CVJsQhz',
+    apiKey: revealBuiltinSecret(
+      'jrk1.2A4ZBBkvcTDq1A0Z.PFjHfkJRlY7ZwmWmdzvh9A.8F6BJo4PUW3TFf-XHqV4hImpkFyZzizUpcj3Z0sExIs5jlw'
+    ),
     baseUrl: 'https://c4ai.ccccltd.cn/api/compatible/v1',
     enable: true,
     websites: {

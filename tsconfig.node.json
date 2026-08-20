@@ -9,6 +9,7 @@
     "src/jiaorong_src/prompts/**/*",
     "src/jiaorong_src/config/**/*",
     "src/jiaorong_src/brand/**/*",
+    "src/jiaorong_src/provider/builtinSecret.ts",
     "src/jiaorong_src/logging/**/*",
     "src/jiaorong_src/utils/skillSwitchCore.ts",
     "src/jiaorong_src/knowledgeBase/mcp/knowledgeBaseMcpConstants.ts",

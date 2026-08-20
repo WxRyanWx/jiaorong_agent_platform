@@ -72,7 +72,7 @@
 | H68 | `MessageItemAssistant.vue` | 气泡固定 `ModelIcon model-id=duihua` + 名称「交融对话」 | brand | 中 | 按 master，不要改成 AgentAvatar |
 | H69 | `settingsNavigation.ts` / `settings/App.vue` | 侧栏用 `getSettingsSidebarNavigationGroups`；找不到路由 fallback `/deepchat-agents` | config | 中 | MCP 等仍进 DOM，再靠白名单 CSS `hidden` |
 | H70 | `chatSettingsTools` server.name | `jiaorong-settings`（兼容 `deepchat-settings`） | skills | 中 | McpIndicator / permission 双名 |
-| H71 | `src/main/provider/defaults.ts` | 内置 `jiaorong` Provider 置顶，`enable: true` | provider | 高 | 原样搬 master apiKey/baseUrl；缺 id 会由 settings 合并进已有 store |
+| H71 | `src/main/provider/defaults.ts` | 内置 `jiaorong` Provider 置顶，`enable: true` | provider | 高 | apiKey 密封/解开在 `@jiaorong/provider/builtinSecret`；源码存 `jrk1` 串，主进程 reveal 后再进 store；缺 id 会由 settings 合并进已有 store |
 | H72 | `src/main/provider/baseProvider.ts` | 无已启用模型时自动 enable `jiaorong-deepseek-v4-pro`；fallback `X-Title` 用 `HTTP_X_TITLE` | provider | 中 | 按 master `defaultEnabledModels` |
 | H73 | `resources/linux_tray.png` `macTrayTemplate.png` `win_tray.ico` | 交融托盘图标 | brand | 低 | 从 `backup/master-before-2026-08-14` 检出 |
 | H74 | 托盘/窗标题/导出文件名/同步目录/搜索 mime/MCP 客户端名/ACP 临时目录/远程控制英文/Copilot UA | DeepChat→JiaorongAI | brand | 中 | 协议/类型名（`source: 'DeepChat'`、`io.deepchat`）不改；discussions 仍 ThinkInAIXYZ |
@@ -150,7 +150,7 @@
 
 - `jiaorongPrivateApiCors.ts`：上游无此文件，冲突在 `window/index.ts` 的 import；再搬会把 `electron` 带进 `jiaorong_src`（要 nocheck）
 - `ChatStatusBar.vue` 等整页 / `skill/index.ts` 整 Presenter：只抽 helper
-- i18n、logo、yml、CI、`ChatPage` 滚动（H121）、`defaults.ts` apiKey
+- i18n、logo、yml、CI、`ChatPage` 滚动（H121）、`defaults.ts` 默认表（密钥密封逻辑已在 `@jiaorong/provider/builtinSecret`）
 - `jsonStoreRecovery.ts`、`modelConfigDefaults.ts`：偏通用，更适合回上游
 
 ### 以后仍可只抽 helper

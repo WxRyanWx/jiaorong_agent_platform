@@ -1,13 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_PROVIDERS } from '../../../src/main/provider/defaults'
+import { BUILTIN_SECRET_PREFIX } from '@jiaorong/provider/builtinSecret'
 
 describe('DEFAULT_PROVIDERS', () => {
   it('includes Jiaorong as the preconfigured enabled OpenAI-compatible provider', () => {
+    expect(DEFAULT_PROVIDERS[0].apiKey).toBeTruthy()
+    expect(DEFAULT_PROVIDERS[0].apiKey.startsWith(`${BUILTIN_SECRET_PREFIX}.`)).toBe(false)
     expect(DEFAULT_PROVIDERS[0]).toMatchObject({
       id: 'jiaorong',
       name: 'Jiaorong',
       apiType: 'openai-completions',
-      apiKey: 'sk-ChWjO4ISHz6FmVIBrcI7mpki2CVJsQhz',
       baseUrl: 'https://c4ai.ccccltd.cn/api/compatible/v1',
       enable: true,
       websites: expect.objectContaining({
