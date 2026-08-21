@@ -27,6 +27,7 @@
     "src/renderer/settings/**/*",
     "src/renderer/settings/**/*.vue"
   ],
+  "exclude": ["src/jiaorong_src/**/scripts/**"],
   "compilerOptions": {
     "module": "esnext",
     "moduleResolution": "bundler",

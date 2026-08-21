@@ -5,7 +5,7 @@
 | ID  | 主仓路径 | 改动类型 | 关联模块 | 风险 | 备注 |
 |-----|----------|----------|----------|------|------|
 | H01 | `electron.vite.config.ts` | 增加 `@jiaorong` alias | skeleton | 低 | main/preload/renderer |
-| H02 | `tsconfig.app.json` / `tsconfig.app.tsgo.json` | include + paths | skeleton | 低 | |
+| H02 | `tsconfig.app.json` / `tsconfig.app.tsgo.json` | include + paths | skeleton | 低 | 排除 `jiaorong_src/**/scripts`，Node CLI 脚本不要进 renderer typecheck |
 | H03 | `tsconfig.node.json` | paths + include prompts/config/mcp/brand/logging/auth config | skeleton | 低 | 勿 include Vue；`api/auth/config.ts` 供主进程 CORS filter |
 | H04 | `src/renderer/src/main.ts` | `await bootstrapJiaorongRendererAuth` + idle mount + `document.title` | auth+brand | 中 | 经 `@jiaorong/auth/host` / `@jiaorong/brand`；bootstrap 内 await 技能开关 hydrate |
 | H04 | `src/renderer/src/main.ts` | `await bootstrapJiaorongRendererAuth` + idle mount + `document.title` | auth+brand | 中 | 经 `@jiaorong/auth/host` / `@jiaorong/brand`；bootstrap 内 await 技能开关 hydrate |
@@ -118,7 +118,7 @@
 | H113 | `ModelIcon.vue` `ChatStatusBar.vue` `style.css` `WindowSideBar.vue` | 模型 logo 不被 preflight 压成 0；Tailwind 扫描 jiaorong_src；技能/KB 页不挂会话列和收起钮 | brand | 中 | `img { max-width:100% }` 在 flex 里会把 logo 塌掉，用 `.model-icon-img { max-width:none }`；底栏触发器改回 providerId（H118）；独占路由对齐 master `isSkillsRoute` |
 | H114 | `resources/skills/jiaorong-cli` `skill/index.ts` `memory-management` | 删除重复 deepchat-settings；CLI 技能 id 为 `jiaorong-cli`（别名 `deepchat-cli`） | skills | 中 | 别名 `deepchat-settings`→`jiaorong-settings`、`deepchat-cli`→`jiaorong-cli`；用户目录残留会删掉；技能正文用 `jiaorong`；模块仍 `deepchat.mjs`；PATH 安装器仍 `deepchat` |
 | H115 | `src/main/agent/deepchat/runtime/dispatch.ts` | 旧网页检索卡片兼容 `application/deepchat-webpage` | search | 低 | 新结果仍写 `jiaorong-webpage`；历史工具结果 mime 按 master 双认 |
-| H116 | `.github/workflows/build-test.yml` `package.json` `_package-*.yml` | 测试服安装包：`electron-vite build --mode test` | ci | 中 | GitHub Actions 手动触发；走现网可复用打包流水线，不整文件覆盖上游 `_package-*` |
+| H116 | `.github/workflows/build.yml` `build-test.yml` | 手动构建直出 `JiaorongAI-*` 安装包（对齐 master） | ci | 中 | 上传 `dist/*`；mac 不强制公证。PR Package Check 仍用上游 `_package-*` verification，不整文件覆盖 |
 | H117 | `src/renderer/src/lib/slashMenuDisplayText.ts` + `jiaorong_src/tools/*` | 斜杠菜单中文展示 | skills | 中 | 实体 `@jiaorong/tools/slashMenuDisplayText`；宿主 re-export；静态表 `toolDisplayNames.ts`；runtime displayName 优先 |
 | H118 | `ChatStatusBar.vue` `ModelIcon.vue` | 底栏模型列表/触发器渲染各服务商 logo | brand | 中 | 必须 `import ModelIcon`；漏 import 时 Vue 当未知标签，所有服务商图标都空白。传 `providerId`；尺寸打在 img 上 |
 | H119 | `mentions/utils.ts` | 斜杠选工具插入 `@中文展示名 ` | skills | 中 | 列表 label 与输入框一致；函数 name 仍英文，发送仍 `editor.getText()` |
