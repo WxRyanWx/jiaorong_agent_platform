@@ -13,6 +13,10 @@ describe('toolDisplayNames', () => {
       '知识库检索'
     )
     expect(resolveStaticToolDisplayName('calendar')).toBe('日历')
+    expect(resolveStaticToolDisplayName('search_conversations')).toBe('搜索对话')
+    expect(resolveStaticToolDisplayName('search_messages')).toBe('搜索消息')
+    expect(resolveStaticToolDisplayName('get_conversation_history')).toBe('获取对话历史')
+    expect(resolveStaticToolDisplayName('get_conversation_stats')).toBe('对话统计')
     expect(resolveStaticToolDisplayName('unknown_tool')).toBeUndefined()
   })
 })

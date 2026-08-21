@@ -28,6 +28,7 @@
           {{ t('chat.advancedSettings.title') }}
         </div>
         <DcButton
+          v-if="showPluginsSettingsButton"
           variant="ghost"
           size="sm"
           class="h-7 w-7 p-0 text-muted-foreground"
@@ -257,6 +258,7 @@
             {{ t('chat.input.mcp.title') }}
           </div>
           <DcButton
+            v-if="showPluginsSettingsButton"
             variant="ghost"
             size="sm"
             class="h-7 w-7 p-0 text-muted-foreground"
@@ -333,6 +335,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
+import { isMainSidebarItemHidden } from '@shared/settingsSidebarAdmin'
 import { Icon } from '@iconify/vue'
 import { DcButton } from '@dc-ui/components/button'
 import { DcPopover } from '@dc-ui/components/popover'
@@ -421,6 +424,7 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const router = useRouter()
+const showPluginsSettingsButton = computed(() => !isMainSidebarItemHidden('plugins'))
 const mcpStore = useMcpStore()
 const sessionStore = useSessionStore()
 const draftStore = useDraftStore()

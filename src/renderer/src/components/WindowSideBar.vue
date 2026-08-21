@@ -248,6 +248,7 @@
             </button>
 
             <button
+              v-if="showPluginsButton"
               data-testid="app-plugins-button"
               type="button"
               class="flex h-9 w-full items-center gap-3 rounded-lg px-2 text-left text-sm transition-colors hover:bg-accent/60"
@@ -798,6 +799,7 @@ import { createSettingsClient } from '@api/SettingsClient'
 import { isJiaorongExclusiveChromeRoute, listJiaorongSidebarItems } from '@jiaorong/runtime/sidebar'
 import type { JiaorongSidebarItem } from '@jiaorong/runtime/types'
 import { partitionSidebarAgents } from '@shared/sidebarAgents'
+import { isMainSidebarItemHidden } from '@shared/settingsSidebarAdmin'
 import { scheduleAuthRevalidateOnMenuSwitch } from '@jiaorong/auth/host'
 import { useAgentStore } from '@/stores/ui/agent'
 import { useProjectStore } from '@/stores/ui/project'
@@ -888,6 +890,7 @@ const sessionSearchQuery = ref('')
 const pluginsRouteActive = computed(() =>
   String(router?.currentRoute?.value?.name ?? '').startsWith('plugins')
 )
+const showPluginsButton = computed(() => !isMainSidebarItemHidden('plugins'))
 let agentSwitchSeq = 0
 let agentSwitchQueue: Promise<void> = Promise.resolve()
 

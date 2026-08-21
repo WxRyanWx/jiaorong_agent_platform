@@ -11,38 +11,29 @@ import type { SessionSettingsStore } from '@/session/data/settings'
 
 // Schema definitions
 const SearchConversationsArgsSchema = z.object({
-  query: z
-    .string()
-    .describe('Search keyword to search in conversation titles and message contents'),
-  limit: z.number().optional().default(10).describe('Result limit (1-50, default 10)'),
-  offset: z.number().optional().default(0).describe('Pagination offset (default 0)')
+  query: z.string().describe('在对话标题和消息内容中搜索的关键词'),
+  limit: z.number().optional().default(10).describe('返回条数上限（1-50，默认 10）'),
+  offset: z.number().optional().default(0).describe('分页偏移（默认 0）')
 })
 
 const SearchMessagesArgsSchema = z.object({
-  query: z.string().describe('Search keyword to search in message contents'),
-  conversationId: z
-    .string()
-    .optional()
-    .describe('Optional conversation ID to limit search within specific conversation'),
+  query: z.string().describe('在消息内容中搜索的关键词'),
+  conversationId: z.string().optional().describe('可选，限定在指定对话内搜索'),
   role: z
     .enum(['user', 'assistant', 'system', 'function'])
     .optional()
-    .describe('Optional message role filter'),
-  limit: z.number().optional().default(20).describe('Result limit (1-100, default 20)'),
-  offset: z.number().optional().default(0).describe('Pagination offset (default 0)')
+    .describe('可选，按消息角色筛选'),
+  limit: z.number().optional().default(20).describe('返回条数上限（1-100，默认 20）'),
+  offset: z.number().optional().default(0).describe('分页偏移（默认 0）')
 })
 
 const GetConversationHistoryArgsSchema = z.object({
-  conversationId: z.string().describe('Conversation ID'),
-  includeSystem: z
-    .boolean()
-    .optional()
-    .default(false)
-    .describe('Whether to include system messages')
+  conversationId: z.string().describe('对话 ID'),
+  includeSystem: z.boolean().optional().default(false).describe('是否包含系统消息')
 })
 
 const GetConversationStatsArgsSchema = z.object({
-  days: z.number().optional().default(30).describe('Statistics period in days (default 30 days)')
+  days: z.number().optional().default(30).describe('统计周期（天，默认 30）')
 })
 
 interface SearchResult {
@@ -463,39 +454,37 @@ export class ConversationSearchServer {
         tools: [
           {
             name: 'search_conversations',
-            description:
-              'Search historical conversation records, supports title and content search',
+            description: '搜索历史对话记录，支持按标题和内容检索',
             inputSchema: toDeepChatJsonSchema(SearchConversationsArgsSchema),
             annotations: {
-              title: 'Search Conversations',
+              title: '搜索对话',
               readOnlyHint: true
             }
           },
           {
             name: 'search_messages',
-            description:
-              'Search historical message records, supports filtering by conversation ID, role and other conditions',
+            description: '搜索历史消息，支持按对话 ID、角色等条件筛选',
             inputSchema: toDeepChatJsonSchema(SearchMessagesArgsSchema),
             annotations: {
-              title: 'Search Messages',
+              title: '搜索消息',
               readOnlyHint: true
             }
           },
           {
             name: 'get_conversation_history',
-            description: 'Get complete history of a specific conversation',
+            description: '获取指定对话的完整历史',
             inputSchema: toDeepChatJsonSchema(GetConversationHistoryArgsSchema),
             annotations: {
-              title: 'Get Conversation History',
+              title: '获取对话历史',
               readOnlyHint: true
             }
           },
           {
             name: 'get_conversation_stats',
-            description: 'Get conversation statistics including totals, recent activity and more',
+            description: '获取对话统计，包括总数、近期活跃等',
             inputSchema: toDeepChatJsonSchema(GetConversationStatsArgsSchema),
             annotations: {
-              title: 'Get Conversation Stats',
+              title: '对话统计',
               readOnlyHint: true
             }
           }

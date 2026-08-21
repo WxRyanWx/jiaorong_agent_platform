@@ -7,6 +7,7 @@ export const SETTINGS_SIDEBAR_HIDDEN_ROUTES: SettingsNavigationItem['routeName']
   'settings-acp',
   'settings-dashboard',
   'settings-mcp',
+  'settings-ocr',
   'settings-remote',
   'settings-notifications-hooks',
   'settings-scheduled-tasks',
@@ -17,10 +18,8 @@ export const SETTINGS_SIDEBAR_HIDDEN_ROUTES: SettingsNavigationItem['routeName']
   'settings-debug'
 ]
 
-/** 非管理员搜索面板隐藏的路由，范围应窄于侧栏名单 */
-export const SETTINGS_SPOTLIGHT_HIDDEN_ROUTES: SettingsNavigationItem['routeName'][] = [
-  'settings-provider'
-]
+/** 非管理员搜索与侧栏使用同一隐藏名单 */
+export const SETTINGS_SPOTLIGHT_HIDDEN_ROUTES = SETTINGS_SIDEBAR_HIDDEN_ROUTES
 
 /** 从 localStorage `userInfo` 读取的 userName / phone；命中白名单即管理员 */
 export const SETTINGS_SIDEBAR_ADMIN_WHITELIST: string[] = [
@@ -33,7 +32,6 @@ export const SETTINGS_SIDEBAR_ADMIN_WHITELIST: string[] = [
 ]
 
 const SETTINGS_SIDEBAR_HIDDEN_ROUTE_SET = new Set(SETTINGS_SIDEBAR_HIDDEN_ROUTES)
-const SETTINGS_SPOTLIGHT_HIDDEN_ROUTE_SET = new Set(SETTINGS_SPOTLIGHT_HIDDEN_ROUTES)
 
 const getStoredUserInfo = (): {
   userName: string | null
@@ -97,11 +95,25 @@ export const isSettingsSidebarItemVisuallyHidden = (routeName: string): boolean 
   return SETTINGS_SIDEBAR_HIDDEN_ROUTE_SET.has(routeName as SettingsNavigationItem['routeName'])
 }
 
-/** 搜索结果是否应对非管理员隐藏 */
+/** 搜索结果是否应对非管理员隐藏（与设置侧栏隐藏名单相同） */
 export const isSettingsSpotlightItemHidden = (routeName: string | null | undefined): boolean => {
-  if (isSettingsSidebarAdmin() || typeof routeName !== 'string') {
+  if (typeof routeName !== 'string') {
     return false
   }
 
-  return SETTINGS_SPOTLIGHT_HIDDEN_ROUTE_SET.has(routeName as SettingsNavigationItem['routeName'])
+  return isSettingsSidebarItemVisuallyHidden(routeName)
+}
+
+/** 主窗口侧栏仅管理员可见的入口（路由名） */
+export const MAIN_SIDEBAR_ADMIN_ONLY_ROUTES = ['plugins'] as const
+
+const MAIN_SIDEBAR_ADMIN_ONLY_ROUTE_SET = new Set<string>(MAIN_SIDEBAR_ADMIN_ONLY_ROUTES)
+
+/** 主窗口侧栏项是否应对非管理员隐藏 */
+export const isMainSidebarItemHidden = (routeName: string): boolean => {
+  if (isSettingsSidebarAdmin()) {
+    return false
+  }
+
+  return MAIN_SIDEBAR_ADMIN_ONLY_ROUTE_SET.has(routeName)
 }

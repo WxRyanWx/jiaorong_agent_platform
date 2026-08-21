@@ -57,6 +57,7 @@ type SetupOptions = {
   defaultProjectPath?: string | null
   projectSnapshotReady?: boolean
   currentRouteName?: string
+  isAdmin?: boolean
   jiaorongSidebarItems?: Array<{
     id: string
     title?: string
@@ -507,6 +508,11 @@ const setup = async (options: SetupOptions = {}) => {
   }))
   vi.doMock('@jiaorong/auth/host', () => ({
     scheduleAuthRevalidateOnMenuSwitch: () => true
+  }))
+  vi.doMock('@shared/settingsSidebarAdmin', () => ({
+    isSettingsSidebarAdmin: () => options.isAdmin !== false,
+    isMainSidebarItemHidden: (routeName: string) =>
+      options.isAdmin === false && routeName === 'plugins'
   }))
 
   const passthrough = defineComponent({
@@ -1831,6 +1837,15 @@ describe('WindowSideBar agent switch', () => {
       )
       expect(wrapper.get('[data-testid="app-search-command-button"]').exists()).toBe(true)
       expect(wrapper.get('[data-testid="app-plugins-button"]').exists()).toBe(true)
+    },
+    TEST_TIMEOUT_MS
+  )
+
+  it(
+    'hides the plugins button for non-admin users',
+    async () => {
+      const { wrapper } = await setup({ isAdmin: false })
+      expect(wrapper.find('[data-testid="app-plugins-button"]').exists()).toBe(false)
     },
     TEST_TIMEOUT_MS
   )

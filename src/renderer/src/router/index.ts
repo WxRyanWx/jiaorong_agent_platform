@@ -1,6 +1,7 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import { getToken, setupAuthGuard } from '@jiaorong/auth/host'
 import { createJiaorongRoutes } from '@jiaorong/router'
+import { isMainSidebarItemHidden } from '@shared/settingsSidebarAdmin'
 
 /**
  * 交融私有路由由 `@jiaorong/router` 统一聚合（login / skills / knowledge-base）。
@@ -25,6 +26,12 @@ const router = createRouter({
     {
       path: '/plugins',
       component: () => import('@/pages/plugins/PluginsHubPage.vue'),
+      beforeEnter: () => {
+        if (isMainSidebarItemHidden('plugins')) {
+          return { name: 'chat' }
+        }
+        return true
+      },
       meta: {
         titleKey: 'routes.plugins',
         icon: 'lucide:puzzle'

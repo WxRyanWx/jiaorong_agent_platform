@@ -14,6 +14,11 @@ import {
   normalizeMcpServerIdentity,
   sanitizeMcpAuthorizationConfig
 } from './serverIdentity'
+import {
+  getJiaorongDefaultEnabledMcpServerNames,
+  JIAORONG_MCP_DEFAULT_ADDONS_MIGRATION_KEY,
+  JIAORONG_MCP_DEFAULT_ON_ADDONS
+} from '@jiaorong/mcp/defaultEnabledServers'
 
 // NPM Registry cache interface
 export interface INpmRegistryCache {
@@ -246,8 +251,6 @@ const DEFAULT_INMEMORY_SERVERS: Record<string, Omit<MCPServerConfig, 'enabled'>>
   ...PLATFORM_SPECIFIC_SERVERS
 }
 
-const DEFAULT_ENABLED_SERVER_NAMES = ['Artifacts', ...(isMacOS() ? ['deepchat/apple-server'] : [])]
-
 const DEFAULT_MCP_SERVERS = {
   mcpServers: {
     // First define built-in MCP servers
@@ -338,7 +341,7 @@ export class McpSettings {
   }
 
   private getDefaultEnabledServerNames(): string[] {
-    return [...DEFAULT_ENABLED_SERVER_NAMES]
+    return getJiaorongDefaultEnabledMcpServerNames(isMacOS())
   }
 
   private buildDefaultServerConfigs(): Record<string, MCPServerConfig> {
@@ -631,6 +634,20 @@ export class McpSettings {
       ensureBuiltInServerExists(serverName, serverConfig)
     }
 
+    if (this.shouldApplyJiaorongDefaultMcpAddons()) {
+      for (const serverName of JIAORONG_MCP_DEFAULT_ON_ADDONS) {
+        if (
+          updatedServers[serverName] &&
+          !removedBuiltInServers.has(serverName) &&
+          updatedServers[serverName].enabled !== true
+        ) {
+          updatedServers[serverName] = { ...updatedServers[serverName], enabled: true }
+          hasChanges = true
+        }
+      }
+      this.markJiaorongDefaultMcpAddonsApplied()
+    }
+
     // 确保 DEFAULT_MCP_SERVERS 中定义的服务存在
     for (const [serverName, serverConfig] of Object.entries(DEFAULT_MCP_SERVERS.mcpServers)) {
       ensureBuiltInServerExists(serverName, serverConfig)
@@ -731,6 +748,14 @@ export class McpSettings {
 
   markDefaultMcpEnabledApplied(): void {
     this.mcpStore.set(MCP_ENABLED_DEFAULT_MIGRATION_KEY, true)
+  }
+
+  shouldApplyJiaorongDefaultMcpAddons(): boolean {
+    return this.mcpStore.get(JIAORONG_MCP_DEFAULT_ADDONS_MIGRATION_KEY) !== true
+  }
+
+  markJiaorongDefaultMcpAddonsApplied(): void {
+    this.mcpStore.set(JIAORONG_MCP_DEFAULT_ADDONS_MIGRATION_KEY, true)
   }
 
   // 设置MCP启用状态

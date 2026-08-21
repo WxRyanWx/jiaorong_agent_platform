@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 const setupStore = async (options?: {
   hasActiveSession?: boolean
   hideProviderSettings?: boolean
+  hideAdminSpotlightRoutes?: boolean
   historyHits?: Array<Record<string, unknown>>
   selectedAgent?: {
     type: 'deepchat' | 'acp'
@@ -92,14 +93,32 @@ const setupStore = async (options?: {
     useProviderStore: () => providerStore
   }))
 
-  vi.doMock('@shared/settingsSidebarAdmin', () => ({
-    isSettingsSpotlightItemHidden: (routeName?: string | null) =>
-      Boolean(options?.hideProviderSettings) && routeName === 'settings-provider'
-  }))
+  vi.doMock('@shared/settingsSidebarAdmin', async () => {
+    const actual = await vi.importActual<typeof import('@shared/settingsSidebarAdmin')>(
+      '@shared/settingsSidebarAdmin'
+    )
+    return {
+      ...actual,
+      isSettingsSpotlightItemHidden: (routeName?: string | null) => {
+        if (options?.hideAdminSpotlightRoutes) {
+          return actual.isSettingsSpotlightItemHidden(routeName)
+        }
+        if (typeof routeName !== 'string') {
+          return false
+        }
+        return Boolean(options?.hideProviderSettings) && routeName === 'settings-provider'
+      }
+    }
+  })
 
-  vi.doMock('@shared/settingsNavigation', () => ({
-    SETTINGS_NAVIGATION_ITEMS: []
-  }))
+  vi.doMock('@shared/settingsNavigation', async () => {
+    if (options?.hideAdminSpotlightRoutes) {
+      return await vi.importActual('@shared/settingsNavigation')
+    }
+    return {
+      SETTINGS_NAVIGATION_ITEMS: []
+    }
+  })
 
   const { useSpotlightStore } = await import('@/stores/ui/spotlight')
   const store = useSpotlightStore()
@@ -208,6 +227,51 @@ describe('spotlightStore new-chat action', () => {
       expect.arrayContaining([
         expect.objectContaining({
           id: 'action:open-providers'
+        })
+      ])
+    )
+  })
+
+  it('hides MCP, OCR and remote actions from non-admin spotlight results', async () => {
+    const { store } = await setupStore({ hideAdminSpotlightRoutes: true })
+
+    store.setOpen(true)
+    await flushPromises()
+    expect(store.results.value).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: 'action:open-mcp' })])
+    )
+    expect(store.results.value).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: 'action:open-ocr' })])
+    )
+    expect(store.results.value).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: 'action:open-remote' })])
+    )
+    expect(store.results.value).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: 'action:open-providers' })])
+    )
+    expect(store.results.value).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: 'action:open-agents' }),
+        expect.objectContaining({ id: 'action:open-shortcuts' })
+      ])
+    )
+
+    store.setQuery('ocr')
+    await flushPromises()
+    expect(store.results.value).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'action:open-ocr'
+        })
+      ])
+    )
+
+    store.setQuery('插件')
+    await flushPromises()
+    expect(store.results.value).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          routeName: 'settings-plugins'
         })
       ])
     )

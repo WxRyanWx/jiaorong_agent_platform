@@ -62,6 +62,7 @@
               </p>
             </div>
             <Switch
+              v-show="SHOW_MEMORY_CONFIG_PANEL_ENABLE_SWITCH"
               :model-value="form.memoryEnabled"
               :aria-label="t('settings.deepchatAgents.memoryEnabled')"
               @update:model-value="submitBoolean('memoryEnabled', $event)"
@@ -303,6 +304,7 @@ import { Input } from '@shadcn/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@shadcn/components/ui/popover'
 import { Spinner } from '@shadcn/components/ui/spinner'
 import { Switch } from '@shadcn/components/ui/switch'
+import { SHOW_MEMORY_CONFIG_PANEL_ENABLE_SWITCH } from '@jiaorong/config/memorySettingsChrome'
 import ModelIcon from '@/components/icons/ModelIcon.vue'
 import ModelSelect from '@/components/ModelSelect.vue'
 import { useModelStore } from '@/stores/modelStore'

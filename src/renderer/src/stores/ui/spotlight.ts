@@ -109,12 +109,14 @@ const actionItems: Array<{
   {
     id: 'open-mcp',
     titleKey: 'routes.settings-mcp',
+    routeName: 'settings-mcp',
     icon: 'lucide:server',
     keywords: ['mcp', 'tools', 'server', '工具']
   },
   {
     id: 'open-ocr',
     titleKey: 'routes.settings-ocr',
+    routeName: 'settings-ocr',
     icon: 'lucide:scan-text',
     keywords: ['ocr', 'image text', 'file processing', '文字识别', '图片文字', '文件处理']
   },
@@ -128,6 +130,7 @@ const actionItems: Array<{
   {
     id: 'open-remote',
     titleKey: 'routes.settings-remote',
+    routeName: 'settings-remote',
     icon: 'lucide:smartphone',
     keywords: ['remote', 'telegram', 'feishu', '远程']
   }

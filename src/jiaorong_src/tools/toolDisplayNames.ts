@@ -7,6 +7,10 @@ import { JIAORONG_KB_MCP_RETRIEVE_TOOL } from '../knowledgeBase/mcp/knowledgeBas
  */
 export const STATIC_TOOL_DISPLAY_NAMES: Record<string, string> = {
   [JIAORONG_KB_MCP_RETRIEVE_TOOL]: '知识库检索',
+  search_conversations: '搜索对话',
+  search_messages: '搜索消息',
+  get_conversation_history: '获取对话历史',
+  get_conversation_stats: '对话统计',
   calendar: '日历',
   contacts: '联系人',
   mail: '邮件',

@@ -69,7 +69,7 @@
             </span>
             <span class="mx-1.5 text-muted-foreground">·</span>
             <span>{{ memoryCountLabel }}</span>
-            <template v-if="memoryEnabled">
+            <template v-if="SHOW_MEMORY_STATUS_EMBEDDING_LABEL && memoryEnabled">
               <span class="mx-1.5 text-muted-foreground">·</span>
               <span
                 :class="degraded ? 'text-amber-700 dark:text-amber-300' : 'text-muted-foreground'"
@@ -80,18 +80,35 @@
           </span>
         </div>
 
-        <DcButton
-          variant="ghost"
-          size="sm"
-          class="h-8 shrink-0 justify-center self-start sm:self-auto"
-          data-testid="settings-memory-configure"
-          :disabled="configSaving"
-          :aria-expanded="configOpen"
-          @click="toggleConfig"
-        >
-          <Icon icon="lucide:settings-2" class="mr-1.5 h-3.5 w-3.5" />
-          {{ configureActionLabel }}
-        </DcButton>
+        <div class="flex shrink-0 items-center gap-3 self-start sm:self-auto">
+          <div
+            v-if="!SHOW_MEMORY_CONFIGURE_BUTTON"
+            class="flex h-8 items-center gap-2 text-sm font-medium"
+            data-testid="settings-memory-enabled-toggle"
+          >
+            <span class="whitespace-nowrap">{{ t('settings.deepchatAgents.memoryTitle') }}</span>
+            <Switch
+              :model-value="memoryEnabled"
+              :disabled="configSaving || !configReady"
+              :aria-label="t('settings.deepchatAgents.memoryEnabled')"
+              data-testid="settings-memory-enabled-switch"
+              @update:model-value="onToolbarMemoryEnabled"
+            />
+          </div>
+          <DcButton
+            v-if="SHOW_MEMORY_CONFIGURE_BUTTON"
+            variant="ghost"
+            size="sm"
+            class="h-8 shrink-0 justify-center"
+            data-testid="settings-memory-configure"
+            :disabled="configSaving"
+            :aria-expanded="configOpen"
+            @click="toggleConfig"
+          >
+            <Icon icon="lucide:settings-2" class="mr-1.5 h-3.5 w-3.5" />
+            {{ configureActionLabel }}
+          </DcButton>
+        </div>
       </div>
 
       <MemoryInlineFeedback
@@ -124,7 +141,11 @@
         >
           <TabsList
             class="grid w-full max-w-2xl"
-            :class="personaTabVisible ? 'grid-cols-4' : 'grid-cols-3'"
+            :class="{
+              'grid-cols-2': memoryWorkspaceTabCount === 2,
+              'grid-cols-3': memoryWorkspaceTabCount === 3,
+              'grid-cols-4': memoryWorkspaceTabCount === 4
+            }"
           >
             <TabsTrigger value="memories">
               {{ t('settings.memory.redesign.tabMemories') }}
@@ -149,7 +170,7 @@
                 {{ status?.directiveDraftCount }}
               </DcBadge>
             </TabsTrigger>
-            <TabsTrigger value="diagnostics">
+            <TabsTrigger v-if="SHOW_MEMORY_DIAGNOSTICS_TAB" value="diagnostics">
               {{ t('settings.memory.redesign.tabDiagnostics') }}
             </TabsTrigger>
           </TabsList>
@@ -159,7 +180,7 @@
               :agent-id="selectedAgentId"
               :memory-enabled="memoryEnabled"
               :refresh-token="refreshToken"
-              @enable="openConfig"
+              @enable="onToolbarMemoryEnabled(true)"
             />
           </TabsContent>
 
@@ -179,7 +200,11 @@
             />
           </TabsContent>
 
-          <TabsContent value="diagnostics" class="mt-4 min-h-0 flex-1">
+          <TabsContent
+            v-if="SHOW_MEMORY_DIAGNOSTICS_TAB"
+            value="diagnostics"
+            class="mt-4 min-h-0 flex-1"
+          >
             <MemoryDiagnosticsPanel
               :agent-id="selectedAgentId"
               :status="status"
@@ -207,8 +232,14 @@ import {
   SelectValue
 } from '@shadcn/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@shadcn/components/ui/tabs'
+import { Switch } from '@shadcn/components/ui/switch'
 import { createConfigClient } from '@api/ConfigClient'
 import { createMemoryClient } from '@api/MemoryClient'
+import {
+  SHOW_MEMORY_CONFIGURE_BUTTON,
+  SHOW_MEMORY_DIAGNOSTICS_TAB,
+  SHOW_MEMORY_STATUS_EMBEDDING_LABEL
+} from '@jiaorong/config/memorySettingsChrome'
 import type { MemoryStatusDto } from '@shared/contracts/routes'
 import type { Agent, DeepChatAgentConfig } from '@shared/types/agent-interface'
 import SettingsPageShell from './control-center/SettingsPageShell.vue'
@@ -302,6 +333,12 @@ const personaTabVisible = computed(
     (status.value?.personaVersionCount ?? 0) > 0 ||
     (status.value?.personaDraftCount ?? 0) > 0
 )
+const memoryWorkspaceTabCount = computed(() => {
+  let count = 2
+  if (personaTabVisible.value) count += 1
+  if (SHOW_MEMORY_DIAGNOSTICS_TAB) count += 1
+  return count
+})
 
 function agentLabel(agent: Agent): string {
   return agent.id === BUILTIN_DEEPCHAT_AGENT_ID
@@ -388,6 +425,29 @@ async function openConfig(): Promise<void> {
   if (await settingsLeaveGuard.requestLeave()) configOpen.value = true
 }
 
+async function onToolbarMemoryEnabled(enabled: boolean): Promise<void> {
+  const agentId = selectedAgentId.value
+  if (!agentId || !configReady.value || configSaving.value) return
+  const previous = Boolean(resolvedSelected.value?.memoryEnabled)
+  if (previous === enabled) return
+  if (resolvedSelected.value) {
+    resolvedSelected.value = { ...resolvedSelected.value, memoryEnabled: enabled }
+  }
+  configSaving.value = true
+  try {
+    await configClient.updateDeepChatAgent(agentId, { config: { memoryEnabled: enabled } })
+    if (selectedAgentId.value !== agentId) return
+    await refreshSelected()
+  } catch (error) {
+    if (selectedAgentId.value === agentId && resolvedSelected.value) {
+      resolvedSelected.value = { ...resolvedSelected.value, memoryEnabled: previous }
+    }
+    pageFeedbackController.fail(error)
+  } finally {
+    configSaving.value = false
+  }
+}
+
 function isMemoryTab(value: unknown): value is MemoryTab {
   return (
     value === 'memories' || value === 'persona' || value === 'directives' || value === 'diagnostics'
@@ -396,6 +456,7 @@ function isMemoryTab(value: unknown): value is MemoryTab {
 
 async function onTabChange(value: unknown): Promise<void> {
   if (!isMemoryTab(value) || value === activeTab.value) return
+  if (value === 'diagnostics' && !SHOW_MEMORY_DIAGNOSTICS_TAB) return
   if (await settingsLeaveGuard.requestLeave()) activeTab.value = value
 }
 

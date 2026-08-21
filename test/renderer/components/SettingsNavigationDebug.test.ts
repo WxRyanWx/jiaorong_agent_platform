@@ -9,6 +9,9 @@ import {
   isForbiddenSettingsLandingRoute,
   isSettingsSidebarItemVisuallyHidden,
   isSettingsSpotlightItemHidden,
+  isMainSidebarItemHidden,
+  MAIN_SIDEBAR_ADMIN_ONLY_ROUTES,
+  SETTINGS_SIDEBAR_HIDDEN_ROUTES,
   SETTINGS_SPOTLIGHT_HIDDEN_ROUTES
 } from '@shared/settingsSidebarAdmin'
 
@@ -44,13 +47,24 @@ describe('debug settings navigation', () => {
 
   it('visually hides the debug settings item for non-admin users', () => {
     expect(isSettingsSidebarItemVisuallyHidden('settings-debug')).toBe(true)
+    expect(isSettingsSidebarItemVisuallyHidden('settings-ocr')).toBe(true)
   })
 
-  it('hides only listed routes from non-admin spotlight', () => {
-    expect(SETTINGS_SPOTLIGHT_HIDDEN_ROUTES).toEqual(['settings-provider'])
+  it('hides the same routes from non-admin spotlight as the settings sidebar', () => {
+    expect(SETTINGS_SPOTLIGHT_HIDDEN_ROUTES).toEqual(SETTINGS_SIDEBAR_HIDDEN_ROUTES)
     expect(isSettingsSpotlightItemHidden('settings-provider')).toBe(true)
-    expect(isSettingsSpotlightItemHidden('settings-mcp')).toBe(false)
-    expect(isSettingsSpotlightItemHidden('settings-remote')).toBe(false)
+    expect(isSettingsSpotlightItemHidden('settings-ocr')).toBe(true)
+    expect(isSettingsSpotlightItemHidden('settings-mcp')).toBe(true)
+    expect(isSettingsSpotlightItemHidden('settings-plugins')).toBe(true)
+    expect(isSettingsSpotlightItemHidden('settings-knowledge-base')).toBe(true)
+    expect(isSettingsSpotlightItemHidden('settings-shortcut')).toBe(false)
+    expect(isSettingsSpotlightItemHidden('settings-common')).toBe(false)
+  })
+
+  it('hides the main sidebar plugins entry for non-admin users', () => {
+    expect(MAIN_SIDEBAR_ADMIN_ONLY_ROUTES).toEqual(['plugins'])
+    expect(isMainSidebarItemHidden('plugins')).toBe(true)
+    expect(isMainSidebarItemHidden('chat')).toBe(false)
   })
 
   it('defaults non-admin settings landing to common instead of overview', () => {

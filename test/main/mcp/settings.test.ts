@@ -277,4 +277,48 @@ describe('McpSettings', () => {
       })
     )
   })
+
+  it('enables Jiaorong default in-memory MCP servers on a fresh store', async () => {
+    const { McpSettings } = await loadHelper('darwin')
+    const helper = new McpSettings()
+    const servers = await helper.getMcpServers()
+
+    expect(servers.Artifacts.enabled).toBe(true)
+    expect(servers.builtinKnowledge.enabled).toBe(true)
+    expect(servers['deepchat-inmemory/conversation-search-server'].enabled).toBe(true)
+    expect(servers['deepchat/apple-server'].enabled).toBe(true)
+    expect(servers.bochaSearch.enabled).toBe(false)
+  })
+
+  it('enables conversation search once when an existing store still has it off', async () => {
+    const { McpSettings } = await loadHelper('darwin')
+    const helper = new McpSettings()
+    const mcpStore = (helper as any).mcpStore
+    const stored = mcpStore.get('mcpServers')
+    stored['deepchat-inmemory/conversation-search-server'] = {
+      ...stored['deepchat-inmemory/conversation-search-server'],
+      enabled: false
+    }
+    mcpStore.set('mcpServers', stored)
+
+    const servers = await helper.getMcpServers()
+    expect(servers['deepchat-inmemory/conversation-search-server'].enabled).toBe(true)
+  })
+
+  it('does not re-enable conversation search after the addon migration ran', async () => {
+    const { McpSettings } = await loadHelper('darwin')
+    const helper = new McpSettings()
+    const mcpStore = (helper as any).mcpStore
+    await helper.getMcpServers()
+
+    const stored = mcpStore.get('mcpServers')
+    stored['deepchat-inmemory/conversation-search-server'] = {
+      ...stored['deepchat-inmemory/conversation-search-server'],
+      enabled: false
+    }
+    mcpStore.set('mcpServers', stored)
+
+    const servers = await helper.getMcpServers()
+    expect(servers['deepchat-inmemory/conversation-search-server'].enabled).toBe(false)
+  })
 })

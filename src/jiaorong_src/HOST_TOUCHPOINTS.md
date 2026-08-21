@@ -6,7 +6,8 @@
 |-----|----------|----------|----------|------|------|
 | H01 | `electron.vite.config.ts` | 增加 `@jiaorong` alias | skeleton | 低 | main/preload/renderer |
 | H02 | `tsconfig.app.json` / `tsconfig.app.tsgo.json` | include + paths | skeleton | 低 | |
-| H03 | `tsconfig.node.json` | paths + include prompts/config/brand/logging/auth config | skeleton | 低 | 勿 include Vue；`api/auth/config.ts` 供主进程 CORS filter |
+| H03 | `tsconfig.node.json` | paths + include prompts/config/mcp/brand/logging/auth config | skeleton | 低 | 勿 include Vue；`api/auth/config.ts` 供主进程 CORS filter |
+| H04 | `src/renderer/src/main.ts` | `await bootstrapJiaorongRendererAuth` + idle mount + `document.title` | auth+brand | 中 | 经 `@jiaorong/auth/host` / `@jiaorong/brand`；bootstrap 内 await 技能开关 hydrate |
 | H04 | `src/renderer/src/main.ts` | `await bootstrapJiaorongRendererAuth` + idle mount + `document.title` | auth+brand | 中 | 经 `@jiaorong/auth/host` / `@jiaorong/brand`；bootstrap 内 await 技能开关 hydrate |
 | H05 | `src/renderer/api/auth/index.ts` | HTTP 兼容 re-export | auth | 低 | 实体在 `jiaorong_src/api/auth` |
 | H06 | `src/renderer/src/router/index.ts` | login/skills 经 auth/host + skills/routes | auth+skills | 中 | |
@@ -77,7 +78,7 @@
 | H73 | `resources/linux_tray.png` `macTrayTemplate.png` `win_tray.ico` | 交融托盘图标 | brand | 低 | 从 `backup/master-before-2026-08-14` 检出 |
 | H74 | 托盘/窗标题/导出文件名/同步目录/搜索 mime/MCP 客户端名/ACP 临时目录/远程控制英文/Copilot UA | DeepChat→JiaorongAI | brand | 中 | 协议/类型名（`source: 'DeepChat'`、`io.deepchat`）不改；discussions 仍 ThinkInAIXYZ |
 | H75 | `skill/settings.ts` `skill/index.ts` `sessionPaths.ts` | 默认路径 `.jiaorongchat`；portable 修复走 `appIdentity` | skills | 中 | 实体 `@jiaorong/brand/appIdentity`；`src/shared/appIdentity.ts` re-export；兼容旧 `.deepchat` |
-| H76 | `settingsSidebarAdmin.ts` | `SETTINGS_SIDEBAR_HIDDEN_ROUTES` 含 `settings-debug` | config | 中 | 上游 debug 仅 dev 出现；非管理员侧栏 `hidden`；记忆页不藏；插件设置页已放开 |
+| H76 | `settingsSidebarAdmin.ts` | `SETTINGS_SIDEBAR_HIDDEN_ROUTES` 含 `settings-debug` / `settings-ocr` | config | 中 | 上游 debug 仅 dev 出现；非管理员侧栏 `hidden`；记忆页不藏 |
 | H77 | 内置 `resources/skills/*/SKILL.md` | 按 master 写入 YAML `description` 中文 | skills | 低 | 只改 description，不覆盖英文正文；列表卡/详情 hero 读此字段 |
 | H78 | `zh-CN` chat/settings/welcome/routes/mcp | 补 zh-CN 未译壳文案（工具/设置总览/通用智能体等） | i18n | 低 | 调用名仍英文；缺 displayName 时走 H117 静态对照表 |
 | H79 | `mcp/inMemoryServers/appleServer.ts` `artifactsServer.ts` | 按 master 写入工具中文 `title`/`description` | mcp | 中 | 斜杠菜单读 annotations.title；函数 name 仍英文 |
@@ -128,12 +129,16 @@
 | H124 | `defaultSystemPrompt.ts` `hostPromptLocalize.ts` `contextBuilder.ts` `skillContextMaterializer.ts` `systemPromptBuilder.ts` | 思考语言只跟用户亲手输入；技能/MCP/检查点不是判定源 | prompts | 高 | 上游把技能/检查点贴进 `role=user`；尾注排除这些材料；本轮技能头中文；用户正文前插语言分隔；ACP 也 finalize |
 | H125 | `src/main/skill/index.ts` | 新建 DeepChat Agent 默认绑定目录里全部技能 | skills | 中 | 缺 binding → `assigned: true`，不看开关；已有 `assigned: false` 不覆盖；`getAllSkills` 会给现有 Agent 补缺 |
 | H126 | `PluginsHubPage.vue` | 插件 Hub 技能 Tab 进交融 `/skills` | skills | 低 | `name: 'skills'`；上游 `plugins-skills` 路由仍保留 |
-| H127 | `src/renderer/src/stores/ui/spotlight.ts` | 非管理员搜索不出现服务商设置 | admin | 低 | 名单 `SETTINGS_SPOTLIGHT_HIDDEN_ROUTES`；当前仅 `settings-provider` |
+| H127 | `src/renderer/src/stores/ui/spotlight.ts` | 非管理员搜索不出现侧栏已隐藏的设置项 | admin | 低 | 与 `SETTINGS_SIDEBAR_HIDDEN_ROUTES` 同一名单；动作须带 `routeName` |
 | H128 | `resources/skills/*/SKILL.md` `scripts/build-cli.mjs` `agentCommandAccess.ts` `electron-builder.yml` | 内置技能描述去 DeepChat；CLI 技能示例用 `jiaorong` | skills | 低 | YAML 描述 Claude/claude.ai→交融AI；bundled 增加 `jiaorong` 启动器，仍调 `deepchat.mjs`；安装包 extraResources 必须带上 |
 | H129 | `src/cli/discovery.ts` | CLI 默认 userData 跟 `JiaorongAI` | cli | 中 | 原先找 `Application Support/DeepChat`，应用写在 `JiaorongAI`；优先 `JIAORONG_CLI_USER_DATA_DIR`，其次 `DEEPCHAT_E2E_USER_DATA_DIR` |
 | H130 | `agentCommandAccess.ts` `composition.ts` `localControl.ts` | 智能体 CLI 注入真实 userData | cli | 中 | 同时写 `JIAORONG_CLI_USER_DATA_DIR` 与 E2E 变量，兼容未重建的旧 `deepchat.mjs` |
 | H131 | `src/cli/{args,format,run,transport,artifacts,brand}.ts` | CLI 用户可见文案 DeepChat→JiaorongAI | cli | 低 | 帮助/用法用 `jiaorong`；协议头 `x-deepchat-*` 与 env 名不改 |
 | H132 | `message.ts` `ChatPage.vue` `chatScrollState.ts` `useListGestures.ts` | 引用 `@jiaorong/chat/messageWindowPolicy`；restore 下限 1；距顶静默预取 | chat | 中 | 数字在私有目录：首屏 10、上滑 20、距顶预取 px。同会话刷新 `max(已有, 10)`。进入预取区立即加载；同一 wheel 手势不取消 history-prepend；加载锁包住补偿空窗 |
+| H133 | `MemorySettings.vue` `MemoryConfigInlinePanel.vue` | 记忆页工具栏提长期记忆开关；藏配置按钮与诊断 Tab | settings | 低 | 开关 `@jiaorong/config/memorySettingsChrome`。`DcButton` 不能 `v-show`（根是 TooltipProvider）；配置按钮用 `v-if` |
+| H134 | `mcp/settings.ts` `conversationSearchServer.ts` | 默认 MCP 清单改引用 `@jiaorong/mcp/defaultEnabledServers`；对话搜索工具中文 title | mcp | 中 | 新装含知识库+对话搜索；已有安装 `jiaorongMcpDefaultAddonsV1` 只打开对话搜索 |
+| H135 | `WindowSideBar.vue` `settingsSidebarAdmin.ts` | 主侧栏「插件」仅管理员可见 | admin | 低 | 名单 `MAIN_SIDEBAR_ADMIN_ONLY_ROUTES`；非管理员 `v-if` 不渲染按钮 |
+| H136 | `router/index.ts` `McpIndicator.vue` | 非管理员进 `/plugins*` 回聊天；工具面板不显示打开插件页的齿轮 | admin | 低 | `beforeEnter` 用 `isMainSidebarItemHidden('plugins')`；齿轮同一判断 |
 
 ## 下次合上游：值得抽到 `jiaorong_src` 的宿主文件
 
