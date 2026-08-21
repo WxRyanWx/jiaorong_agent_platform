@@ -650,7 +650,7 @@ const setup = async (options: SetupOptions = {}) => {
           type: Number,
           default: 0
         }
-      },
+        },
       emits: ['update:modelValue', 'previous', 'next', 'close'],
       setup(_, { expose }) {
         expose({
@@ -1755,7 +1755,7 @@ describe('ChatPage', () => {
 
   it('does not rehydrate persisted plan blocks when switching sessions', async () => {
     const { wrapper, messageStore, agentPlanStore, flushStartupDeferredTasks } = await setup({
-      deferStartupTasks: true,
+        deferStartupTasks: true,
       messages: []
     })
     const messagesBySession = {
@@ -1994,8 +1994,8 @@ describe('ChatPage', () => {
 
   it('does not queue or compact exact /compact while generating', async () => {
     const { wrapper, chatClient, sessionClient, pendingInputStore } = await setup({
-      isStreaming: true,
-      activeSessionPatch: {
+        isStreaming: true,
+        activeSessionPatch: {
         providerId: 'openai',
         modelId: 'gpt-4'
       }
@@ -2616,19 +2616,19 @@ describe('ChatPage', () => {
 
   it('routes tool interaction responses through ChatClient and refreshes messages', async () => {
     const { wrapper, chatClient, messageStore } = await setup({
-      messages: [
-        buildAssistantMessage([
-          {
+        messages: [
+          buildAssistantMessage([
+            {
             type: 'action',
             action_type: 'tool_call_permission',
             status: 'pending',
-            timestamp: 1,
-            tool_call: {
+              timestamp: 1,
+              tool_call: {
               id: 'tool-1',
               name: 'write_file'
-            },
-            extra: {
-              permissionRequest:
+              },
+              extra: {
+                permissionRequest:
                 '{"permissionType":"write","serverName":"agent-filesystem","toolName":"write_file"}'
             }
           }

@@ -225,7 +225,6 @@ jobs:
         env:
           PACKAGE_PURPOSE: distribution
           CUA_ALLOW_SIGNED_WITHOUT_NOTARIZATION: '1'
-          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
           CSC_LINK: ${{ secrets.DEEPCHAT_CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.DEEPCHAT_CSC_KEY_PASS }}
           DEEPCHAT_APPLE_NOTARY_USERNAME: ${{ secrets.DEEPCHAT_APPLE_NOTARY_USERNAME }}

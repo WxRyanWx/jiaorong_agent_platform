@@ -227,9 +227,9 @@ describe('manual Mac packaging', () => {
 
       expect(step?.env).toMatchObject({
         PACKAGE_PURPOSE: 'distribution',
-        CUA_ALLOW_SIGNED_WITHOUT_NOTARIZATION: '1',
-        CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        CUA_ALLOW_SIGNED_WITHOUT_NOTARIZATION: '1'
       })
+      expect(step?.env?.CSC_IDENTITY_AUTO_DISCOVERY).toBeUndefined()
       expect(step?.env?.build_for_release).toBeUndefined()
       expect(step?.env?.CSC_LINK).toContain('DEEPCHAT_CSC_LINK')
       expect(step?.env?.DEEPCHAT_APPLE_NOTARY_TEAM_ID).toContain('DEEPCHAT_APPLE_NOTARY_TEAM_ID')
