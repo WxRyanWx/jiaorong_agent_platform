@@ -209,6 +209,10 @@ export function useListGestures(options: UseListGesturesOptions) {
     pendingHistoryLoadAtIdle = true
   }
 
+  function disarmPendingHistoryLoadAtIdle(): void {
+    pendingHistoryLoadAtIdle = false
+  }
+
   function reset(): void {
     if (scrollIdleTimer !== null) {
       window.clearTimeout(scrollIdleTimer)
@@ -245,6 +249,7 @@ export function useListGestures(options: UseListGesturesOptions) {
     updateUpwardPaginationIntent,
     consumeUpwardPaginationIntent,
     armPendingHistoryLoadAtIdle,
+    disarmPendingHistoryLoadAtIdle,
     isGestureActive,
     reset,
     resetIntentForSessionChange

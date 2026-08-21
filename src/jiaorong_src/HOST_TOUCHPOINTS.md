@@ -133,6 +133,7 @@
 | H129 | `src/cli/discovery.ts` | CLI 默认 userData 跟 `JiaorongAI` | cli | 中 | 原先找 `Application Support/DeepChat`，应用写在 `JiaorongAI`；优先 `JIAORONG_CLI_USER_DATA_DIR`，其次 `DEEPCHAT_E2E_USER_DATA_DIR` |
 | H130 | `agentCommandAccess.ts` `composition.ts` `localControl.ts` | 智能体 CLI 注入真实 userData | cli | 中 | 同时写 `JIAORONG_CLI_USER_DATA_DIR` 与 E2E 变量，兼容未重建的旧 `deepchat.mjs` |
 | H131 | `src/cli/{args,format,run,transport,artifacts,brand}.ts` | CLI 用户可见文案 DeepChat→JiaorongAI | cli | 低 | 帮助/用法用 `jiaorong`；协议头 `x-deepchat-*` 与 env 名不改 |
+| H132 | `message.ts` `ChatPage.vue` `chatScrollState.ts` `useListGestures.ts` | 引用 `@jiaorong/chat/messageWindowPolicy`；restore 下限 1；距顶静默预取 | chat | 中 | 数字在私有目录：首屏 10、上滑 20、距顶预取 px。同会话刷新 `max(已有, 10)`。进入预取区立即加载；同一 wheel 手势不取消 history-prepend；加载锁包住补偿空窗 |
 
 ## 下次合上游：值得抽到 `jiaorong_src` 的宿主文件
 
@@ -145,6 +146,7 @@
 | `src/shared/legacyBrandAliases.ts` | `@jiaorong/brand/legacyBrandAliases` | 未进 `brand/index.ts` 桶 |
 | `src/shared/appIdentity.ts` | `@jiaorong/brand/appIdentity` | 含 fs；**禁止**从 `brand/index.ts` 导出 |
 | `src/renderer/src/lib/slashMenuDisplayText.ts` | `@jiaorong/tools/slashMenuDisplayText` | 未与 `toolDisplayNames.ts` 合并 |
+| （无整文件 re-export） | `@jiaorong/chat/messageWindowPolicy` | 首屏/分页/预取像素；`message.ts` `ChatPage.vue` 直接引用 |
 
 ### 不搬
 

@@ -167,7 +167,7 @@ describe('messageStore', () => {
 
     await store.loadMessages('s1')
 
-    expect(sessionClient.restore).toHaveBeenCalledWith('s1', 100)
+    expect(sessionClient.restore).toHaveBeenCalledWith('s1', 10)
     expect(store.messages.value).toHaveLength(1)
     expect(store.messages.value[0]?.metadata).toContain('"messageType":"compaction"')
   })
@@ -875,6 +875,11 @@ describe('messageStore', () => {
     await store.loadMessages('s1', 1)
     const loadedCount = await store.loadOlderMessages()
 
+    expect(sessionClient.restore).toHaveBeenCalledWith('s1', 1)
+    expect(sessionClient.listMessagesPage).toHaveBeenCalledWith(
+      's1',
+      expect.objectContaining({ limit: 20 })
+    )
     expect(loadedCount).toBe(1)
     expect(store.messageIds.value).toEqual(['m1', 'm2'])
     expect(store.messageCache.value.get('m2')?.content).toBe(current.content)

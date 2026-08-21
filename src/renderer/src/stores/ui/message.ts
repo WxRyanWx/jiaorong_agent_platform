@@ -23,6 +23,10 @@ import type {
   SendMessageInput,
   SessionWithState
 } from '@shared/types/agent-interface'
+import {
+  INITIAL_MESSAGE_RESTORE_COUNT,
+  OLDER_MESSAGE_PAGE_SIZE
+} from '@jiaorong/chat/messageWindowPolicy'
 import { useStreamStateStore } from './stream'
 import { bindMessageStoreIpc } from './messageIpc'
 import { RecentMessageViewCache, type RecentMessageView } from './recentMessageViewCache'
@@ -622,7 +626,7 @@ export const useMessageStore = defineStore('message', () => {
     desiredCount: number,
     requestId: number
   ): Promise<Awaited<ReturnType<typeof sessionClient.restore>> | null> {
-    const initialLimit = Math.min(Math.max(desiredCount, 40), 500)
+    const initialLimit = Math.min(Math.max(desiredCount, 1), 500)
     const restored = await sessionClient.restore(sessionId, initialLimit)
     if (!isCurrentLoadRequest(requestId, sessionId)) {
       return null
@@ -684,7 +688,9 @@ export const useMessageStore = defineStore('message', () => {
 
     const desiredCount =
       desiredCountOverride ??
-      (committedSessionId.value === sessionId ? Math.max(messageIds.value.length, 100) : 100)
+      (committedSessionId.value === sessionId
+        ? Math.max(messageIds.value.length, INITIAL_MESSAGE_RESTORE_COUNT)
+        : INITIAL_MESSAGE_RESTORE_COUNT)
     const requestId = ++latestLoadRequestId
     latestHistoryRequestId += 1
     latestLoadSessionId = sessionId
@@ -764,7 +770,7 @@ export const useMessageStore = defineStore('message', () => {
     try {
       const page = await sessionClient.listMessagesPage(sessionId, {
         cursor: toPlainMessagePageCursor(nextCursor.value),
-        limit: 100
+        limit: OLDER_MESSAGE_PAGE_SIZE
       })
       if (!isCurrentHistoryRequest(requestId, sessionId)) {
         return 0

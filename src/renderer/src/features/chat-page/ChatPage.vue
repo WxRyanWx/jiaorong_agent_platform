@@ -321,6 +321,10 @@ import { createProviderClient } from '@api/ProviderClient'
 import { useUiSettingsStore } from '@/stores/uiSettingsStore'
 import { useSessionStore } from '@/stores/ui/session'
 import { useMessageStore } from '@/stores/ui/message'
+import {
+  INITIAL_MESSAGE_RESTORE_COUNT,
+  TOP_HISTORY_PREFETCH_PX
+} from '@jiaorong/chat/messageWindowPolicy'
 import { usePendingInputStore } from '@/stores/ui/pendingInput'
 import { useAttachmentPreparationStore } from '@/stores/ui/attachmentPreparation'
 import { useAgentPlanStore } from '@/stores/ui/agentPlan'
@@ -412,7 +416,6 @@ const isStopping = computed(() => stoppingSessionIds.value.has(props.sessionId))
 const streamingMessageId = computed(() =>
   isCurrentSessionStreaming.value ? messageStore.currentStreamMessageId : null
 )
-const INITIAL_MESSAGE_RESTORE_COUNT = 100
 const MESSAGE_WINDOWING_THRESHOLD = 160
 const MESSAGE_INITIAL_WINDOW_COUNT = 90
 const MESSAGE_WINDOW_OVERSCAN_PX = 2400
@@ -465,8 +468,6 @@ const chatScrollController = useChatScrollController({
     if (container) syncMessageViewportMetrics(container)
   }
 })
-const TOP_HISTORY_PREFETCH_MIN_PX = 200
-const TOP_HISTORY_PREFETCH_VIEWPORT_RATIO = 0.25
 const MESSAGE_JUMP_RETRY_INTERVAL = 80
 const MESSAGE_HIGHLIGHT_DURATION = 2000
 const MAX_MESSAGE_JUMP_RETRIES = 8
@@ -505,6 +506,8 @@ type HistoryLayoutAnchor = {
   layoutTop: number
 }
 let viewportResizeObserver: ResizeObserver | null = null
+let historyPrefetchLock = false
+let historyPrefetchEpoch = 0
 
 const resolveChatInputBoxElement = () =>
   (chatInputHeroHostRef.value?.querySelector(
@@ -641,16 +644,11 @@ function scheduleScrollMetricsRead() {
   })
 }
 
-function getHistoryPrefetchThreshold(el: HTMLElement): number {
-  return Math.max(
-    TOP_HISTORY_PREFETCH_MIN_PX,
-    Math.round(el.clientHeight * TOP_HISTORY_PREFETCH_VIEWPORT_RATIO)
-  )
-}
-
 function onWheel(event: WheelEvent) {
   if (event.deltaY === 0) return
-  chatScrollController.notifyUserGestureStart('wheel')
+  if (!chatScrollController.state.value.activeGesture) {
+    chatScrollController.notifyUserGestureStart('wheel')
+  }
   listGestures.markWheelScrollIntent(event.deltaY < 0)
 }
 
@@ -660,23 +658,19 @@ function onScroll() {
 
   const source = chatScrollController.notifyViewportScroll()
   const userInitiatedScroll = source === 'user'
-  const hadUpwardPaginationIntent =
-    userInitiatedScroll && chatScrollController.state.value.userOwned
 
   scheduleScrollMetricsRead()
   if (userInitiatedScroll && chatScrollController.state.value.activeGesture) {
     listGestures.markListScrolling()
   }
 
-  if (el.scrollTop <= getHistoryPrefetchThreshold(el) && hadUpwardPaginationIntent) {
-    if (!listGestures.consumeUpwardPaginationIntent()) {
-      return
-    }
-    if (chatScrollController.state.value.activeGesture || isListScrolling.value) {
-      listGestures.armPendingHistoryLoadAtIdle()
-    } else {
-      void loadOlderMessagesAtTop()
-    }
+  if (
+    userInitiatedScroll &&
+    chatScrollController.state.value.userOwned &&
+    el.scrollTop <= TOP_HISTORY_PREFETCH_PX
+  ) {
+    listGestures.disarmPendingHistoryLoadAtIdle()
+    void loadOlderMessagesAtTop()
   }
 }
 
@@ -685,6 +679,9 @@ async function retryOlderMessages(): Promise<void> {
 }
 
 async function loadOlderMessagesAtTop(options: { force?: boolean } = {}): Promise<void> {
+  if (historyPrefetchLock) {
+    return
+  }
   if (chatScrollController.activeOperation.value?.reason === 'history-prepend') {
     return
   }
@@ -700,10 +697,7 @@ async function loadOlderMessagesAtTop(options: { force?: boolean } = {}): Promis
   if (!el) {
     return
   }
-  if (!options.force && el.scrollTop > getHistoryPrefetchThreshold(el)) {
-    return
-  }
-  if (!options.force && el.scrollHeight - el.clientHeight <= getHistoryPrefetchThreshold(el)) {
+  if (!options.force && el.scrollTop > TOP_HISTORY_PREFETCH_PX) {
     return
   }
 
@@ -719,66 +713,83 @@ async function loadOlderMessagesAtTop(options: { force?: boolean } = {}): Promis
   const historyAnchor: HistoryLayoutAnchor | null = firstExistingEntry
     ? { messageId: firstExistingEntry.id, layoutTop: firstExistingEntry.top }
     : null
-  const loadedCount = await messageStore.loadOlderMessages()
-  if (
-    loadedCount === 0 ||
-    props.sessionId !== sessionId ||
-    currentRestoreRequestId() !== requestId
-  ) {
-    return
-  }
+  const prefetchEpoch = historyPrefetchEpoch
+  historyPrefetchLock = true
+  try {
+    const loadedCount = await messageStore.loadOlderMessages()
+    if (
+      prefetchEpoch !== historyPrefetchEpoch ||
+      loadedCount === 0 ||
+      props.sessionId !== sessionId ||
+      currentRestoreRequestId() !== requestId
+    ) {
+      return
+    }
 
-  const container = scrollContainer.value
-  if (!container) {
-    return
-  }
-  const nextAnchorEntry = historyAnchor
-    ? messageWindow.getEntry(historyAnchor.messageId)
-    : undefined
-  const usesWindowedMessages =
-    previousEntryCount > MESSAGE_WINDOWING_THRESHOLD ||
-    messageWindow.entries.value.length > MESSAGE_WINDOWING_THRESHOLD
+    const container = scrollContainer.value
+    if (!container) {
+      return
+    }
+    const nextAnchorEntry = historyAnchor
+      ? messageWindow.getEntry(historyAnchor.messageId)
+      : undefined
+    const usesWindowedMessages =
+      previousEntryCount > MESSAGE_WINDOWING_THRESHOLD ||
+      messageWindow.entries.value.length > MESSAGE_WINDOWING_THRESHOLD
 
-  if (!usesWindowedMessages || !historyAnchor || !nextAnchorEntry) {
+    if (!usesWindowedMessages || !historyAnchor || !nextAnchorEntry) {
+      await nextTick()
+      if (
+        prefetchEpoch !== historyPrefetchEpoch ||
+        props.sessionId !== sessionId ||
+        currentRestoreRequestId() !== requestId
+      ) {
+        return
+      }
+
+      const updatedContainer = scrollContainer.value
+      if (!updatedContainer) return
+
+      // A short list renders every row, so its DOM height delta is exact and avoids
+      // using estimated heights before media and rich content finish layout.
+      requestChatScroll(
+        'history-prepend',
+        {
+          kind: 'absolute',
+          top: updatedContainer.scrollTop + (updatedContainer.scrollHeight - previousScrollHeight)
+        },
+        true
+      )
+      return
+    }
+
+    const layoutDelta = nextAnchorEntry.top - historyAnchor.layoutTop
+    const targetScrollTop = container.scrollTop + layoutDelta
+
+    // Point windowing at the post-prepend viewport before Vue commits the new DOM.
+    // This avoids rendering the newly prepended top window for one frame and then
+    // swapping back to the user's reading window after scroll compensation.
+    scrollViewportTop.value = targetScrollTop
+    scrollViewportHeight.value = container.clientHeight
+
     await nextTick()
-    if (props.sessionId !== sessionId || currentRestoreRequestId() !== requestId) {
+    if (
+      prefetchEpoch !== historyPrefetchEpoch ||
+      props.sessionId !== sessionId ||
+      currentRestoreRequestId() !== requestId
+    ) {
       return
     }
 
     const updatedContainer = scrollContainer.value
     if (!updatedContainer) return
 
-    // A short list renders every row, so its DOM height delta is exact and avoids
-    // using estimated heights before media and rich content finish layout.
-    requestChatScroll(
-      'history-prepend',
-      {
-        kind: 'absolute',
-        top: updatedContainer.scrollTop + (updatedContainer.scrollHeight - previousScrollHeight)
-      },
-      true
-    )
-    return
+    requestChatScroll('history-prepend', { kind: 'absolute', top: targetScrollTop }, true)
+  } finally {
+    if (prefetchEpoch === historyPrefetchEpoch) {
+      historyPrefetchLock = false
+    }
   }
-
-  const layoutDelta = nextAnchorEntry.top - historyAnchor.layoutTop
-  const targetScrollTop = container.scrollTop + layoutDelta
-
-  // Point windowing at the post-prepend viewport before Vue commits the new DOM.
-  // This avoids rendering the newly prepended top window for one frame and then
-  // swapping back to the user's reading window after scroll compensation.
-  scrollViewportTop.value = targetScrollTop
-  scrollViewportHeight.value = container.clientHeight
-
-  await nextTick()
-  if (props.sessionId !== sessionId || currentRestoreRequestId() !== requestId) {
-    return
-  }
-
-  const updatedContainer = scrollContainer.value
-  if (!updatedContainer) return
-
-  requestChatScroll('history-prepend', { kind: 'absolute', top: targetScrollTop }, true)
 }
 
 async function focusPendingSpotlightMessageJump(attempt = 0): Promise<void> {
@@ -887,7 +898,7 @@ if (pendingMessageWindowMeasurements) {
 const listGestures = useListGestures({
   viewport: scrollContainer,
   scrollIdleMs: SCROLL_IDLE_MS,
-  topHistoryThreshold: TOP_HISTORY_PREFETCH_MIN_PX,
+  topHistoryThreshold: TOP_HISTORY_PREFETCH_PX,
   onGestureStart: (kind) => chatScrollController.notifyUserGestureStart(kind),
   onGestureEnd: () => chatScrollController.notifyUserGestureEnd(),
   onScrollingStart: () => virtualization.pinWindowToViewport(),
@@ -959,6 +970,8 @@ watch(
       cacheCurrentMessageMeasurements()
     }
     measurementSessionId = id
+    historyPrefetchEpoch += 1
+    historyPrefetchLock = false
     listGestures.resetIntentForSessionChange()
     clearMessageActionsForSessionChange()
     switchComposerSessionDraft(previousId, id)

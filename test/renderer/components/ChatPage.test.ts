@@ -650,7 +650,7 @@ const setup = async (options: SetupOptions = {}) => {
           type: Number,
           default: 0
         }
-        },
+      },
       emits: ['update:modelValue', 'previous', 'next', 'close'],
       setup(_, { expose }) {
         expose({
@@ -1208,7 +1208,7 @@ describe('ChatPage', () => {
 
     await flushStartupDeferredTasks()
 
-    expect(messageStore.loadMessages).toHaveBeenCalledWith('s1', 100)
+    expect(messageStore.loadMessages).toHaveBeenCalledWith('s1', 10)
     expect(pendingInputStore.loadPendingInputs).toHaveBeenCalledWith('s1')
   })
 
@@ -1230,7 +1230,7 @@ describe('ChatPage', () => {
 
     const drainingStartupTasks = flushStartupDeferredTasks()
     await flushPromises()
-    expect(messageStore.loadMessages).toHaveBeenCalledWith('s1', 100)
+    expect(messageStore.loadMessages).toHaveBeenCalledWith('s1', 10)
 
     messageStore.committedSessionId = 's1'
     messageStore.committedSession = { id: 's1' }
@@ -1374,8 +1374,6 @@ describe('ChatPage', () => {
     messageStore.loadOlderMessages.mockReturnValueOnce(deferredHistoryLoad.promise)
     await wrapper.get('[data-testid="chat-page"]').trigger('wheel', { deltaY: -20 })
     await wrapper.get('[data-testid="chat-page"]').trigger('scroll')
-    expect(messageStore.loadOlderMessages).not.toHaveBeenCalled()
-    await wrapper.get('[data-testid="chat-page"]').trigger('scrollend')
     expect(messageStore.loadOlderMessages).toHaveBeenCalledOnce()
 
     messageStore.loadMessages.mockReturnValueOnce(
@@ -1466,13 +1464,12 @@ describe('ChatPage', () => {
 
     await wrapper.get('[data-testid="chat-page"]').trigger('wheel', { deltaY: -20 })
     await wrapper.get('[data-testid="chat-page"]').trigger('scroll')
-    expect(messageStore.loadOlderMessages).not.toHaveBeenCalled()
-    await wrapper.get('[data-testid="chat-page"]').trigger('scrollend')
     expect(messageStore.loadOlderMessages).toHaveBeenCalledOnce()
 
-    // Keep moving upward while the request is in flight. The eventual correction
-    // must preserve this latest position, not the position where loading started.
+    // Keep moving upward while the request is in flight. Continued wheel ticks
+    // must not cancel the pending history-prepend compensation.
     scrollTop = 20
+    await wrapper.get('[data-testid="chat-page"]').trigger('wheel', { deltaY: -20 })
     deferredHistoryLoad.resolve()
     await flushPromises()
 
@@ -1515,14 +1512,43 @@ describe('ChatPage', () => {
 
     await wrapper.get('[data-testid="chat-page"]').trigger('wheel', { deltaY: -20 })
     await wrapper.get('[data-testid="chat-page"]').trigger('scroll')
-    expect(messageStore.loadOlderMessages).not.toHaveBeenCalled()
-    await wrapper.get('[data-testid="chat-page"]').trigger('scrollend')
     await flushPromises()
     expect(messageStore.loadOlderMessages).toHaveBeenCalledOnce()
 
     // Browsers dispatch scroll after the compensation write. It must remain part
     // of the same programmatic history operation even when the viewport is at top.
     await wrapper.get('[data-testid="chat-page"]').trigger('scroll')
+    expect(messageStore.loadOlderMessages).toHaveBeenCalledOnce()
+
+    wrapper.unmount()
+  })
+
+  it('does not start a second history page while the first request is still compensating', async () => {
+    const messages = Array.from({ length: 100 }, (_, index) => ({
+      ...buildAssistantMessage([
+        { type: 'content', content: `message ${index}`, status: 'success', timestamp: index }
+      ]),
+      id: `overlap-${index}`,
+      orderSeq: index + 1
+    }))
+    const deferredHistoryLoad = createDeferred<number>()
+    const { wrapper, messageStore } = await setup({ messages, deferStartupTasks: true })
+    const chatPage = wrapper.get('[data-testid="chat-page"]').element as HTMLDivElement
+
+    Object.defineProperty(chatPage, 'clientHeight', { configurable: true, get: () => 500 })
+    Object.defineProperty(chatPage, 'scrollHeight', { configurable: true, get: () => 2000 })
+    Object.defineProperty(chatPage, 'scrollTop', { configurable: true, get: () => 40 })
+
+    messageStore.hasMoreHistory = true
+    messageStore.loadOlderMessages.mockReturnValueOnce(deferredHistoryLoad.promise)
+
+    await wrapper.get('[data-testid="chat-page"]').trigger('wheel', { deltaY: -20 })
+    await wrapper.get('[data-testid="chat-page"]').trigger('scroll')
+    await wrapper.get('[data-testid="chat-page"]').trigger('scroll')
+
+    expect(messageStore.loadOlderMessages).toHaveBeenCalledOnce()
+    deferredHistoryLoad.resolve(20)
+    await flushPromises()
     expect(messageStore.loadOlderMessages).toHaveBeenCalledOnce()
 
     wrapper.unmount()
@@ -1596,9 +1622,9 @@ describe('ChatPage', () => {
       await viewport.trigger('touchend')
       await vi.advanceTimersByTimeAsync(100)
       await viewport.trigger('scroll')
-      await vi.advanceTimersByTimeAsync(100)
+      await flushPromises()
 
-      expect(messageStore.loadOlderMessages).not.toHaveBeenCalled()
+      expect(messageStore.loadOlderMessages).toHaveBeenCalledOnce()
       await viewport.trigger('scrollend')
       await flushPromises()
       expect(messageStore.loadOlderMessages).toHaveBeenCalledOnce()
@@ -1632,7 +1658,7 @@ describe('ChatPage', () => {
     wrapper.unmount()
   })
 
-  it('does not paginate near the top when the user scrolls toward newer messages', async () => {
+  it('does not paginate far from the top when the user scrolls toward newer messages', async () => {
     const messages = Array.from({ length: 100 }, (_, index) => ({
       ...buildAssistantMessage([
         { type: 'content', content: `message ${index}`, status: 'success', timestamp: index }
@@ -1644,8 +1670,8 @@ describe('ChatPage', () => {
     const chatPage = wrapper.get('[data-testid="chat-page"]').element as HTMLDivElement
 
     Object.defineProperty(chatPage, 'clientHeight', { configurable: true, get: () => 500 })
-    Object.defineProperty(chatPage, 'scrollHeight', { configurable: true, get: () => 1000 })
-    Object.defineProperty(chatPage, 'scrollTop', { configurable: true, get: () => 20 })
+    Object.defineProperty(chatPage, 'scrollHeight', { configurable: true, get: () => 2000 })
+    Object.defineProperty(chatPage, 'scrollTop', { configurable: true, get: () => 400 })
 
     messageStore.hasMoreHistory = true
     await wrapper.get('[data-testid="chat-page"]').trigger('wheel', { deltaY: 20 })
@@ -1653,6 +1679,31 @@ describe('ChatPage', () => {
     await wrapper.get('[data-testid="chat-page"]').trigger('scrollend')
 
     expect(messageStore.loadOlderMessages).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('silently prefetches history when the user scrolls within 200px of the top', async () => {
+    const messages = Array.from({ length: 100 }, (_, index) => ({
+      ...buildAssistantMessage([
+        { type: 'content', content: `message ${index}`, status: 'success', timestamp: index }
+      ]),
+      id: `prefetch-${index}`,
+      orderSeq: index + 1
+    }))
+    const { wrapper, messageStore } = await setup({ messages, deferStartupTasks: true })
+    const chatPage = wrapper.get('[data-testid="chat-page"]').element as HTMLDivElement
+
+    Object.defineProperty(chatPage, 'clientHeight', { configurable: true, get: () => 500 })
+    Object.defineProperty(chatPage, 'scrollHeight', { configurable: true, get: () => 2000 })
+    Object.defineProperty(chatPage, 'scrollTop', { configurable: true, get: () => 180 })
+
+    messageStore.hasMoreHistory = true
+    messageStore.loadOlderMessages.mockResolvedValue(20)
+    await wrapper.get('[data-testid="chat-page"]').trigger('wheel', { deltaY: -20 })
+    await wrapper.get('[data-testid="chat-page"]').trigger('scroll')
+    await flushPromises()
+
+    expect(messageStore.loadOlderMessages).toHaveBeenCalledOnce()
     wrapper.unmount()
   })
 
@@ -1704,7 +1755,7 @@ describe('ChatPage', () => {
 
   it('does not rehydrate persisted plan blocks when switching sessions', async () => {
     const { wrapper, messageStore, agentPlanStore, flushStartupDeferredTasks } = await setup({
-        deferStartupTasks: true,
+      deferStartupTasks: true,
       messages: []
     })
     const messagesBySession = {
@@ -1872,7 +1923,7 @@ describe('ChatPage', () => {
     await flushPromises()
 
     expect(sessionClient.compactSession).toHaveBeenCalledWith('s1')
-    expect(messageStore.loadMessages).toHaveBeenCalledWith('s1', 100)
+    expect(messageStore.loadMessages).toHaveBeenCalledWith('s1', 10)
     expect(chatClient.sendMessage).not.toHaveBeenCalled()
     expect(messageStore.addOptimisticUserMessage).not.toHaveBeenCalled()
     const messageList = wrapper.findComponent({ name: 'MessageList' })
@@ -1905,7 +1956,7 @@ describe('ChatPage', () => {
     wrapper.findComponent({ name: 'ChatInputBox' }).vm.$emit('command-submit', '/compact')
     await flushPromises()
 
-    expect(messageStore.loadMessages).toHaveBeenCalledWith('s1', 100)
+    expect(messageStore.loadMessages).toHaveBeenCalledWith('s1', 10)
     expect(applyRestoredSession).not.toHaveBeenCalled()
   })
 
@@ -1943,8 +1994,8 @@ describe('ChatPage', () => {
 
   it('does not queue or compact exact /compact while generating', async () => {
     const { wrapper, chatClient, sessionClient, pendingInputStore } = await setup({
-        isStreaming: true,
-        activeSessionPatch: {
+      isStreaming: true,
+      activeSessionPatch: {
         providerId: 'openai',
         modelId: 'gpt-4'
       }
@@ -2359,7 +2410,7 @@ describe('ChatPage', () => {
   it('maps reasoning metadata into message usage for think duration fallback', async () => {
     const { wrapper, messageStore } = await setup()
 
-    expect(messageStore.loadMessages).toHaveBeenCalledWith('s1', 100)
+    expect(messageStore.loadMessages).toHaveBeenCalledWith('s1', 10)
 
     const messageList = wrapper.findComponent({ name: 'MessageList' })
     const messages = messageList.props('messages') as Array<{
@@ -2565,19 +2616,19 @@ describe('ChatPage', () => {
 
   it('routes tool interaction responses through ChatClient and refreshes messages', async () => {
     const { wrapper, chatClient, messageStore } = await setup({
-        messages: [
-          buildAssistantMessage([
-            {
+      messages: [
+        buildAssistantMessage([
+          {
             type: 'action',
             action_type: 'tool_call_permission',
             status: 'pending',
-              timestamp: 1,
-              tool_call: {
+            timestamp: 1,
+            tool_call: {
               id: 'tool-1',
               name: 'write_file'
-              },
-              extra: {
-                permissionRequest:
+            },
+            extra: {
+              permissionRequest:
                 '{"permissionType":"write","serverName":"agent-filesystem","toolName":"write_file"}'
             }
           }

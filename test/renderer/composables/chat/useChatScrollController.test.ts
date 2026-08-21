@@ -144,7 +144,7 @@ describe('useChatScrollController', () => {
     expect(controller.state.value.userOwned).toBe(true)
   })
 
-  it('rejects passive work while the user owns the viewport but accepts explicit navigation', () => {
+  it('rejects auto-follow while the user owns the viewport but accepts history prepend', () => {
     const { controller, epoch } = setup()
     controller.notifyUserGestureStart('wheel')
 
@@ -161,7 +161,7 @@ describe('useChatScrollController', () => {
         reason: 'history-prepend',
         target: { kind: 'absolute', top: 200 }
       })
-    ).toBeNull()
+    ).not.toBeNull()
     expect(
       controller.request({
         sessionEpoch: epoch,

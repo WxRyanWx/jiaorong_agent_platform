@@ -97,7 +97,7 @@ describe('chatScrollState', () => {
     expect(canAcceptChatScrollRequest(reading, 'auto-follow')).toBe(false)
     expect(canAcceptChatScrollRequest(reading, 'session-restore')).toBe(false)
     expect(canAcceptChatScrollRequest(reading, 'measurement-anchor')).toBe(false)
-    expect(canAcceptChatScrollRequest(reading, 'history-prepend')).toBe(false)
+    expect(canAcceptChatScrollRequest(reading, 'history-prepend')).toBe(true)
 
     const idleReading = reduceChatScrollState(reading, { type: 'user-gesture-end' })
     expect(canAcceptChatScrollRequest(idleReading, 'measurement-anchor')).toBe(true)

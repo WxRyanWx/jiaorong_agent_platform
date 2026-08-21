@@ -118,7 +118,6 @@ export function reduceChatScrollState(
         resumeUserOwnedAfterNavigation: false
       }
     case 'history-preservation-start':
-      if (state.activeGesture) return state
       return { ...state, mode: 'history-preserving' }
     case 'history-preservation-complete':
       return { ...state, mode: state.userOwned ? 'reading' : 'following' }
@@ -175,11 +174,7 @@ export function canAcceptChatScrollRequest(
     case 'auto-follow':
       return !state.userOwned && (state.mode === 'restoring' || state.mode === 'following')
     case 'history-prepend':
-      return (
-        !state.activeGesture &&
-        state.userOwned &&
-        (state.mode === 'reading' || state.mode === 'history-preserving')
-      )
+      return state.userOwned && (state.mode === 'reading' || state.mode === 'history-preserving')
     case 'measurement-anchor':
       return !state.activeGesture && state.userOwned && state.mode === 'reading'
   }
