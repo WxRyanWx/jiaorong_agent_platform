@@ -13,4 +13,4 @@ Mac / Windows / Linux 安装包和系统应用图标显示交融 logo，不再�
 ## 非目标
 
 - 不改公证、包名、协议 scheme。
-- 不重做托盘模板以外的应用内 UI logo（`resources/icon.png` 已是交融）。
+- 不重做托盘模板以外的应用内 UI logo。`resources/icon.png` 必须保留，主进程 `splashWindow.ts` 等以 `?asset` 引用它。

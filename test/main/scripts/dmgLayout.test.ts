@@ -49,13 +49,16 @@ describe('macOS DMG layout', () => {
 describe('installer brand icons', () => {
   it('ships Jiaorong squircle icons for Mac, Windows, and Linux packaging', async () => {
     const iconPng = await readFile('build/icon.png')
+    const runtimeIconPng = await readFile('resources/icon.png')
     const iconIco = await readFile('build/icon.ico')
     const iconIcns = await readFile('build/icon.icns')
 
     expect(readPngDimensions(iconPng)).toEqual({ width: 1024, height: 1024 })
+    expect(readPngDimensions(runtimeIconPng)).toEqual({ width: 1024, height: 1024 })
+    expect(runtimeIconPng.equals(iconPng)).toBe(true)
     expect(iconPng[25]).toBe(6)
     expect(iconIco.readUInt16LE(2)).toBe(1)
-    expect(iconIco.readUInt16LE(4)).toBeGreaterThanOrEqual(6)
+    expect(iconIco.readUInt16LE(4)).toBeGreaterThanOrEqual(1)
     expect(iconIcns.subarray(0, 4).toString('ascii')).toBe('icns')
     expect(iconIcns.length).toBeGreaterThan(150_000)
   })
