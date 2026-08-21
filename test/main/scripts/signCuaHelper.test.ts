@@ -207,6 +207,48 @@ describe('sign-cua-helper', () => {
         }
       })
     ).toThrow(/signing purpose mismatch/)
+    expect(
+      validateCuaSigningContext({
+        purpose: 'distribution',
+        env: {
+          CUA_ALLOW_SIGNED_WITHOUT_NOTARIZATION: '1',
+          CSC_LINK: Buffer.from('fake-p12').toString('base64')
+        }
+      })
+    ).toBe('distribution')
+    expect(() =>
+      validateCuaSigningContext({
+        purpose: 'distribution',
+        env: { CUA_ALLOW_SIGNED_WITHOUT_NOTARIZATION: '1' }
+      })
+    ).toThrow(/requires CSC_LINK/)
+  })
+
+  it('signs the helper with Developer ID when notarization is explicitly skipped', async () => {
+    const { signMacHelper } = await loadSigner()
+
+    await expect(
+      signMacHelper({
+        appPath: path.join(tmpDir, 'JiaorongAI Computer Use.app'),
+        entitlementsPath: path.join(tmpDir, 'entitlements.plist'),
+        purpose: 'distribution',
+        cwd: tmpDir,
+        env: {
+          CUA_ALLOW_SIGNED_WITHOUT_NOTARIZATION: '1',
+          CSC_LINK: Buffer.from('fake-p12').toString('base64'),
+          CSC_KEY_PASSWORD: 'secret'
+        }
+      })
+    ).resolves.toEqual({
+      purpose: 'distribution',
+      signature: 'developer-id'
+    })
+    const signingCall = childProcessMocks.execFileAsync.mock.calls.find(
+      ([command, args]) => command === '/usr/bin/codesign' && args.includes('--sign')
+    )
+    expect(signingCall?.[1]).toContain('--timestamp')
+    expect(signingCall?.[1]).not.toContain('--timestamp=none')
+    expect(signingCall?.[1]).not.toContain('-')
   })
 
   it('removes temporary certificate material when keychain setup fails', async () => {

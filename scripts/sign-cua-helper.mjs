@@ -299,6 +299,10 @@ function isCiEnvironment(env) {
   return value !== '' && value !== '0' && value !== 'false'
 }
 
+export function isSignedWithoutNotarizationAllowed(env = process.env) {
+  return String(env.CUA_ALLOW_SIGNED_WITHOUT_NOTARIZATION ?? '').trim() === '1'
+}
+
 export function resolveCuaSigningPurpose(purpose, env = process.env) {
   if (purpose !== undefined && purpose !== null && typeof purpose !== 'string') {
     throw new TypeError('CUA signing purpose must be a string')
@@ -331,10 +335,16 @@ export function validateCuaSigningContext({ purpose, env = process.env }) {
     }
   }
   const releaseNotarizationEnabled = isReleaseNotarizationEnabled(env)
+  const signedWithoutNotarization = isSignedWithoutNotarizationAllowed(env)
   if (resolvedPurpose === 'distribution') {
-    if (!releaseNotarizationEnabled) {
+    if (!releaseNotarizationEnabled && !signedWithoutNotarization) {
       throw new Error(
         'CUA distribution signing requires build_for_release to enable release notarization'
+      )
+    }
+    if (signedWithoutNotarization && !String(env.CSC_LINK ?? '').trim()) {
+      throw new Error(
+        'CUA signed-without-notarization packaging requires CSC_LINK to sign the helper'
       )
     }
   } else if (releaseNotarizationEnabled) {

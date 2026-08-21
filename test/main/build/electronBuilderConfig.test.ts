@@ -218,7 +218,7 @@ describe('Linux ARM64 packaging', () => {
 })
 
 describe('manual Mac packaging', () => {
-  it('gives CUA an explicit verification purpose without release notarization', async () => {
+  it('signs the app and CUA helper with Developer ID without release notarization', async () => {
     for (const name of ['build.yml', 'build-test.yml'] as const) {
       const workflow = await readWorkflow(name)
       const step = workflow.jobs?.['build-mac']?.steps?.find((item) =>
@@ -226,13 +226,18 @@ describe('manual Mac packaging', () => {
       )
 
       expect(step?.env).toMatchObject({
-        PACKAGE_PURPOSE: 'verification',
+        PACKAGE_PURPOSE: 'distribution',
+        CUA_ALLOW_SIGNED_WITHOUT_NOTARIZATION: '1',
         CSC_IDENTITY_AUTO_DISCOVERY: 'false'
       })
       expect(step?.env?.build_for_release).toBeUndefined()
+      expect(step?.env?.CSC_LINK).toContain('DEEPCHAT_CSC_LINK')
+      expect(step?.env?.DEEPCHAT_APPLE_NOTARY_TEAM_ID).toContain('DEEPCHAT_APPLE_NOTARY_TEAM_ID')
       expect(step?.run).toContain(
         'plugin:bundle -- --name cua --platform darwin --arch ${{ matrix.arch }} --purpose "${PACKAGE_PURPOSE}"'
       )
+      expect(step?.run).not.toContain('unset CSC_LINK')
+      expect(step?.run).not.toContain('signIgnore')
     }
   })
 })

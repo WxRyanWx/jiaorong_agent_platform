@@ -223,7 +223,8 @@ jobs:
           pnpm run plugin:bundle -- --name feishu --platform darwin --arch ${{ matrix.arch }}
           pnpm exec electron-builder --mac --${{ matrix.arch }} --publish=never
         env:
-          PACKAGE_PURPOSE: verification
+          PACKAGE_PURPOSE: distribution
+          CUA_ALLOW_SIGNED_WITHOUT_NOTARIZATION: '1'
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
           CSC_LINK: ${{ secrets.DEEPCHAT_CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.DEEPCHAT_CSC_KEY_PASS }}
