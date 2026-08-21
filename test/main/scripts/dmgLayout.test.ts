@@ -58,7 +58,13 @@ describe('installer brand icons', () => {
     expect(runtimeIconPng.equals(iconPng)).toBe(true)
     expect(iconPng[25]).toBe(6)
     expect(iconIco.readUInt16LE(2)).toBe(1)
-    expect(iconIco.readUInt16LE(4)).toBeGreaterThanOrEqual(1)
+    const icoCount = iconIco.readUInt16LE(4)
+    expect(icoCount).toBeGreaterThanOrEqual(6)
+    const icoSizes = Array.from({ length: icoCount }, (_, index) => {
+      const width = iconIco[6 + index * 16]
+      return width === 0 ? 256 : width
+    })
+    expect(Math.max(...icoSizes)).toBeGreaterThanOrEqual(256)
     expect(iconIcns.subarray(0, 4).toString('ascii')).toBe('icns')
     expect(iconIcns.length).toBeGreaterThan(150_000)
   })
