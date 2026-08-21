@@ -1,5 +1,6 @@
 # 计划
 
-- 从 `master` 恢复 `build.yml`、`build-test.yml`。
-- Node 版本用当前仓库 `24.18.0`。
-- HOST H116 注明手动构建走 master 直出安装包。
+- `electron-builder.yml` 写死 `JiaorongAI-{windows|mac|linux}-${arch}.${ext}`。
+- CI matrix.platform：`windows-x64` / `windows-arm64`。
+- Linux 打开 `installRuntime:linux`。
+- Mac x64 runner 改为 `macos-15-intel`，`fail-fast: false`。

@@ -91,6 +91,8 @@ export interface IWindowPresenter {
   sendToMainWindow(channel: string, ...args: unknown[]): Promise<boolean>
   sendToActiveTab(windowId: number, channel: string, ...args: unknown[]): Promise<boolean>
   getAllWindows(): BrowserWindow[]
+  setInAppDeeplinkHandler(handler: (url: string) => void): void
+  handleInAppDeeplinkNavigation(url: string): boolean
   toggleFloatingChatWindow(floatingButtonPosition?: {
     x: number
     y: number

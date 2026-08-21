@@ -5,6 +5,9 @@ import { parse } from 'yaml'
 
 interface ElectronBuilderConfig {
   asarUnpack?: string[]
+  nsis?: { artifactName?: string }
+  mac?: { artifactName?: string }
+  linux?: { artifactName?: string }
 }
 
 interface PackageJson {
@@ -82,6 +85,14 @@ describe('electron-builder config', () => {
     )
   })
 
+  it('locks installer names to JiaorongAI-{windows|mac|linux}-${arch}', async () => {
+    const config = await readElectronBuilderConfig()
+
+    expect(config.nsis?.artifactName).toBe('JiaorongAI-windows-${arch}.${ext}')
+    expect(config.mac?.artifactName).toBe('JiaorongAI-mac-${arch}.${ext}')
+    expect(config.linux?.artifactName).toBe('JiaorongAI-linux-${arch}.${ext}')
+  })
+
   it('pins NativeKit to the reviewed native overlay release', async () => {
     const packageJson = await readPackageJson()
 
@@ -103,36 +114,22 @@ describe('electron-builder config', () => {
 })
 
 describe('Linux ARM64 packaging', () => {
-  it.each([
-    {
-      name: 'build.yml',
-      sourceSha: '${{ github.sha }}',
-      enforceInstallerSize: false
-    },
-    {
-      name: 'release.yml',
-      sourceSha: '${{ needs.preflight.outputs.sha }}',
-      enforceInstallerSize: true
-    }
-  ])(
-    '$name delegates both Linux architectures to the reusable package workflow',
-    async ({ name, sourceSha, enforceInstallerSize }) => {
-      const workflow = await readWorkflow(name)
-      const linuxJob = workflow.jobs?.['package-linux']
+  it('release.yml delegates both Linux architectures to the reusable package workflow', async () => {
+    const workflow = await readWorkflow('release.yml')
+    const linuxJob = workflow.jobs?.['package-linux']
 
-      expect(linuxJob?.strategy).toEqual({
-        'fail-fast': false,
-        matrix: { arch: ['x64', 'arm64'] }
-      })
-      expect(linuxJob?.uses).toBe('./.github/workflows/_package-linux.yml')
-      expect(linuxJob?.with).toEqual({
-        'source-sha': sourceSha,
-        arch: '${{ matrix.arch }}',
-        'artifact-purpose': 'distribution',
-        'enforce-installer-size': enforceInstallerSize
-      })
-    }
-  )
+    expect(linuxJob?.strategy).toEqual({
+      'fail-fast': false,
+      matrix: { arch: ['x64', 'arm64'] }
+    })
+    expect(linuxJob?.uses).toBe('./.github/workflows/_package-linux.yml')
+    expect(linuxJob?.with).toEqual({
+      'source-sha': '${{ needs.preflight.outputs.sha }}',
+      arch: '${{ matrix.arch }}',
+      'artifact-purpose': 'distribution',
+      'enforce-installer-size': true
+    })
+  })
 
   it('owns runner selection and x64-only CUA behavior in the Linux reusable workflow', async () => {
     const workflow = await readWorkflow('_package-linux.yml')

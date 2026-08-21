@@ -8,11 +8,25 @@ const SECONDARY_STARTUP_ENV_KEYS = [
 ] as const
 let pendingStartupDeepLink: string | null = null
 
-export const isDeepLinkUrl = (value: string | null | undefined): value is string => {
-  return matchesAnyDeeplinkUrl(value)
+/** Windows second-instance / 启动参数常把协议 URL 包在引号里 */
+const unwrapQuotedArg = (value: string): string => {
+  const trimmed = value.trim()
+  if (trimmed.length < 2) {
+    return trimmed
+  }
+  const start = trimmed[0]
+  const end = trimmed[trimmed.length - 1]
+  if ((start === '"' && end === '"') || (start === "'" && end === "'")) {
+    return trimmed.slice(1, -1).trim()
+  }
+  return trimmed
 }
 
-export const normalizeDeepLinkUrl = (value: string): string => value.trim()
+export const isDeepLinkUrl = (value: string | null | undefined): value is string => {
+  return typeof value === 'string' && matchesAnyDeeplinkUrl(unwrapQuotedArg(value))
+}
+
+export const normalizeDeepLinkUrl = (value: string): string => unwrapQuotedArg(value)
 
 export const findDeepLinkArg = (argv: readonly string[]): string | null => {
   const matched = argv.find((arg) => isDeepLinkUrl(arg))

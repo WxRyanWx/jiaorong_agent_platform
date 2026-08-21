@@ -143,6 +143,115 @@ describe('DeeplinkService', () => {
     )
   })
 
+  it('routes chat login deeplinks to the focused app window', async () => {
+    const deeplinkService = await createDeeplinkService()
+    const chatWindow = {
+      id: 1,
+      isDestroyed: () => false,
+      isMinimized: () => false,
+      show: vi.fn(),
+      focus: vi.fn(),
+      webContents: {
+        isLoadingMainFrame: () => false,
+        once: vi.fn()
+      }
+    }
+
+    presenterMock.windowPresenter.getAllWindows.mockReturnValue([chatWindow as any])
+    presenterMock.windowPresenter.getFocusedWindow.mockReturnValue(chatWindow as any)
+
+    await deeplinkService.handleDeepLink('jiaorongchat://chat?token=scan-login-token')
+
+    expect(presenterMock.windowPresenter.sendToWindow).toHaveBeenCalledWith(
+      1,
+      DEEPLINK_EVENTS.AUTH_LOGIN,
+      { token: 'scan-login-token' }
+    )
+  })
+
+  it('accepts chat login when the command path is upper-case', async () => {
+    const deeplinkService = await createDeeplinkService()
+    const chatWindow = {
+      id: 1,
+      isDestroyed: () => false,
+      isMinimized: () => false,
+      show: vi.fn(),
+      focus: vi.fn(),
+      webContents: {
+        isLoadingMainFrame: () => false,
+        once: vi.fn()
+      }
+    }
+
+    presenterMock.windowPresenter.getAllWindows.mockReturnValue([chatWindow as any])
+    presenterMock.windowPresenter.getFocusedWindow.mockReturnValue(chatWindow as any)
+
+    await deeplinkService.handleDeepLink('jiaorongchat:///CHAT?token=case-token')
+
+    expect(presenterMock.windowPresenter.sendToWindow).toHaveBeenCalledWith(
+      1,
+      DEEPLINK_EVENTS.AUTH_LOGIN,
+      { token: 'case-token' }
+    )
+  })
+
+  it('delivers chat login even when the window reports the main frame is still loading', async () => {
+    const deeplinkService = await createDeeplinkService()
+    const chatWindow = {
+      id: 1,
+      isDestroyed: () => false,
+      isMinimized: () => false,
+      show: vi.fn(),
+      focus: vi.fn(),
+      webContents: {
+        isLoadingMainFrame: () => true,
+        once: vi.fn(),
+        getURL: () => 'http://localhost:5173/#/login'
+      }
+    }
+
+    presenterMock.windowPresenter.getAllWindows.mockReturnValue([chatWindow as any])
+    presenterMock.windowPresenter.getFocusedWindow.mockReturnValue(chatWindow as any)
+
+    await Promise.race([
+      deeplinkService.handleDeepLink('jiaorongchat://chat?token=loading-frame-token'),
+      new Promise((_resolve, reject) => {
+        setTimeout(() => reject(new Error('chat login hung waiting for did-finish-load')), 200)
+      })
+    ])
+
+    expect(chatWindow.webContents.once).not.toHaveBeenCalled()
+    expect(presenterMock.windowPresenter.sendToWindow).toHaveBeenCalledWith(
+      1,
+      DEEPLINK_EVENTS.AUTH_LOGIN,
+      { token: 'loading-frame-token' }
+    )
+  })
+
+  it('ignores a duplicate chat login token delivered again within 2s', async () => {
+    const deeplinkService = await createDeeplinkService()
+    const chatWindow = {
+      id: 1,
+      isDestroyed: () => false,
+      isMinimized: () => false,
+      show: vi.fn(),
+      focus: vi.fn(),
+      webContents: {
+        isLoadingMainFrame: () => false,
+        once: vi.fn()
+      }
+    }
+
+    presenterMock.windowPresenter.getAllWindows.mockReturnValue([chatWindow as any])
+    presenterMock.windowPresenter.getFocusedWindow.mockReturnValue(chatWindow as any)
+    presenterMock.windowPresenter.sendToWindow.mockClear()
+
+    await deeplinkService.handleDeepLink('jiaorongchat://chat?token=dup-token')
+    await deeplinkService.handleDeepLink('jiaorongchat://chat?token=dup-token')
+
+    expect(presenterMock.windowPresenter.sendToWindow).toHaveBeenCalledTimes(1)
+  })
+
   it('routes no-slash start deeplinks to a chat window', async () => {
     const deeplinkService = await createDeeplinkService()
     const chatWindow = {

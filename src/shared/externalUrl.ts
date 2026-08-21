@@ -3,6 +3,7 @@ export const ALLOWED_EXTERNAL_PROTOCOLS = Object.freeze([
   'https:',
   'mailto:',
   'tel:',
+  'jiaorongchat:',
   'deepchat:'
 ] as const)
 

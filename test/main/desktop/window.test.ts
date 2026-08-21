@@ -349,4 +349,26 @@ describe('WindowPresenter', () => {
       })
     )
   })
+
+  it('forwards in-app deeplink URLs to the registered handler and ignores https SSO hops', async () => {
+    const { WindowPresenter } = await import('@/desktop/window')
+    const presenter = new WindowPresenter(
+      {
+        getContentProtectionEnabled: vi.fn(() => false)
+      } as any,
+      vi.fn(),
+      vi.fn()
+    )
+    const handler = vi.fn()
+    presenter.setInAppDeeplinkHandler(handler)
+
+    expect(presenter.handleInAppDeeplinkNavigation('jiaorongchat://chat?token=abc')).toBe(true)
+    expect(handler).toHaveBeenCalledWith('jiaorongchat://chat?token=abc')
+    expect(
+      presenter.handleInAppDeeplinkNavigation(
+        'https://c4ai.ccccltd.cn/api/auth/login/jjt?code=1&state=jrDCClientV1'
+      )
+    ).toBe(false)
+    expect(handler).toHaveBeenCalledTimes(1)
+  })
 })

@@ -1,6 +1,7 @@
 import logger from '@shared/logger'
 // src/main/desktop/window/index.ts
 import {
+  app,
   BrowserWindow,
   shell,
   nativeImage,
@@ -31,6 +32,8 @@ import { activateAppOnMac } from '@/lib/activateApp'
 import { DEEPCHAT_EVENT_CHANNEL } from '@shared/contracts/channels'
 import { createDeepchatEventEnvelope } from '@shared/contracts/events'
 import { ensureJiaorongPrivateApiCors } from './jiaorongPrivateApiCors'
+import { matchesAnyDeeplinkUrl } from '@shared/appIdentity'
+import { resolveInAppChatLoginNavigation } from '@/deeplink/navigation'
 
 type PendingSettingsMessage = {
   channel: string
@@ -61,6 +64,7 @@ export class WindowPresenter implements IWindowPresenter {
   private readonly startupWorkloadCoordinator?: StartupWorkloadCoordinator
   private readonly restartApp: () => void
   private tabPresenter!: TabPresenter
+  private onInAppDeeplink: ((url: string) => void) | null = null
 
   private publishWindowStateChanged(windowId: number, existsOverride?: boolean): void {
     const window = BrowserWindow.fromId(windowId)
@@ -90,6 +94,10 @@ export class WindowPresenter implements IWindowPresenter {
     this.restartApp = restartApp
     this.startupWorkloadCoordinator = startupWorkloadCoordinator
     ensureJiaorongPrivateApiCors()
+    // iframe 302 发生在具体 WebContents 上（主窗口 / Tab / 浮窗），三端都不会走 OS open-url
+    app.on('web-contents-created', (_event, contents) => {
+      this.attachChatLoginNavigationIntercept(contents)
+    })
   }
 
   applyContentProtection(enabled: boolean): void {
@@ -104,9 +112,50 @@ export class WindowPresenter implements IWindowPresenter {
     this.tabPresenter = tabPresenter
   }
 
-  private setupManagedWindowOpenHandler(window: BrowserWindow): void {
+  setInAppDeeplinkHandler(handler: (url: string) => void): void {
+    this.onInAppDeeplink = handler
+  }
+
+  handleInAppDeeplinkNavigation(url: string): boolean {
+    const trimmed = url.trim()
+    if (!matchesAnyDeeplinkUrl(trimmed)) {
+      return false
+    }
+    this.onInAppDeeplink?.(trimmed)
+    return true
+  }
+
+  private interceptFrameChatLogin(url: string): boolean {
+    if (typeof url !== 'string' || url.trim() === '') {
+      return false
+    }
+    const deeplink = resolveInAppChatLoginNavigation(url)
+    if (!deeplink) {
+      return false
+    }
+    queueMicrotask(() => this.onInAppDeeplink?.(deeplink))
+    return true
+  }
+
+  private attachChatLoginNavigationIntercept(contents: WebContents): void {
+    contents.on('will-redirect', (details) => {
+      if (this.interceptFrameChatLogin(details.url)) {
+        details.preventDefault()
+      }
+    })
+    contents.on('will-frame-navigate', (details) => {
+      if (this.interceptFrameChatLogin(details.url)) {
+        details.preventDefault()
+      }
+    })
+  }
+
+  private setupManagedWindowOpenHandler(window: BrowserWindow, source: string): void {
     window.webContents.setWindowOpenHandler(({ url }) => {
-      openExternalUrl(url, 'managed window')
+      if (this.handleInAppDeeplinkNavigation(url)) {
+        return { action: 'deny' }
+      }
+      openExternalUrl(url, source)
       return { action: 'deny' }
     })
   }
@@ -688,7 +737,7 @@ export class WindowPresenter implements IWindowPresenter {
     this.windows.set(windowId, appWindow) // 将窗口实例存入 Map
 
     managedWindowState.manage(appWindow) // 管理窗口状态
-    this.setupManagedWindowOpenHandler(appWindow)
+    this.setupManagedWindowOpenHandler(appWindow, 'managed window')
     // 应用内容保护设置
     const contentProtectionEnabled = this.settings.getContentProtectionEnabled()
     this.updateContentProtection(appWindow, contentProtectionEnabled)
@@ -1372,11 +1421,7 @@ export class WindowPresenter implements IWindowPresenter {
 
     // Manage window state to track position and size changes
     settingsWindowState.manage(settingsWindow)
-    // Ensure links with target="_blank" open in the user's default browser
-    settingsWindow.webContents.setWindowOpenHandler(({ url }) => {
-      openExternalUrl(url, 'settings window')
-      return { action: 'deny' }
-    })
+    this.setupManagedWindowOpenHandler(settingsWindow, 'settings window')
 
     // Apply content protection settings
     const contentProtectionEnabled = this.settings.getContentProtectionEnabled()

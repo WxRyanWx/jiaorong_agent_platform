@@ -51,6 +51,9 @@ describe('startupDeepLink utilities', () => {
     expect(findDeepLinkArg(['electron', 'JiaorongChat://start?msg=1'])).toBe(
       'JiaorongChat://start?msg=1'
     )
+    expect(
+      findDeepLinkArg(['JiaorongAI.exe', '"jiaorongchat://chat?token=win-quoted"'])
+    ).toBe('jiaorongchat://chat?token=win-quoted')
   })
 
   it('ignores strings that only contain a deeplink later in the value', () => {

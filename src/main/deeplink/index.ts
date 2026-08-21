@@ -62,6 +62,8 @@ class ProviderDeeplinkError extends Error {
 export class DeeplinkService {
   private startupUrl: string | null = null
   private pendingMcpInstallUrl: string | null = null
+  private lastChatLoginToken = ''
+  private lastChatLoginAt = 0
 
   constructor(
     private readonly desktop: DeeplinkDesktopPort,
@@ -129,7 +131,7 @@ export class DeeplinkService {
       const rawPath = [urlObj.hostname, urlObj.pathname.replace(/^\/+/, '')]
         .filter((segment) => segment.length > 0)
         .join('/')
-      const [command = '', subCommand = ''] = rawPath.split('/')
+      const [command = '', subCommand = ''] = rawPath.split('/').map((part) => part.toLowerCase())
 
       logger.info('Parsed deeplink - command:', command, 'subCommand:', subCommand)
 
@@ -174,7 +176,19 @@ export class DeeplinkService {
       return
     }
 
-    await this.authLogin.requestAuthLogin(token)
+    const normalizedToken = token.trim()
+    const now = Date.now()
+    // Windows 可能窗口拦截与 second-instance 各送一次
+    if (normalizedToken === this.lastChatLoginToken && now - this.lastChatLoginAt < 2000) {
+      return
+    }
+    this.lastChatLoginToken = normalizedToken
+    this.lastChatLoginAt = now
+
+    const delivered = await this.authLogin.requestAuthLogin(normalizedToken)
+    if (!delivered) {
+      console.warn('Failed to deliver chat login deeplink to a renderer window')
+    }
   }
 
   async handleStart(params: URLSearchParams): Promise<void> {

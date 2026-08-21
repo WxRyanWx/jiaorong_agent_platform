@@ -91,7 +91,7 @@ electronLanguages:
 win:
   executableName: JiaorongAI
 nsis:
-  artifactName: ${name}-windows-${arch}.${ext}
+  artifactName: JiaorongAI-windows-${arch}.${ext}
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
@@ -119,7 +119,7 @@ mac:
   target:
     - target: dmg
     - target: zip
-  artifactName: ${name}-mac-${arch}.${ext}
+  artifactName: JiaorongAI-mac-${arch}.${ext}
 dmg:
   background: build/dmg-background.png
   iconSize: 96
@@ -140,7 +140,7 @@ linux:
     - tar.gz
   maintainer: JiaoRong
   category: Utility
-  artifactName: ${name}-linux-${arch}.${ext}
+  artifactName: JiaorongAI-linux-${arch}.${ext}
   mimeTypes:
     - x-scheme-handler/jiaorongchat
     - x-scheme-handler/deepchat

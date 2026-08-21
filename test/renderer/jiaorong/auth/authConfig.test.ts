@@ -26,6 +26,7 @@ describe('auth api env config', () => {
 
   it('scopes CORS filter urls to the current mode origin only', () => {
     expect(listJiaorongPrivateApiCorsUrls('development')).toEqual([`${AUTH_API_TEST_ORIGIN}/*`])
+    expect(listJiaorongPrivateApiCorsUrls('test')).toEqual([`${AUTH_API_TEST_ORIGIN}/*`])
     expect(listJiaorongPrivateApiCorsUrls('production')).toEqual([`${AUTH_API_PROD_ORIGIN}/*`])
   })
 })

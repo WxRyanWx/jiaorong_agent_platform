@@ -577,6 +577,9 @@ export class TabPresenter implements ITabPresenter {
   ): void {
     // 处理外部链接
     webContents.setWindowOpenHandler(({ url }) => {
+      if (this.windowPresenter.handleInAppDeeplinkNavigation(url)) {
+        return { action: 'deny' }
+      }
       openExternalUrl(url, 'tab window')
       return { action: 'deny' }
     })

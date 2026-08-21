@@ -52,10 +52,21 @@ const resolveChatWindow = async (
   targetWindow.show()
   targetWindow.focus()
 
-  if (targetWindow.webContents.isLoadingMainFrame()) {
-    await new Promise<void>((resolve) => {
-      targetWindow.webContents.once('did-finish-load', () => resolve())
-    })
+  const contents = targetWindow.webContents
+  const currentUrl = contents.getURL?.() ?? ''
+  const rendererReady =
+    currentUrl.startsWith('http:') ||
+    currentUrl.startsWith('https:') ||
+    currentUrl.startsWith('file:')
+  if (contents.isLoadingMainFrame() && !rendererReady) {
+    await Promise.race([
+      new Promise<void>((resolve) => {
+        contents.once('did-finish-load', () => resolve())
+      }),
+      new Promise<void>((resolve) => {
+        setTimeout(resolve, 2000)
+      })
+    ])
   }
 
   return targetWindow

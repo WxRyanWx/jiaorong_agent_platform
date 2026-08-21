@@ -27,14 +27,15 @@ jobs:
     if: github.event.inputs.platform == 'all' || contains(github.event.inputs.platform, 'windows')
     runs-on: ${{ matrix.runner }}
     strategy:
+      fail-fast: false
       matrix:
         include:
           - arch: x64
-            platform: win-x64
+            platform: windows-x64
             runner: windows-2025-vs2026
             unpacked: win-unpacked
           - arch: arm64
-            platform: win-arm64
+            platform: windows-arm64
             runner: windows-11-arm
             unpacked: win-arm64-unpacked
     steps:
@@ -139,6 +140,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
+      - name: Install Node Runtime
+        run: pnpm run installRuntime:linux:${{ matrix.arch }}
+        env:
+          GITHUB_TOKEN: ${{ env.RTK_INSTALL_GITHUB_TOKEN }}
+
       - name: Build Linux (test API)
         run: |
           export NODE_OPTIONS="--max-old-space-size=8192"
@@ -167,15 +173,17 @@ jobs:
   build-mac:
     name: build-mac-test(${{ matrix.arch }})
     if: github.event.inputs.platform == 'all' || contains(github.event.inputs.platform, 'mac')
-    runs-on: macos-15
+    runs-on: ${{ matrix.runner }}
     strategy:
+      fail-fast: false
       matrix:
-        arch: [x64, arm64]
         include:
           - arch: x64
             platform: mac-x64
+            runner: macos-15-intel
           - arch: arm64
             platform: mac-arm64
+            runner: macos-15
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:

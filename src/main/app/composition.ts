@@ -1350,6 +1350,9 @@ export async function createMainProcessControl(dependencies: {
     deeplinkActions.provider,
     deeplinkActions.auth
   )
+  windowPresenter.setInAppDeeplinkHandler((url) => {
+    void deeplinkService.handleDeepLink(url)
+  })
 
   // Initialize generic Workspace presenter (for all Agent modes)
   workspaceService = new WorkspaceService(fileService, fileWatcherService, {

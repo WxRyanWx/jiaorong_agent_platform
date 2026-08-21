@@ -1,3 +1,4 @@
+import { Message } from '@arco-design/web-vue'
 import { useRouter } from 'vue-router'
 import { createAppRuntimeClient } from '@api/AppRuntimeClient'
 import { ensureAuthSessionValidated, resetAuthSessionValidation } from './session'
@@ -24,6 +25,7 @@ export const useAuthLoginDeeplinkHandler = () => {
       localStorage.setItem('xkaitoken', token)
       const valid = await ensureAuthSessionValidated()
       if (!valid) {
+        Message.error('登录校验失败，请重新扫码')
         return
       }
 

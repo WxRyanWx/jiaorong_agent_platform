@@ -2,13 +2,14 @@
 
 ## 目标
 
-GitHub 手动「Build Application / Build Test Application」打出和 `master` 一样的安装包产物（`JiaorongAI-*`，`dist/` 下 exe/dmg/AppImage），不走上游 `distribution` 公证闸门。
+GitHub 手动「Build Application / Build Test Application」打出和现网一致的安装包文件名，并让 Linux / Mac x64 能编过。
 
 ## 验收
 
-1. `build.yml` / `build-test.yml` 内联打包，上传 `dist/*`（排除 unpacked），artifact 名 `JiaorongAI-*` / `JiaorongAI-test-*`。
-2. macOS 缺 `DEEPCHAT_APPLE_NOTARY_PASSWORD` 仍能编过（与 master 一致，密钥有则签名）。
-3. PR 用的 `_package-*.yml` 不整文件覆盖。
+1. 安装包文件名为 `JiaorongAI-windows-x64.exe`、`JiaorongAI-windows-arm64.exe`、`JiaorongAI-mac-x64.{dmg,zip}`、`JiaorongAI-mac-arm64.{dmg,zip}`、`JiaorongAI-linux-x64.{AppImage,tar.gz}`。
+2. Artifact 夹名为 `JiaorongAI-windows-x64` 等（`windows` 不是 `win`）。
+3. Linux 打包前安装 bundled Node runtime，afterPack OCR 不再 ENOENT。
+4. Mac x64 在 `macos-15-intel` 上编 CUA catalog；arm64 仍 `macos-15`。缺公证密钥仍能编。
 
 ## 非目标
 

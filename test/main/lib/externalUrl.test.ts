@@ -14,6 +14,7 @@ describe('external URL validation', () => {
     expect(isValidExternalUrl('mailto:test@example.com')).toBe(true)
     expect(isValidExternalUrl('tel:+123456789')).toBe(true)
     expect(isValidExternalUrl('DEEPCHAT://provider/install')).toBe(true)
+    expect(isValidExternalUrl('jiaorongchat://chat?token=abc')).toBe(true)
 
     expect(isValidExternalUrl('calculator://')).toBe(false)
     expect(isValidExternalUrl('smb://host/share')).toBe(false)
