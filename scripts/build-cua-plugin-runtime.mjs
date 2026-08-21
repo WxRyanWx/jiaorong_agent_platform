@@ -697,7 +697,7 @@ async function main() {
   const targetArch = String(
     args.get('arch') ?? process.env.TARGET_ARCH ?? process.arch
   ).toLowerCase()
-  const packagePurpose = args.get('purpose')
+  const packagePurpose = args.get('purpose') ?? process.env.PACKAGE_PURPOSE
   const metadata = await readUpstreamMetadata()
   const target = getTarget(targetPlatform, targetArch, metadata)
   if (!canRunTarget(targetPlatform, targetArch)) {

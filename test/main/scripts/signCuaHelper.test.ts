@@ -146,6 +146,25 @@ describe('sign-cua-helper', () => {
     ).rejects.toThrow(/requires an explicit distribution or verification purpose/)
   })
 
+  it('accepts PACKAGE_PURPOSE when the CLI purpose is omitted in CI', async () => {
+    const { resolveCuaSigningPurpose, signMacHelper } = await loadSigner()
+
+    expect(
+      resolveCuaSigningPurpose(undefined, { CI: 'true', PACKAGE_PURPOSE: 'verification' })
+    ).toBe('verification')
+    await expect(
+      signMacHelper({
+        appPath: path.join(tmpDir, 'JiaorongAI Computer Use.app'),
+        entitlementsPath: path.join(tmpDir, 'entitlements.plist'),
+        cwd: tmpDir,
+        env: { CI: 'true', PACKAGE_PURPOSE: 'verification' }
+      })
+    ).resolves.toEqual({
+      purpose: 'verification',
+      signature: 'ad-hoc'
+    })
+  })
+
   it('rejects contradictory package purpose and release mode combinations', async () => {
     const { validateCuaSigningContext } = await loadSigner()
 

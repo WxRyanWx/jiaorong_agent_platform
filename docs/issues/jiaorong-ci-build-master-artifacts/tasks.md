@@ -7,3 +7,4 @@
 5. [x] Mac x64 macos-15-intel
 6. [x] 锁定 JiaorongAI-windows/mac/linux 文件名
 7. [x] HOST H138
+8. [x] Mac CI 显式 CUA verification purpose

@@ -304,15 +304,19 @@ export function resolveCuaSigningPurpose(purpose, env = process.env) {
     throw new TypeError('CUA signing purpose must be a string')
   }
   const normalizedPurpose = purpose?.trim() ?? ''
-  if (normalizedPurpose === '') {
-    if (isCiEnvironment(env)) {
-      throw new Error(
-        'CUA macOS packaging in CI requires an explicit distribution or verification purpose'
-      )
-    }
-    return DEVELOPMENT_SIGNING_PURPOSE
+  if (normalizedPurpose !== '') {
+    return validateArtifactPurpose(normalizedPurpose)
   }
-  return validateArtifactPurpose(normalizedPurpose)
+  const environmentPurpose = String(env.PACKAGE_PURPOSE ?? '').trim()
+  if (environmentPurpose !== '') {
+    return validateArtifactPurpose(environmentPurpose)
+  }
+  if (isCiEnvironment(env)) {
+    throw new Error(
+      'CUA macOS packaging in CI requires an explicit distribution or verification purpose'
+    )
+  }
+  return DEVELOPMENT_SIGNING_PURPOSE
 }
 
 export function validateCuaSigningContext({ purpose, env = process.env }) {

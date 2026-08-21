@@ -223,11 +223,12 @@ jobs:
       - name: Build Mac (test API)
         run: |
           pnpm run build:test
-          SWIFTCI_ALLOW_UNSIGNED_TOOLS=1 pnpm run plugin:cua:build:mac:${{ matrix.arch }}
-          pnpm run plugin:bundle -- --name cua --platform darwin --arch ${{ matrix.arch }}
+          SWIFTCI_ALLOW_UNSIGNED_TOOLS=1 pnpm run plugin:bundle -- --name cua --platform darwin --arch ${{ matrix.arch }} --purpose "${PACKAGE_PURPOSE}"
           pnpm run plugin:bundle -- --name feishu --platform darwin --arch ${{ matrix.arch }}
           pnpm exec electron-builder --mac --${{ matrix.arch }} --publish=never
         env:
+          PACKAGE_PURPOSE: verification
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
           CSC_LINK: ${{ secrets.DEEPCHAT_CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.DEEPCHAT_CSC_KEY_PASS }}
           DEEPCHAT_APPLE_NOTARY_USERNAME: ${{ secrets.DEEPCHAT_APPLE_NOTARY_USERNAME }}

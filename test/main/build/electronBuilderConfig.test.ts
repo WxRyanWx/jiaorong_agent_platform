@@ -21,6 +21,7 @@ interface WorkflowStep {
   uses?: string
   if?: string
   run?: string
+  env?: Record<string, unknown>
   with?: Record<string, unknown>
 }
 
@@ -213,5 +214,25 @@ describe('Linux ARM64 packaging', () => {
     expect(
       assembleSteps.find((step) => step.name === 'Assemble fail-closed release assets')?.run
     ).toContain('scripts/ci/assemble-release.mjs')
+  })
+})
+
+describe('manual Mac packaging', () => {
+  it('gives CUA an explicit verification purpose without release notarization', async () => {
+    for (const name of ['build.yml', 'build-test.yml'] as const) {
+      const workflow = await readWorkflow(name)
+      const step = workflow.jobs?.['build-mac']?.steps?.find((item) =>
+        item.run?.includes('electron-builder --mac')
+      )
+
+      expect(step?.env).toMatchObject({
+        PACKAGE_PURPOSE: 'verification',
+        CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      })
+      expect(step?.env?.build_for_release).toBeUndefined()
+      expect(step?.run).toContain(
+        'plugin:bundle -- --name cua --platform darwin --arch ${{ matrix.arch }} --purpose "${PACKAGE_PURPOSE}"'
+      )
+    }
   })
 })

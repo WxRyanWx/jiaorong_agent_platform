@@ -140,7 +140,7 @@
 | H135 | `WindowSideBar.vue` `settingsSidebarAdmin.ts` | 主侧栏「插件」仅管理员可见 | admin | 低 | 名单 `MAIN_SIDEBAR_ADMIN_ONLY_ROUTES`；非管理员 `v-if` 不渲染按钮 |
 | H136 | `router/index.ts` `McpIndicator.vue` | 非管理员进 `/plugins*` 回聊天；工具面板不显示打开插件页的齿轮 | admin | 低 | `beforeEnter` 用 `isMainSidebarItemHidden('plugins')`；齿轮同一判断 |
 | H137 | `src/main/desktop/window/index.ts` `tab.ts` `src/main/app/composition.ts` `src/main/deeplink/navigation.ts` `src/main/deeplink/actions.ts` `src/shared/types/desktop.ts` `src/shared/externalUrl.ts` | 扫码 iframe 302 在**每个** WebContents 拦截（Win/Mac/Linux iframe 都不走 OS 协议）；Tab `window.open` 同样拦截；`jiaorongchat:` 允许作为系统协议兜底 | auth | 高 | HTTPS 中间跳转不拦截；iframe 不把 mcp/start 当登录；同 token 2s 内去重（Windows 可能拦截+second-instance 各一次） |
-| H138 | `.github/workflows/build.yml` `build-test.yml` `electron-builder.yml` | Linux 补 `installRuntime`；Mac x64 用 `macos-15-intel`；Windows matrix `fail-fast: false`；artifact 名 `JiaorongAI-windows-${arch}` | ci | 高 | 不改上游 `_package-*.yml` / Release 的 `deepchat-package-*` |
+| H138 | `.github/workflows/build.yml` `build-test.yml` `electron-builder.yml` `scripts/sign-cua-helper.mjs` | Linux 补 `installRuntime`；Mac x64 用 `macos-15-intel`；Windows matrix `fail-fast: false`；artifact 名 `JiaorongAI-windows-${arch}`；Mac 手动包 CUA 用 `PACKAGE_PURPOSE=verification` | ci | 高 | 不改上游 `_package-*.yml` / Release 的 `deepchat-package-*`；不打开 `build_for_release` |
 
 ## 下次合上游：值得抽到 `jiaorong_src` 的宿主文件
 
