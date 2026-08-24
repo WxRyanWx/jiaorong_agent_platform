@@ -1,7 +1,7 @@
 import { createMcpClient } from '@api/McpClient'
 import { getToken } from '../../auth/lib/local-user'
 import { resolveAuthProductId } from '../../api/auth/config'
-import { resolveKnowledgeBaseMcpUrl } from '../../api/knowledgeBase/mcpConfig'
+import { resolveKnowledgeBaseMcpUrl } from '@jiaorong/api/knowledgeBase/mcpConfig'
 import type { MCPServerConfig } from '@shared/types/mcp'
 import { JIAORONG_KB_MCP_SERVER_NAME } from './knowledgeBaseMcpConstants'
 import { JIAORONG_KB_MCP_SERVER_DESCRIPTION } from './knowledgeBaseMcpInstructions'
@@ -11,7 +11,8 @@ export {
   JIAORONG_KB_MCP_SERVER_NAME
 } from './knowledgeBaseMcpConstants'
 
-let inFlight: Promise<void> | null = null
+let writeQueue: Promise<void> = Promise.resolve()
+let lastSyncedToken = ''
 
 function buildCustomHeaders(token: string): Record<string, string> {
   return {
@@ -59,12 +60,13 @@ function sameRuntimeConfig(existing: MCPServerConfig | undefined, next: MCPServe
   return runtimeFingerprint(existing) === runtimeFingerprint(next)
 }
 
-async function ensureOnce(): Promise<void> {
+async function ensureOnce(options?: { startIfStopped?: boolean }): Promise<void> {
   const token = getToken() || ''
   if (!token) {
     throw new Error('未登录，无法启用知识库 MCP')
   }
 
+  const startIfStopped = options?.startIfStopped !== false
   const mcpClient = createMcpClient()
   const nextConfig = buildServerConfig(token)
   const servers = await mcpClient.getMcpServers()
@@ -81,7 +83,9 @@ async function ensureOnce(): Promise<void> {
     if (!added) {
       throw new Error('注册知识库 MCP 失败')
     }
-    await mcpClient.startServer(JIAORONG_KB_MCP_SERVER_NAME)
+    if (startIfStopped) {
+      await mcpClient.startServer(JIAORONG_KB_MCP_SERVER_NAME)
+    }
     return
   }
 
@@ -99,21 +103,47 @@ async function ensureOnce(): Promise<void> {
     })
   }
 
-  if (!(await mcpClient.isServerRunning(JIAORONG_KB_MCP_SERVER_NAME))) {
+  if (startIfStopped && !(await mcpClient.isServerRunning(JIAORONG_KB_MCP_SERVER_NAME))) {
     await mcpClient.startServer(JIAORONG_KB_MCP_SERVER_NAME)
   }
 }
 
 /**
  * 注册并启动远端知识库 MCP，供对话中模型以 tool_call 调用。
- * 幂等：并发调用合并；URL/鉴权未变且已运行时 no-op。
+ * 幂等：串行排队；URL/鉴权未变且已运行时 no-op。
  */
-export async function ensureJiaorongKnowledgeBaseMcpServer(): Promise<void> {
-  if (inFlight) {
-    return inFlight
-  }
-  inFlight = ensureOnce().finally(() => {
-    inFlight = null
+export async function ensureJiaorongKnowledgeBaseMcpServer(options?: {
+  startIfStopped?: boolean
+}): Promise<void> {
+  const run = writeQueue.then(
+    () => ensureOnce(options),
+    () => ensureOnce(options)
+  )
+  writeQueue = run.then(
+    () => undefined,
+    () => undefined
+  )
+  return run
+}
+
+/** 有 token 时把本机残留的测试 URL 写成当前包 origin；未登录跳过。不强迫启动已停止的服务。 */
+export function scheduleEnsureJiaorongKnowledgeBaseMcpServer(): void {
+  const token = getToken()?.trim()
+  if (!token || token === lastSyncedToken) return
+  void ensureJiaorongKnowledgeBaseMcpServer({ startIfStopped: false })
+    .then(() => {
+      lastSyncedToken = token
+    })
+    .catch((error) => {
+      console.warn('[jiaorong/kb-mcp] Failed to sync knowledge-base MCP:', error)
+    })
+}
+
+export function setupJiaorongKnowledgeBaseMcpSync(router: {
+  afterEach: (guard: () => void) => unknown
+}): void {
+  scheduleEnsureJiaorongKnowledgeBaseMcpServer()
+  router.afterEach(() => {
+    scheduleEnsureJiaorongKnowledgeBaseMcpServer()
   })
-  return inFlight
 }

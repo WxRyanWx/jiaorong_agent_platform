@@ -40,6 +40,17 @@ export function mountJiaorong(_host?: JiaorongHostPorts): JiaorongRegistry {
         .catch(() => undefined)
     }
   )
+  // 已登录时把知识库 MCP URL 写成当前包 origin（避免测试包留下的 106 地址）
+  void import('../knowledgeBase/mcp/ensureKnowledgeBaseMcpServer').then(
+    ({ setupJiaorongKnowledgeBaseMcpSync }) => {
+      void import('@/router')
+        .then((mod) => {
+          const router = mod.default
+          if (router) setupJiaorongKnowledgeBaseMcpSync(router)
+        })
+        .catch(() => undefined)
+    }
+  )
   return registry
 }
 

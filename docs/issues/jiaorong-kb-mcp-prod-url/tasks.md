@@ -1,0 +1,2 @@
+- [x] 有 token 时启动/进 chat 同步知识库 MCP URL
+- [x] 单测：已存测试 origin 会 update 成当前 URL
