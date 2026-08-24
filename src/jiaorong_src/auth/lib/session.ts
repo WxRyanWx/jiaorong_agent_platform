@@ -1,6 +1,6 @@
 import axios from 'axios'
 import { FeatchUserInfo } from '@jiaorong/api/auth'
-import { clearOutLocal, getToken } from './local-user'
+import { clearOutLocal, getToken, setUserInfoRecords } from './local-user'
 
 let sessionValidated = false
 let validating: Promise<boolean> | null = null
@@ -14,13 +14,13 @@ export function resetAuthSessionValidation() {
 }
 
 export function clearAuthSession() {
-  clearOutLocal()
+  const cleared = clearOutLocal()
   resetAuthSessionValidation()
+  return cleared
 }
 
 function persistUserInfo(data: unknown) {
-  localStorage.setItem('userFullInfo', JSON.stringify(data))
-  localStorage.setItem('userInfo', JSON.stringify(data))
+  setUserInfoRecords(data)
 }
 
 function isUnauthorizedError(error: unknown): boolean {

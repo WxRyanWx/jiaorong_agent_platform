@@ -11,7 +11,8 @@ vi.mock('@jiaorong/api/auth', () => ({
 
 vi.mock('../../../../src/jiaorong_src/auth/lib/local-user', () => ({
   getToken: getTokenMock,
-  clearOutLocal: vi.fn()
+  clearOutLocal: vi.fn(),
+  setUserInfoRecords: vi.fn()
 }))
 
 import {

@@ -1,0 +1,4 @@
+- [x] 增加 `jiaorong_auth_session` 配置契约与读写
+- [x] hydrate / persist / clear 接到登录、deeplink、401
+- [x] 补 persist 单测
+- [x] persist/clear 串行队列，避免在途写入覆盖清空

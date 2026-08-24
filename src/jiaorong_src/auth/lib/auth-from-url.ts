@@ -1,3 +1,5 @@
+import { setToken } from './local-user'
+
 const getSearchParams = (): URLSearchParams => {
   const fromLocation = new URLSearchParams(window.location.search)
   if ([...fromLocation.keys()].length > 0) {
@@ -27,7 +29,7 @@ export const getUrlToken = (): string | false => {
 export const saveTokenFromUrl = (): string | false => {
   const token = getUrlToken()
   if (token) {
-    localStorage.setItem('xkaitoken', token)
+    setToken(token)
   }
   return token
 }

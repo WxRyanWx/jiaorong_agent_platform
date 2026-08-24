@@ -142,6 +142,9 @@
 | H137 | `src/main/desktop/window/index.ts` `tab.ts` `src/main/app/composition.ts` `src/main/deeplink/navigation.ts` `src/main/deeplink/actions.ts` `src/shared/types/desktop.ts` `src/shared/externalUrl.ts` | 扫码 iframe 302 在**每个** WebContents 拦截（Win/Mac/Linux iframe 都不走 OS 协议）；Tab `window.open` 同样拦截；`jiaorongchat:` 允许作为系统协议兜底 | auth | 高 | HTTPS 中间跳转不拦截；iframe 不把 mcp/start 当登录；同 token 2s 内去重（Windows 可能拦截+second-instance 各一次） |
 | H138 | `.github/workflows/build.yml` `build-test.yml` `electron-builder.yml` `scripts/sign-cua-helper.mjs` | Linux 补 `installRuntime`；Mac x64 用 `macos-15-intel`；Windows matrix `fail-fast: false`；artifact 名 `JiaorongAI-windows-${arch}`；Mac 手动包 CUA 用 `distribution` + `CUA_ALLOW_SIGNED_WITHOUT_NOTARIZATION`，CSC 签主程序和 helper，保留 `signIgnore`，不公证 | ci | 高 | 不改上游 `_package-*.yml` / Release 的 `deepchat-package-*`；不打开 `build_for_release`；不要 `signIgnore=[]` 重签 helper；不要设 `CSC_IDENTITY_AUTO_DISCOVERY=false`（会让主程序签不上，Chrome 下载仍报已损坏） |
 | H139 | `build/icon.png` `icon.ico` `icon.icns` `dmg-background.png` `dmg-background@2x.png` | 安装包/系统图标与 DMG 背景换成交融 logo | brand | 中 | electron-builder `buildResources` 用 `build/icon.*`，不是已经换成交融的 `resources/icon.png`；DMG 白框是 Finder 叠图标的占位 |
+| H140 | `config.routes.ts` `settingsRoutes.ts` | 增加 `jiaorong_auth_session` 配置项 | auth | 中 | 扫码 token 跟技能开关一样落到 electron-store，避免 `file://` localStorage 退出丢失 |
+| H141 | `src/renderer/src/stores/mcp.ts` | `jiaorong-knowledge-base` 不当插件服务器过滤 | knowledgeBase | 高 | 对齐主进程 H96；否则 MCP 列表看不到、详情没有 URL |
+| H142 | `McpServers.vue` | HTTP 详情显示 baseUrl；内置库编辑无设置路由时 `openSettings` | mcp | 中 | 主窗口 `/plugins/mcp` 没有 `settings-knowledge-base` |
 
 ## 下次合上游：值得抽到 `jiaorong_src` 的宿主文件
 

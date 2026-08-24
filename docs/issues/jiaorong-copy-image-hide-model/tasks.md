@@ -1,0 +1,2 @@
+- [x] 去掉 capture watermark 的 model/provider
+- [x] 更新 useMessageCapture 单测断言

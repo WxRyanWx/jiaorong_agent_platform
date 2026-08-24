@@ -1,0 +1,3 @@
+- [x] store 不过滤知识库 HTTP MCP
+- [x] 详情显示 URL；编辑走设置窗兜底
+- [x] 补 store / McpServers 单测

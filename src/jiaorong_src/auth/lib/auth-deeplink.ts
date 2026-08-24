@@ -1,6 +1,8 @@
 import { Message } from '@arco-design/web-vue'
 import { useRouter } from 'vue-router'
 import { createAppRuntimeClient } from '@api/AppRuntimeClient'
+import { setToken } from './local-user'
+import { persistAuthSession } from './persist'
 import { ensureAuthSessionValidated, resetAuthSessionValidation } from './session'
 
 type AuthLoginDeeplinkPayload = {
@@ -22,13 +24,14 @@ export const useAuthLoginDeeplinkHandler = () => {
     try {
       // 新 token 须强制走 userInfo 校验，不能复用会话内缓存
       resetAuthSessionValidation()
-      localStorage.setItem('xkaitoken', token)
+      setToken(token)
       const valid = await ensureAuthSessionValidated()
       if (!valid) {
         Message.error('登录校验失败，请重新扫码')
         return
       }
 
+      await persistAuthSession()
       await router.isReady()
       if (router.currentRoute.value.name !== 'chat') {
         await router.push('/chat')

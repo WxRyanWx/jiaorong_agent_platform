@@ -148,7 +148,7 @@ export function useMessageCapture() {
   }
 
   const captureMessage = async (options: CaptureOptions): Promise<boolean> => {
-    const { messageId, parentId, fromTop = false, modelInfo } = options
+    const { messageId, parentId, fromTop = false } = options
 
     const getTargetRect = fromTop
       ? () => calculateFromTopToCurrentRect(messageId)
@@ -169,9 +169,7 @@ export function useMessageCapture() {
           version: appVersion.value,
           texts: {
             brand: WATERMARK_BRAND,
-            tip: t('common.watermarkTip'),
-            model: modelInfo?.model_name,
-            provider: modelInfo?.model_provider
+            tip: t('common.watermarkTip')
           }
         }
       })

@@ -383,6 +383,34 @@ describe('useMcpStore', () => {
     expect(store.config.mcpServers['cua-driver']).toBeDefined()
   })
 
+  it('keeps jiaorong knowledge-base HTTP MCP in the user-visible list', async () => {
+    const store = await setupStore()
+
+    store.config = {
+      mcpServers: {
+        'jiaorong-knowledge-base': {
+          command: '',
+          args: [],
+          env: {},
+          descriptions: '交融知识库检索',
+          icons: '📚',
+          disable: false,
+          type: 'http',
+          enabled: true,
+          baseUrl: 'https://c4ai.ccccltd.cn/api/mcp/knowledge-base',
+          source: 'plugin',
+          ownerPluginId: 'jiaorong'
+        }
+      },
+      mcpEnabled: true,
+      ready: true
+    }
+
+    expect(store.serverList.map((server) => server.name)).toEqual(['jiaorong-knowledge-base'])
+    expect(store.pluginServerList).toEqual([])
+    expect(store.serverList[0]?.baseUrl).toBe('https://c4ai.ccccltd.cn/api/mcp/knowledge-base')
+  })
+
   it('sorts enabled servers before disabled servers', async () => {
     const store = await setupStore()
 

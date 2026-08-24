@@ -65,7 +65,7 @@ async function loadDocxFile() {
 const changeCheck = async (a: boolean | (string | number | boolean)[]) => {
   if (!a) {
     await FeatchExit()
-    clearAuthSession()
+    await clearAuthSession()
     router.push('/login')
   }
 }

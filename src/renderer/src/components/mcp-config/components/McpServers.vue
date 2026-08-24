@@ -30,10 +30,12 @@ import McpPromptPanel from './McpPromptPanel.vue'
 import McpResourceViewer from './McpResourceViewer.vue'
 import type { MCPServerConfig, McpCredentialBinding, McpCredentialInput } from '@shared/types/mcp'
 import { createMcpClient } from '@api/McpClient'
+import { createSettingsClient } from '@api/SettingsClient'
 
 const mcpStore = useMcpStore()
 const { t } = useI18n()
 const router = useRouter()
+const settingsClient = createSettingsClient()
 const mcpClient = createMcpClient()
 const props = withDefaults(
   defineProps<{
@@ -451,9 +453,17 @@ const openEditServerDialog = (serverName: string) => {
   }
 
   if (specialServers[serverName]) {
-    router.push({
-      name: 'settings-knowledge-base',
-      query: { subtab: specialServers[serverName] }
+    const subtab = specialServers[serverName]
+    if (router.hasRoute('settings-knowledge-base')) {
+      void router.push({
+        name: 'settings-knowledge-base',
+        query: { subtab }
+      })
+      return
+    }
+    void settingsClient.openSettings({
+      routeName: 'settings-knowledge-base',
+      section: subtab
     })
     return
   }
@@ -774,7 +784,20 @@ defineExpose({
           </DcButton>
         </div>
 
-        <div class="rounded-lg border border-border p-3">
+        <div
+          v-if="selectedDetailServer.baseUrl"
+          class="rounded-lg border border-border p-3"
+          data-testid="mcp-server-detail-url"
+        >
+          <div class="text-xs font-medium text-muted-foreground">
+            {{ t('settings.mcp.serverForm.baseUrl') }}
+          </div>
+          <div class="mt-1 break-all font-mono text-xs">
+            {{ selectedDetailServer.baseUrl }}
+          </div>
+        </div>
+
+        <div v-else class="rounded-lg border border-border p-3">
           <div class="text-xs font-medium text-muted-foreground">
             {{ t('settings.mcp.center.command') }}
           </div>

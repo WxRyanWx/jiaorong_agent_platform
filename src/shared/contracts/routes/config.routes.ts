@@ -122,8 +122,15 @@ export const CONFIG_ENTRY_KEYS = [
   'providerHealth',
   'sidebar_group_mode',
   'input_enabledMcpTools',
-  'jiaorong_skill_switch_map'
+  'jiaorong_skill_switch_map',
+  'jiaorong_auth_session'
 ] as const
+
+const JiaorongAuthSessionSchema = z.object({
+  token: z.string(),
+  userInfo: z.string().optional(),
+  userFullInfo: z.string().optional()
+})
 
 // Cached verification result for a provider's current connection configuration.
 // `fingerprint` is derived from non-secret config so credential/endpoint changes
@@ -154,7 +161,8 @@ export const ConfigEntryValuesSchema = z.object({
   providerHealth: z.record(z.string(), ProviderHealthEntrySchema),
   sidebar_group_mode: z.string(),
   input_enabledMcpTools: z.array(z.string()),
-  jiaorong_skill_switch_map: z.record(z.string(), z.union([z.literal(0), z.literal(1)]))
+  jiaorong_skill_switch_map: z.record(z.string(), z.union([z.literal(0), z.literal(1)])),
+  jiaorong_auth_session: JiaorongAuthSessionSchema
 })
 
 export const ConfigEntryChangeSchema = z.discriminatedUnion('key', [
@@ -225,6 +233,10 @@ export const ConfigEntryChangeSchema = z.discriminatedUnion('key', [
   z.object({
     key: z.literal('jiaorong_skill_switch_map'),
     value: z.record(z.string(), z.union([z.literal(0), z.literal(1)]))
+  }),
+  z.object({
+    key: z.literal('jiaorong_auth_session'),
+    value: JiaorongAuthSessionSchema
   })
 ])
 

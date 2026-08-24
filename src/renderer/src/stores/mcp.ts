@@ -22,6 +22,7 @@ import type {
   McpServerLifecycleStatus,
   McpServerStatusChangedPayload
 } from '@shared/types/core/mcp'
+import { isJiaorongKnowledgeBaseMcpServer } from '@jiaorong/knowledgeBase/mcp/knowledgeBaseMcpConstants'
 
 const ENABLED_MCP_TOOLS_KEY = 'input_enabledMcpTools'
 
@@ -217,15 +218,25 @@ export const useMcpStore = defineStore('mcp', () => {
 
   const prompts = computed(() => promptsQuery.data.value ?? [])
 
-  const isPluginOwnedServerConfig = (serverConfig?: Partial<MCPServerConfig> | null): boolean =>
-    Boolean(serverConfig?.ownerPluginId || serverConfig?.source === 'plugin')
+  const isPluginOwnedServerConfig = (
+    serverConfig?: (Partial<MCPServerConfig> & { name?: string }) | null,
+    serverName?: string
+  ): boolean => {
+    if (isJiaorongKnowledgeBaseMcpServer(serverName ?? serverConfig?.name)) {
+      return false
+    }
+    return Boolean(serverConfig?.ownerPluginId || serverConfig?.source === 'plugin')
+  }
 
   const isPluginOwnedServerName = (serverName?: string | null): boolean => {
     if (!serverName) {
       return false
     }
+    if (isJiaorongKnowledgeBaseMcpServer(serverName)) {
+      return false
+    }
 
-    return isPluginOwnedServerConfig(config.value.mcpServers?.[serverName])
+    return isPluginOwnedServerConfig(config.value.mcpServers?.[serverName], serverName)
   }
 
   const isVisibleServerName = (serverName?: string | null): boolean =>
@@ -575,7 +586,7 @@ export const useMcpStore = defineStore('mcp', () => {
   // 设置MCP启用状态
   const startEnabledServers = async () => {
     for (const [serverName, serverConfig] of Object.entries(config.value.mcpServers)) {
-      if (!serverConfig.enabled || isPluginOwnedServerConfig(serverConfig)) {
+      if (!serverConfig.enabled || isPluginOwnedServerConfig(serverConfig, serverName)) {
         continue
       }
       try {
@@ -624,7 +635,9 @@ export const useMcpStore = defineStore('mcp', () => {
       } else {
         await Promise.allSettled(
           Object.entries(config.value.mcpServers)
-            .filter(([, serverConfig]) => !isPluginOwnedServerConfig(serverConfig))
+            .filter(
+              ([serverName, serverConfig]) => !isPluginOwnedServerConfig(serverConfig, serverName)
+            )
             .map(([serverName]) => mcpClient.stopServer(serverName))
         )
         // clearing server/tool state when disabling
@@ -679,7 +692,7 @@ export const useMcpStore = defineStore('mcp', () => {
     let revision = advanceServerLifecycleRevision(serverName)
     try {
       const serverConfig = config.value.mcpServers[serverName]
-      if (!config.value.mcpEnabled && !isPluginOwnedServerConfig(serverConfig)) {
+      if (!config.value.mcpEnabled && !isPluginOwnedServerConfig(serverConfig, serverName)) {
         applyServerLifecycle(serverName, 'stopped')
         return
       }

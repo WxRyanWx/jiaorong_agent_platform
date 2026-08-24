@@ -123,8 +123,10 @@ const setup = async (options: SetupOptions = {}) => {
         query: {}
       }
     },
+    hasRoute: vi.fn().mockReturnValue(false),
     push: vi.fn().mockResolvedValue(undefined)
   }
+  const openSettings = vi.fn().mockResolvedValue(undefined)
 
   const notifyRenderer = vi.fn()
   const defaultServerList = options.withServers
@@ -216,6 +218,11 @@ const setup = async (options: SetupOptions = {}) => {
       copyText: vi.fn()
     })
   }))
+  vi.doMock('@api/SettingsClient', () => ({
+    createSettingsClient: () => ({
+      openSettings
+    })
+  }))
 
   const McpServers = (await import('@/components/mcp-config/components/McpServers.vue')).default
 
@@ -250,7 +257,8 @@ const setup = async (options: SetupOptions = {}) => {
     router,
     mcpStore,
     notifyRenderer,
-    getServerDiagnostics
+    getServerDiagnostics,
+    openSettings
   }
 }
 
@@ -576,6 +584,28 @@ describe('McpServers', () => {
     await authCallbackInput!.trigger('keydown.enter')
 
     expect(mcpStore.completeServerAuthFromCallbackUrl).toHaveBeenCalledTimes(1)
+  })
+
+  it('opens settings for builtin knowledge when the settings route is missing', async () => {
+    const { wrapper, router, openSettings } = await setup({
+      withServers: true,
+      config: {
+        mcpServers: {
+          builtinKnowledge: { type: 'inmemory' }
+        }
+      }
+    })
+    const viewModel = wrapper.vm as unknown as {
+      openEditServerDialog(serverName: string): void
+    }
+
+    viewModel.openEditServerDialog('builtinKnowledge')
+
+    expect(router.push).not.toHaveBeenCalled()
+    expect(openSettings).toHaveBeenCalledWith({
+      routeName: 'settings-knowledge-base',
+      section: 'builtinKnowledge'
+    })
   })
 
   it('keeps edit failures in the dialog and closes only after a successful retry', async () => {

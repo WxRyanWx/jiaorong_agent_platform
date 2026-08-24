@@ -70,6 +70,7 @@ export function createAppSettingsRoutes(deps: {
     read('sidebar_group_mode')
     read('input_enabledMcpTools')
     read('jiaorong_skill_switch_map')
+    read('jiaorong_auth_session')
     return values
   }
   const readSnapshot = (): SettingsSnapshotValues => ({

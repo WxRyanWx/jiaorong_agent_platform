@@ -1,10 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { useMessageCapture } from '@/composables/message/useMessageCapture'
 
+const captureAndCopy = vi.hoisted(() => vi.fn().mockResolvedValue(true))
+
 vi.mock('@/composables/usePageCapture', () => ({
   usePageCapture: () => ({
     isCapturing: { value: false },
-    captureAndCopy: vi.fn().mockResolvedValue(true)
+    captureAndCopy
   })
 }))
 vi.mock('@api/DeviceClient', () => ({
@@ -23,6 +25,8 @@ vi.mock('@/stores/theme', () => ({
 
 describe('useMessageCapture', () => {
   beforeEach(() => {
+    captureAndCopy.mockReset()
+    captureAndCopy.mockResolvedValue(true)
     // container
     const container = document.createElement('div')
     container.className = 'message-list-container'
@@ -54,6 +58,16 @@ describe('useMessageCapture', () => {
       modelInfo: { model_name: 'm', model_provider: 'p' }
     })
     expect(ok).toBe(true)
+    expect(captureAndCopy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        watermark: expect.objectContaining({
+          texts: expect.not.objectContaining({
+            model: expect.anything(),
+            provider: expect.anything()
+          })
+        })
+      })
+    )
 
     document.body.removeChild(user)
     document.body.removeChild(asst)

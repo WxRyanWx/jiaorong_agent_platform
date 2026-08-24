@@ -458,6 +458,8 @@ import type { FormInstance } from '@arco-design/web-vue/es/form'
 import type { ValidatedError } from '@arco-design/web-vue/es/form/interface'
 import beforeLoginAuto from '../../lib/bootstrap-before'
 import { markAuthSessionValidated } from '../../lib/session'
+import { persistAuthSession } from '../../lib/persist'
+import { setToken, setUserInfoRecords } from '../../lib/local-user'
 import { useLoginPageScale } from '../../composables/useLoginPageScale'
 
 const { loginScaleStyle, loginPageStyle, loginPageClass } = useLoginPageScale()
@@ -694,14 +696,14 @@ async function handLogin(values: Record<string, string>): Promise<void> {
     const loginRes = await FeatchLogin(values.phoneNumber, values.password)
     if (loginRes.code === 8000000) {
       Message.success('登录成功')
-      localStorage.setItem('xkaitoken', loginRes.access_token)
+      setToken(loginRes.access_token)
       resName.value = loginRes.userName
 
       if (localStorage.getItem('xkaitoken') && resName.value) {
         const res1 = await FeatchUserInfo(resName.value)
-        localStorage.setItem('userFullInfo', JSON.stringify(res1.data))
-        localStorage.setItem('userInfo', JSON.stringify(res1.data))
+        setUserInfoRecords(res1.data)
         resName.value = res1.data.userName
+        await persistAuthSession()
         await FeatchUsageRecord({}, 'login', res1.data.id)
         markAuthSessionValidated()
         // 登录成功后触发默认技能补装（随后进 chat 路由也会再兜底）
