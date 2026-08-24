@@ -6,9 +6,11 @@ import {
 import {
   JIAORONG_KB_CONTEXT_MIME,
   JIAORONG_KB_CONTEXT_PATH,
+  JIAORONG_KB_MCP_SERVER_DISPLAY_NAME,
   JIAORONG_KB_MCP_SERVER_NAME,
   isJiaorongKnowledgeBaseContextAttachment,
-  isJiaorongKnowledgeBaseMcpServer
+  isJiaorongKnowledgeBaseMcpServer,
+  resolveMcpServerListName
 } from '@jiaorong/knowledgeBase/mcp/knowledgeBaseMcpConstants'
 
 describe('knowledgeBaseMcpInstructions', () => {
@@ -17,6 +19,11 @@ describe('knowledgeBaseMcpInstructions', () => {
     expect(isJiaorongKnowledgeBaseMcpServer('brave')).toBe(false)
     expect(isJiaorongKnowledgeBaseMcpServer('filesystem')).toBe(false)
     expect(isJiaorongKnowledgeBaseMcpServer(undefined)).toBe(false)
+    expect(resolveMcpServerListName(JIAORONG_KB_MCP_SERVER_NAME)).toBe(
+      JIAORONG_KB_MCP_SERVER_DISPLAY_NAME
+    )
+    expect(resolveMcpServerListName('Artifacts')).toBe('Artifacts')
+    expect(JIAORONG_KB_MCP_SERVER_DISPLAY_NAME).toBe('交融知识库')
   })
 
   it('identifies the synthetic knowledge-base context attachment', () => {

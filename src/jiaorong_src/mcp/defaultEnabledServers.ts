@@ -2,7 +2,6 @@
 
 export const JIAORONG_DEFAULT_ENABLED_MCP_SERVERS = [
   'Artifacts',
-  'builtinKnowledge',
   'deepchat-inmemory/conversation-search-server'
 ] as const
 
@@ -14,6 +13,11 @@ export const JIAORONG_MCP_DEFAULT_ON_ADDONS = [
 ] as const
 
 export const JIAORONG_MCP_DEFAULT_ADDONS_MIGRATION_KEY = 'jiaorongMcpDefaultAddonsV1'
+
+/** 已有安装曾把 builtinKnowledge 当默认开，升级后关一次 */
+export const JIAORONG_MCP_BUILTIN_KNOWLEDGE_DEFAULT_OFF_KEY =
+  'jiaorongMcpBuiltinKnowledgeDefaultOffV1'
+export const JIAORONG_MCP_BUILTIN_KNOWLEDGE_SERVER_NAME = 'builtinKnowledge'
 
 export function getJiaorongDefaultEnabledMcpServerNames(isMacOS: boolean): string[] {
   return [

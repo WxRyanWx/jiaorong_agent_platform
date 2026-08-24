@@ -1,0 +1,3 @@
+- [x] 默认清单去掉 builtinKnowledge，补已有安装一次性关闭
+- [x] MCP 列表/详情显示「交融知识库」
+- [x] 更新 settings 默认开启单测与 HOST 记录

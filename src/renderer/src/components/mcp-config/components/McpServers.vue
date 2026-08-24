@@ -31,6 +31,7 @@ import McpResourceViewer from './McpResourceViewer.vue'
 import type { MCPServerConfig, McpCredentialBinding, McpCredentialInput } from '@shared/types/mcp'
 import { createMcpClient } from '@api/McpClient'
 import { createSettingsClient } from '@api/SettingsClient'
+import { resolveMcpServerListName } from '@jiaorong/knowledgeBase/mcp/knowledgeBaseMcpConstants'
 
 const mcpStore = useMcpStore()
 const { t } = useI18n()
@@ -145,6 +146,7 @@ const filteredServers = computed(() => {
     const matchesQuery =
       !query ||
       server.name.toLowerCase().includes(query) ||
+      resolveMcpServerListName(server.name).toLowerCase().includes(query) ||
       server.descriptions?.toLowerCase().includes(query)
     const matchesFilter =
       activeFilter.value === 'all' ||
@@ -735,7 +737,7 @@ defineExpose({
     <DcSheetPanel
       appearance="plain"
       :open="Boolean(selectedDetailServer)"
-      :title="selectedDetailServer?.name ?? ''"
+      :title="selectedDetailServer ? resolveMcpServerListName(selectedDetailServer.name) : ''"
       :description="selectedDetailServer?.descriptions ?? ''"
       @update:open="closeDetail"
     >

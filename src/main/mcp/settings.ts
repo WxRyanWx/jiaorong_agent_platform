@@ -16,6 +16,8 @@ import {
 } from './serverIdentity'
 import {
   getJiaorongDefaultEnabledMcpServerNames,
+  JIAORONG_MCP_BUILTIN_KNOWLEDGE_DEFAULT_OFF_KEY,
+  JIAORONG_MCP_BUILTIN_KNOWLEDGE_SERVER_NAME,
   JIAORONG_MCP_DEFAULT_ADDONS_MIGRATION_KEY,
   JIAORONG_MCP_DEFAULT_ON_ADDONS
 } from '@jiaorong/mcp/defaultEnabledServers'
@@ -648,6 +650,22 @@ export class McpSettings {
       this.markJiaorongDefaultMcpAddonsApplied()
     }
 
+    if (this.shouldApplyJiaorongBuiltinKnowledgeDefaultOff()) {
+      const builtinKnowledge = updatedServers[JIAORONG_MCP_BUILTIN_KNOWLEDGE_SERVER_NAME]
+      if (
+        builtinKnowledge &&
+        !removedBuiltInServers.has(JIAORONG_MCP_BUILTIN_KNOWLEDGE_SERVER_NAME) &&
+        builtinKnowledge.enabled !== false
+      ) {
+        updatedServers[JIAORONG_MCP_BUILTIN_KNOWLEDGE_SERVER_NAME] = {
+          ...builtinKnowledge,
+          enabled: false
+        }
+        hasChanges = true
+      }
+      this.markJiaorongBuiltinKnowledgeDefaultOffApplied()
+    }
+
     // 确保 DEFAULT_MCP_SERVERS 中定义的服务存在
     for (const [serverName, serverConfig] of Object.entries(DEFAULT_MCP_SERVERS.mcpServers)) {
       ensureBuiltInServerExists(serverName, serverConfig)
@@ -756,6 +774,14 @@ export class McpSettings {
 
   markJiaorongDefaultMcpAddonsApplied(): void {
     this.mcpStore.set(JIAORONG_MCP_DEFAULT_ADDONS_MIGRATION_KEY, true)
+  }
+
+  shouldApplyJiaorongBuiltinKnowledgeDefaultOff(): boolean {
+    return this.mcpStore.get(JIAORONG_MCP_BUILTIN_KNOWLEDGE_DEFAULT_OFF_KEY) !== true
+  }
+
+  markJiaorongBuiltinKnowledgeDefaultOffApplied(): void {
+    this.mcpStore.set(JIAORONG_MCP_BUILTIN_KNOWLEDGE_DEFAULT_OFF_KEY, true)
   }
 
   // 设置MCP启用状态

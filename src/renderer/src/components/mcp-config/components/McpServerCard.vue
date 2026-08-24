@@ -17,6 +17,10 @@ import { Separator } from '@shadcn/components/ui/separator'
 import { Spinner } from '@shadcn/components/ui/spinner'
 import type { McpServerAuthStatus } from '@shared/types/mcp'
 import type { McpServerLifecycleStatus } from '@shared/types/core/mcp'
+import {
+  isJiaorongKnowledgeBaseMcpServer,
+  JIAORONG_KB_MCP_SERVER_DISPLAY_NAME
+} from '@jiaorong/knowledgeBase/mcp/knowledgeBaseMcpConstants'
 
 interface ServerInfo {
   name: string
@@ -70,6 +74,13 @@ const needsExpansion = ref(false)
 const getLocalizedServerName = (serverName: string) => {
   return t(`mcp.inmemory.${serverName}.name`, serverName)
 }
+
+const displayServerName = computed(() => {
+  if (isJiaorongKnowledgeBaseMcpServer(props.server.name)) {
+    return JIAORONG_KB_MCP_SERVER_DISPLAY_NAME
+  }
+  return props.isBuiltIn ? getLocalizedServerName(props.server.name) : props.server.name
+})
 
 const getLocalizedServerDesc = (serverName: string, fallbackDesc: string) => {
   return t(`mcp.inmemory.${serverName}.desc`, fallbackDesc)
@@ -185,7 +196,7 @@ watch(watchDescription, () => {
 
           <!-- 名称 -->
           <h3 class="text-sm font-bold truncate flex-1">
-            {{ isBuiltIn ? getLocalizedServerName(server.name) : server.name }}
+            {{ displayServerName }}
           </h3>
         </div>
 

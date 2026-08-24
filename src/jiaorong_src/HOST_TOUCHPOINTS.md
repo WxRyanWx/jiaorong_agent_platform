@@ -136,7 +136,7 @@
 | H131 | `src/cli/{args,format,run,transport,artifacts,brand}.ts` | CLI 用户可见文案 DeepChat→JiaorongAI | cli | 低 | 帮助/用法用 `jiaorong`；协议头 `x-deepchat-*` 与 env 名不改 |
 | H132 | `message.ts` `ChatPage.vue` `chatScrollState.ts` `useListGestures.ts` | 引用 `@jiaorong/chat/messageWindowPolicy`；restore 下限 1；距顶静默预取 | chat | 中 | 数字在私有目录：首屏 10、上滑 20、距顶预取 px。同会话刷新 `max(已有, 10)`。进入预取区立即加载；同一 wheel 手势不取消 history-prepend；加载锁包住补偿空窗 |
 | H133 | `MemorySettings.vue` `MemoryConfigInlinePanel.vue` | 记忆页工具栏提长期记忆开关；藏配置按钮与诊断 Tab | settings | 低 | 开关 `@jiaorong/config/memorySettingsChrome`。`DcButton` 不能 `v-show`（根是 TooltipProvider）；配置按钮用 `v-if` |
-| H134 | `mcp/settings.ts` `conversationSearchServer.ts` | 默认 MCP 清单改引用 `@jiaorong/mcp/defaultEnabledServers`；对话搜索工具中文 title | mcp | 中 | 新装含知识库+对话搜索；已有安装 `jiaorongMcpDefaultAddonsV1` 只打开对话搜索 |
+| H134 | `mcp/settings.ts` `conversationSearchServer.ts` | 默认 MCP 清单改引用 `@jiaorong/mcp/defaultEnabledServers`；对话搜索工具中文 title | mcp | 中 | 新装 Artifacts+对话搜索（不含 builtinKnowledge）；已有安装 `jiaorongMcpDefaultAddonsV1` 只打开对话搜索；`jiaorongMcpBuiltinKnowledgeDefaultOffV1` 关一次内置库 |
 | H135 | `WindowSideBar.vue` `settingsSidebarAdmin.ts` | 主侧栏「插件」仅管理员可见 | admin | 低 | 名单 `MAIN_SIDEBAR_ADMIN_ONLY_ROUTES`；非管理员 `v-if` 不渲染按钮 |
 | H136 | `router/index.ts` `McpIndicator.vue` | 非管理员进 `/plugins*` 回聊天；工具面板不显示打开插件页的齿轮 | admin | 低 | `beforeEnter` 用 `isMainSidebarItemHidden('plugins')`；齿轮同一判断 |
 | H137 | `src/main/desktop/window/index.ts` `tab.ts` `src/main/app/composition.ts` `src/main/deeplink/navigation.ts` `src/main/deeplink/actions.ts` `src/shared/types/desktop.ts` `src/shared/externalUrl.ts` | 扫码 iframe 302 在**每个** WebContents 拦截（Win/Mac/Linux iframe 都不走 OS 协议）；Tab `window.open` 同样拦截；`jiaorongchat:` 允许作为系统协议兜底 | auth | 高 | HTTPS 中间跳转不拦截；iframe 不把 mcp/start 当登录；同 token 2s 内去重（Windows 可能拦截+second-instance 各一次） |
@@ -145,6 +145,7 @@
 | H140 | `config.routes.ts` `settingsRoutes.ts` | 增加 `jiaorong_auth_session` 配置项 | auth | 中 | 扫码 token 跟技能开关一样落到 electron-store，避免 `file://` localStorage 退出丢失 |
 | H141 | `src/renderer/src/stores/mcp.ts` | `jiaorong-knowledge-base` 不当插件服务器过滤 | knowledgeBase | 高 | 对齐主进程 H96；否则 MCP 列表看不到、详情没有 URL |
 | H142 | `McpServers.vue` | HTTP 详情显示 baseUrl；内置库编辑无设置路由时 `openSettings` | mcp | 中 | 主窗口 `/plugins/mcp` 没有 `settings-knowledge-base` |
+| H143 | `McpServerCard.vue` `McpServers.vue` | `jiaorong-knowledge-base` 列表名显示「交融知识库」 | mcp | 低 | 协议 id 不变；`resolveMcpServerListName` |
 
 ## 下次合上游：值得抽到 `jiaorong_src` 的宿主文件
 
