@@ -1,6 +1,6 @@
 import { resolveAuthApiOrigin } from '../auth/config'
 
-/** 与 auth origin 同源：`{origin}/api/mcp/knowledge-base` */
+/** 与 auth origin 同源：`{origin}/api/knowledge-base/mcp` */
 export function resolveKnowledgeBaseMcpUrl(): string {
-  return `${resolveAuthApiOrigin()}/api/mcp/knowledge-base`
+  return `${resolveAuthApiOrigin()}/api/knowledge-base/mcp`
 }

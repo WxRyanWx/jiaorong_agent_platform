@@ -424,7 +424,7 @@
         >
           <template #generation-settings>
             <Collapsible
-              v-if="!isAcpAgent && generationSettingsModel && isSettingsSidebarAdminUser"
+              v-if="!isAcpAgent && generationSettingsModel"
               v-model:open="isGenerationSettingsExpanded"
               class="border-b"
             >
@@ -441,7 +441,7 @@
                   <span class="min-w-0 flex-1">
                     <span class="block text-xs font-medium">{{ t('settings.model.title') }}</span>
                     <span class="block truncate text-[11px] text-muted-foreground">
-                    {{ generationSettingsModelText }}
+                      {{ generationSettingsModelText }}
                     </span>
                   </span>
                   <Icon
@@ -2053,7 +2053,7 @@ const generationSettingsModelText = computed(() => {
   }
   const providerName = providerNameMap.value.get(selection.providerId) ?? selection.providerId
   // return `${providerName} / ${selection.modelId}`
-   return `${providerName} `
+  return `${providerName} `
 })
 
 const isGenerationSettingsReady = computed(() => {

@@ -111,7 +111,7 @@
 | H106 | `src/main/skill/index.ts` | 配置里的 `~/.deepchat/skills` 修到 `~/.jiaorongchat/skills` | skills | 中 | 按 master 调用 `repairLegacySkillsPath` + `getDefaultSkillsPath`；便携路径修复仍走 `repairPortableDefaultSkillsPath` |
 | H107 | `src/main/skill/settings.ts` | `getPath()` 按 master `getSkillsPath` 修复并写回 `skillsPath` | skills | 中 | 仅 `repairLegacySkillsPath`；工具层 `skillSettings.getPath()` 失败回退不再读到 `~/.deepchat/skills`；便携修复仍在 `SkillService.resolveSkillsDir` |
 | H108 | `src/main/agent/shared/storage/sessionPaths.ts` | 会话根目录走 `appIdentity.getSessionsRoot()` | brand | 中 | 实体 `@jiaorong/brand/appIdentity`；访问会话路径时 `migrateLegacyAppHomeDir`，`~/.deepchat` 整目录迁到 `~/.jiaorongchat` |
-| H109 | `NewThreadPage.vue` `modelIconRegistry.ts` `ChatStatusBar.vue` | 项目选择器外边距；Jiaorong 模型图标；非管理员隐藏模型参数 | admin+brand | 中 | `mb-6` 包在 Dropdown 外；`jiaorong` / `openai-completions` → `duihua.png`；触发器图标 `shrink-0`；高级配置「模型设置」仅管理员 |
+| H109 | `NewThreadPage.vue` `modelIconRegistry.ts` `ChatStatusBar.vue` | 项目选择器外边距；Jiaorong 模型图标；非管理员隐藏底栏模型选择 | admin+brand | 中 | `mb-6` 包在 Dropdown 外；`jiaorong` / `openai-completions` → `duihua.png`；触发器图标 `shrink-0`；底栏模型选择仍 `speLabel`；高级配置「模型设置」对所有登录用户可见 |
 | H110 | `NewThreadPage.vue` `ChatInputBox.vue` | 技能中心「创建技能」预填文案且带入 `skill-creator` 芯片 | skills | 中 | 芯片在首行，文案换行在下；芯片插入不可把 prompt 冲成空 |
 | H111 | `ChatInputBox.vue` `KnowledgeBaseSelectionChips.vue/.less` | 输入框知识库回显区恢复 max-height + 超出滚动 | knowledgeBase | 低 | 对齐 master `.chat-input-attachments`：`max-height: min(11.25rem, 25vh)`、`overflow-y: auto`；无选中不占位 |
 | H112 | `ModelIcon.vue` | 模型选择 logo 按 master 直接画在 img 上 | brand | 中 | 不要 skeleton/`opacity-0` 等 @load；不要 span 包百分比 img；`w-3.5 h-3.5` 打在 img 上 |

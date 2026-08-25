@@ -397,7 +397,7 @@ describe('useMcpStore', () => {
           disable: false,
           type: 'http',
           enabled: true,
-          baseUrl: 'https://c4ai.ccccltd.cn/api/mcp/knowledge-base',
+          baseUrl: 'https://c4ai.ccccltd.cn/api/knowledge-base/mcp',
           source: 'plugin',
           ownerPluginId: 'jiaorong'
         }
@@ -408,7 +408,7 @@ describe('useMcpStore', () => {
 
     expect(store.serverList.map((server) => server.name)).toEqual(['jiaorong-knowledge-base'])
     expect(store.pluginServerList).toEqual([])
-    expect(store.serverList[0]?.baseUrl).toBe('https://c4ai.ccccltd.cn/api/mcp/knowledge-base')
+    expect(store.serverList[0]?.baseUrl).toBe('https://c4ai.ccccltd.cn/api/knowledge-base/mcp')
   })
 
   it('sorts enabled servers before disabled servers', async () => {

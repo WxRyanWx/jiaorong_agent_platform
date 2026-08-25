@@ -1166,7 +1166,7 @@ describe('ChatStatusBar model and session panels', () => {
     expect(wrapper.get('[data-testid="orchestration-control"]').element.closest('.speLabel')).toBe(
       null
     )
-    expect(wrapper.find('[data-testid="generation-settings-trigger"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="generation-settings-trigger"]').exists()).toBe(true)
   })
 
   it('renders the auto approve permission mode for active sessions', async () => {

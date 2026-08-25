@@ -6,7 +6,7 @@ const addMcpServer = vi.hoisted(() => vi.fn())
 const updateMcpServer = vi.hoisted(() => vi.fn())
 const startServer = vi.hoisted(() => vi.fn())
 const resolveKnowledgeBaseMcpUrl = vi.hoisted(() =>
-  vi.fn(() => 'https://c4ai.ccccltd.cn/api/mcp/knowledge-base')
+  vi.fn(() => 'https://c4ai.ccccltd.cn/api/knowledge-base/mcp')
 )
 
 vi.mock('@api/McpClient', () => ({
@@ -50,7 +50,7 @@ describe('ensureJiaorongKnowledgeBaseMcpServer', () => {
       [JIAORONG_KB_MCP_SERVER_NAME]: {
         type: 'http',
         enabled: true,
-        baseUrl: 'http://106.63.7.106:10001/api/mcp/knowledge-base',
+        baseUrl: 'http://106.63.7.106:10001/api/knowledge-base/mcp',
         customHeaders: {},
         descriptions: 'old'
       }
@@ -61,7 +61,7 @@ describe('ensureJiaorongKnowledgeBaseMcpServer', () => {
     expect(updateMcpServer).toHaveBeenCalledWith(
       JIAORONG_KB_MCP_SERVER_NAME,
       expect.objectContaining({
-        baseUrl: 'https://c4ai.ccccltd.cn/api/mcp/knowledge-base'
+        baseUrl: 'https://c4ai.ccccltd.cn/api/knowledge-base/mcp'
       })
     )
     expect(startServer).not.toHaveBeenCalled()
