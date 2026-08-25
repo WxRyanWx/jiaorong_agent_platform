@@ -63,6 +63,27 @@ function isSkillMdFileName(name: string): boolean {
   return name.toLowerCase() === 'skill.md'
 }
 
+/** 宿主扫盘只认精确文件名 SKILL.md；zip/文件夹里的 skill.md 必须改名，否则重启后列表消失。 */
+function canonicalizeSkillMdZipKey(key: string): string {
+  const parts = key.replace(/\\/g, '/').split('/')
+  parts[parts.length - 1] = 'SKILL.md'
+  return parts.join('/')
+}
+
+function replaceZipSkillMdEntry(
+  entries: Record<string, Uint8Array>,
+  skillMdKey: string,
+  content: Uint8Array
+): Record<string, Uint8Array> {
+  const next = { ...entries }
+  const canonical = canonicalizeSkillMdZipKey(skillMdKey)
+  if (skillMdKey !== canonical) {
+    delete next[skillMdKey]
+  }
+  next[canonical] = content
+  return next
+}
+
 export function isGenericSkillParentDirName(name: string): boolean {
   return GENERIC_PARENT_DIR_NAMES.has(name.trim().toLowerCase())
 }
@@ -694,7 +715,9 @@ async function writePatchedFolderZip(
 
     const entries: Record<string, Uint8Array> = {}
     for (const file of files) {
-      const zipKey = `${rootName}/${file.zipKey}`
+      const zipKey = file.isSkillMd
+        ? canonicalizeSkillMdZipKey(`${rootName}/${file.zipKey}`)
+        : `${rootName}/${file.zipKey}`
       if (file.isSkillMd) {
         entries[zipKey] = strToU8(ensureSkillMarkdown(skillMdContent, rootName))
       } else {
@@ -816,24 +839,11 @@ async function installNormalizedZipBytes(params: {
     patched = applyPreferredDisplayName(original, preferred, folderName)
   }
 
-  if (patched === original) {
-    // 已是标准格式：重打包为统一 / 分隔的 zip，避免 Windows \ 条目干扰宿主解压
-    const tempZip = await params.writeTemp({
-      name: `${folderName}.zip`,
-      content: zipSync(entries)
-    })
-    return params.installFromZip(tempZip, { overwrite: params.overwrite })
-  }
-
-  const next: Record<string, Uint8Array> = { ...entries }
-  // 就地替换 SKILL.md，勿把根级 md 单独挪进子目录——否则同层 docs/scripts 会留在 zip 根，
-  // 宿主 resolveSkillDirFromExtracted 只装含 SKILL.md 的子目录，附属文件全部丢失。
-  next[skillMdKey] = strToU8(patched)
-
-  const zipped = zipSync(next)
+  const next = replaceZipSkillMdEntry(entries, skillMdKey, strToU8(patched))
+  // 条目改名为精确 SKILL.md（兼容 zip 内 skill.md），并保留同层 docs/scripts。
   const tempZip = await params.writeTemp({
     name: `${folderName}.zip`,
-    content: zipped
+    content: zipSync(next)
   })
   return params.installFromZip(tempZip, { overwrite: params.overwrite })
 }

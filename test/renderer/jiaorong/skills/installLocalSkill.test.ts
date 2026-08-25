@@ -251,6 +251,45 @@ description: 面向政企投标和商务办公场景的标书制作全能助手�
     expect(peekSkillDisplayName(out)).toBe('AI标书助手')
   })
 
+  it('renames zip skill.md to SKILL.md so restart discovery can find it', async () => {
+    const { zipSync, unzipSync, strToU8 } = await import('fflate')
+    const { installSkillFromZipBytesCompat } =
+      await import('../../../../src/jiaorong_src/skills/lib/installLocalSkill')
+
+    const zipBytes = zipSync({
+      'skill.md': strToU8(`# 知识库Mcp tools工具文档
+
+**Description:** 根据类型查询知识库列表。
+`)
+    })
+
+    let captured: Uint8Array | null = null
+    const result = await installSkillFromZipBytesCompat({
+      zipBytes,
+      fallbackName: 'skill',
+      writeTemp: async ({ content }) => {
+        if (content instanceof Uint8Array) {
+          captured = content
+        } else if (Buffer.isBuffer(content)) {
+          captured = new Uint8Array(content)
+        } else if (content instanceof ArrayBuffer) {
+          captured = new Uint8Array(content)
+        } else {
+          throw new Error('unexpected writeTemp content')
+        }
+        return '/tmp/skill.zip'
+      },
+      installFromZip: async () => ({ success: true, skillName: 'mcp-tools' }),
+      installFromFolder: async () => ({ success: false, error: 'unused' })
+    })
+
+    expect(result.success).toBe(true)
+    expect(captured).toBeTruthy()
+    const keys = Object.keys(unzipSync(captured!))
+    expect(keys).toContain('SKILL.md')
+    expect(keys).not.toContain('skill.md')
+  })
+
   it('keeps docs/scripts siblings when market displayName patches flat zip', async () => {
     const { zipSync, unzipSync, strToU8, strFromU8 } = await import('fflate')
     const { installSkillFromZipBytesCompat } =
