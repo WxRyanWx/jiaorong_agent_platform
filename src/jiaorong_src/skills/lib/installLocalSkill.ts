@@ -18,7 +18,7 @@ import { createWorkspaceClient } from '@api/WorkspaceClient'
 
 const SKILL_NAME_PATTERN = /^[a-z0-9][a-z0-9._-]*$/
 
-/** 常见落盘目录名：不宜当作技能技术 name */
+/** 常见落盘目录名 / 占位文件名：不宜当作技能技术 name */
 const GENERIC_PARENT_DIR_NAMES = new Set([
   'downloads',
   'download',
@@ -33,7 +33,9 @@ const GENERIC_PARENT_DIR_NAMES = new Set([
   'music',
   'videos',
   'images',
-  'screenshots'
+  'screenshots',
+  // Finder 把 skill.md 打成 skill.zip 时，压缩包名不能当技术 id
+  'skill'
 ])
 
 export function normalizeLocalPath(input: string): string {
@@ -101,7 +103,13 @@ export function stableAsciiSkillId(seed: string): string {
 /** sanitize 后过短、纯数字、或中文被剥成碎片时视为弱 id */
 function isWeakSanitizedSkillName(original: string, sanitized: string): boolean {
   if (!sanitized || !SKILL_NAME_PATTERN.test(sanitized)) return true
-  if (sanitized === 'skill-import' || sanitized.startsWith('skill-import')) return true
+  if (
+    sanitized === 'skill' ||
+    sanitized === 'skill-import' ||
+    sanitized.startsWith('skill-import')
+  ) {
+    return true
+  }
   if (sanitized.length < 3 || /^\d+$/.test(sanitized)) return true
   // 原文含非 ascii，sanitize 后只剩短碎片（如「…标准123」→ 123）
   if (/[^\x00-\x7F]/.test(original) && sanitized.length < 8) return true
@@ -792,16 +800,14 @@ async function installNormalizedZipBytes(params: {
     }
   }
 
-  const folderFromPath = skillMdKey.includes('/')
+  const nestedFolder = skillMdKey.includes('/')
     ? skillMdKey.split('/').slice(0, -1).filter(Boolean).pop()
-    : params.fallbackName
+    : undefined
   const original = strFromU8(entries[skillMdKey])
   const preferred = params.preferredDisplayName?.trim() || ''
-  // 与文件夹上传共用 deriveTechnicalSkillName，避免同内容 zip/文件夹装成两个技能
-  const folderName = deriveTechnicalSkillName(
-    original,
-    folderFromPath || params.fallbackName || 'skill'
-  )
+  // 与文件夹上传共用 deriveTechnicalSkillName。
+  // 根级 SKILL.md（把 skill.md 打成 skill.zip）的 fallback 是占位名 skill，derive 会忽略。
+  const folderName = deriveTechnicalSkillName(original, nestedFolder || params.fallbackName)
 
   let patched = original
   if (params.forceNormalize || needsSkillMarkdownNormalize(original)) {

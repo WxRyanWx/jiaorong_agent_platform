@@ -94,6 +94,22 @@ description: |
     expect(deriveTechnicalSkillName(raw, 'my-bill-skill')).toBe('my-bill-skill')
   })
 
+  it('does not use skill.zip / skill.md as tech name so zip matches md upload', () => {
+    const raw = `# 知识库Mcp tools工具文档
+
+**Description:** 根据类型查询知识库列表，支持按名称模糊搜索。
+
+## 1.查询知识库
+`
+    expect(sanitizeSkillName('知识库Mcp tools工具文档')).toBe('mcp-tools')
+    expect(isGenericSkillParentDirName('skill')).toBe(true)
+    expect(deriveTechnicalSkillName(raw)).toBe('mcp-tools')
+    expect(deriveTechnicalSkillName(raw, 'skill')).toBe('mcp-tools')
+    expect(ensureSkillMarkdown(raw, deriveTechnicalSkillName(raw, 'skill'))).toContain(
+      'name: mcp-tools'
+    )
+  })
+
   it('unifies chinese folder and zip path hint when frontmatter name needs normalize', () => {
     const raw = `---
 name: Agnes_duomotai
