@@ -5,7 +5,7 @@ import {
   resolveLegacySkillName,
   resolveLegacyToolName
 } from '@jiaorong/brand/legacyBrandAliases'
-import { resolveStaticToolDisplayName } from './toolDisplayNames'
+import { resolveStaticToolDescription, resolveStaticToolDisplayName } from './toolDisplayNames'
 
 export type ToolDisplaySource = {
   name: string
@@ -40,7 +40,7 @@ export function resolveToolDisplay(tool: ToolDisplaySource) {
       : undefined
   return {
     label: runtimeLabel || staticName || displayName || tool.name,
-    description: tool.description ?? ''
+    description: resolveStaticToolDescription(tool.name) || tool.description || ''
   }
 }
 

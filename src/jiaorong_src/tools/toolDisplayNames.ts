@@ -1,4 +1,7 @@
-import { JIAORONG_KB_MCP_RETRIEVE_TOOL } from '../knowledgeBase/mcp/knowledgeBaseMcpConstants'
+import {
+  JIAORONG_KB_TOOL_DESCRIPTIONS,
+  JIAORONG_KB_TOOL_TITLES
+} from '../knowledgeBase/mcp/knowledgeBaseMcpConstants'
 
 /**
  * 斜杠菜单 / 工具气泡的中文名 fallback。
@@ -6,7 +9,7 @@ import { JIAORONG_KB_MCP_RETRIEVE_TOOL } from '../knowledgeBase/mcp/knowledgeBas
  * 函数 name 仍保持英文，只影响 UI。
  */
 export const STATIC_TOOL_DISPLAY_NAMES: Record<string, string> = {
-  [JIAORONG_KB_MCP_RETRIEVE_TOOL]: '知识库检索',
+  ...JIAORONG_KB_TOOL_TITLES,
   search_conversations: '搜索对话',
   search_messages: '搜索消息',
   get_conversation_history: '获取对话历史',
@@ -20,22 +23,33 @@ export const STATIC_TOOL_DISPLAY_NAMES: Record<string, string> = {
   reminders: '提醒'
 }
 
-export function resolveStaticToolDisplayName(name: string | undefined): string | undefined {
+function resolveStaticLookup(
+  name: string | undefined,
+  table: Record<string, string>
+): string | undefined {
   const trimmed = name?.trim()
   if (!trimmed) {
     return undefined
   }
 
-  const exact = STATIC_TOOL_DISPLAY_NAMES[trimmed]
+  const exact = table[trimmed]
   if (exact) {
     return exact
   }
 
-  for (const [id, label] of Object.entries(STATIC_TOOL_DISPLAY_NAMES)) {
+  for (const [id, label] of Object.entries(table)) {
     if (trimmed.endsWith(`_${id}`)) {
       return label
     }
   }
 
   return undefined
+}
+
+export function resolveStaticToolDisplayName(name: string | undefined): string | undefined {
+  return resolveStaticLookup(name, STATIC_TOOL_DISPLAY_NAMES)
+}
+
+export function resolveStaticToolDescription(name: string | undefined): string | undefined {
+  return resolveStaticLookup(name, JIAORONG_KB_TOOL_DESCRIPTIONS)
 }

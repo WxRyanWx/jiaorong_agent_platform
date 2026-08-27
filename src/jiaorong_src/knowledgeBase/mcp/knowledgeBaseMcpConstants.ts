@@ -3,6 +3,31 @@ export const JIAORONG_KB_MCP_SERVER_NAME = 'jiaorong-knowledge-base'
 /** MCP 列表展示名；协议 / 工具 id 仍用 JIAORONG_KB_MCP_SERVER_NAME */
 export const JIAORONG_KB_MCP_SERVER_DISPLAY_NAME = '交融知识库'
 export const JIAORONG_KB_MCP_RETRIEVE_TOOL = 'knowledge_base_retrieve'
+export const JIAORONG_KB_MCP_QUERY_TOOL = 'knowledge_base_query'
+
+export const JIAORONG_KB_TOOL_TITLES: Record<string, string> = {
+  [JIAORONG_KB_MCP_RETRIEVE_TOOL]: '知识库检索',
+  [JIAORONG_KB_MCP_QUERY_TOOL]: '知识库查询'
+}
+
+export const JIAORONG_KB_TOOL_DESCRIPTIONS: Record<string, string> = {
+  [JIAORONG_KB_MCP_QUERY_TOOL]: '查询当前用户有哪些知识库'
+}
+
+/** 远端 HTTP MCP 往往不带中文 title/description；仅此 server 叠本地文案。 */
+export function overlayJiaorongKbToolPresentation(
+  serverName: string,
+  toolName: string,
+  current: { title: string; description: string }
+): { title: string; description: string } {
+  if (!isJiaorongKnowledgeBaseMcpServer(serverName)) {
+    return current
+  }
+  return {
+    title: JIAORONG_KB_TOOL_TITLES[toolName] || current.title,
+    description: JIAORONG_KB_TOOL_DESCRIPTIONS[toolName] ?? current.description
+  }
+}
 
 export function resolveMcpServerListName(serverName: string): string {
   return isJiaorongKnowledgeBaseMcpServer(serverName)

@@ -6,6 +6,11 @@ import { McpPreDispatchError } from '@/mcp/errors'
 import { validateAndCloneMcpTool } from '@/mcp/schemaValidation'
 import type { PluginRuntimeStartReason } from '@/plugin/runtimeSupervisor'
 import * as toolPolicyStore from '@/plugin/toolPolicyStore'
+import {
+  JIAORONG_KB_MCP_QUERY_TOOL,
+  JIAORONG_KB_MCP_RETRIEVE_TOOL,
+  JIAORONG_KB_MCP_SERVER_NAME
+} from '@jiaorong/knowledgeBase/mcp/knowledgeBaseMcpConstants'
 
 const TOOL_POLICY_PLUGIN_ID = 'com.deepchat.plugins.permission-test'
 const { registerPluginToolPolicy, unregisterPluginToolPolicies } = toolPolicyStore
@@ -547,6 +552,69 @@ describe('ToolManager', () => {
       content: expect.stringContaining('not declared by its closed plugin policy')
     })
     expect(client.callTool).not.toHaveBeenCalled()
+  })
+
+  it('does not apply closed plugin policy to jiaorong-knowledge-base', async () => {
+    const serverName = JIAORONG_KB_MCP_SERVER_NAME
+    const client = createClient(serverName, [
+      {
+        name: JIAORONG_KB_MCP_RETRIEVE_TOOL,
+        description: 'Retrieve from knowledge bases',
+        inputSchema: { type: 'object', properties: {}, required: [] }
+      },
+      {
+        name: JIAORONG_KB_MCP_QUERY_TOOL,
+        description: 'Query knowledge bases',
+        inputSchema: { type: 'object', properties: {}, required: [] }
+      }
+    ])
+    registerPluginToolPolicy({
+      pluginId: TOOL_POLICY_PLUGIN_ID,
+      serverId: serverName,
+      tools: { [JIAORONG_KB_MCP_RETRIEVE_TOOL]: 'allow' },
+      enabled: true
+    })
+    const manager = createToolManager(
+      createProviderSettings(serverName),
+      createServerManager([client])
+    )
+
+    const result = await manager.callTool({
+      id: 'kb-query',
+      type: 'function',
+      function: { name: JIAORONG_KB_MCP_QUERY_TOOL, arguments: '{}' },
+      conversationId: 'kb-conversation'
+    })
+
+    expect(result.isError).toBe(false)
+    expect(result.content).toBe('ok')
+    expect(client.callTool).toHaveBeenCalledWith(
+      JIAORONG_KB_MCP_QUERY_TOOL,
+      {},
+      expect.objectContaining({
+        toolDefinition: expect.objectContaining({ name: JIAORONG_KB_MCP_QUERY_TOOL })
+      })
+    )
+  })
+
+  it('overlays Chinese title and description for knowledge_base_query', async () => {
+    const client = createClient(JIAORONG_KB_MCP_SERVER_NAME, [
+      {
+        name: JIAORONG_KB_MCP_QUERY_TOOL,
+        description: 'Remote English description',
+        inputSchema: { type: 'object', properties: {}, required: [] }
+      }
+    ])
+    const manager = createToolManager(
+      createProviderSettings(JIAORONG_KB_MCP_SERVER_NAME),
+      createServerManager([client])
+    )
+
+    const definitions = await manager.getAllToolDefinitions()
+    const query = definitions.find((tool) => tool.function.name === JIAORONG_KB_MCP_QUERY_TOOL)
+
+    expect(query?.function.displayName).toBe('知识库查询')
+    expect(query?.function.description).toBe('查询当前用户有哪些知识库')
   })
 
   it('does not advertise explicitly denied plugin catalog tools', async () => {

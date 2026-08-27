@@ -67,6 +67,15 @@ describe('slashMenuDisplayText', () => {
     ).toBe('日历')
 
     expect(getDisplayLabel('knowledge_base_retrieve')).toBe('知识库检索')
+    expect(
+      resolveToolDisplay({
+        name: 'knowledge_base_query',
+        description: 'Remote English description'
+      })
+    ).toEqual({
+      label: '知识库查询',
+      description: '查询当前用户有哪些知识库'
+    })
   })
 
   it('prefers runtime displayName over the static table', () => {

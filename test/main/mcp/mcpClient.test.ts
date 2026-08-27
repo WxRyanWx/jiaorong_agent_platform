@@ -10,6 +10,7 @@ import {
   ProtocolErrorCode,
   SdkErrorCode
 } from '@modelcontextprotocol/client'
+import { JIAORONG_KB_MCP_SERVER_NAME } from '../../../src/jiaorong_src/knowledgeBase/mcp/knowledgeBaseMcpConstants'
 
 const fsExistsSyncMock = vi.hoisted(() => vi.fn())
 const terminateProcessTreeMock = vi.hoisted(() => vi.fn().mockResolvedValue(true))
@@ -572,6 +573,31 @@ describe('McpClient Runtime Command Processing Tests', () => {
         cleanupError
       )
       consoleErrorSpy.mockRestore()
+    })
+  })
+
+  describe('Knowledge base Spring AI compatibility', () => {
+    it('omits elicitation form applyDefaults only for jiaorong-knowledge-base', async () => {
+      const knowledgeBaseClient = createMcpClient(JIAORONG_KB_MCP_SERVER_NAME, {
+        type: 'http',
+        baseUrl: 'https://c4ai.ccccltd.cn/api/knowledge-base/mcp'
+      })
+      await knowledgeBaseClient.connect()
+
+      const knowledgeBaseOptions = vi.mocked(Client).mock.calls.at(-1)?.[1]
+      expect(knowledgeBaseOptions?.capabilities?.elicitation?.form).toEqual({})
+      expect(knowledgeBaseOptions?.capabilities?.elicitation?.form).not.toHaveProperty(
+        'applyDefaults'
+      )
+
+      const otherClient = createMcpClient('other-mcp', {
+        type: 'http',
+        baseUrl: 'https://example.com/mcp'
+      })
+      await otherClient.connect()
+
+      const otherOptions = vi.mocked(Client).mock.calls.at(-1)?.[1]
+      expect(otherOptions?.capabilities?.elicitation?.form).toEqual({ applyDefaults: true })
     })
   })
 

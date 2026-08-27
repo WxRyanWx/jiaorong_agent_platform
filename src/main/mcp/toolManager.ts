@@ -39,6 +39,10 @@ import { resolveCachedImageDataUrl as resolveCachedImageDataUrlFromDisk } from '
 import { findJsonValueDifference, type JsonValueDifference } from './schemaValidation'
 import { types as nodeTypes } from 'node:util'
 import { McpPreDispatchError, type McpPreDispatchErrorCode } from './errors'
+import {
+  isJiaorongKnowledgeBaseMcpServer,
+  overlayJiaorongKbToolPresentation
+} from '@jiaorong/knowledgeBase/mcp/knowledgeBaseMcpConstants'
 
 const isAbortError = (error: unknown): boolean =>
   error instanceof Error && (error.name === 'AbortError' || error.name === 'CanceledError')
@@ -533,12 +537,20 @@ export class ToolManager {
             continue
           }
           let finalName = tool.name
-          let finalDescription = tool.description ?? ''
           const originalName = tool.name
+          const overlay = overlayJiaorongKbToolPresentation(source.serverName, originalName, {
+            title:
+              (typeof tool.title === 'string' && tool.title.trim()) ||
+              (typeof tool.annotations?.title === 'string' &&
+                String(tool.annotations.title).trim()) ||
+              '',
+            description: tool.description ?? ''
+          })
+          let finalDescription = overlay.description
 
           if (renamesForThisServer.has(originalName)) {
             finalName = `${source.serverName}_${originalName}`
-            finalDescription = `[${source.serverName}] ${tool.description ?? ''}`
+            finalDescription = `[${source.serverName}] ${overlay.description}`
           }
 
           const namePattern = /^[a-zA-Z0-9_-]+$/
@@ -562,11 +574,7 @@ export class ToolManager {
           )
 
           const serverConfig = serverConfigs[source.serverName]
-          const displayNameCandidate =
-            (typeof tool.title === 'string' && tool.title.trim()) ||
-            (typeof tool.annotations?.title === 'string' &&
-              String(tool.annotations.title).trim()) ||
-            ''
+          const displayNameCandidate = overlay.title
           const definition: MCPToolDefinition = {
             // Server annotations are untrusted hints and must not weaken local execution policy.
             execution: TOOL_EXECUTION.write,
@@ -1012,7 +1020,11 @@ export class ToolManager {
           access?.throwPreDispatchErrors
         )
       }
-      const pluginPolicy = resolvePluginToolPolicy(toolServerName, originalName)
+      // 知识库 MCP 是假插件（source/plugin，无真实 plugin.json / toolPolicies）。
+      // 远端新增工具会被 closed policy 拒掉；启停已按 server 名当普通 HTTP MCP。
+      const pluginPolicy = isJiaorongKnowledgeBaseMcpServer(toolServerName)
+        ? { managed: false as const, decision: null }
+        : resolvePluginToolPolicy(toolServerName, originalName)
       if (
         pluginPolicy.managed &&
         pluginPolicy.decision !== 'allow' &&

@@ -6,10 +6,12 @@ import {
 import {
   JIAORONG_KB_CONTEXT_MIME,
   JIAORONG_KB_CONTEXT_PATH,
+  JIAORONG_KB_MCP_QUERY_TOOL,
   JIAORONG_KB_MCP_SERVER_DISPLAY_NAME,
   JIAORONG_KB_MCP_SERVER_NAME,
   isJiaorongKnowledgeBaseContextAttachment,
   isJiaorongKnowledgeBaseMcpServer,
+  overlayJiaorongKbToolPresentation,
   resolveMcpServerListName
 } from '@jiaorong/knowledgeBase/mcp/knowledgeBaseMcpConstants'
 
@@ -24,6 +26,27 @@ describe('knowledgeBaseMcpInstructions', () => {
     )
     expect(resolveMcpServerListName('Artifacts')).toBe('Artifacts')
     expect(JIAORONG_KB_MCP_SERVER_DISPLAY_NAME).toBe('交融知识库')
+  })
+
+  it('overlays Chinese title and description only for knowledge-base tools', () => {
+    expect(
+      overlayJiaorongKbToolPresentation(JIAORONG_KB_MCP_SERVER_NAME, JIAORONG_KB_MCP_QUERY_TOOL, {
+        title: 'knowledge_base_query',
+        description: 'Remote English description'
+      })
+    ).toEqual({
+      title: '知识库查询',
+      description: '查询当前用户有哪些知识库'
+    })
+    expect(
+      overlayJiaorongKbToolPresentation('brave', JIAORONG_KB_MCP_QUERY_TOOL, {
+        title: 'keep',
+        description: 'keep-desc'
+      })
+    ).toEqual({
+      title: 'keep',
+      description: 'keep-desc'
+    })
   })
 
   it('identifies the synthetic knowledge-base context attachment', () => {

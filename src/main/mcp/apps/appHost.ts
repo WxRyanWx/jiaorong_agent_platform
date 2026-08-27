@@ -29,6 +29,7 @@ import type {
 import { MCP_APP_SCHEME } from './sandboxRegistry'
 import { assertBoundedMcpJson } from '../schemaValidation'
 import { resolvePluginToolPolicy } from '@/plugin/toolPolicyStore'
+import { isJiaorongKnowledgeBaseMcpServer } from '@jiaorong/knowledgeBase/mcp/knowledgeBaseMcpConstants'
 
 const MCP_APP_RESOURCE_MIME_TYPE = 'text/html;profile=mcp-app'
 const MAX_APP_HTML_BYTES = 2 * 1024 * 1024
@@ -700,6 +701,9 @@ export class McpAppHost implements McpAppHostPort {
   }
 
   private isToolAllowedByPluginPolicy(serverName: string, toolName: string): boolean {
+    if (isJiaorongKnowledgeBaseMcpServer(serverName)) {
+      return true
+    }
     const policy = resolvePluginToolPolicy(serverName, toolName)
     return !policy.managed || policy.decision === 'allow' || policy.decision === 'ask'
   }

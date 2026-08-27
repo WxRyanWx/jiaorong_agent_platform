@@ -72,6 +72,7 @@ import {
   AUTH_EXTENSION_CLIENT_CREDENTIALS,
   MCP_CLIENT_CREDENTIALS_DRAFT_REVISION
 } from './mcpOAuthManager'
+import { isJiaorongKnowledgeBaseMcpServer } from '@jiaorong/knowledgeBase/mcp/knowledgeBaseMcpConstants'
 
 const ALLOWED_SAMPLING_IMAGE_MIME_TYPES = new Set([
   'image/png',
@@ -677,7 +678,10 @@ export class McpClient {
           capabilities: {
             sampling: {},
             elicitation: {
-              form: { applyDefaults: true },
+              // Spring AI Jackson 不认识 applyDefaults；仅知识库 MCP 省略，其它 MCP 保持新规范。
+              form: isJiaorongKnowledgeBaseMcpServer(this.serverName)
+                ? {}
+                : { applyDefaults: true },
               url: {}
             },
             roots: {},
