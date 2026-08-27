@@ -185,9 +185,9 @@ export const useSpotlightStore = defineStore('spotlight', () => {
       )
     }))
 
-  const buildActionItems = (): SpotlightItem[] =>
+  const buildActionItems = (options?: { hasQuery?: boolean }): SpotlightItem[] =>
     actionItems
-      .filter((action) => !isSettingsSpotlightItemHidden(action.routeName))
+      .filter((action) => !isSettingsSpotlightItemHidden(action.routeName, options))
       .map((action) => ({
         id: `action:${action.id}`,
         kind: 'action' as const,
@@ -238,7 +238,7 @@ export const useSpotlightStore = defineStore('spotlight', () => {
   }
 
   const buildProviderMatches = (normalizedQuery: string): SpotlightItem[] => {
-    if (isSettingsSpotlightItemHidden('settings-provider')) {
+    if (isSettingsSpotlightItemHidden('settings-provider', { hasQuery: true })) {
       return []
     }
     return providerStore.sortedProviders
@@ -272,7 +272,7 @@ export const useSpotlightStore = defineStore('spotlight', () => {
       (item) =>
         item.routeName !== 'settings-provider' &&
         !item.hiddenInSidebar &&
-        !isSettingsSpotlightItemHidden(item.routeName)
+        !isSettingsSpotlightItemHidden(item.routeName, { hasQuery: true })
     )
       .map((item) => ({
         id: `setting:${item.routeName}`,
@@ -294,7 +294,7 @@ export const useSpotlightStore = defineStore('spotlight', () => {
       .filter((item) => item.score > 0)
 
   const buildActionMatches = (normalizedQuery: string): SpotlightItem[] =>
-    buildActionItems()
+    buildActionItems({ hasQuery: true })
       .map((item) => ({
         ...item,
         score: scoreTextMatch(normalizedQuery, item.titleKey, ...(item.keywords ?? []))

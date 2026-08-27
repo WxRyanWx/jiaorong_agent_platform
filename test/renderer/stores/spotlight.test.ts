@@ -99,11 +99,14 @@ const setupStore = async (options?: {
     )
     return {
       ...actual,
-      isSettingsSpotlightItemHidden: (routeName?: string | null) => {
+      isSettingsSpotlightItemHidden: (
+        routeName?: string | null,
+        hideOptions?: { hasQuery?: boolean }
+      ) => {
         if (options?.hideAdminSpotlightRoutes) {
-          return actual.isSettingsSpotlightItemHidden(routeName)
+          return actual.isSettingsSpotlightItemHidden(routeName, hideOptions)
         }
-        if (typeof routeName !== 'string') {
+        if (typeof routeName !== 'string' || hideOptions?.hasQuery) {
           return false
         }
         return Boolean(options?.hideProviderSettings) && routeName === 'settings-provider'
@@ -194,7 +197,7 @@ describe('spotlightStore new-chat action', () => {
     )
   })
 
-  it('hides provider settings from non-admin spotlight results', async () => {
+  it('hides provider settings from non-admin default spotlight, then shows them after search', async () => {
     const { store } = await setupStore({ hideProviderSettings: true })
 
     store.setOpen(true)
@@ -216,23 +219,16 @@ describe('spotlightStore new-chat action', () => {
 
     store.setQuery('openai')
     await flushPromises()
-    expect(store.results.value).not.toEqual(
+    expect(store.results.value).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           routeName: 'settings-provider'
         })
       ])
     )
-    expect(store.results.value).not.toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          id: 'action:open-providers'
-        })
-      ])
-    )
   })
 
-  it('hides MCP, OCR and remote actions from non-admin spotlight results', async () => {
+  it('hides MCP, OCR and remote from non-admin default spotlight, then shows them after search', async () => {
     const { store } = await setupStore({ hideAdminSpotlightRoutes: true })
 
     store.setOpen(true)
@@ -258,7 +254,7 @@ describe('spotlightStore new-chat action', () => {
 
     store.setQuery('ocr')
     await flushPromises()
-    expect(store.results.value).not.toEqual(
+    expect(store.results.value).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           id: 'action:open-ocr'
@@ -268,7 +264,7 @@ describe('spotlightStore new-chat action', () => {
 
     store.setQuery('插件')
     await flushPromises()
-    expect(store.results.value).not.toEqual(
+    expect(store.results.value).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           routeName: 'settings-plugins'

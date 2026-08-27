@@ -129,7 +129,7 @@
 | H124 | `defaultSystemPrompt.ts` `hostPromptLocalize.ts` `contextBuilder.ts` `skillContextMaterializer.ts` `systemPromptBuilder.ts` | 思考语言只跟用户亲手输入；技能/MCP/检查点不是判定源 | prompts | 高 | 上游把技能/检查点贴进 `role=user`；尾注排除这些材料；本轮技能头中文；用户正文前插语言分隔；ACP 也 finalize |
 | H125 | `src/main/skill/index.ts` | 新建 DeepChat Agent 默认绑定目录里全部技能 | skills | 中 | 缺 binding → `assigned: true`，不看开关；已有 `assigned: false` 不覆盖；`getAllSkills` 会给现有 Agent 补缺 |
 | H126 | `PluginsHubPage.vue` | 插件 Hub 技能 Tab 进交融 `/skills` | skills | 低 | `name: 'skills'`；上游 `plugins-skills` 路由仍保留 |
-| H127 | `src/renderer/src/stores/ui/spotlight.ts` | 非管理员搜索不出现侧栏已隐藏的设置项 | admin | 低 | 与 `SETTINGS_SIDEBAR_HIDDEN_ROUTES` 同一名单；动作须带 `routeName` |
+| H127 | `src/renderer/src/stores/ui/spotlight.ts` | 非管理员默认面板隐藏侧栏已藏设置项；有搜索词不隐藏（后门） | admin | 低 | `isSettingsSpotlightItemHidden(route, { hasQuery })`；动作须带 `routeName` |
 | H128 | `resources/skills/*/SKILL.md` `scripts/build-cli.mjs` `agentCommandAccess.ts` `electron-builder.yml` | 内置技能描述去 DeepChat；CLI 技能示例用 `jiaorong` | skills | 低 | YAML 描述 Claude/claude.ai→交融AI；bundled 增加 `jiaorong` 启动器，仍调 `deepchat.mjs`；安装包 extraResources 必须带上 |
 | H129 | `src/cli/discovery.ts` | CLI 默认 userData 跟 `JiaorongAI` | cli | 中 | 原先找 `Application Support/DeepChat`，应用写在 `JiaorongAI`；优先 `JIAORONG_CLI_USER_DATA_DIR`，其次 `DEEPCHAT_E2E_USER_DATA_DIR` |
 | H130 | `agentCommandAccess.ts` `composition.ts` `localControl.ts` | 智能体 CLI 注入真实 userData | cli | 中 | 同时写 `JIAORONG_CLI_USER_DATA_DIR` 与 E2E 变量，兼容未重建的旧 `deepchat.mjs` |

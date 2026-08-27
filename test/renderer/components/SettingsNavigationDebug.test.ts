@@ -50,7 +50,7 @@ describe('debug settings navigation', () => {
     expect(isSettingsSidebarItemVisuallyHidden('settings-ocr')).toBe(true)
   })
 
-  it('hides the same routes from non-admin spotlight as the settings sidebar', () => {
+  it('hides the same routes from non-admin default spotlight as the settings sidebar', () => {
     expect(SETTINGS_SPOTLIGHT_HIDDEN_ROUTES).toEqual(SETTINGS_SIDEBAR_HIDDEN_ROUTES)
     expect(isSettingsSpotlightItemHidden('settings-provider')).toBe(true)
     expect(isSettingsSpotlightItemHidden('settings-ocr')).toBe(true)
@@ -59,6 +59,15 @@ describe('debug settings navigation', () => {
     expect(isSettingsSpotlightItemHidden('settings-knowledge-base')).toBe(true)
     expect(isSettingsSpotlightItemHidden('settings-shortcut')).toBe(false)
     expect(isSettingsSpotlightItemHidden('settings-common')).toBe(false)
+  })
+
+  it('does not hide admin-only routes from non-admin spotlight once a search query is present', () => {
+    const withQuery = { hasQuery: true }
+    expect(isSettingsSpotlightItemHidden('settings-provider', withQuery)).toBe(false)
+    expect(isSettingsSpotlightItemHidden('settings-ocr', withQuery)).toBe(false)
+    expect(isSettingsSpotlightItemHidden('settings-mcp', withQuery)).toBe(false)
+    expect(isSettingsSpotlightItemHidden('settings-plugins', withQuery)).toBe(false)
+    expect(isSettingsSpotlightItemHidden('settings-knowledge-base', withQuery)).toBe(false)
   })
 
   it('hides the main sidebar plugins entry for non-admin users', () => {

@@ -18,18 +18,18 @@ export const SETTINGS_SIDEBAR_HIDDEN_ROUTES: SettingsNavigationItem['routeName']
   'settings-debug'
 ]
 
-/** 非管理员搜索与侧栏使用同一隐藏名单 */
+/** 非管理员 Spotlight 默认面板与侧栏使用同一隐藏名单；有搜索词时不隐藏（后门） */
 export const SETTINGS_SPOTLIGHT_HIDDEN_ROUTES = SETTINGS_SIDEBAR_HIDDEN_ROUTES
 
 /** 从 localStorage `userInfo` 读取的 userName / phone；命中白名单即管理员 */
 export const SETTINGS_SIDEBAR_ADMIN_WHITELIST: string[] = [
-  '13039619789',
-  'L20184974',
-  '2025004990',
-  '15225192364',
-  '17376565448',
-  '15738853677',
-  '18229040744',
+  // '13039619789',
+  // 'L20184974',
+  // '2025004990',
+  // '15225192364',
+  // '17376565448',
+  // '15738853677',
+  // '18229040744',
 ]
 
 const SETTINGS_SIDEBAR_HIDDEN_ROUTE_SET = new Set(SETTINGS_SIDEBAR_HIDDEN_ROUTES)
@@ -96,9 +96,15 @@ export const isSettingsSidebarItemVisuallyHidden = (routeName: string): boolean 
   return SETTINGS_SIDEBAR_HIDDEN_ROUTE_SET.has(routeName as SettingsNavigationItem['routeName'])
 }
 
-/** 搜索结果是否应对非管理员隐藏（与设置侧栏隐藏名单相同） */
-export const isSettingsSpotlightItemHidden = (routeName: string | null | undefined): boolean => {
-  if (typeof routeName !== 'string') {
+/**
+ * Spotlight 是否应对非管理员隐藏该项。
+ * 默认面板（无搜索词）与侧栏同一名单；有搜索词时不隐藏，给普通用户留后门。
+ */
+export const isSettingsSpotlightItemHidden = (
+  routeName: string | null | undefined,
+  options?: { hasQuery?: boolean }
+): boolean => {
+  if (typeof routeName !== 'string' || options?.hasQuery) {
     return false
   }
 
