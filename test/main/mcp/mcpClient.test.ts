@@ -577,7 +577,7 @@ describe('McpClient Runtime Command Processing Tests', () => {
   })
 
   describe('Knowledge base Spring AI compatibility', () => {
-    it('omits elicitation form applyDefaults only for jiaorong-knowledge-base', async () => {
+    it('sends Spring-AI-safe capabilities only for jiaorong-knowledge-base', async () => {
       const knowledgeBaseClient = createMcpClient(JIAORONG_KB_MCP_SERVER_NAME, {
         type: 'http',
         baseUrl: 'https://c4ai.ccccltd.cn/api/knowledge-base/mcp'
@@ -585,10 +585,11 @@ describe('McpClient Runtime Command Processing Tests', () => {
       await knowledgeBaseClient.connect()
 
       const knowledgeBaseOptions = vi.mocked(Client).mock.calls.at(-1)?.[1]
-      expect(knowledgeBaseOptions?.capabilities?.elicitation?.form).toEqual({})
-      expect(knowledgeBaseOptions?.capabilities?.elicitation?.form).not.toHaveProperty(
-        'applyDefaults'
-      )
+      expect(knowledgeBaseOptions?.capabilities).toEqual({
+        sampling: {},
+        elicitation: {},
+        roots: {}
+      })
 
       const otherClient = createMcpClient('other-mcp', {
         type: 'http',
@@ -597,7 +598,15 @@ describe('McpClient Runtime Command Processing Tests', () => {
       await otherClient.connect()
 
       const otherOptions = vi.mocked(Client).mock.calls.at(-1)?.[1]
-      expect(otherOptions?.capabilities?.elicitation?.form).toEqual({ applyDefaults: true })
+      expect(otherOptions?.capabilities?.elicitation).toEqual({
+        form: { applyDefaults: true },
+        url: {}
+      })
+      expect(otherOptions?.capabilities?.extensions).toMatchObject({
+        'io.modelcontextprotocol/ui': {
+          mimeTypes: ['text/html;profile=mcp-app']
+        }
+      })
     })
   })
 

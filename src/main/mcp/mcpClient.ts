@@ -675,23 +675,29 @@ export class McpClient {
       this.client = new Client(
         { name: 'JiaorongAI', version: app.getVersion() },
         {
-          capabilities: {
-            sampling: {},
-            elicitation: {
-              // Spring AI Jackson 不认识 applyDefaults；仅知识库 MCP 省略，其它 MCP 保持新规范。
-              form: isJiaorongKnowledgeBaseMcpServer(this.serverName)
-                ? {}
-                : { applyDefaults: true },
-              url: {}
-            },
-            roots: {},
-            extensions: {
-              'io.modelcontextprotocol/ui': {
-                mimeTypes: ['text/html;profile=mcp-app']
+          capabilities: isJiaorongKnowledgeBaseMcpServer(this.serverName)
+            ? {
+                // 正式服 Spring AI Jackson 默认 FAIL_ON_UNKNOWN_PROPERTIES。
+                // 新版 MCP 客户端会带 form/url/applyDefaults/extensions，旧服务会拒绝 initialize，
+                // 发送侧只看到「知识库服务未就绪」。其它 MCP 仍走完整 capabilities。
+                sampling: {},
+                elicitation: {},
+                roots: {}
+              }
+            : {
+                sampling: {},
+                elicitation: {
+                  form: { applyDefaults: true },
+                  url: {}
+                },
+                roots: {},
+                extensions: {
+                  'io.modelcontextprotocol/ui': {
+                    mimeTypes: ['text/html;profile=mcp-app']
+                  },
+                  ...Object.fromEntries(authorizationExtensions.map((extension) => [extension, {}]))
+                }
               },
-              ...Object.fromEntries(authorizationExtensions.map((extension) => [extension, {}]))
-            }
-          },
           versionNegotiation: useModernNegotiation
             ? {
                 mode: 'auto',
