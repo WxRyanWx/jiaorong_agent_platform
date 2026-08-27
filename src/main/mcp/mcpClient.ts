@@ -477,7 +477,9 @@ export class McpClient {
   private async performConnect(attempt: number, phase: McpServerStatusPhase): Promise<void> {
     const transportType = this.serverConfig.type
     const useModernNegotiation =
-      !this.serverConfig.forceLegacyWire && (transportType === 'stdio' || transportType === 'http')
+      !this.serverConfig.forceLegacyWire &&
+      !isJiaorongKnowledgeBaseMcpServer(this.serverName) &&
+      (transportType === 'stdio' || transportType === 'http')
     try {
       console.info(`Starting MCP server ${this.serverName}...`, {
         type: this.serverConfig.type

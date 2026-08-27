@@ -156,7 +156,11 @@ export async function prepareKnowledgeBaseSendFiles(
       resolveKnowledgeBaseSessionKey(sessionId),
       error
     )
-    return { ok: false, error: '知识库服务未就绪，请稍后重试' }
+    const detail = error instanceof Error ? error.message.trim() : String(error)
+    return {
+      ok: false,
+      error: detail ? `知识库服务未就绪，请稍后重试（${detail}）` : '知识库服务未就绪，请稍后重试'
+    }
   }
 
   const withoutPrev = files.filter((file) => !isJiaorongKnowledgeBaseContextFile(file))

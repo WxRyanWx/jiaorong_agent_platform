@@ -590,6 +590,7 @@ describe('McpClient Runtime Command Processing Tests', () => {
         elicitation: {},
         roots: {}
       })
+      expect(knowledgeBaseOptions?.versionNegotiation).toEqual({ mode: 'legacy' })
 
       const otherClient = createMcpClient('other-mcp', {
         type: 'http',

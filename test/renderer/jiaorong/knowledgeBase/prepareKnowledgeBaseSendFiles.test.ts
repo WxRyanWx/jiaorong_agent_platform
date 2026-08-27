@@ -99,6 +99,6 @@ describe('prepareKnowledgeBaseSendFiles', () => {
     ])
 
     const result = await prepareKnowledgeBaseSendFiles('sess-1', '合同条款', [])
-    expect(result).toEqual({ ok: false, error: '知识库服务未就绪，请稍后重试' })
+    expect(result).toEqual({ ok: false, error: '知识库服务未就绪，请稍后重试（mcp down）' })
   })
 })

@@ -61,7 +61,8 @@ describe('ensureJiaorongKnowledgeBaseMcpServer', () => {
     expect(updateMcpServer).toHaveBeenCalledWith(
       JIAORONG_KB_MCP_SERVER_NAME,
       expect.objectContaining({
-        baseUrl: 'https://c4ai.ccccltd.cn/api/knowledge-base/mcp'
+        baseUrl: 'https://c4ai.ccccltd.cn/api/knowledge-base/mcp',
+        forceLegacyWire: true
       })
     )
     expect(startServer).not.toHaveBeenCalled()

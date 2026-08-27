@@ -39,19 +39,23 @@ function buildServerConfig(token: string): MCPServerConfig {
     baseUrl: resolveKnowledgeBaseMcpUrl(),
     customHeaders: buildCustomHeaders(token),
     source: 'plugin',
-    ownerPluginId: 'jiaorong'
+    ownerPluginId: 'jiaorong',
+    // 正式服 Spring AI 是 2025 代 MCP：HTTP 默认会先发 server/discover，
+    // 旧服务会直接失败，发送侧只看到「知识库服务未就绪」。
+    forceLegacyWire: true
   }
 }
 
 function runtimeFingerprint(
-  config: Pick<MCPServerConfig, 'baseUrl' | 'customHeaders' | 'descriptions'>
+  config: Pick<MCPServerConfig, 'baseUrl' | 'customHeaders' | 'descriptions' | 'forceLegacyWire'>
 ): string {
   return JSON.stringify({
     baseUrl: config.baseUrl ?? '',
     fusionAuth: config.customHeaders?.['Fusion-Auth'] ?? '',
     authorization: config.customHeaders?.Authorization ?? '',
     productId: config.customHeaders?.['Product-Id'] ?? '',
-    descriptions: config.descriptions ?? ''
+    descriptions: config.descriptions ?? '',
+    forceLegacyWire: Boolean(config.forceLegacyWire)
   })
 }
 
@@ -99,7 +103,8 @@ async function ensureOnce(options?: { startIfStopped?: boolean }): Promise<void>
       icons: nextConfig.icons,
       type: 'http',
       source: 'plugin',
-      ownerPluginId: 'jiaorong'
+      ownerPluginId: 'jiaorong',
+      forceLegacyWire: true
     })
   }
 
