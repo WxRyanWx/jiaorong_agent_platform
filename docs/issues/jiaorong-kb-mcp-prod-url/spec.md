@@ -6,8 +6,8 @@
 
 ## 验收
 
-- 已登录启动或进入 chat 后，把该 MCP 的 `baseUrl` 写成当前 mode 的 `{auth origin}/api/knowledge-base/mcp`。
-- 正式包应为 `https://c4ai.ccccltd.cn/api/knowledge-base/mcp`。
+- 已登录启动或进入 chat 后，把该 MCP 的 `baseUrl` 写成当前 mode 的 `{auth origin}/api/ai-mcp/knowledge-base`。
+- 正式包应为 `https://c4ai.ccccltd.cn/api/ai-mcp/knowledge-base`。
 - 未登录不注册、不覆盖。
 
 ## 非目标

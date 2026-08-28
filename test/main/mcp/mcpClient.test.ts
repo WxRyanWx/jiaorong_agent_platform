@@ -580,7 +580,7 @@ describe('McpClient Runtime Command Processing Tests', () => {
     it('sends Spring-AI-safe capabilities only for jiaorong-knowledge-base', async () => {
       const knowledgeBaseClient = createMcpClient(JIAORONG_KB_MCP_SERVER_NAME, {
         type: 'http',
-        baseUrl: 'https://c4ai.ccccltd.cn/api/knowledge-base/mcp'
+        baseUrl: 'https://c4ai.ccccltd.cn/api/ai-mcp/knowledge-base'
       })
       await knowledgeBaseClient.connect()
 
