@@ -5,6 +5,7 @@ import {
   DEFAULT_COMPUTE_TIMEOUT_MS,
   DEFAULT_MUTATION_TIMEOUT_MS,
   formatCliHelp,
+  inferCliOutputMode,
   parseCliArguments
 } from '../../../src/cli/args'
 
@@ -28,9 +29,7 @@ describe('CLI argument grammar', () => {
       timeoutMs: 2_500
     })
 
-    expect(() => parseCliArguments(['--json', 'system', 'doctor'], {})).toThrow(
-      'jiaorong <domain> <verb>'
-    )
+    expect(() => parseCliArguments(['--json', 'system', 'doctor'], {})).toThrow('jiaorong <prompt>')
     expect(() => parseCliArguments(['system', '--json', 'doctor'], {})).toThrow(
       'jiaorong <domain> <verb>'
     )
@@ -70,7 +69,8 @@ describe('CLI argument grammar', () => {
       helpRequested: true
     })
     expect(() => parseCliArguments(['help', 'commands'], {})).toThrow('jiaorong help')
-    expect(() => parseCliArguments(['--help'], {})).toThrow('jiaorong <domain> <verb>')
+    expect(() => parseCliArguments(['--help'], {})).toThrow('jiaorong <prompt>')
+    expect(formatCliHelp()).toContain("jiaorong '你是谁'")
     expect(formatCliHelp({ domain: 'agent', verb: 'run' })).toContain('--max-turns <n>')
     expect(formatCliHelp({ domain: 'run', verb: 'watch' })).toContain('--cursor <event-cursor>')
     expect(formatCliHelp({ domain: 'model', verb: 'list' })).toContain(
@@ -185,6 +185,99 @@ describe('CLI argument grammar', () => {
     ).toThrow('exactly one of --prompt or --stdin')
   })
 
+  it('defaults model invoke and agent run to the built-in Jiaorong text model', () => {
+    expect(parseCliArguments(['model', 'invoke', '--prompt', 'hello'], {})).toMatchObject({
+      params: {
+        providerId: 'jiaorong',
+        modelId: 'jiaorong-deepseek-v4-pro',
+        messages: [
+          { role: 'system', content: expect.stringContaining('交融超级智能体') },
+          { role: 'user', content: 'hello' }
+        ]
+      }
+    })
+    expect(
+      parseCliArguments(['model', 'invoke', '--system', 'only say hi', '--prompt', '你是谁'], {})
+    ).toMatchObject({
+      params: {
+        messages: [
+          { role: 'system', content: 'only say hi' },
+          { role: 'user', content: '你是谁' }
+        ]
+      }
+    })
+    expect(
+      parseCliArguments(['model', 'invoke', '--provider', 'openai', '--prompt', 'hello'], {})
+    ).toMatchObject({
+      params: { providerId: 'openai', modelId: 'jiaorong-deepseek-v4-pro' }
+    })
+    expect(
+      parseCliArguments(['model', 'invoke', '--model', 'other-model', '--prompt', 'hello'], {})
+    ).toMatchObject({
+      params: { providerId: 'jiaorong', modelId: 'other-model' }
+    })
+    expect(
+      parseCliArguments(['agent', 'run', '--prompt', 'Inspect the project'], {})
+    ).toMatchObject({
+      params: {
+        prompt: 'Inspect the project',
+        providerId: 'jiaorong',
+        modelId: 'jiaorong-deepseek-v4-pro'
+      }
+    })
+    expect(formatCliHelp({ domain: 'model', verb: 'invoke' })).toContain('[--provider <id>]')
+    expect(formatCliHelp({ domain: 'model', verb: 'invoke' })).toContain(
+      'default: jiaorong-deepseek-v4-pro'
+    )
+    expect(formatCliHelp({ domain: 'model', verb: 'invoke' })).toContain(
+      'default: Jiaorong identity prompt'
+    )
+    expect(() => parseCliArguments(['image', 'generate', '--prompt', 'a photo'], {})).toThrow(
+      'requires --provider and --model'
+    )
+  })
+
+  it('treats a bare prompt as model invoke with defaults', () => {
+    expect(parseCliArguments(['你是谁'], {})).toMatchObject({
+      domain: 'model',
+      verb: 'invoke',
+      params: {
+        providerId: 'jiaorong',
+        modelId: 'jiaorong-deepseek-v4-pro',
+        messages: [
+          { role: 'system', content: expect.stringContaining('交融超级智能体') },
+          { role: 'user', content: '你是谁' }
+        ]
+      }
+    })
+    expect(parseCliArguments(['你是谁', '--json'], {})).toMatchObject({
+      domain: 'model',
+      verb: 'invoke',
+      outputMode: 'json'
+    })
+    expect(
+      parseCliArguments(['你是谁', '--provider', 'openai', '--model', 'other-model'], {})
+    ).toMatchObject({
+      params: { providerId: 'openai', modelId: 'other-model' }
+    })
+    expect(parseCliArguments(['你是谁', '--system', 'only say hi'], {})).toMatchObject({
+      params: {
+        messages: [
+          { role: 'system', content: 'only say hi' },
+          { role: 'user', content: '你是谁' }
+        ]
+      }
+    })
+    expect(() => parseCliArguments(['model'], {})).toThrow('jiaorong <prompt>')
+    expect(() => parseCliArguments(['image'], {})).toThrow('jiaorong <prompt>')
+    expect(() => parseCliArguments(['你是谁', 'extra'], {})).toThrow('Unknown option')
+    expect(() => parseCliArguments(['你是谁', '--stdin'], {})).toThrow(
+      'exactly one of --prompt or --stdin'
+    )
+    expect(inferCliOutputMode(['你是谁', '--json'], {})).toBe('json')
+    expect(inferCliOutputMode(['--json', '你是谁'], {})).toBe('text')
+  })
+
   it('parses bounded durable Agent creation options', () => {
     expect(
       parseCliArguments(
@@ -233,7 +326,10 @@ describe('CLI argument grammar', () => {
     })
     expect(parseCliArguments(['agent', 'run', '--stdin'], {})).toMatchObject({
       readStdin: true,
-      params: {}
+      params: {
+        providerId: 'jiaorong',
+        modelId: 'jiaorong-deepseek-v4-pro'
+      }
     })
     expect(() => parseCliArguments(['agent', 'run', '--prompt', 'hello', '--stdin'], {})).toThrow(
       'exactly one of --prompt or --stdin'

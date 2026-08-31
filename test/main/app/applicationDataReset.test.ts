@@ -8,7 +8,7 @@ import type { CliLauncherStatus } from '@/cli/launcherService'
 const INSTALLED_STATUS: CliLauncherStatus = {
   state: 'installed',
   reason: null,
-  commandPath: '/home/user/.local/bin/deepchat',
+  commandPath: '/home/user/.local/bin/jiaorong',
   shellConfigPath: '/home/user/.profile'
 }
 
@@ -70,6 +70,19 @@ describe('coordinateApplicationDataReset', () => {
       '[CLI] Launcher cleanup did not complete during full data reset',
       { reason: 'command-modified' }
     )
+    expect(dependencies.resetDataByType).toHaveBeenCalledWith('all')
+  })
+
+  it('still removes an owned launcher when the public command name is unowned', async () => {
+    const dependencies = createDependencies({
+      ...INSTALLED_STATUS,
+      state: 'conflict',
+      reason: 'unowned-command'
+    })
+
+    await coordinateApplicationDataReset('all', dependencies)
+
+    expect(dependencies.cliLauncher.removeOwnedLauncher).toHaveBeenCalledOnce()
     expect(dependencies.resetDataByType).toHaveBeenCalledWith('all')
   })
 

@@ -116,7 +116,7 @@
 | H111 | `ChatInputBox.vue` `KnowledgeBaseSelectionChips.vue/.less` | 输入框知识库回显区恢复 max-height + 超出滚动 | knowledgeBase | 低 | 对齐 master `.chat-input-attachments`：`max-height: min(11.25rem, 25vh)`、`overflow-y: auto`；无选中不占位 |
 | H112 | `ModelIcon.vue` | 模型选择 logo 按 master 直接画在 img 上 | brand | 中 | 不要 skeleton/`opacity-0` 等 @load；不要 span 包百分比 img；`w-3.5 h-3.5` 打在 img 上 |
 | H113 | `ModelIcon.vue` `ChatStatusBar.vue` `style.css` `WindowSideBar.vue` | 模型 logo 不被 preflight 压成 0；Tailwind 扫描 jiaorong_src；技能/KB 页不挂会话列和收起钮 | brand | 中 | `img { max-width:100% }` 在 flex 里会把 logo 塌掉，用 `.model-icon-img { max-width:none }`；底栏触发器改回 providerId（H118）；独占路由对齐 master `isSkillsRoute` |
-| H114 | `resources/skills/jiaorong-cli` `skill/index.ts` `memory-management` | 删除重复 deepchat-settings；CLI 技能 id 为 `jiaorong-cli`（别名 `deepchat-cli`） | skills | 中 | 别名 `deepchat-settings`→`jiaorong-settings`、`deepchat-cli`→`jiaorong-cli`；用户目录残留会删掉；技能正文用 `jiaorong`；模块仍 `deepchat.mjs`；PATH 安装器仍 `deepchat` |
+| H114 | `resources/skills/jiaorong-cli` `skill/index.ts` `memory-management` | 删除重复 deepchat-settings；CLI 技能 id 为 `jiaorong-cli`（别名 `deepchat-cli`） | skills | 中 | 别名 `deepchat-settings`→`jiaorong-settings`、`deepchat-cli`→`jiaorong-cli`；用户目录残留会删掉；技能正文用 `jiaorong`；模块仍 `deepchat.mjs`；PATH 安装器见 H144 |
 | H115 | `src/main/agent/deepchat/runtime/dispatch.ts` | 旧网页检索卡片兼容 `application/deepchat-webpage` | search | 低 | 新结果仍写 `jiaorong-webpage`；历史工具结果 mime 按 master 双认 |
 | H116 | `.github/workflows/build.yml` `build-test.yml` | 手动构建直出 `JiaorongAI-*` 安装包（对齐 master） | ci | 中 | 上传 `dist/*`；mac 不强制公证。PR Package Check 仍用上游 `_package-*` verification，不整文件覆盖 |
 | H117 | `src/renderer/src/lib/slashMenuDisplayText.ts` + `jiaorong_src/tools/*` | 斜杠菜单中文展示 | skills | 中 | 实体 `@jiaorong/tools/slashMenuDisplayText`；宿主 re-export；静态表 `toolDisplayNames.ts`；runtime displayName 优先 |
@@ -146,6 +146,7 @@
 | H141 | `src/renderer/src/stores/mcp.ts` | `jiaorong-knowledge-base` 不当插件服务器过滤 | knowledgeBase | 高 | 对齐主进程 H96；否则 MCP 列表看不到、详情没有 URL |
 | H142 | `McpServers.vue` | HTTP 详情显示 baseUrl；内置库编辑无设置路由时 `openSettings` | mcp | 中 | 主窗口 `/plugins/mcp` 没有 `settings-knowledge-base` |
 | H143 | `McpServerCard.vue` `McpServers.vue` | `jiaorong-knowledge-base` 列表名显示「交融知识库」 | mcp | 低 | 协议 id 不变；`resolveMcpServerListName` |
+| H144 | `launcherService.ts` `docs/guides/cli.md` `docs/guides/cli-user.md` `jiaorong-cli/SKILL.md` | 用户 PATH 安装 `jiaorong`；文档中文化 | cli | 中 | 不改 `# >>> DeepChat CLI >>>`；owned 旧 `deepchat` 入口升级后删除；`deepchat.mjs` / `deepchat tool call` 不动；`model invoke` 默认 `DEFAULT_SYSTEM_PROMPT`；`jiaorong '<prompt>'` 展开为 `model invoke` |
 
 ## 下次合上游：值得抽到 `jiaorong_src` 的宿主文件
 

@@ -59,7 +59,8 @@ export async function buildCli(options = {}) {
     publicDir: false,
     resolve: {
       alias: {
-        '@shared': path.join(repositoryRoot, 'src', 'shared')
+        '@shared': path.join(repositoryRoot, 'src', 'shared'),
+        '@jiaorong': path.join(repositoryRoot, 'src', 'jiaorong_src')
       }
     },
     define: {

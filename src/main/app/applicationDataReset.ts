@@ -58,7 +58,7 @@ async function removeOwnedLauncherForReset(
     return
   }
 
-  if (status.state === 'conflict') {
+  if (status.state === 'conflict' && status.reason !== 'unowned-command') {
     warnLauncherCleanupIncomplete(logger, status.reason ?? 'launcher-conflict')
     return
   }

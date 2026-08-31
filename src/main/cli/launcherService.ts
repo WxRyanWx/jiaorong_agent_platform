@@ -308,16 +308,52 @@ export class CliLauncherService {
   }
 
   private get commandPath(): string | null {
+    return this.commandFilePath(this.platform === 'win32' ? 'jiaorong.cmd' : 'jiaorong')
+  }
+
+  private get legacyCommandPath(): string | null {
+    return this.commandFilePath(this.platform === 'win32' ? 'deepchat.cmd' : 'deepchat')
+  }
+
+  private commandFilePath(fileName: string): string | null {
     if (this.platform === 'darwin' || this.platform === 'linux') {
-      return path.join(this.options.homeDirectory, '.local', 'bin', 'deepchat')
+      return path.join(this.options.homeDirectory, '.local', 'bin', fileName)
     }
     if (this.platform === 'win32') {
       const localAppData =
         this.options.localAppDataDirectory ??
         path.join(this.options.homeDirectory, 'AppData', 'Local')
-      return path.join(localAppData, 'Microsoft', 'WindowsApps', 'deepchat.cmd')
+      return path.join(localAppData, 'Microsoft', 'WindowsApps', fileName)
     }
     return null
+  }
+
+  private isRecognizedCommandPath(candidate: string): boolean {
+    const current = this.commandPath
+    const legacy = this.legacyCommandPath
+    return (
+      (current !== null && pathsEqual(candidate, current, this.platform)) ||
+      (legacy !== null && pathsEqual(candidate, legacy, this.platform))
+    )
+  }
+
+  private isLegacyCommandPath(candidate: string): boolean {
+    const legacy = this.legacyCommandPath
+    return legacy !== null && pathsEqual(candidate, legacy, this.platform)
+  }
+
+  private aliasCommandPath(marker: LauncherMarker): string | null {
+    return this.isLegacyCommandPath(marker.commandPath) ? this.commandPath : this.legacyCommandPath
+  }
+
+  private async readOwnedCommandSafely(
+    commandPath: string | null
+  ): Promise<OwnedCommand | null | 'unreadable'> {
+    try {
+      return await this.readOwnedCommandAt(commandPath)
+    } catch {
+      return 'unreadable'
+    }
   }
 
   private async resolveSource(): Promise<CliSource | null> {
@@ -440,10 +476,7 @@ export class CliLauncherService {
 
     const { marker } = markerResult
     const expectedPlatform = this.platform === 'win32' ? 'windows' : 'posix'
-    if (
-      marker.platform !== expectedPlatform ||
-      !pathsEqual(marker.commandPath, commandPath, this.platform)
-    ) {
+    if (marker.platform !== expectedPlatform || !this.isRecognizedCommandPath(marker.commandPath)) {
       return {
         state: 'conflict',
         reason: 'ownership-marker-invalid',
@@ -499,7 +532,38 @@ export class CliLauncherService {
         shellConfigPath: profile?.path ?? null
       }
     }
-    if (commandState === 'missing') {
+
+    const expectedMarker = this.markerForSource(
+      source,
+      marker.platform === 'posix' ? marker.profileKind : null,
+      marker.platform === 'posix' ? marker.profilePrefixLength : 0,
+      marker.platform === 'posix' ? marker.profileCreated : false
+    )
+    const publicCommand = this.isLegacyCommandPath(marker.commandPath)
+      ? await this.readOwnedCommandSafely(commandPath)
+      : null
+    if (publicCommand === 'unreadable') {
+      return {
+        state: 'conflict',
+        reason: 'unowned-command',
+        commandPath,
+        shellConfigPath: profile?.path ?? null
+      }
+    }
+    if (
+      publicCommand !== null &&
+      !this.commandMatchesMarker(publicCommand, expectedMarker) &&
+      !this.commandMatchesMarker(publicCommand, marker)
+    ) {
+      return {
+        state: 'conflict',
+        reason: 'unowned-command',
+        commandPath,
+        shellConfigPath: profile?.path ?? null
+      }
+    }
+
+    if (commandState === 'missing' && publicCommand === null) {
       return {
         state: 'needs-repair',
         reason: 'command-missing',
@@ -523,17 +587,21 @@ export class CliLauncherService {
         shellConfigPath: null
       }
     }
-    const current = this.markerForSource(
-      source,
-      marker.platform === 'posix' ? marker.profileKind : null,
-      marker.platform === 'posix' ? marker.profilePrefixLength : 0,
-      marker.platform === 'posix' ? marker.profileCreated : false
-    )
+    const leftoverLegacy = this.isLegacyCommandPath(marker.commandPath)
+      ? null
+      : await this.readOwnedCommandSafely(this.legacyCommandPath)
+    const leftoverOwned =
+      leftoverLegacy !== null &&
+      leftoverLegacy !== 'unreadable' &&
+      (this.commandMatchesMarker(leftoverLegacy, expectedMarker) ||
+        this.commandMatchesMarker(leftoverLegacy, marker))
     const stale =
-      marker.platform === 'posix'
+      this.isLegacyCommandPath(marker.commandPath) ||
+      leftoverOwned ||
+      (marker.platform === 'posix'
         ? marker.commandHash === undefined ||
-          marker.commandHash !== (current as PosixLauncherMarker).commandHash
-        : marker.commandHash !== (current as WindowsLauncherMarker).commandHash
+          marker.commandHash !== (expectedMarker as PosixLauncherMarker).commandHash
+        : marker.commandHash !== (expectedMarker as WindowsLauncherMarker).commandHash)
     return {
       state: stale ? 'stale' : 'installed',
       reason: stale ? 'upgrade-required' : null,
@@ -565,7 +633,7 @@ export class CliLauncherService {
       const expectedPlatform = this.platform === 'win32' ? 'windows' : 'posix'
       if (
         previousMarker.platform !== expectedPlatform ||
-        !pathsEqual(previousMarker.commandPath, this.commandPath, this.platform)
+        !this.isRecognizedCommandPath(previousMarker.commandPath)
       ) {
         throw new Error('The DeepChat CLI ownership marker does not match this installation')
       }
@@ -592,7 +660,30 @@ export class CliLauncherService {
       throw new Error('The managed DeepChat CLI shell block has been modified')
     }
 
-    const previousCommand = await this.captureOwnedCommand(previousMarker)
+    const migratingFromLegacy =
+      previousMarker !== null && this.isLegacyCommandPath(previousMarker.commandPath)
+    const previousLegacyCommand = migratingFromLegacy
+      ? await this.captureOwnedCommand(previousMarker)
+      : null
+    const previousPublicCommand = migratingFromLegacy
+      ? await this.readOwnedCommandSafely(this.commandPath)
+      : null
+    if (previousPublicCommand === 'unreadable') {
+      throw new Error('Refusing to replace an unowned JiaorongAI CLI command')
+    }
+    const previousCommand = migratingFromLegacy
+      ? previousPublicCommand
+      : await this.captureOwnedCommand(previousMarker)
+    const nextCommand = this.commandForSource(source)
+    if (
+      migratingFromLegacy &&
+      previousCommand !== null &&
+      previousMarker !== null &&
+      !ownedCommandsEqual(previousCommand, nextCommand) &&
+      !this.commandMatchesMarker(previousCommand, previousMarker)
+    ) {
+      throw new Error('Refusing to replace an unowned JiaorongAI CLI command')
+    }
     const previousProfileContent = profile?.exists ? profile.content : null
     const appendedProfile =
       profile && profile.blockState === 'missing'
@@ -624,9 +715,10 @@ export class CliLauncherService {
       profileCreated
     )
     const nextMarkerRaw = `${JSON.stringify(nextMarker)}\n`
-    const nextCommand = this.commandForSource(source)
     let commandChanged = false
     let profileChanged = false
+    let markerChanged = false
+    let legacyRemoved = false
     try {
       if (!ownedCommandsEqual(previousCommand, nextCommand)) {
         await this.writeOwnedCommand(source, previousCommand)
@@ -639,12 +731,37 @@ export class CliLauncherService {
       }
       if (nextMarkerRaw !== previousMarkerRaw) {
         await this.writeMarker(nextMarkerRaw, previousMarkerRaw)
+        markerChanged = true
+      }
+      if (previousLegacyCommand !== null && previousMarker) {
+        await this.removeOwnedCommandAt(previousMarker.commandPath, previousLegacyCommand)
+        legacyRemoved = true
+      } else {
+        await this.removeMatchingOwnedCommand(
+          this.legacyCommandPath,
+          [nextCommand, previousCommand],
+          previousMarker
+        )
       }
     } catch (error) {
+      if (markerChanged) {
+        if (previousMarkerRaw === null) {
+          await this.removeMarker(nextMarkerRaw).catch(() => undefined)
+        } else {
+          await this.writeMarker(previousMarkerRaw, nextMarkerRaw).catch(() => undefined)
+        }
+      }
       if (profileChanged && profile && nextProfileContent !== null) {
         await this.restoreTextFile(profile.path, previousProfileContent, nextProfileContent).catch(
           () => undefined
         )
+      }
+      if (legacyRemoved && previousMarker && previousLegacyCommand) {
+        await this.restoreOwnedCommandAt(
+          previousMarker.commandPath,
+          previousLegacyCommand,
+          null
+        ).catch(() => undefined)
       }
       if (commandChanged) {
         await this.restoreOwnedCommand(previousCommand, nextCommand).catch(() => undefined)
@@ -681,10 +798,7 @@ export class CliLauncherService {
 
     const { marker, raw: markerRaw } = markerResult
     const expectedPlatform = this.platform === 'win32' ? 'windows' : 'posix'
-    if (
-      marker.platform !== expectedPlatform ||
-      !pathsEqual(marker.commandPath, commandPath, this.platform)
-    ) {
+    if (marker.platform !== expectedPlatform || !this.isRecognizedCommandPath(marker.commandPath)) {
       throw new Error('The DeepChat CLI ownership marker does not match this installation')
     }
     const profile =
@@ -704,7 +818,10 @@ export class CliLauncherService {
     ) {
       throw new Error('Refusing to edit a modified DeepChat CLI shell block')
     }
+    const source = await this.resolveSource()
+    const expectedCommand = source ? this.commandForSource(source) : null
     const previousCommand = await this.captureOwnedCommand(marker)
+    const aliasPath = this.aliasCommandPath(marker)
     const previousProfileContent = profile?.exists ? profile.content : null
     const nextProfileContent =
       profile?.blockState === 'exact' && marker.platform === 'posix'
@@ -717,9 +834,10 @@ export class CliLauncherService {
     let commandRemoved = false
     let profileChanged = false
     let profileRemoved = false
+    let aliasRemoved: OwnedCommand | null = null
     try {
       if (previousCommand !== null) {
-        await this.removeOwnedCommand(previousCommand)
+        await this.removeOwnedCommandAt(marker.commandPath, previousCommand)
         commandRemoved = true
       }
       if (profile && nextProfileContent !== null && nextProfileContent !== previousProfileContent) {
@@ -737,6 +855,11 @@ export class CliLauncherService {
         }
         profileChanged = true
       }
+      aliasRemoved = await this.removeMatchingOwnedCommand(
+        aliasPath,
+        [previousCommand, expectedCommand],
+        marker
+      )
       await this.removeMarker(markerRaw)
     } catch (error) {
       if (profileChanged && profile && nextProfileContent !== null) {
@@ -746,8 +869,13 @@ export class CliLauncherService {
           profileRemoved ? null : nextProfileContent
         ).catch(() => undefined)
       }
+      if (aliasRemoved) {
+        await this.restoreOwnedCommandAt(aliasPath, aliasRemoved, null).catch(() => undefined)
+      }
       if (commandRemoved) {
-        await this.restoreOwnedCommand(previousCommand, null).catch(() => undefined)
+        await this.restoreOwnedCommandAt(marker.commandPath, previousCommand, null).catch(
+          () => undefined
+        )
       }
       throw error
     }
@@ -895,7 +1023,7 @@ export class CliLauncherService {
     marker: LauncherMarker
   ): Promise<'current' | 'missing' | 'modified'> {
     try {
-      const command = await this.readOwnedCommand()
+      const command = await this.readOwnedCommandAt(marker.commandPath)
       if (command === null) return 'missing'
       return this.commandMatchesMarker(command, marker) ? 'current' : 'modified'
     } catch {
@@ -918,10 +1046,10 @@ export class CliLauncherService {
   }
 
   private async captureOwnedCommand(marker: LauncherMarker | null): Promise<OwnedCommand | null> {
-    const command = await this.readOwnedCommand()
+    const command = await this.readOwnedCommandAt(marker?.commandPath ?? this.commandPath)
     if (command === null) return null
     if (!marker || !this.commandMatchesMarker(command, marker)) {
-      throw new Error('Refusing to replace an unowned DeepChat CLI command')
+      throw new Error('Refusing to replace an unowned JiaorongAI CLI command')
     }
     return command
   }
@@ -945,7 +1073,8 @@ export class CliLauncherService {
       )
       return
     }
-    await this.atomicWritePosixCommand(
+    await this.atomicWritePosixCommandAt(
+      commandPath,
       { kind: 'text', value: createPosixCommand(source), executable: true },
       previousCommand
     )
@@ -963,13 +1092,22 @@ export class CliLauncherService {
     previousCommand: OwnedCommand | null,
     expectedCurrent: OwnedCommand | null
   ): Promise<void> {
-    const commandPath = this.commandPath
+    await this.restoreOwnedCommandAt(this.commandPath, previousCommand, expectedCurrent)
+  }
+
+  private async restoreOwnedCommandAt(
+    commandPath: string | null,
+    previousCommand: OwnedCommand | null,
+    expectedCurrent: OwnedCommand | null
+  ): Promise<void> {
     if (!commandPath) return
     if (this.platform !== 'win32') {
       if (previousCommand === null) {
-        if (expectedCurrent !== null) await this.unlinkPosixCommandIfMatches(expectedCurrent)
+        if (expectedCurrent !== null) {
+          await this.unlinkPosixCommandIfMatchesAt(commandPath, expectedCurrent)
+        }
       } else {
-        await this.atomicWritePosixCommand(previousCommand, expectedCurrent)
+        await this.atomicWritePosixCommandAt(commandPath, previousCommand, expectedCurrent)
       }
       return
     }
@@ -990,30 +1128,47 @@ export class CliLauncherService {
     )
   }
 
-  private async removeOwnedCommand(previousCommand: OwnedCommand): Promise<void> {
-    const commandPath = this.commandPath
+  private async removeOwnedCommandAt(
+    commandPath: string | null,
+    previousCommand: OwnedCommand
+  ): Promise<void> {
     if (!commandPath) return
     if (this.platform === 'win32') {
       if (previousCommand.kind !== 'text') {
         throw new Error('Windows CLI launcher cannot remove a symbolic link')
       }
       await this.unlinkTextIfMatches(commandPath, previousCommand.value)
-    } else {
-      await this.unlinkPosixCommandIfMatches(previousCommand)
+      return
     }
+    await this.unlinkPosixCommandIfMatchesAt(commandPath, previousCommand)
   }
 
-  private async readOwnedCommand(): Promise<OwnedCommand | null> {
+  private async removeMatchingOwnedCommand(
+    commandPath: string | null,
+    candidates: ReadonlyArray<OwnedCommand | null>,
+    marker?: LauncherMarker | null
+  ): Promise<OwnedCommand | null> {
+    const current = await this.readOwnedCommandSafely(commandPath)
+    if (current === null || current === 'unreadable') return null
+    const matchesCandidate = candidates.some(
+      (candidate) => candidate !== null && ownedCommandsEqual(current, candidate)
+    )
+    const matchesMarker = marker != null && this.commandMatchesMarker(current, marker)
+    if (!matchesCandidate && !matchesMarker) return null
+    await this.removeOwnedCommandAt(commandPath, current)
+    return current
+  }
+
+  private async readOwnedCommandAt(commandPath: string | null): Promise<OwnedCommand | null> {
+    if (!commandPath) return null
     if (this.platform === 'win32') {
-      const content = await this.readWindowsCommand()
+      const content = await this.readWindowsCommandAt(commandPath)
       return content === null ? null : { kind: 'text', value: content, executable: true }
     }
-    return await this.readPosixCommand()
+    return await this.readPosixCommandAt(commandPath)
   }
 
-  private async readPosixCommand(): Promise<OwnedCommand | null> {
-    const commandPath = this.commandPath
-    if (!commandPath) return null
+  private async readPosixCommandAt(commandPath: string): Promise<OwnedCommand | null> {
     try {
       const stats = await lstat(commandPath)
       if (stats.isSymbolicLink()) {
@@ -1021,7 +1176,7 @@ export class CliLauncherService {
         return { kind: 'link', value: path.resolve(path.dirname(commandPath), target) }
       }
       if (!stats.isFile() || stats.size > 64 * 1024) {
-        throw new Error('DeepChat CLI command is not an owned launcher')
+        throw new Error('JiaorongAI CLI command is not an owned launcher')
       }
       return {
         kind: 'text',
@@ -1034,13 +1189,11 @@ export class CliLauncherService {
     }
   }
 
-  private async readWindowsCommand(): Promise<string | null> {
-    const commandPath = this.commandPath
-    if (!commandPath) return null
+  private async readWindowsCommandAt(commandPath: string): Promise<string | null> {
     try {
       const stats = await lstat(commandPath)
       if (!stats.isFile() || stats.isSymbolicLink() || stats.size > 64 * 1024) {
-        throw new Error('DeepChat CLI command is not an owned launcher file')
+        throw new Error('JiaorongAI CLI command is not an owned launcher file')
       }
       return await readFile(commandPath, 'utf8')
     } catch (error) {
@@ -1076,13 +1229,12 @@ export class CliLauncherService {
     }
   }
 
-  private async atomicWritePosixCommand(
+  private async atomicWritePosixCommandAt(
+    commandPath: string,
     command: OwnedCommand,
     expectedCommand: OwnedCommand | null
   ): Promise<void> {
-    const commandPath = this.commandPath
-    if (!commandPath) throw new Error('CLI launcher command path is unavailable')
-    const currentCommand = await this.readPosixCommand()
+    const currentCommand = await this.readPosixCommandAt(commandPath)
     if (!ownedCommandsEqual(currentCommand, expectedCommand)) {
       throw new Error('CLI launcher changed during installation')
     }
@@ -1098,7 +1250,7 @@ export class CliLauncherService {
         })
         await chmod(tempPath, 0o755)
       }
-      const verifiedCommand = await this.readPosixCommand()
+      const verifiedCommand = await this.readPosixCommandAt(commandPath)
       if (!ownedCommandsEqual(verifiedCommand, currentCommand)) {
         throw new Error('CLI launcher changed during installation')
       }
@@ -1164,10 +1316,11 @@ export class CliLauncherService {
     }
   }
 
-  private async unlinkPosixCommandIfMatches(expectedCommand: OwnedCommand): Promise<void> {
-    const commandPath = this.commandPath
-    if (!commandPath) return
-    const currentCommand = await this.readPosixCommand()
+  private async unlinkPosixCommandIfMatchesAt(
+    commandPath: string,
+    expectedCommand: OwnedCommand
+  ): Promise<void> {
+    const currentCommand = await this.readPosixCommandAt(commandPath)
     if (!ownedCommandsEqual(currentCommand, expectedCommand)) {
       throw new Error('Refusing to remove a changed CLI launcher')
     }

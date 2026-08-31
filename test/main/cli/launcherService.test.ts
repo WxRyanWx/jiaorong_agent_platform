@@ -66,6 +66,16 @@ async function createFixture(platform: NodeJS.Platform = 'darwin') {
   }
 }
 
+async function switchToNextCliSource(fixture: Awaited<ReturnType<typeof createFixture>>) {
+  const nextCliDirectory = path.join(fixture.root, 'cli-v2')
+  await mkdir(nextCliDirectory)
+  await writeFile(path.join(nextCliDirectory, 'deepchat'), '#!/bin/sh\n', { mode: 0o755 })
+  await writeFile(path.join(nextCliDirectory, 'deepchat.cmd'), '@echo off\r\n')
+  await writeFile(path.join(nextCliDirectory, 'deepchat.mjs'), 'console.log("v2")\n')
+  fixture.setCliDirectory(nextCliDirectory)
+  return nextCliDirectory
+}
+
 afterEach(async () => {
   await Promise.all(
     temporaryDirectories.splice(0).map((directory) => rm(directory, { recursive: true }))
@@ -76,7 +86,7 @@ describe('CliLauncherService', () => {
   it('installs and reverses a POSIX launcher without changing existing shell content', async () => {
     const fixture = await createFixture()
     const profilePath = path.join(fixture.homeDirectory, '.zprofile')
-    const commandPath = path.join(fixture.homeDirectory, '.local', 'bin', 'deepchat')
+    const commandPath = path.join(fixture.homeDirectory, '.local', 'bin', 'jiaorong')
     await writeFile(profilePath, 'export EDITOR=vim\n')
 
     await expect(fixture.service.getStatus()).resolves.toMatchObject({
@@ -125,6 +135,251 @@ describe('CliLauncherService', () => {
       lstat(path.join(fixture.userDataDirectory, 'local-control', 'launcher.json'))
     ).rejects.toMatchObject({ code: 'ENOENT' })
   })
+
+  it('migrates an owned deepchat PATH entry to jiaorong without rewriting the shell block', async () => {
+    const fixture = await createFixture()
+    const profilePath = path.join(fixture.homeDirectory, '.zprofile')
+    const publicCommandPath = path.join(fixture.homeDirectory, '.local', 'bin', 'jiaorong')
+    const legacyCommandPath = path.join(fixture.homeDirectory, '.local', 'bin', 'deepchat')
+    const markerPath = path.join(fixture.userDataDirectory, 'local-control', 'launcher.json')
+    await writeFile(profilePath, 'export EDITOR=vim\n')
+
+    await fixture.service.ensureInstalled()
+    const installedCommand = await readFile(publicCommandPath, 'utf8')
+    const installedProfile = await readFile(profilePath, 'utf8')
+    const marker = JSON.parse(await readFile(markerPath, 'utf8')) as Record<string, unknown>
+    await mkdir(path.dirname(legacyCommandPath), { recursive: true })
+    await writeFile(legacyCommandPath, installedCommand, { mode: 0o755 })
+    await rm(publicCommandPath)
+    marker.commandPath = legacyCommandPath
+    await writeFile(markerPath, `${JSON.stringify(marker)}\n`)
+
+    await expect(fixture.service.getStatus()).resolves.toMatchObject({
+      state: 'stale',
+      reason: 'upgrade-required',
+      commandPath: publicCommandPath
+    })
+    await expect(fixture.service.ensureInstalled()).resolves.toMatchObject({
+      state: 'installed',
+      commandPath: publicCommandPath
+    })
+
+    expect(await readFile(publicCommandPath, 'utf8')).toBe(installedCommand)
+    await expect(lstat(legacyCommandPath)).rejects.toMatchObject({ code: 'ENOENT' })
+    expect(await readFile(profilePath, 'utf8')).toBe(installedProfile)
+    const migratedMarker = JSON.parse(await readFile(markerPath, 'utf8')) as Record<string, unknown>
+    expect(migratedMarker.commandPath).toBe(publicCommandPath)
+  })
+
+  it('removes both owned PATH names when uninstalling a legacy marker', async () => {
+    const fixture = await createFixture()
+    const profilePath = path.join(fixture.homeDirectory, '.zprofile')
+    const publicCommandPath = path.join(fixture.homeDirectory, '.local', 'bin', 'jiaorong')
+    const legacyCommandPath = path.join(fixture.homeDirectory, '.local', 'bin', 'deepchat')
+    const markerPath = path.join(fixture.userDataDirectory, 'local-control', 'launcher.json')
+    await writeFile(profilePath, 'export EDITOR=vim\n')
+
+    await fixture.service.ensureInstalled()
+    const installedCommand = await readFile(publicCommandPath, 'utf8')
+    const marker = JSON.parse(await readFile(markerPath, 'utf8')) as Record<string, unknown>
+    await writeFile(legacyCommandPath, installedCommand, { mode: 0o755 })
+    marker.commandPath = legacyCommandPath
+    await writeFile(markerPath, `${JSON.stringify(marker)}\n`)
+
+    await expect(fixture.service.removeOwnedLauncher()).resolves.toMatchObject({
+      state: 'not-installed'
+    })
+    await expect(lstat(publicCommandPath)).rejects.toMatchObject({ code: 'ENOENT' })
+    await expect(lstat(legacyCommandPath)).rejects.toMatchObject({ code: 'ENOENT' })
+    expect(await readFile(profilePath, 'utf8')).toBe('export EDITOR=vim\n')
+  })
+
+  it('does not delete an unowned jiaorong file when uninstalling a legacy marker', async () => {
+    const fixture = await createFixture()
+    const publicCommandPath = path.join(fixture.homeDirectory, '.local', 'bin', 'jiaorong')
+    const legacyCommandPath = path.join(fixture.homeDirectory, '.local', 'bin', 'deepchat')
+    const markerPath = path.join(fixture.userDataDirectory, 'local-control', 'launcher.json')
+
+    await fixture.service.ensureInstalled()
+    const installedCommand = await readFile(publicCommandPath, 'utf8')
+    const marker = JSON.parse(await readFile(markerPath, 'utf8')) as Record<string, unknown>
+    await writeFile(legacyCommandPath, installedCommand, { mode: 0o755 })
+    await writeFile(publicCommandPath, 'foreign-jiaorong\n', { mode: 0o755 })
+    marker.commandPath = legacyCommandPath
+    await writeFile(markerPath, `${JSON.stringify(marker)}\n`)
+
+    await expect(fixture.service.getStatus()).resolves.toMatchObject({
+      state: 'conflict',
+      reason: 'unowned-command',
+      commandPath: publicCommandPath
+    })
+    await expect(fixture.service.removeOwnedLauncher()).resolves.toMatchObject({
+      state: 'conflict',
+      reason: 'unowned-command',
+      commandPath: publicCommandPath
+    })
+    expect(await readFile(publicCommandPath, 'utf8')).toBe('foreign-jiaorong\n')
+    await expect(lstat(legacyCommandPath)).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
+  it('removes a matching leftover deepchat when the marker already points at jiaorong', async () => {
+    const fixture = await createFixture()
+    const publicCommandPath = path.join(fixture.homeDirectory, '.local', 'bin', 'jiaorong')
+    const legacyCommandPath = path.join(fixture.homeDirectory, '.local', 'bin', 'deepchat')
+
+    await fixture.service.ensureInstalled()
+    const installedCommand = await readFile(publicCommandPath, 'utf8')
+    await writeFile(legacyCommandPath, installedCommand, { mode: 0o755 })
+
+    await expect(fixture.service.getStatus()).resolves.toMatchObject({
+      state: 'stale',
+      reason: 'upgrade-required',
+      commandPath: publicCommandPath
+    })
+    await expect(fixture.service.ensureInstalled()).resolves.toMatchObject({
+      state: 'installed',
+      commandPath: publicCommandPath
+    })
+    await expect(lstat(legacyCommandPath)).rejects.toMatchObject({ code: 'ENOENT' })
+    expect(await readFile(publicCommandPath, 'utf8')).toBe(installedCommand)
+
+    await writeFile(legacyCommandPath, installedCommand, { mode: 0o755 })
+    await expect(fixture.service.removeOwnedLauncher()).resolves.toMatchObject({
+      state: 'not-installed'
+    })
+    await expect(lstat(publicCommandPath)).rejects.toMatchObject({ code: 'ENOENT' })
+    await expect(lstat(legacyCommandPath)).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
+  it('migrates owned v1 files to a newer source without treating jiaorong as unowned', async () => {
+    const fixture = await createFixture()
+    const publicCommandPath = path.join(fixture.homeDirectory, '.local', 'bin', 'jiaorong')
+    const legacyCommandPath = path.join(fixture.homeDirectory, '.local', 'bin', 'deepchat')
+    const markerPath = path.join(fixture.userDataDirectory, 'local-control', 'launcher.json')
+
+    await fixture.service.ensureInstalled()
+    const v1Command = await readFile(publicCommandPath, 'utf8')
+    const marker = JSON.parse(await readFile(markerPath, 'utf8')) as Record<string, unknown>
+    await writeFile(legacyCommandPath, v1Command, { mode: 0o755 })
+    marker.commandPath = legacyCommandPath
+    await writeFile(markerPath, `${JSON.stringify(marker)}\n`)
+
+    const nextCliDirectory = await switchToNextCliSource(fixture)
+
+    await expect(fixture.service.getStatus()).resolves.toMatchObject({
+      state: 'stale',
+      reason: 'upgrade-required',
+      commandPath: publicCommandPath
+    })
+    await expect(fixture.service.ensureInstalled()).resolves.toMatchObject({
+      state: 'installed',
+      commandPath: publicCommandPath
+    })
+    const upgraded = await readFile(publicCommandPath, 'utf8')
+    expect(upgraded).toContain(`cli_module='${path.join(nextCliDirectory, 'deepchat.mjs')}'`)
+    expect(upgraded).not.toBe(v1Command)
+    await expect(lstat(legacyCommandPath)).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
+  it('deletes a leftover v1 deepchat while refreshing jiaorong to a newer source', async () => {
+    const fixture = await createFixture()
+    const publicCommandPath = path.join(fixture.homeDirectory, '.local', 'bin', 'jiaorong')
+    const legacyCommandPath = path.join(fixture.homeDirectory, '.local', 'bin', 'deepchat')
+
+    await fixture.service.ensureInstalled()
+    const v1Command = await readFile(publicCommandPath, 'utf8')
+    await writeFile(legacyCommandPath, v1Command, { mode: 0o755 })
+    const nextCliDirectory = await switchToNextCliSource(fixture)
+
+    await expect(fixture.service.getStatus()).resolves.toMatchObject({
+      state: 'stale',
+      reason: 'upgrade-required'
+    })
+    await expect(fixture.service.ensureInstalled()).resolves.toMatchObject({
+      state: 'installed'
+    })
+    const upgraded = await readFile(publicCommandPath, 'utf8')
+    expect(upgraded).toContain(`cli_module='${path.join(nextCliDirectory, 'deepchat.mjs')}'`)
+    await expect(lstat(legacyCommandPath)).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
+  it('upgrades a leftover jiaorong when the legacy marker file is already gone', async () => {
+    const fixture = await createFixture()
+    const publicCommandPath = path.join(fixture.homeDirectory, '.local', 'bin', 'jiaorong')
+    const legacyCommandPath = path.join(fixture.homeDirectory, '.local', 'bin', 'deepchat')
+    const markerPath = path.join(fixture.userDataDirectory, 'local-control', 'launcher.json')
+
+    await fixture.service.ensureInstalled()
+    const v1Command = await readFile(publicCommandPath, 'utf8')
+    const marker = JSON.parse(await readFile(markerPath, 'utf8')) as Record<string, unknown>
+    marker.commandPath = legacyCommandPath
+    await writeFile(markerPath, `${JSON.stringify(marker)}\n`)
+    await rm(legacyCommandPath).catch(() => undefined)
+
+    const nextCliDirectory = await switchToNextCliSource(fixture)
+
+    await expect(fixture.service.getStatus()).resolves.toMatchObject({
+      state: 'stale',
+      reason: 'upgrade-required',
+      commandPath: publicCommandPath
+    })
+    await expect(fixture.service.ensureInstalled()).resolves.toMatchObject({
+      state: 'installed',
+      commandPath: publicCommandPath
+    })
+    const upgraded = await readFile(publicCommandPath, 'utf8')
+    expect(upgraded).toContain(`cli_module='${path.join(nextCliDirectory, 'deepchat.mjs')}'`)
+    expect(upgraded).not.toBe(v1Command)
+  })
+
+  it('uninstalls a leftover jiaorong when the legacy marker file is already gone', async () => {
+    const fixture = await createFixture()
+    const publicCommandPath = path.join(fixture.homeDirectory, '.local', 'bin', 'jiaorong')
+    const legacyCommandPath = path.join(fixture.homeDirectory, '.local', 'bin', 'deepchat')
+    const markerPath = path.join(fixture.userDataDirectory, 'local-control', 'launcher.json')
+
+    await fixture.service.ensureInstalled()
+    const v1Command = await readFile(publicCommandPath, 'utf8')
+    const marker = JSON.parse(await readFile(markerPath, 'utf8')) as Record<string, unknown>
+    marker.commandPath = legacyCommandPath
+    await writeFile(markerPath, `${JSON.stringify(marker)}\n`)
+    await rm(legacyCommandPath).catch(() => undefined)
+    await switchToNextCliSource(fixture)
+
+    expect(await readFile(publicCommandPath, 'utf8')).toBe(v1Command)
+    await expect(fixture.service.removeOwnedLauncher()).resolves.toMatchObject({
+      state: 'not-installed'
+    })
+    await expect(lstat(publicCommandPath)).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
+  posixIt(
+    'reports conflict when jiaorong is not a regular file during legacy migration',
+    async () => {
+      const fixture = await createFixture()
+      const publicCommandPath = path.join(fixture.homeDirectory, '.local', 'bin', 'jiaorong')
+      const legacyCommandPath = path.join(fixture.homeDirectory, '.local', 'bin', 'deepchat')
+      const markerPath = path.join(fixture.userDataDirectory, 'local-control', 'launcher.json')
+
+      await fixture.service.ensureInstalled()
+      const installedCommand = await readFile(publicCommandPath, 'utf8')
+      const marker = JSON.parse(await readFile(markerPath, 'utf8')) as Record<string, unknown>
+      await rm(publicCommandPath)
+      await mkdir(publicCommandPath)
+      await writeFile(legacyCommandPath, installedCommand, { mode: 0o755 })
+      marker.commandPath = legacyCommandPath
+      await writeFile(markerPath, `${JSON.stringify(marker)}\n`)
+
+      await expect(fixture.service.getStatus()).resolves.toMatchObject({
+        state: 'conflict',
+        reason: 'unowned-command',
+        commandPath: publicCommandPath
+      })
+      await expect(fixture.service.ensureInstalled()).rejects.toThrow(
+        'unowned JiaorongAI CLI command'
+      )
+    }
+  )
 
   it('does not edit a shell profile when the user command directory is already on PATH', async () => {
     const fixture = await createFixture()
@@ -206,7 +461,7 @@ describe('CliLauncherService', () => {
 
   it('refuses to overwrite an unowned command or an orphaned managed block', async () => {
     const fixture = await createFixture()
-    const commandPath = path.join(fixture.homeDirectory, '.local', 'bin', 'deepchat')
+    const commandPath = path.join(fixture.homeDirectory, '.local', 'bin', 'jiaorong')
     await mkdir(path.dirname(commandPath), { recursive: true })
     await writeFile(commandPath, 'foreign')
 
@@ -227,7 +482,7 @@ describe('CliLauncherService', () => {
 
   posixIt('fails closed when an owned command or shell block is modified', async () => {
     const fixture = await createFixture()
-    const commandPath = path.join(fixture.homeDirectory, '.local', 'bin', 'deepchat')
+    const commandPath = path.join(fixture.homeDirectory, '.local', 'bin', 'jiaorong')
     const profilePath = path.join(fixture.homeDirectory, '.zprofile')
     await fixture.service.ensureInstalled()
     const installedCommand = await readFile(commandPath, 'utf8')
@@ -258,7 +513,7 @@ describe('CliLauncherService', () => {
 
   it('repairs missing owned files while ensuring launcher availability', async () => {
     const fixture = await createFixture()
-    const commandPath = path.join(fixture.homeDirectory, '.local', 'bin', 'deepchat')
+    const commandPath = path.join(fixture.homeDirectory, '.local', 'bin', 'jiaorong')
     await fixture.service.ensureInstalled()
     await rm(commandPath)
 
@@ -275,7 +530,7 @@ describe('CliLauncherService', () => {
 
   it('refreshes only a stale launcher whose previous content is still owned', async () => {
     const fixture = await createFixture()
-    const commandPath = path.join(fixture.homeDirectory, '.local', 'bin', 'deepchat')
+    const commandPath = path.join(fixture.homeDirectory, '.local', 'bin', 'jiaorong')
     await fixture.service.ensureInstalled()
     const nextCliDirectory = path.join(fixture.root, 'cli-v2')
     await mkdir(nextCliDirectory)
@@ -298,7 +553,7 @@ describe('CliLauncherService', () => {
 
   posixIt('migrates an owned legacy POSIX symlink to the stable command shim', async () => {
     const fixture = await createFixture()
-    const commandPath = path.join(fixture.homeDirectory, '.local', 'bin', 'deepchat')
+    const commandPath = path.join(fixture.homeDirectory, '.local', 'bin', 'jiaorong')
     const markerPath = path.join(fixture.userDataDirectory, 'local-control', 'launcher.json')
     await fixture.service.ensureInstalled()
 
@@ -323,7 +578,7 @@ describe('CliLauncherService', () => {
 
   posixIt('fails closed when an owned POSIX shim loses its executable mode', async () => {
     const fixture = await createFixture()
-    const commandPath = path.join(fixture.homeDirectory, '.local', 'bin', 'deepchat')
+    const commandPath = path.join(fixture.homeDirectory, '.local', 'bin', 'jiaorong')
     await fixture.service.ensureInstalled()
     await chmod(commandPath, 0o644)
 
@@ -337,7 +592,7 @@ describe('CliLauncherService', () => {
   it('reports an oversized shell profile without classifying it as modified', async () => {
     const fixture = await createFixture()
     const profilePath = path.join(fixture.homeDirectory, '.zprofile')
-    const commandPath = path.join(fixture.homeDirectory, '.local', 'bin', 'deepchat')
+    const commandPath = path.join(fixture.homeDirectory, '.local', 'bin', 'jiaorong')
     const originalProfile = Buffer.alloc(1024 * 1024 + 1, 0x61)
     await writeFile(profilePath, originalProfile)
 
@@ -366,7 +621,7 @@ describe('CliLauncherService', () => {
       fixture.localAppDataDirectory,
       'Microsoft',
       'WindowsApps',
-      'deepchat.cmd'
+      'jiaorong.cmd'
     )
 
     await expect(fixture.service.ensureInstalled()).resolves.toMatchObject({
@@ -398,6 +653,43 @@ describe('CliLauncherService', () => {
     await expect(lstat(commandPath)).rejects.toMatchObject({ code: 'ENOENT' })
   })
 
+  it('migrates an owned Windows deepchat.cmd to jiaorong.cmd', async () => {
+    const fixture = await createFixture('win32')
+    const publicCommandPath = path.join(
+      fixture.localAppDataDirectory,
+      'Microsoft',
+      'WindowsApps',
+      'jiaorong.cmd'
+    )
+    const legacyCommandPath = path.join(
+      fixture.localAppDataDirectory,
+      'Microsoft',
+      'WindowsApps',
+      'deepchat.cmd'
+    )
+    const markerPath = path.join(fixture.userDataDirectory, 'local-control', 'launcher.json')
+
+    await fixture.service.ensureInstalled()
+    const installedCommand = await readFile(publicCommandPath, 'utf8')
+    const marker = JSON.parse(await readFile(markerPath, 'utf8')) as Record<string, unknown>
+    await writeFile(legacyCommandPath, installedCommand)
+    await rm(publicCommandPath)
+    marker.commandPath = legacyCommandPath
+    await writeFile(markerPath, `${JSON.stringify(marker)}\n`)
+
+    await expect(fixture.service.getStatus()).resolves.toMatchObject({
+      state: 'stale',
+      reason: 'upgrade-required',
+      commandPath: publicCommandPath
+    })
+    await expect(fixture.service.ensureInstalled()).resolves.toMatchObject({
+      state: 'installed',
+      commandPath: publicCommandPath
+    })
+    expect(await readFile(publicCommandPath, 'utf8')).toBe(installedCommand)
+    await expect(lstat(legacyCommandPath)).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
   it('matches an owned Windows marker path without case sensitivity', async () => {
     const fixture = await createFixture('win32')
     const markerPath = path.join(fixture.userDataDirectory, 'local-control', 'launcher.json')
@@ -405,7 +697,7 @@ describe('CliLauncherService', () => {
       fixture.localAppDataDirectory,
       'Microsoft',
       'WindowsApps',
-      'deepchat.cmd'
+      'jiaorong.cmd'
     )
     await fixture.service.ensureInstalled()
     const marker = JSON.parse(await readFile(markerPath, 'utf8')) as Record<string, unknown>
@@ -451,7 +743,7 @@ describe('CliLauncherService', () => {
 
   it('can remove owned integration after the packaged source disappears', async () => {
     const fixture = await createFixture()
-    const commandPath = path.join(fixture.homeDirectory, '.local', 'bin', 'deepchat')
+    const commandPath = path.join(fixture.homeDirectory, '.local', 'bin', 'jiaorong')
     const profilePath = path.join(fixture.homeDirectory, '.zprofile')
     await fixture.service.ensureInstalled()
     fixture.setCliDirectory(null)
@@ -471,7 +763,7 @@ describe('CliLauncherService', () => {
 
   it('prioritizes a missing packaged source over missing owned files', async () => {
     const fixture = await createFixture()
-    const commandPath = path.join(fixture.homeDirectory, '.local', 'bin', 'deepchat')
+    const commandPath = path.join(fixture.homeDirectory, '.local', 'bin', 'jiaorong')
     await fixture.service.ensureInstalled()
     await rm(commandPath)
     fixture.setCliDirectory(null)

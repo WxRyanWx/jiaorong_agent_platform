@@ -21,6 +21,7 @@ import {
 import { MessagePageCursorSchema } from '@shared/contracts/common'
 import { PROGRAMMATIC_TOOL_SEARCH_MAX_RESULTS } from '@shared/contracts/routes/tools.routes'
 import {
+  CLI_COMMAND_DEFINITIONS,
   cliCommandKey,
   getCliCommandDefinition,
   type CliRpcContract
@@ -32,7 +33,9 @@ import {
   PDF_PAGE_COUNT_SANITY_LIMIT
 } from '@shared/types/attachment'
 import { SKILL_ARCHIVE_MAX_INPUT_BYTES } from '@shared/types/skill'
+import { DEFAULT_SYSTEM_PROMPT } from '@jiaorong/prompts/defaultSystemPrompt'
 import path from 'node:path'
+import { CLI_DEFAULT_MODEL_ID, CLI_DEFAULT_PROVIDER_ID } from './brand'
 import { CliUsageError } from './errors'
 
 export const CLI_OUTPUT_ENV = 'DEEPCHAT_CLI_OUTPUT'
@@ -332,12 +335,29 @@ function parseOutputMode(value: string | undefined): CliOutputMode {
   throw new CliUsageError(`${CLI_OUTPUT_ENV} must be text, json, or jsonl`)
 }
 
+const REGISTERED_CLI_DOMAINS: ReadonlySet<string> = new Set(
+  CLI_COMMAND_DEFINITIONS.map((definition) => definition.domain)
+)
+
+function expandShorthandCliArguments(argv: readonly string[]): readonly string[] {
+  const first = argv[0]
+  if (!first || first === 'help' || first.startsWith('-') || REGISTERED_CLI_DOMAINS.has(first)) {
+    return argv
+  }
+  return ['model', 'invoke', '--prompt', first, ...argv.slice(1)]
+}
+
 export function inferCliOutputMode(
   argv: readonly string[],
   env: NodeJS.ProcessEnv = process.env
 ): CliOutputMode {
-  if (!argv[0] || !argv[1] || argv[0].startsWith('-') || argv[1].startsWith('-')) return 'text'
-  const explicit = argv.slice(2).find((argument) => argument === '--json' || argument === '--jsonl')
+  const tokens = expandShorthandCliArguments(argv)
+  if (!tokens[0] || !tokens[1] || tokens[0].startsWith('-') || tokens[1].startsWith('-')) {
+    return 'text'
+  }
+  const explicit = tokens
+    .slice(2)
+    .find((argument) => argument === '--json' || argument === '--jsonl')
   if (explicit) return explicit.slice(2) as CliOutputMode
   try {
     return parseOutputMode(env[CLI_OUTPUT_ENV])
@@ -383,9 +403,10 @@ function parseMessagePageCursor(value: string): JsonValue {
 }
 
 export function parseCliArguments(
-  argv: readonly string[],
+  rawArgv: readonly string[],
   env: NodeJS.ProcessEnv = process.env
 ): ParsedCliArguments {
+  const argv = expandShorthandCliArguments(rawArgv)
   if (argv[0] === 'help') {
     if (argv.length !== 1) throw new CliUsageError('Expected: jiaorong help')
     return {
@@ -405,7 +426,9 @@ export function parseCliArguments(
   const domain = argv[0]
   const verb = argv[1]
   if (!domain || !verb || domain.startsWith('-') || verb.startsWith('-')) {
-    throw new CliUsageError('Expected: jiaorong <domain> <verb> [options]')
+    throw new CliUsageError(
+      'Expected: jiaorong <prompt> [options]  or  jiaorong <domain> <verb> [options]'
+    )
   }
 
   const commandKey = cliCommandKey(domain, verb)
@@ -523,8 +546,8 @@ export function parseCliArguments(
   const mimeType = getString('mime')
   const outputPath = getString('out')
   const overwrite = getBoolean('overwrite') ?? false
-  const providerId = getString('provider')
-  const modelId = getString('model')
+  const requestedProviderId = getString('provider')
+  const requestedModelId = getString('model')
   const prompt = getString('prompt')
   const textInput = getString('text')
   const systemPrompt = getString('system')
@@ -634,15 +657,16 @@ export function parseCliArguments(
   const isRunCancel = commandKey === 'run cancel'
   const isToolSearch = commandKey === 'tool search'
   const isToolDescribe = commandKey === 'tool describe'
+  const usesDefaultInvokeTarget = isModelInvoke || isAgentRun
+  const providerId =
+    requestedProviderId ?? (usesDefaultInvokeTarget ? CLI_DEFAULT_PROVIDER_ID : undefined)
+  const modelId = requestedModelId ?? (usesDefaultInvokeTarget ? CLI_DEFAULT_MODEL_ID : undefined)
   const allowedDomainOptions = COMMAND_DOMAIN_OPTIONS.get(commandKey) ?? new Set<string>()
   const invalidDomainOption = Array.from(domainOptions).find(
     (option) => !allowedDomainOptions.has(option)
   )
   if (invalidDomainOption) {
     throw new CliUsageError(`--${invalidDomainOption} is not valid for jiaorong ${domain} ${verb}`)
-  }
-  if (!helpRequested && isModelInvoke && (!providerId || !modelId)) {
-    throw new CliUsageError('jiaorong model invoke requires --provider and --model')
   }
   if (!helpRequested && isModelInvoke && (prompt !== undefined) === readStdin) {
     throw new CliUsageError('jiaorong model invoke requires exactly one of --prompt or --stdin')
@@ -895,12 +919,15 @@ export function parseCliArguments(
     }
   }
   if (isToolDescribe && toolTarget) params = { target: toolTarget }
+  const modelInvokeSystemPrompt = isModelInvoke
+    ? (systemPrompt ?? DEFAULT_SYSTEM_PROMPT)
+    : systemPrompt
   if (isModelInvoke && providerId && modelId) {
     params = {
       providerId,
       modelId,
       messages: [
-        ...(systemPrompt ? [{ role: 'system', content: systemPrompt }] : []),
+        ...(modelInvokeSystemPrompt ? [{ role: 'system', content: modelInvokeSystemPrompt }] : []),
         ...(prompt !== undefined ? [{ role: 'user', content: prompt }] : [])
       ],
       ...(temperature !== undefined ? { temperature } : {}),
@@ -1044,7 +1071,7 @@ export function formatCliHelp(command?: Pick<ParsedCliArguments, 'domain' | 'ver
                   : ' --run <run-id>'
               : command.domain === 'model'
                 ? command.verb === 'invoke'
-                  ? ' --provider <id> --model <id> (--prompt <text>|--stdin)'
+                  ? ' [--provider <id>] [--model <id>] (--prompt <text>|--stdin)'
                   : command.verb === 'list'
                     ? ' --provider <id>'
                     : ` --provider <id> --model <id>${command.verb === 'config-set' ? ' --stdin' : ''}`
@@ -1087,12 +1114,16 @@ export function formatCliHelp(command?: Pick<ParsedCliArguments, 'domain' | 'ver
     const optionLines =
       commandKey === 'model invoke'
         ? [
-            '  --system <text>       Add a system message',
+            '  --provider <id>      Override provider (default: jiaorong)',
+            '  --model <id>         Override model (default: jiaorong-deepseek-v4-pro)',
+            '  --system <text>       Override system prompt (default: Jiaorong identity prompt)',
             '  --temperature <n>     Set sampling temperature (0..2)',
             '  --max-tokens <n>      Set the output-token limit'
           ]
         : commandKey === 'agent run'
           ? [
+              '  --provider <id>         Override provider (default: jiaorong)',
+              '  --model <id>            Override model (default: jiaorong-deepseek-v4-pro)',
               '  --system <text>         Override the Agent system prompt',
               '  --title <text>          Set the durable session title',
               '  --project-dir <path>    Set the Agent working directory',
@@ -1149,7 +1180,14 @@ export function formatCliHelp(command?: Pick<ParsedCliArguments, 'domain' | 'ver
   }
 
   return [
-    'Usage: jiaorong <domain> <verb> [options]',
+    'Usage: jiaorong <prompt> [options]',
+    '       jiaorong <domain> <verb> [options]',
+    '',
+    'Shorthand:',
+    "  jiaorong '你是谁'",
+    '    Same as model invoke with default provider, model, and system prompt.',
+    "  jiaorong '你是谁' --provider <id> --model <id>",
+    '    Same shorthand; supplied flags override defaults.',
     '',
     'Commands:',
     '  system status        Show local control-plane status',
@@ -1201,7 +1239,7 @@ export function formatCliHelp(command?: Pick<ParsedCliArguments, 'domain' | 'ver
     '  run cancel          Idempotently cancel an owned active run',
     '  help                 Show this help',
     '',
-    'Options (after domain and verb):',
+    'Options (after the prompt, or after domain and verb):',
     '  --json               Emit one JSON result envelope',
     '  --jsonl              Emit JSONL records',
     '  --timeout <ms>       Set request timeout',

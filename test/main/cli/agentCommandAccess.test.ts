@@ -566,6 +566,23 @@ describe('AgentCliCommandAccess', () => {
     })
   })
 
+  it('does not issue a scoped token for human prompt shorthand', async () => {
+    const { directory } = await createCliDirectory()
+    const authority = new AgentCliTokenAuthority()
+    const access = new AgentCliCommandAccess({
+      tokenAuthority: authority,
+      commandPermission: new CommandPermissionService(),
+      resolveCliDirectory: () => directory
+    })
+
+    expect(createEnvironment(access, 'conversation-1', "jiaorong '你是谁'")).toEqual({
+      variables: { [LOCAL_CONTROL_AGENT_TOKEN_ENV]: '' },
+      prependPath: [],
+      preserveCommand: true
+    })
+    expect(authority.snapshot()).toEqual({ tokens: 0, conversations: 0 })
+  })
+
   it('derives dynamic artifact command scopes from the Agent surface', async () => {
     const { directory } = await createCliDirectory()
     const agentToken = 'b'.repeat(43)
