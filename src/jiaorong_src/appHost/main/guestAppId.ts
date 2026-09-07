@@ -12,6 +12,11 @@ export function readAppIdFromGuestPartition(partition: unknown): string | null {
   return id || null
 }
 
+export function readSessionPartition(session: unknown): unknown {
+  if (!session || typeof session !== 'object' || !('partition' in session)) return undefined
+  return (session as { partition?: unknown }).partition
+}
+
 export function isLoopbackHttpEntry(entry: string): boolean {
   try {
     const url = new URL(entry)

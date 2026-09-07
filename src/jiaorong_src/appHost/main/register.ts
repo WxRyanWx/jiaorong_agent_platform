@@ -17,7 +17,7 @@ import {
 } from './events'
 import { appAgentIds } from './agentMap'
 import { bindGuestAppId, getBoundGuestAppId } from './guestBind'
-import { resolveGuestInvokeAppId } from './guestAppId'
+import { readJiaorongAppHostname, readSessionPartition, resolveGuestInvokeAppId } from './guestAppId'
 import { ensureJiaorongAppNode, stopAllJiaorongAppNodes, stopJiaorongAppNode } from './guestNode'
 import { installJiaorongAppGuestIsolation } from './guestIsolation'
 import {
@@ -42,7 +42,7 @@ function senderUrlOf(sender: IpcMainInvokeEvent['sender']): string {
 function senderAppId(event: IpcMainInvokeEvent): string | null {
   let partition: unknown
   try {
-    partition = event.sender.session?.partition
+    partition = readSessionPartition(event.sender.session)
   } catch {
     partition = undefined
   }

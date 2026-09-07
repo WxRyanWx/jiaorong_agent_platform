@@ -17,8 +17,6 @@ on:
       DC_GITHUB_REDIRECT_URI:
         required: false
   workflow_dispatch: {}
-  schedule:
-    - cron: '37 18 * * *'
 
 permissions:
   contents: read

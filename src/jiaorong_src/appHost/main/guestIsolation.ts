@@ -4,7 +4,8 @@ import {
   guestPartitionForApp,
   isLoopbackHttpEntry,
   readAppIdFromGuestPartition,
-  readJiaorongAppHostname
+  readJiaorongAppHostname,
+  readSessionPartition
 } from './guestAppId'
 import { getAppPreloadPath } from './paths'
 
@@ -39,7 +40,7 @@ function takePendingGuestAppId(hostId: number, partition: unknown, src: string):
 
 function sessionPartitionOf(contents: WebContents): unknown {
   try {
-    return contents.session?.partition
+    return readSessionPartition(contents.session)
   } catch {
     return undefined
   }

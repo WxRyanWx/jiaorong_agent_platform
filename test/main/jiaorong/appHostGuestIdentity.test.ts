@@ -4,6 +4,7 @@ import {
   matchGuestInvokeAppId,
   readAppIdFromGuestPartition,
   readJiaorongAppHostname,
+  readSessionPartition,
   resolveGuestInvokeAppId
 } from '../../../src/jiaorong_src/appHost/main/guestAppId'
 import {
@@ -107,6 +108,10 @@ describe('jiaorong app guest identity', () => {
     expect(readAppIdFromGuestPartition(null)).toBeNull()
     expect(readAppIdFromGuestPartition('')).toBeNull()
     expect(readAppIdFromGuestPartition('persist:jiaorong-app-test')).toBe('test')
+    expect(readSessionPartition(undefined)).toBeUndefined()
+    expect(readSessionPartition({ partition: 'persist:jiaorong-app-test' })).toBe(
+      'persist:jiaorong-app-test'
+    )
   })
 
   it('resolves protocol guest invoke even when partition and senderFrame are missing', () => {
