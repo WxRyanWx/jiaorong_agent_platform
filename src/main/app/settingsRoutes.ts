@@ -29,6 +29,7 @@ import type { SettingsStore } from '@/config/settingsStore'
 import type { CommandShellService } from '@/agent/shared/process/commandShellService'
 import type { DeepchatEventPublisher } from '@shared/contracts/events'
 import { createRouteMap, type DeepchatRouteMap } from '@/routes/routeRegistry'
+import { notifyJiaorongAuthSessionChanged } from '@jiaorong/appHost/main/events'
 
 export function createAppSettingsRoutes(deps: {
   settings: Pick<SettingsStore, 'get' | 'set'>
@@ -217,6 +218,9 @@ export function createAppSettingsRoutes(deps: {
       async (rawInput) => {
         const input = configUpdateEntriesRoute.input.parse(rawInput)
         for (const change of input.changes) deps.settings.set(change.key, change.value)
+        if (input.changes.some((change) => change.key === 'jiaorong_auth_session')) {
+          notifyJiaorongAuthSessionChanged()
+        }
         return configUpdateEntriesRoute.output.parse({
           version: Date.now(),
           changedKeys: input.changes.map((change) => change.key),

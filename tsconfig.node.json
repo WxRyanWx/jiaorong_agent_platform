@@ -14,7 +14,17 @@
     "src/jiaorong_src/logging/**/*",
     "src/jiaorong_src/utils/skillSwitchCore.ts",
     "src/jiaorong_src/knowledgeBase/mcp/knowledgeBaseMcpConstants.ts",
-    "src/jiaorong_src/api/auth/config.ts"
+    "src/jiaorong_src/api/auth/config.ts",
+    "src/jiaorong_src/appHost/auth.ts",
+    "src/jiaorong_src/appHost/catalog.ts",
+    "src/jiaorong_src/appHost/channels.ts",
+    "src/jiaorong_src/appHost/bridgeErrors.ts",
+    "src/jiaorong_src/appHost/types.ts",
+    "src/jiaorong_src/appHost/builtinCatalog.json",
+    "src/jiaorong_src/appHost/preload.ts",
+    "src/jiaorong_src/appHost/main/**/*.ts",
+    "src/jiaorong_src/tools/slashMenuDisplayText.ts",
+    "src/jiaorong_src/tools/toolDisplayNames.ts"
   ],
   "compilerOptions": {
     "composite": true,

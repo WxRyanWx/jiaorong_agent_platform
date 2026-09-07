@@ -1,6 +1,11 @@
 import { app } from 'electron'
 import type { DatabaseRepairReport } from '@shared/types/databaseSchema'
 import type { AgentSettingsPort } from '@/agent/settings'
+import { listAvailableAgents } from '@/agent/shared/availableAgentCatalog'
+import {
+  collectJiaorongAppHiddenAgentIds,
+  isJiaorongAppHiddenAgentId
+} from '@jiaorong/appHost/main/agentMap'
 import {
   configOpenLoggingFolderRoute,
   databaseSecurityChangePasswordRoute,
@@ -165,32 +170,38 @@ export function createAppRoutes(deps: {
           runId: deps.startup.getRunId('main'),
           run: async () => {
             const activeSessionId = deps.desktopSession.getActiveId(caller.webContentsId)
-            const activeSession = activeSessionId
-              ? ((await deps.startupSession.getLightweightByIds([activeSessionId]))[0] ?? null)
-              : null
-            const [agents, acpEnabled, defaultChatWorkspacePath] = await Promise.all([
-              deps.agentSettings.listAgents(),
-              deps.agentSettings.getAcpEnabled(),
-              deps.ensureDefaultWorkspace()
-            ])
+            const [agents, defaultChatWorkspacePath, activeSession, catalogAgents] =
+              await Promise.all([
+                listAvailableAgents(deps.agentSettings),
+                deps.ensureDefaultWorkspace(),
+                activeSessionId
+                  ? deps.startupSession
+                      .getLightweightByIds([activeSessionId])
+                      .then((items) => items[0] ?? null)
+                  : Promise.resolve(null),
+                deps.agentSettings.listAgents()
+              ])
+            const hiddenAgentIds = collectJiaorongAppHiddenAgentIds(catalogAgents)
+            const hideActive =
+              activeSession != null &&
+              (hiddenAgentIds.has(activeSession.agentId) ||
+                isJiaorongAppHiddenAgentId(activeSession.agentId))
             const bootstrap = {
               startupRunId: deps.startup.getRunId('main'),
-              activeSessionId,
-              activeSession,
-              agents: agents
-                .filter((agent) => agent.type === 'deepchat' || acpEnabled)
-                .map((agent) => ({
-                  id: agent.id,
-                  name: agent.name,
-                  type: agent.type,
-                  agentType: agent.agentType,
-                  enabled: agent.enabled,
-                  protected: agent.protected,
-                  icon: agent.icon,
-                  description: agent.description,
-                  source: agent.source,
-                  avatar: agent.avatar
-                })),
+              activeSessionId: hideActive ? null : activeSessionId,
+              activeSession: hideActive ? null : activeSession,
+              agents: agents.map((agent) => ({
+                id: agent.id,
+                name: agent.name,
+                type: agent.type,
+                agentType: agent.agentType,
+                enabled: agent.enabled,
+                protected: agent.protected,
+                icon: agent.icon,
+                description: agent.description,
+                source: agent.source,
+                avatar: agent.avatar
+              })),
               defaultProjectPath: deps.projects.getDefaultProjectPath(),
               defaultChatWorkspacePath
             }

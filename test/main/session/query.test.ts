@@ -215,6 +215,35 @@ describe('SessionQuery', () => {
     })
   })
 
+  it('forwards excludeAgentIds and does not prioritize excluded agents', async () => {
+    const harness = createHarness()
+    const hidden = createSessionRecord({
+      id: 'app-session',
+      agentId: 'app-agent',
+      updatedAt: 500
+    })
+    harness.records.set('app-session', hidden)
+    harness.sessions.listPage.mockReturnValue({
+      records: [createSessionRecord()],
+      nextCursor: null,
+      hasMore: false
+    })
+
+    await expect(
+      harness.coordinator.listLightweight({
+        excludeAgentIds: ['app-agent'],
+        prioritizeSessionId: 'app-session'
+      })
+    ).resolves.toEqual({
+      items: [expect.objectContaining({ id: 's1' })],
+      nextCursor: null,
+      hasMore: false
+    })
+    expect(harness.sessions.listPage).toHaveBeenCalledWith(
+      expect.objectContaining({ excludeAgentIds: ['app-agent'] })
+    )
+  })
+
   it('owns message, Tape, search-result, trace, manifest, and replay reads', async () => {
     const harness = createHarness()
     const message = createMessage()

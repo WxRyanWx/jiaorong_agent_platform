@@ -68,6 +68,8 @@ import {
   type StartupWorkloadTaskSnapshot
 } from '@/platform/performance/rendererPerformance'
 
+defineOptions({ name: 'ChatTabView' })
+
 const pageRouter = usePageRouterStore()
 const sessionStore = useSessionStore()
 const agentStore = useAgentStore()

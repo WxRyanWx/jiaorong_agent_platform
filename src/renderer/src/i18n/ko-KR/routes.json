@@ -68,5 +68,8 @@
   "settings-overview": "설정 개요",
   "settings-memory": "메모리",
   "plugins": "Plugins",
-  "settings-debug": "디버그"
+  "settings-debug": "디버그",
+  "embeddedApp": "App",
+  "embeddedAppLoading": "Opening app…",
+  "embeddedAppUnavailable": "Unable to open this app"
 }

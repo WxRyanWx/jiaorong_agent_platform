@@ -220,6 +220,7 @@ export interface SessionListFilters {
   projectDir?: string
   includeSubagents?: boolean
   parentSessionId?: string
+  excludeAgentIds?: string[]
 }
 
 export interface SessionLightweightOptions {
@@ -228,6 +229,7 @@ export interface SessionLightweightOptions {
   includeSubagents?: boolean
   agentId?: string
   prioritizeSessionId?: string
+  excludeAgentIds?: string[]
 }
 
 export interface SessionProjectionUpdate {

@@ -154,6 +154,27 @@ declare module 'vue-i18n' {
           yobrowser: string
         }
       }
+      toolMode: {
+        title: string
+        modelDefault: string
+        options: {
+          agent: string
+          code: string
+          minimal: string
+        }
+        descriptions: {
+          agent: string
+          code: string
+          minimal: string
+        }
+        useModelDefault: string
+        saving: string
+        locked: string
+        updateFailed: string
+        codeEntry: string
+        codeCallable: string
+        minimalTools: string
+      }
       fileUploadFailed: string
       fileUploadFailedDesc: string
       fileUploadFailedMore: string
@@ -282,6 +303,9 @@ declare module 'vue-i18n' {
       reading: string
       error: string
       placeholder: string
+      loadedLabel: string
+      loadedPlaceholder: string
+      loadedScope: string
     }
     messages: {
       thinking: string
@@ -427,15 +451,6 @@ declare module 'vue-i18n' {
       end: string
     }
     skills: {
-      indicator: {
-        active: string
-        none: string
-      }
-      panel: {
-        title: string
-        manage: string
-        empty: string
-      }
       title: string
       description: string
       draftSuggestions: {
@@ -890,6 +905,8 @@ declare module 'vue-i18n' {
       chatSection: string
       workspace: string
       addWorkspace: string
+      manageWorkspaces: string
+      openWorkspaceFolder: string
       emptyWorkspace: string
       addWorkspaceFailed: string
       remoteControlDisabled: string
@@ -1540,6 +1557,9 @@ declare module 'vue-i18n' {
       emptyPromptContent: string
       missingParameters: string
       invalidParameters: string
+      load_failed: string
+      detail_failed: string
+      record_not_found: string
     }
     tabs: {
       servers: string
@@ -1867,6 +1887,18 @@ declare module 'vue-i18n' {
       add: string
       enableAll: string
       disableAll: string
+      apply: string
+      expand: string
+      collapse: string
+      refresh: string
+      loadOlder: string
+      loadMore: string
+      loadEvidence: string
+      loadMatchingEntries: string
+      openSession: string
+      openMessage: string
+      pause: string
+      resume: string
       rename: string
       delete: string
       switchWithShortcut: string
@@ -1996,6 +2028,172 @@ declare module 'vue-i18n' {
     resetToDefaultSuccess: string
     resetToDefaultFailed: string
     parameterRequired: string
+    login: string
+    knowledgeBase: {
+      title: string
+      addKnowledgeBase: string
+      selectKnowledgeBaseType: string
+      difyDescription: string
+      comingSoon: string
+      featureNotAvailable: string
+      addDifyConfig: string
+      apiKey: string
+      datasetId: string
+      endpoint: string
+      configAdded: string
+      configAddedDesc: string
+      addConfig: string
+      moreComingSoon: string
+      configUpdated: string
+      configUpdatedDesc: string
+      descriptionPlaceholder: string
+      ragflowTitle: string
+      ragflowDescription: string
+      addRagflowConfig: string
+      editRagflowConfig: string
+      dify: string
+      editDifyConfig: string
+      fastgptTitle: string
+      fastgptDescription: string
+      addFastGptConfig: string
+      editFastGptConfig: string
+      builtInKnowledgeTitle: string
+      builtInKnowledgeDescription: string
+      addBuiltinKnowledgeConfig: string
+      editBuiltinKnowledgeConfig: string
+      descriptionDesc: string
+      embeddingModel: string
+      selectEmbeddingModel: string
+      selectEmbeddingModelHelper: string
+      rerankModel: string
+      selectRerankModel: string
+      chunkSize: string
+      chunkOverlap: string
+      fragmentsNumber: string
+      chunkSizeHelper: string
+      chunkOverlapHelper: string
+      fragmentsNumberHelper: string
+      modelNotFound: string
+      modelNotFoundDesc: string
+      removeBuiltinKnowledgeConfirmTitle: string
+      removeBuiltinKnowledgeConfirmDesc: string
+      advanced: string
+      dimensions: string
+      dimensionsPlaceholder: string
+      autoDetectDimensions: string
+      autoDetectHelper: string
+      dimensionsHelper: string
+      autoDetectDimensionsError: string
+      normalized: string
+      normalizedHelper: string
+      chunkSizePlaceholder: string
+      chunkOverlapPlaceholder: string
+      return: string
+      uploadHelper: string
+      fileSupport: string
+      searchKnowledge: string
+      searchKnowledgePlaceholder: string
+      noData: string
+      file: string
+      uploadProcessing: string
+      uploadCompleted: string
+      reAdd: string
+      uploadError: string
+      processing: string
+      paused: string
+      unknown: string
+      delete: string
+      reason: string
+      deleteSuccess: string
+      copy: string
+      copySuccess: string
+      source: string
+      resumeAllPausedTasks: string
+      pauseAllRunningTasks: string
+      reAddFile: {
+        title: string
+        content: string
+      }
+      deleteFile: {
+        title: string
+        content: string
+      }
+      dialog: {
+        beforequit: {
+          title: string
+          description: string
+          cancel: string
+          confirm: string
+        }
+      }
+      searchError: string
+      separators: string
+      separatorsHelper: string
+      invalidSeparators: string
+      selectLanguage: string
+      separatorsPreset: string
+      nowledgeMem: {
+        apiKey: string
+        apiKeyHint: string
+        baseUrl: string
+        configuration: string
+        description: string
+        resetConfig: string
+        saveConfig: string
+        seconds: string
+        testConnection: string
+        timeout: string
+        title: string
+        configLoadFailed: string
+        configSaved: string
+        configSaveFailed: string
+        configReset: string
+        configResetFailed: string
+        connectionSucceeded: string
+        connectionFailed: string
+        invalidBaseUrl: string
+      }
+    }
+    skillsDetail: string
+    skillsCreateButton: string
+    skillsCreateAction: string
+    skillsPageTitle: string
+    skillsPageSubtitle: string
+    skillsInstalled: string
+    skillsNotInstalled: string
+    skillsViewDetail: string
+    skillsBackToList: string
+    skillsBack: string
+    skillsNotFound: string
+    skillsEnabled: string
+    skillsDisabled: string
+    skillsInstall: string
+    skillsInstalling: string
+    skillsUse: string
+    skillsUseSkill: string
+    skillsOpenFolder: string
+    skillsOpenFolderTip: string
+    skillsDelete: string
+    skillsDeleteConfirmTitle: string
+    skillsDeleteConfirmDescription: string
+    skillsUninstallTip: string
+    skillsTryTitle: string
+    skillsTrySubtitle: string
+    skillsTryAction: string
+    skillsTryLink: string
+    skillsSourceTitle: string
+    skillsSourceCode: string
+    skillsRendered: string
+    skillsMockOperation: string
+    skillsMockFolderOpened: string
+    skillsOpenFolderFailed: string
+    skillsUnknownError: string
+    skillsMarket: string
+    skillsMarketSource: string
+    skillsLocalSource: string
+    skillsNoDescription: string
+    skillsUninstallSuccess: string
+    skillsUninstallFailed: string
     chat: string
     plugins: {
       title: string
@@ -2058,12 +2256,20 @@ declare module 'vue-i18n' {
     'settings-overview': string
     'settings-memory': string
     'settings-debug': string
+    embeddedApp: string
+    embeddedAppLoading: string
+    embeddedAppUnavailable: string
     common: {
       commandShell: {
         title: string
         auto: string
         windowsPowerShell: string
+        powerShellCore: string
+        commandPrompt: string
         gitBash: string
+        bash: string
+        zsh: string
+        fish: string
         executable: string
         autoDetect: string
         browse: string
@@ -2138,6 +2344,7 @@ declare module 'vue-i18n' {
       contentProtectionRestartNotice: string
       copyWithCotEnabled: string
       traceDebugEnabled: string
+      traceDebugEnabledDesc: string
       loggingEnabled: string
       loggingDialogTitle: string
       loggingEnableDesc: string
@@ -3008,131 +3215,6 @@ declare module 'vue-i18n' {
       apiUrl: string
       apiKey: string
       verifyLink: string
-    }
-    knowledgeBase: {
-      title: string
-      addKnowledgeBase: string
-      selectKnowledgeBaseType: string
-      difyDescription: string
-      comingSoon: string
-      featureNotAvailable: string
-      addDifyConfig: string
-      apiKey: string
-      datasetId: string
-      endpoint: string
-      configAdded: string
-      configAddedDesc: string
-      addConfig: string
-      moreComingSoon: string
-      configUpdated: string
-      configUpdatedDesc: string
-      descriptionPlaceholder: string
-      ragflowTitle: string
-      ragflowDescription: string
-      addRagflowConfig: string
-      editRagflowConfig: string
-      dify: string
-      editDifyConfig: string
-      fastgptTitle: string
-      fastgptDescription: string
-      addFastGptConfig: string
-      editFastGptConfig: string
-      builtInKnowledgeTitle: string
-      builtInKnowledgeDescription: string
-      addBuiltinKnowledgeConfig: string
-      editBuiltinKnowledgeConfig: string
-      descriptionDesc: string
-      embeddingModel: string
-      selectEmbeddingModel: string
-      selectEmbeddingModelHelper: string
-      rerankModel: string
-      selectRerankModel: string
-      chunkSize: string
-      chunkOverlap: string
-      fragmentsNumber: string
-      chunkSizeHelper: string
-      chunkOverlapHelper: string
-      fragmentsNumberHelper: string
-      modelNotFound: string
-      modelNotFoundDesc: string
-      removeBuiltinKnowledgeConfirmTitle: string
-      removeBuiltinKnowledgeConfirmDesc: string
-      advanced: string
-      dimensions: string
-      dimensionsPlaceholder: string
-      autoDetectDimensions: string
-      autoDetectHelper: string
-      dimensionsHelper: string
-      autoDetectDimensionsError: string
-      normalized: string
-      normalizedHelper: string
-      chunkSizePlaceholder: string
-      chunkOverlapPlaceholder: string
-      return: string
-      uploadHelper: string
-      fileSupport: string
-      searchKnowledge: string
-      searchKnowledgePlaceholder: string
-      noData: string
-      file: string
-      uploadProcessing: string
-      uploadCompleted: string
-      reAdd: string
-      uploadError: string
-      processing: string
-      paused: string
-      unknown: string
-      delete: string
-      reason: string
-      deleteSuccess: string
-      copy: string
-      copySuccess: string
-      source: string
-      resumeAllPausedTasks: string
-      pauseAllRunningTasks: string
-      reAddFile: {
-        title: string
-        content: string
-      }
-      deleteFile: {
-        title: string
-        content: string
-      }
-      dialog: {
-        beforequit: {
-          title: string
-          description: string
-          cancel: string
-          confirm: string
-        }
-      }
-      searchError: string
-      separators: string
-      separatorsHelper: string
-      invalidSeparators: string
-      selectLanguage: string
-      separatorsPreset: string
-      nowledgeMem: {
-        apiKey: string
-        apiKeyHint: string
-        baseUrl: string
-        configuration: string
-        description: string
-        resetConfig: string
-        saveConfig: string
-        seconds: string
-        testConnection: string
-        timeout: string
-        title: string
-        configLoadFailed: string
-        configSaved: string
-        configSaveFailed: string
-        configReset: string
-        configResetFailed: string
-        connectionSucceeded: string
-        connectionFailed: string
-        invalidBaseUrl: string
-      }
     }
     mcp: {
       title: string
@@ -4114,6 +4196,167 @@ declare module 'vue-i18n' {
       }
     }
     success: string
+    columns: {
+      name: string
+      kind: string
+      status: string
+      start: string
+      duration: string
+      waterfall: string
+    }
+    filters: {
+      title: string
+      allFamilies: string
+      errorsOnly: string
+    }
+    groups: {
+      run: string
+      request: string
+      attempt: string
+      tool: string
+    }
+    families: {
+      context: string
+      journal: string
+      contract: string
+      view: string
+      attempt: string
+      anchor: string
+      message: string
+      lineage: string
+      tool: string
+      other: string
+    }
+    activity: {
+      userMessage: string
+      assistantMessage: string
+      user: string
+      assistant: string
+      reasoning: string
+      media: string
+      memoryView: string
+      directiveView: string
+      toolCall: string
+      toolResult: string
+      memorySelection: string
+      tokenUse: string
+      relations: {
+        input: string
+        output: string
+        later: string
+      }
+    }
+    evidence: {
+      request: string
+      earlierSummary: string
+      standaloneSummary: string
+      earlierHint: string
+      standaloneHint: string
+      lanes: {
+        earlier: string
+        request: string
+        diagnostic: string
+      }
+      scope: {
+        request: string
+        diagnostic: string
+        earlier: string
+        filtered: string
+        newer: string
+        not_recorded: string
+      }
+    }
+    kinds: {
+      evidence: string
+      lane: string
+      group: string
+    }
+    states: {
+      unknown: string
+      statusPending: string
+      timingPending: string
+      timingEarlierHistory: string
+      timingFiltered: string
+      timingAwaitingLive: string
+      timingNotRecorded: string
+      timingInconsistent: string
+      notApplicable: string
+      empty: string
+      loadedCounts: string
+      pageLoaded: string
+      pageLoadedComplete: string
+      pageNoMatches: string
+      pageNoMatchesComplete: string
+      matchingEntriesUnavailable: string
+      live: string
+      paused: string
+      liveUnavailable: string
+    }
+    waterfall: {
+      sequence: string
+      point: string
+    }
+    timeline: {
+      title: string
+      actual: string
+      sequence: string
+      session: string
+      model: string
+      tools: string
+      duration: string
+      point: string
+      error: string
+      earlierNotLoaded: string
+    }
+    detail: {
+      title: string
+      selectPrompt: string
+      contextTail: string
+      observedResult: string
+      finalSnapshot: string
+      resultBlocksTruncated: string
+      memoryManifestHint: string
+      subsequentActivity: string
+      subsequentActivityHint: string
+      integrity: string
+      provenance: string
+      timing: string
+      payload: string
+      raw: string
+      truncated: string
+      hashes: string
+      sources: {
+        tape: string
+        message_trace: string
+        derived: string
+      }
+    }
+    fields: {
+      entryId: string
+      family: string
+      name: string
+      kind: string
+      status: string
+      disclosure: string
+      traceId: string
+      messageId: string
+      requestSeq: string
+      attempt: string
+      provider: string
+      model: string
+      endpoint: string
+      group: string
+      identity: string
+      records: string
+    }
+    integrity: {
+      valid: string
+      invalid: string
+      unverified: string
+      label: string
+      invalidWarning: string
+      unverifiedNote: string
+    }
     message: {
       toolbar: {
         save: string
@@ -4208,14 +4451,6 @@ declare module 'vue-i18n' {
     toolReserveTokens: string
     estimatedPromptTokens: string
     notAvailable: string
-    integrity: {
-      label: string
-      valid: string
-      invalid: string
-      unverified: string
-      invalidWarning: string
-      unverifiedNote: string
-    }
     reconstructionAnchor: string
     anchorEntryIds: string
     schemaVersion: string

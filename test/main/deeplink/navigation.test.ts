@@ -17,7 +17,9 @@ describe('resolveInAppChatLoginNavigation', () => {
         'https://c4ai.ccccltd.cn/api/auth/login/jjt?code=1&state=jrDCClientV1'
       )
     ).toBeNull()
-    expect(resolveInAppChatLoginNavigation('https://jjt.ccccltd.cn/wwopen/sso/qrConnect')).toBeNull()
+    expect(
+      resolveInAppChatLoginNavigation('https://jjt.ccccltd.cn/wwopen/sso/qrConnect')
+    ).toBeNull()
     expect(resolveInAppChatLoginNavigation('jiaorongchat://mcp/install?json=abc')).toBeNull()
     expect(resolveInAppChatLoginNavigation('jiaorongchat://start?msg=hi')).toBeNull()
     expect(resolveInAppChatLoginNavigation('jiaorongchat://chat')).toBeNull()

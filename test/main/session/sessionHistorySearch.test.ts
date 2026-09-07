@@ -12,7 +12,7 @@ function createFixture() {
     all: sql.includes('FROM new_sessions') ? sessionAll : messageAll
   }))
   const getDatabase = vi.fn(() => ({ prepare }))
-  const sessions = new Map<string, { id: string; projectDir: string | null }>()
+  const sessions = new Map<string, { id: string; projectDir: string | null; agentId?: string }>()
   const service = new SessionHistorySearch(
     {
       getDatabase,
@@ -133,5 +133,87 @@ describe('SessionHistorySearch', () => {
     expect(hits).toHaveLength(12)
     expect(hits[0]).toMatchObject({ kind: 'session', sessionId: 'session-13', updatedAt: 13 })
     expect(hits.at(-1)).toMatchObject({ kind: 'session', sessionId: 'session-2', updatedAt: 2 })
+  })
+
+  it('drops FTS hits whose session belongs to an excluded agent', async () => {
+    const fixture = createFixture()
+    fixture.sessions.set('official-session', {
+      id: 'official-session',
+      projectDir: '/repo',
+      agentId: 'deepchat'
+    })
+    fixture.sessions.set('app-session', {
+      id: 'app-session',
+      projectDir: '/app',
+      agentId: 'app-agent'
+    })
+    fixture.searchFts.mockReturnValue([
+      {
+        document_kind: 'session',
+        session_id: 'app-session',
+        message_id: null,
+        role: null,
+        title: 'App chat',
+        content: '',
+        updated_at: 2,
+        rank: 1
+      },
+      {
+        document_kind: 'message',
+        session_id: 'official-session',
+        message_id: 'message-1',
+        role: 'user',
+        title: 'Official chat',
+        content: 'release notes',
+        updated_at: 1,
+        rank: 2
+      }
+    ])
+
+    await expect(
+      fixture.service.search('release', { excludeAgentIds: ['app-agent'] })
+    ).resolves.toEqual([
+      expect.objectContaining({ kind: 'message', sessionId: 'official-session' })
+    ])
+  })
+
+  it('keeps FTS hits whose session belongs to an included agent', async () => {
+    const fixture = createFixture()
+    fixture.sessions.set('official-session', {
+      id: 'official-session',
+      projectDir: '/repo',
+      agentId: 'deepchat'
+    })
+    fixture.sessions.set('app-session', {
+      id: 'app-session',
+      projectDir: '/app',
+      agentId: 'app-agent'
+    })
+    fixture.searchFts.mockReturnValue([
+      {
+        document_kind: 'session',
+        session_id: 'app-session',
+        message_id: null,
+        role: null,
+        title: 'App chat',
+        content: '',
+        updated_at: 2,
+        rank: 1
+      },
+      {
+        document_kind: 'message',
+        session_id: 'official-session',
+        message_id: 'message-1',
+        role: 'user',
+        title: 'Official chat',
+        content: 'release notes',
+        updated_at: 1,
+        rank: 2
+      }
+    ])
+
+    await expect(
+      fixture.service.search('release', { includeAgentIds: ['app-agent'] })
+    ).resolves.toEqual([expect.objectContaining({ kind: 'session', sessionId: 'app-session' })])
   })
 })

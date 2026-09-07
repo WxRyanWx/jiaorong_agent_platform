@@ -506,6 +506,14 @@ const setup = async (options: SetupOptions = {}) => {
     listJiaorongSidebarItems: () => options.jiaorongSidebarItems ?? [],
     isJiaorongExclusiveChromeRoute: () => false
   }))
+  vi.doMock('@jiaorong/appHost/renderer/useJiaorongMenuApps', () => ({
+    useJiaorongMenuApps: () => ({
+      apps: ref([]),
+      refresh: vi.fn(),
+      open: vi.fn(),
+      isActive: () => false
+    })
+  }))
   vi.doMock('@jiaorong/auth/host', () => ({
     scheduleAuthRevalidateOnMenuSwitch: () => true
   }))

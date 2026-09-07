@@ -35,6 +35,7 @@ import { applyDocumentAppearance } from '@/foundation/appearance/documentAppeara
 import AppBar from '@/components/AppBar.vue'
 import { useDeviceVersion } from '@/composables/useDeviceVersion'
 import WindowSideBar from '@/components/WindowSideBar.vue'
+import JiaorongAppFrameHost from '@jiaorong/appHost/renderer/JiaorongAppFrameHost.vue'
 import SpotlightOverlay from '@/components/spotlight/SpotlightOverlay.vue'
 import { useSpotlightStore } from '@/stores/ui/spotlight'
 import { useSidepanelStore } from '@/stores/ui/sidepanel'
@@ -482,7 +483,7 @@ onMounted(() => {
   // Ensure icons are loaded (load asynchronously, can happen in parallel with store init)
   void ensureIconsLoaded()
 
-  // Agents/session must hydrate even when exclusive chrome (skills/KB) unmounts ChatTabView.
+  // Agents/session must hydrate even before ChatTabView has been visited (skills/KB/app first).
   void ensureShellBootstrap().catch((error) => {
     console.warn('[Startup][Renderer] ChatMainApp shell.bootstrap failed', error)
   })
@@ -566,8 +567,25 @@ onBeforeUnmount(() => {
             data-testid="app-main"
             class="flex h-full min-h-0 flex-1 min-w-0 flex-col overflow-hidden rounded-tl-xl border-l border-t border-black/20 bg-background dark:border-white/10"
           >
-            <div class="min-h-0 flex-1">
-              <RouterView v-if="isStartupRouteReady" />
+            <div class="relative min-h-0 flex-1">
+              <template v-if="isStartupRouteReady">
+                <!--
+                  Keep ChatTabView alive across exclusive chrome (apps / skills / KB).
+                  Remounting it re-runs shell hydration and tears down the message tree,
+                  which stalls Super Agent ↔ app sidebar switches for several seconds.
+                -->
+                <RouterView v-slot="{ Component }">
+                  <KeepAlive>
+                    <component
+                      :is="Component"
+                      v-if="route.meta.keepAlive"
+                      :key="String(route.name ?? '')"
+                    />
+                  </KeepAlive>
+                  <component :is="Component" v-if="!route.meta.keepAlive" :key="route.fullPath" />
+                </RouterView>
+                <JiaorongAppFrameHost />
+              </template>
             </div>
           </div>
         </div>

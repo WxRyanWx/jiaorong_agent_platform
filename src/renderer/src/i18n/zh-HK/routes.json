@@ -68,5 +68,8 @@
   "settings-overview": "設定概覽",
   "settings-memory": "記憶",
   "plugins": "插件",
-  "settings-debug": "偵錯"
+  "settings-debug": "偵錯",
+  "embeddedApp": "App",
+  "embeddedAppLoading": "Opening app…",
+  "embeddedAppUnavailable": "Unable to open this app"
 }

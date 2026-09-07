@@ -722,6 +722,7 @@ export class WindowPresenter implements IWindowPresenter {
         contextIsolation: true,
         preload: join(__dirname, '../preload/index.mjs'), // Preload 脚本路径
         sandbox: false, // 禁用沙箱，允许 preload 访问 Node.js API
+        webviewTag: true, // 交融嵌入应用独立 guest；不改原有菜单逻辑
         webSecurity: false, // 暂关：技能 zip / 知识库列表等跨域；CORS helper 仍保留
         devTools: is.dev // 开发模式下启用 DevTools
       },

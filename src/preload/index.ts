@@ -10,6 +10,11 @@ import {
 } from 'electron'
 import { normalizeExternalUrl } from '@shared/externalUrl'
 import { createBridge } from './createBridge'
+import {
+  JIAORONG_APP_LEAVE_CHANNEL,
+  JIAORONG_APP_LIST_CHANNEL,
+  JIAORONG_APP_OPEN_CHANNEL
+} from '@jiaorong/appHost/channels'
 
 const isDevHiddenApiEnabled =
   process.env.NODE_ENV === 'development' || Boolean(process.env.ELECTRON_RENDERER_URL)
@@ -107,6 +112,11 @@ const deepchatDevApi = isDevHiddenApiEnabled
     })
   : undefined
 const deepchatBridge = Object.freeze(createBridge(ipcRenderer))
+const jiaorongApps = Object.freeze({
+  listVisible: () => ipcRenderer.invoke(JIAORONG_APP_LIST_CHANNEL),
+  getOpenInfo: (appId: string) => ipcRenderer.invoke(JIAORONG_APP_OPEN_CHANNEL, { appId }),
+  leave: (appId: string) => ipcRenderer.invoke(JIAORONG_APP_LEAVE_CHANNEL, { appId })
+})
 
 // Use `contextBridge` APIs to expose Electron APIs to
 // renderer only if context isolation is enabled, otherwise
@@ -115,6 +125,7 @@ if (process.contextIsolated) {
   try {
     contextBridge.exposeInMainWorld('api', api)
     contextBridge.exposeInMainWorld('deepchat', deepchatBridge)
+    contextBridge.exposeInMainWorld('jiaorongApps', jiaorongApps)
     if (deepchatDevApi) {
       contextBridge.exposeInMainWorld('__deepchatDev', deepchatDevApi)
     }
@@ -126,6 +137,8 @@ if (process.contextIsolated) {
   window.api = api
   // @ts-ignore (define in dts)
   window.deepchat = deepchatBridge
+  // @ts-ignore (define in dts)
+  window.jiaorongApps = jiaorongApps
   if (deepchatDevApi) {
     // @ts-ignore (define in dts)
     window.__deepchatDev = deepchatDevApi

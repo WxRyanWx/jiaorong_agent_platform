@@ -84,6 +84,10 @@ import {
   repairPortableDefaultSkillsPath
 } from '@shared/appIdentity'
 import { filterEnabledSkillNamesFromSetting } from '@jiaorong/utils/skillSwitchCore'
+import {
+  isJiaorongAppHiddenAgentId,
+  listJiaorongAppHiddenAgentIds
+} from '@jiaorong/appHost/main/agentMap'
 import { normalizeSkillAllowedTools } from './toolNameMapping'
 import { discoverSkillMetadataInWorker, logSkillDiscoveryWorkerWarnings } from './discoveryWorker'
 import {
@@ -1110,6 +1114,7 @@ export class SkillService implements SkillServicePort {
       (await this.agentScopePort.listDeepChatAgents()).map((agent) => agent.id)
     )
     activeAgentIds.add(BUILTIN_SKILL_AGENT_ID)
+    for (const agentId of listJiaorongAppHiddenAgentIds()) activeAgentIds.add(agentId)
 
     const state = this.getStoredManagementState()
     let changed = false
@@ -1865,7 +1870,11 @@ export class SkillService implements SkillServicePort {
   ): UnifiedSkillItem {
     const item = state.skills[skill.name] ?? this.createDefaultSkillItem(skill.name)
     const assignedAgentIds = Object.entries(state.agents)
-      .filter(([, agent]) => agent.bindings[skill.name]?.assigned === true)
+      .filter(
+        ([assignedAgentId, agent]) =>
+          agent.bindings[skill.name]?.assigned === true &&
+          !isJiaorongAppHiddenAgentId(assignedAgentId)
+      )
       .map(([assignedAgentId]) => assignedAgentId)
       .sort((left, right) => left.localeCompare(right))
     const assigned = state.agents[agentId]?.bindings[skill.name]?.assigned === true

@@ -1587,9 +1587,9 @@ function createRuntime() {
         }
       }
     ]),
-    getToolDisplayCatalog: vi.fn().mockResolvedValue([
-      { name: 'skill_list', displayName: '技能列表' }
-    ])
+    getToolDisplayCatalog: vi
+      .fn()
+      .mockResolvedValue([{ name: 'skill_list', displayName: '技能列表' }])
   }
   const pluginService = {
     initialize: vi.fn().mockResolvedValue(undefined),

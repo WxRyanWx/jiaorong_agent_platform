@@ -21,6 +21,7 @@ export {
   resetAuthSessionValidation
 } from './lib/session'
 export { getToken, clearOutLocal } from './lib/local-user'
+export { JIAORONG_AUTH_SESSION_CHANGED_EVENT } from './lib/persist'
 
 /** 应用启动：URL token + HTTP 拦截器 + 技能开关 hydrate（须在 createApp 前/路由可用时调用） */
 export async function bootstrapJiaorongRendererAuth(router: Router): Promise<void> {

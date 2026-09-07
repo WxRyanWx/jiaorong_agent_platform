@@ -112,6 +112,7 @@ export class AppSessionService implements AppSessionReadPort {
     agentId?: string
     includeSubagents?: boolean
     parentSessionId?: string
+    excludeAgentIds?: string[]
   }): {
     records: SessionRecord[]
     nextCursor: SessionPageCursor | null
@@ -122,7 +123,8 @@ export class AppSessionService implements AppSessionReadPort {
       cursor: options?.cursor as SessionListPageCursor | null | undefined,
       agentId: options?.agentId,
       includeSubagents: options?.includeSubagents,
-      parentSessionId: options?.parentSessionId
+      parentSessionId: options?.parentSessionId,
+      excludeAgentIds: options?.excludeAgentIds
     })
     const records = page.rows.map((row) => this.mapRowToRecord(row))
     const lastRecord = records.at(-1)
@@ -140,6 +142,7 @@ export class AppSessionService implements AppSessionReadPort {
     projectDir?: string
     includeSubagents?: boolean
     parentSessionId?: string
+    excludeAgentIds?: string[]
   }): SessionRecord[] {
     const rows = this.sessionDatabase.newSessionsTable.list(filters)
     return rows.map((row) => this.mapRowToRecord(row))

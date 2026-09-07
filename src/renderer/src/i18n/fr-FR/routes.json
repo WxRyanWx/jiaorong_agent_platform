@@ -68,5 +68,8 @@
   "settings-overview": "Aperçu des paramètres",
   "settings-memory": "Mémoire",
   "plugins": "Plugins",
-  "settings-debug": "Debug"
+  "settings-debug": "Debug",
+  "embeddedApp": "App",
+  "embeddedAppLoading": "Opening app…",
+  "embeddedAppUnavailable": "Unable to open this app"
 }

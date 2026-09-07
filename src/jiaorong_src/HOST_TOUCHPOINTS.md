@@ -64,7 +64,7 @@
 | H59 | `src/main/mcp/settings.ts` + `composition.ts` | 默认开启 MCP（一次性迁移 `mcpEnabledDefaultV3`） | mcp | 中 | 与设置拨到 ON 等效 |
 | H60 | `src/main/onboarding/autoCompletePreconfiguredOnboarding.ts` | 预配 Provider 则自动 complete 引导 | onboarding | 中 | `composition.init` 在 getProviders 之后调用 |
 | H61 | `resources/skills/jiaorong-settings/` | 交融设置技能（中文 displayName） | skills | 中 | 工具名 `jiaorong_settings_*`；兼容 deepchat-settings 别名 |
-| H62 | `ChatMainApp.vue` / `ChatTabView.vue` / `lib/shellBootstrap.ts` | 壳启动幂等水合 | startup | 中 | 技能/KB 独占路由会卸掉 ChatTabView，agents 必须在壳上灌 |
+| H62 | `ChatMainApp.vue` / `ChatTabView.vue` / `lib/shellBootstrap.ts` | 壳启动幂等水合 | startup | 中 | 技能/KB/应用独占路由 KeepAlive ChatTabView，避免重跑 hydration；agents 仍须在壳上灌 |
 | H63 | `WindowSideBar.vue` / `src/shared/sidebarAgents.ts` | 侧栏 Agent 分区 | sidebar | 低 | deepchat → 技能/KB → 用户 Agent；勿改 enabledAgents 过滤 |
 | H64 | `slashMenuDisplayText` 调用点 + `tools.displayCatalog` + `SkillsPanel.vue` | 工具/技能中文展示 | skills | 中 | 读 metadata.displayName / function.displayName；缺省走 H117 静态对照表 |
 | H65 | `scripts/afterPack.js` Linux launcher 名 | 用 packager.executableName | pack | 中 | 协议已在 yml；不要整文件覆盖 afterPack |
@@ -147,6 +147,22 @@
 | H142 | `McpServers.vue` | HTTP 详情显示 baseUrl；内置库编辑无设置路由时 `openSettings` | mcp | 中 | 主窗口 `/plugins/mcp` 没有 `settings-knowledge-base` |
 | H143 | `McpServerCard.vue` `McpServers.vue` | `jiaorong-knowledge-base` 列表名显示「交融知识库」 | mcp | 低 | 协议 id 不变；`resolveMcpServerListName` |
 | H144 | `launcherService.ts` `docs/guides/cli.md` `docs/guides/cli-user.md` `jiaorong-cli/SKILL.md` | 用户 PATH 安装 `jiaorong`；文档中文化 | cli | 中 | 不改 `# >>> DeepChat CLI >>>`；owned 旧 `deepchat` 入口升级后删除；`deepchat.mjs` / `deepchat tool call` 不动；`model invoke` 默认 `DEFAULT_SYSTEM_PROMPT`；`jiaorong '<prompt>'` 展开为 `model invoke` |
+| H145 | `electron.vite.config.ts` | preload 入口 `jiaorongApp`；Vue `webview` 为 custom element | app embed | 低 | 专用 preload 在 `jiaorong_src/appHost/preload.ts` |
+| H146 | `src/main/appMain.ts` | `registerJiaorongAppSchemes()` | app embed | 低 | `jiaorong-app://` 须在 app ready 前登记 |
+| H147 | `src/main/app/composition.ts` | 启动/销毁 `startJiaorongAppHost`；远程 `catalog.listAgents` 过滤隐藏 Agent；SkillService 列表排除应用 Agent，prune 仍保留隐藏 id | app embed | 中 | 私有 IPC，不进 DeepChat route map；官方技能页不展示应用 Agent，不 prune 掉应用绑定 |
+| H148 | `src/main/desktop/window/index.ts` | 主窗口 `webviewTag: true` | app embed | 中 | 仅宿主页用 webview 加载应用；应用 guest 走独立 partition |
+| H149 | `src/preload/index.ts` `index.d.ts` | 暴露 `window.jiaorongApps` | app embed | 低 | listVisible / getOpenInfo / leave |
+| H150 | `src/renderer/src/components/WindowSideBar.vue` `useJiaorongMenuApps.ts` | 嵌入应用独立 v-for；`jiaorong_auth_session` 变化刷新 listVisible | app embed | 中 | **不**并入 `listJiaorongSidebarItems('after-deepchat')` |
+| H151 | `electron-builder.yml` | extraResources `jiaorong-apps/demo-workbench` | app embed | 低 | 排除 `web/` 源码；带上 `node/node_modules` |
+| H152 | `src/renderer/src/i18n/*/routes.json` | embeddedApp* 文案 | app embed | 低 | |
+| H153 | `tsconfig.node.json` / `tsconfig.app.json` | include appHost main / bridgeErrors；renderer 排除 main/preload | app embed | 低 | |
+| H154 | `src/main/app/composition.ts` | dialogue 端口含权限/编排写入 + `publishDeepchatEvent` 转应用 guest；已归属应用的 session 事件不再 `renderer-all` | app embed | 高 | 不改 DeepChat route map；事件另发 `jiaorong-app:bridge-event`，必须带目标 appId |
+| H156 | `src/main/app/composition.ts` | `listSlashSources` 给应用 `/` 菜单（技能 + MCP 实时定义 + 缓存快照） | app chat kit | 中 | 不改 DeepChat route map；guest 走 `catalog.slash`，需登录 |
+| H157 | `src/jiaorong_src/appHost/main/protocol.ts` `guestIsolation.ts` `guestAppId.ts` `guestBind.ts` `register.ts` `bridge.ts` `AppHostPage.vue` `JiaorongAppFrameHost.vue` | Guest 仅 `jiaorong-app://`；切菜单不拆 webview/Node，关超级智能体窗口才 leave；partition **不** `registerPreloadScript`；webview 强制宿主 preload；无 `senderFrame` 拒绝；iframe 须同 bound app 才可 invoke；`disconnect` 不 `unbindGuest`；路径解析 `..`；换用户按可见性推 token 或空 token，并清 persist；guest 允许 `http://127.0.0.1` 调本机 Node（`allowRunningInsecureContent`） | app embed | 高 | webview **不可** `sandbox=yes`；`will-redirect` / `will-frame-navigate`；新账号有权限则推新 token；同一用户刷新 token 不清分区；宿主页重挂 webview |
+| H155 | `src/main/agent/routes.ts` `availableAgentCatalog.ts` `app/routes.ts` `session/routes.ts` `newSessions.ts` | 官方 Agent/会话列表、按 ID 拉取、Spotlight、激活、bootstrap；全部带 `sessionId`/`sourceSessionId` 的会话路由 + `agentId`/`fromAgentId`/`toAgentId`（含 create、批量 move/delete）拒绝应用隐藏 Agent；分页在 SQL `excludeAgentIds` | app embed | 中 | 侧栏走 `sessions.getAgents`；`getLightweightByIds` / `searchHistory` 也必须滤；guest `session.list` 必须 `agentId`，不传 exclude |
+| H158 | `src/main/desktop/floatingButton/index.ts` | 悬浮窗列表 `excludeAgentIds`；打开前用 `isJiaorongAppOfficialHiddenAgent` 拒绝 | app embed | 中 | 与官方 `sessions.activate` 同一套隐藏检查；不改桌面绑定 API |
+| H159 | `src/main/session/sessionHistorySearch.ts` | `includeAgentIds` 给应用 guest `session.search`；`excludeAgentIds` 给官方 Spotlight | app embed | 中 | 官方路由只传 exclude；guest 只传本应用 Agent |
+| H160 | `electron.vite.config.ts` preload `jiaorongApp`；`electron-builder.yml` extraResources `node/node_modules`；`scan.ts` 拷贝源 `node/node_modules` | 打开应用 spawn Node + 注入 `globalThis.jiaorong`；preload `window.jiaorong.userinfo`；未安装或版本变化才拷 | app scaffold | 中 | Node 走 IPC；userinfo 来自主进程 auth session；依赖随包带上，用户机不跑 pnpm |
 
 ## 下次合上游：值得抽到 `jiaorong_src` 的宿主文件
 

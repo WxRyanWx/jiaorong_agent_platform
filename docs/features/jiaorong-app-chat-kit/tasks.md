@@ -1,0 +1,23 @@
+# 任务
+
+- [x] 会话 / 工作区分组
+- [x] 历史收起思考，追问展开
+- [x] 应用 logo + 可传入 URL
+- [x] 主动协作 / 权限写入会话进程
+- [x] `/` 工具与技能菜单封装进 kit
+- [x] 宿主 `catalog.slash`
+- [x] 重建 web-ui 并 bump `0.0.12-dev`
+- [x] 首条发送空白 / 思考误展开 / 续写权限
+- [x] 斜杠菜单 Teleport + IME / 空列表 Enter
+- [x] 重建 web-ui 并 bump `0.0.13-dev`
+- [x] 去掉侧栏搜索；工作区展开；项目会话进工作区
+- [x] `/` 菜单不透明；空查询不截断 MCP 工具
+- [x] 重建 web-ui 并 bump `0.0.14-dev`
+- [x] 侧栏恢复搜索对话输入框，去掉全局搜索按钮
+- [x] 顶栏会话名可改；主动协作小弹窗
+- [x] SDK `catalog.slash`；demo `#/chat2` 手写页 + 流式 inspect JS
+- [x] 重建 web-ui 并 bump `0.0.15-dev`
+- [x] 安装目录仍是旧 web-ui：bump `0.0.16-dev` 并覆盖拷贝
+- [x] 置顶走宿主 `session.pin`
+- [x] 消息首屏 10 / 上滑 20；会话列表首次 10 / 再拉 20
+- [x] 置顶 overlay / 历史锁 / pending 气泡 / working / steer / 落地页 / Chat2 upsert / 死代码

@@ -60,6 +60,23 @@ extraResources:
   - from: ./resources/skills/
     to: app.asar.unpacked/resources/skills
     filter: ['**/*']
+  - from: ./src/jiaorong_src/apps/demo-workbench
+    to: jiaorong-apps/demo-workbench
+    filter:
+      - app.json
+      - icon.png
+      - web-ui/**
+      - skill/**
+      - exe/**
+      - vendor/**
+      - node/*.js
+      - node/app.js
+      - node/app/**
+      - node/config/**
+      - node/package.json
+      - node/pnpm-lock.yaml
+      - node/.npmrc
+      - node/node_modules/**
   - from: ./build/bundled-plugins/
     to: app.asar.unpacked/plugins
     filter: ['**/*.dcplugin']

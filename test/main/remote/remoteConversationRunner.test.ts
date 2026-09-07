@@ -666,7 +666,10 @@ describe('RemoteConversationRunner', () => {
 
     const preparedFile = {
       name: 'image-1.png',
-      path: path.join(workspace, '.jiaorongchat/remote-assets/weixin-ilink/hash/message/image-1.png'),
+      path: path.join(
+        workspace,
+        '.jiaorongchat/remote-assets/weixin-ilink/hash/message/image-1.png'
+      ),
       mimeType: 'image/png',
       content: '',
       metadata: {

@@ -1,0 +1,115 @@
+@import 'tailwindcss';
+
+@source './**/*.{vue,ts}';
+
+:root {
+  --background: hsl(0 0% 100%);
+  --foreground: hsl(0 0% 15%);
+  --card: hsl(0 0% 100%);
+  --card-foreground: hsl(0 0% 15%);
+  --primary: hsl(210 100% 43%);
+  --primary-foreground: hsl(0 0% 100%);
+  --secondary: hsl(0 0% 0% / 0.05);
+  --secondary-foreground: hsl(0 0% 15% / 0.5);
+  --muted: hsl(0 0% 0% / 0.03);
+  --muted-foreground: hsl(0 0% 15% / 0.5);
+  --accent: hsl(0 0% 15% / 0.05);
+  --accent-foreground: hsl(0 0% 15% / 0.8);
+  --border: hsl(0 0% 0% / 0.05);
+  --input: hsl(0 0% 10% / 0.1);
+  --ring: hsl(209.9 100% 42.9%);
+  --text-secondary-foreground: hsl(0 0% 15% / 0.5);
+  --destructive: hsl(0 84.2% 60.2%);
+  --dc-blur-panel: 16px;
+  --dc-motion-fast: 140ms;
+  --dc-motion-default: 220ms;
+  --dc-ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --dc-ease-out-express: cubic-bezier(0.16, 1, 0.3, 1);
+  --dc-font-family:
+    'Geist', 'Noto Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji',
+    'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  --dc-code-font-family:
+    'JetBrains Mono', 'Fira Code', 'Menlo', 'Monaco', 'Consolas', 'Courier New', monospace;
+  font-family: var(--dc-font-family);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-text-secondary-foreground: var(--text-secondary-foreground);
+  --color-destructive: var(--destructive);
+}
+
+*,
+*::before,
+*::after {
+  border-color: var(--border);
+}
+
+/* 工具调用摘要可能是绝对路径。不截断会把 webview 撑出视口，合成层卡死整窗。 */
+.tool-call-pill {
+  max-width: 100%;
+}
+
+.tool-call-summary {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-markdown,
+.chat-markdown pre,
+.chat-markdown code {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.message-list-container {
+  overflow-x: hidden;
+}
+
+.chat-input-box {
+  background: #ffffff;
+  box-shadow: 0px 1px 4px 0px rgba(0, 110, 255, 0.1);
+  border-radius: 16px;
+  border: 1px solid #b9d0f2;
+}
+
+.chat-input-toolbar-icon {
+  color: #4d76ad;
+}
+
+.model-icon-img {
+  display: block;
+  max-width: none;
+  max-height: none;
+  flex-shrink: 0;
+}
+
+.window-sidebar-session-column {
+  background: #eff5ff;
+}
+
+.window-sidebar-search-input {
+  border: 1px solid #d4e3f8;
+  background: #e8f0fc;
+}
+
+.user-message-item .bg-muted {
+  background: #eff5ff;
+}

@@ -43,7 +43,9 @@ const mountApp = async (options?: {
   const route = reactive({
     name: routeName,
     path: routeName === 'welcome' ? '/welcome' : '/chat',
-    fullPath: routeName === 'welcome' ? '/welcome' : '/chat'
+    fullPath: routeName === 'welcome' ? '/welcome' : '/chat',
+    params: {},
+    meta: { keepAlive: routeName === 'chat' }
   })
   const currentRoute = ref(route)
 
@@ -51,6 +53,7 @@ const mountApp = async (options?: {
     route.name = name
     route.path = name === 'welcome' ? '/welcome' : '/chat'
     route.fullPath = route.path
+    route.meta = { keepAlive: name === 'chat' }
     currentRoute.value = route
   }
 
@@ -421,6 +424,14 @@ const mountApp = async (options?: {
       })
     }))
   }
+  vi.doMock('@jiaorong/auth/host', async () => {
+    const actual =
+      await vi.importActual<typeof import('@jiaorong/auth/host')>('@jiaorong/auth/host')
+    return {
+      ...actual,
+      getToken: () => 'test-token'
+    }
+  })
   vi.doMock('@/composables/useFontManager', () => ({
     useFontManager: () => ({
       setupFontListener: vi.fn()
@@ -438,6 +449,7 @@ const mountApp = async (options?: {
     global: {
       stubs: {
         RouterView: true,
+        JiaorongAppFrameHost: true,
         AppBar: true,
         WindowSideBar: true,
         UpdateDialog: true,

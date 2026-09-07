@@ -73,6 +73,16 @@ describe('auth session persist', () => {
     expect(setSetting).toHaveBeenCalledWith('jiaorong_auth_session', { token: '' })
   })
 
+  it('dispatches a window event after persist and clear', async () => {
+    const seen = vi.fn()
+    window.addEventListener('jiaorong-auth-session-changed', seen)
+    localStorage.setItem('xkaitoken', 'live-token')
+    await persistAuthSession()
+    await clearPersistedAuthSession()
+    expect(seen).toHaveBeenCalledTimes(2)
+    window.removeEventListener('jiaorong-auth-session-changed', seen)
+  })
+
   it('does not let an earlier persist overwrite a later clear', async () => {
     const order: string[] = []
     let releaseFirst!: () => void

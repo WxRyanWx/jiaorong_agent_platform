@@ -19,6 +19,7 @@ export type SessionListFilters = {
   projectDir?: string
   includeSubagents?: boolean
   parentSessionId?: string
+  excludeAgentIds?: string[]
 }
 
 export interface SessionServiceLifecyclePort {

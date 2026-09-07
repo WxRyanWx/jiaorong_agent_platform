@@ -27,7 +27,13 @@
     "src/renderer/settings/**/*",
     "src/renderer/settings/**/*.vue"
   ],
-  "exclude": ["src/jiaorong_src/**/scripts/**"],
+  "exclude": [
+    "src/jiaorong_src/**/scripts/**",
+    "src/jiaorong_src/app-sdk/**",
+    "src/jiaorong_src/apps/**",
+    "src/jiaorong_src/appHost/main/**",
+    "src/jiaorong_src/appHost/preload.ts"
+  ],
   "compilerOptions": {
     "module": "esnext",
     "moduleResolution": "bundler",
@@ -35,6 +41,7 @@
     "declaration": false,
     "emitDeclarationOnly": false,
     "noEmit": true,
+    "resolveJsonModule": true,
     "paths": {
       "@/*": [
         "./src/renderer/src/*"

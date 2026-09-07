@@ -18,7 +18,9 @@
     "!src/shared/contracts/routes/mcp.routes.ts",
     "!src/shared/types/core/mcp.ts",
     "!src/shared/types/mcp.ts",
-    "src/shadcn/**"
+    "src/shadcn/**",
+    "src/jiaorong_src/apps/**/web-ui/**",
+    "src/jiaorong_src/app-sdk/release/**"
   ],
   "overrides": [
     {

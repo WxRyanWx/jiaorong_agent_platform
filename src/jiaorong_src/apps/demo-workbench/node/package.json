@@ -1,0 +1,11 @@
+{
+  "name": "demo-workbench-node",
+  "private": true,
+  "egg": {
+    "framework": "egg"
+  },
+  "dependencies": {
+    "egg": "^3.30.0",
+    "jiaorong-app-sdk": "https://c4ai.ccccltd.cn/xkprosdk/jiaorong-app-sdk-1.0.0.tgz"
+  }
+}

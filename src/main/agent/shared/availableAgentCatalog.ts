@@ -1,5 +1,6 @@
 import type { Agent } from '@shared/types/agent-interface'
 import type { AgentSettingsPort } from '@/agent/settings'
+import { isJiaorongAppHiddenAgent } from '@jiaorong/appHost/main/agentMap'
 
 export async function listAvailableAgents(
   agentSettings: Pick<AgentSettingsPort, 'listAgents' | 'getAcpEnabled'>
@@ -8,5 +9,8 @@ export async function listAvailableAgents(
     agentSettings.listAgents(),
     agentSettings.getAcpEnabled()
   ])
-  return agents.filter((agent) => agent.type === 'deepchat' || acpEnabled)
+  return agents.filter((agent) => {
+    if (isJiaorongAppHiddenAgent(agent)) return false
+    return agent.type === 'deepchat' || acpEnabled
+  })
 }

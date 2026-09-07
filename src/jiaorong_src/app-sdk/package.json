@@ -1,0 +1,58 @@
+{
+  "name": "jiaorong-app-sdk",
+  "version": "1.0.0",
+  "description": "JiaorongAI 应用 SDK。页面封装 window.jiaorong，Node 封装宿主注入的桥。",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./vue": {
+      "types": "./dist/vue.d.ts",
+      "import": "./dist/vue.js"
+    },
+    "./vue/style.css": "./dist/vue.css",
+    "./chat-kit": {
+      "types": "./dist/chat-kit.d.ts",
+      "import": "./dist/chat-kit.js"
+    },
+    "./chat-kit/style.css": "./dist/chat-kit.css"
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "scripts": {
+    "build": "tsdown && vite build && vite build --config vite.chat-kit.config.ts && cp src/vue/vue-public.d.ts dist/vue.d.ts && cp src/chat-kit/chat-kit-public.d.ts dist/chat-kit.d.ts",
+    "pack:oss": "pnpm build && pnpm pack --pack-destination ./release"
+  },
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "license": "UNLICENSED",
+  "peerDependencies": {
+    "vue": "^3.5.0"
+  },
+  "dependencies": {
+    "@iconify-json/lucide": "^1.2.0",
+    "@iconify/vue": "^5.0.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.0",
+    "@vitejs/plugin-vue": "^5.2.1",
+    "less": "^4.4.0",
+    "tailwindcss": "^4.3.0",
+    "tsdown": "^0.22.14",
+    "typescript": "^5.9.3",
+    "unrun": "^0.3.1",
+    "vite": "^6.2.0",
+    "vue": "^3.5.13"
+  }
+}

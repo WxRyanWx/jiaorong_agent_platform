@@ -1,5 +1,6 @@
 import { app, dialog } from 'electron'
 import { StartupWorkloadCoordinator } from './app/startupWorkloadCoordinator'
+import { registerJiaorongAppSchemes } from '@jiaorong/appHost/main/protocol'
 import { registerWorkspacePreviewSchemes } from './workspace/workspacePreviewProtocol'
 import { registerMcpAppScheme } from './mcp/apps/sandboxProtocol'
 import {
@@ -44,6 +45,7 @@ export function startApp(): void {
 
   registerWorkspacePreviewSchemes()
   registerMcpAppScheme()
+  registerJiaorongAppSchemes()
 
   let mainProcess: MainProcessControl | undefined
   let allowQuit = false

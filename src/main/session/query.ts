@@ -125,7 +125,8 @@ export class SessionQuery implements SessionProjectionReadPort, SessionProjectio
       limit: options?.limit,
       cursor: options?.cursor,
       agentId: options?.agentId,
-      includeSubagents: options?.includeSubagents
+      includeSubagents: options?.includeSubagents,
+      excludeAgentIds: options?.excludeAgentIds
     })
     const items = await Promise.all(
       page.records.map((record) => this.mapSessionRecordToListItem(record))
@@ -562,9 +563,10 @@ export class SessionQuery implements SessionProjectionReadPort, SessionProjectio
 
   private matchesLightweightFilter(
     record: SessionRecord,
-    options?: Pick<SessionLightweightOptions, 'includeSubagents' | 'agentId'>
+    options?: Pick<SessionLightweightOptions, 'includeSubagents' | 'agentId' | 'excludeAgentIds'>
   ): boolean {
     if (options?.agentId && record.agentId !== options.agentId) return false
+    if (options?.excludeAgentIds?.includes(record.agentId)) return false
     return options?.includeSubagents === true || record.sessionKind !== 'subagent'
   }
 

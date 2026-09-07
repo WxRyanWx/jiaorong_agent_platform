@@ -1,6 +1,12 @@
 import { createConfigClient } from '@api/ConfigClient'
 
 export const JIAORONG_AUTH_SESSION_SETTING_KEY = 'jiaorong_auth_session'
+export const JIAORONG_AUTH_SESSION_CHANGED_EVENT = 'jiaorong-auth-session-changed'
+
+function notifyAuthSessionChanged(): void {
+  if (typeof window === 'undefined') return
+  window.dispatchEvent(new Event(JIAORONG_AUTH_SESSION_CHANGED_EVENT))
+}
 
 export type JiaorongAuthSession = {
   token: string
@@ -57,6 +63,7 @@ async function persistAuthSessionNow(): Promise<void> {
   } catch (error) {
     console.warn('[jiaorong/auth] Failed to persist session to config:', error)
   }
+  notifyAuthSessionChanged()
 }
 
 /** 把当前 localStorage 会话排队回写主进程，后写覆盖先写 */
@@ -77,6 +84,7 @@ export async function clearPersistedAuthSession(): Promise<void> {
     } catch (error) {
       console.warn('[jiaorong/auth] Failed to clear persisted session:', error)
     }
+    notifyAuthSessionChanged()
   })
 }
 
@@ -99,6 +107,7 @@ export async function hydrateAuthSessionFromConfig(): Promise<void> {
       userInfo: stored.userInfo,
       userFullInfo: stored.userFullInfo
     })
+    notifyAuthSessionChanged()
   } catch (error) {
     console.warn('[jiaorong/auth] Failed to hydrate session from config:', error)
   }

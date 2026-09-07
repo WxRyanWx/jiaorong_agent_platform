@@ -353,9 +353,14 @@ describe('ProjectService', () => {
       try {
         await expect(presenter.ensureDefaultWorkspace()).resolves.toBe('/mock/home/JiaorongAI')
 
-        expect(mkdirSyncMock).toHaveBeenCalledWith('/mock/documents/JiaorongAI', { recursive: true })
+        expect(mkdirSyncMock).toHaveBeenCalledWith('/mock/documents/JiaorongAI', {
+          recursive: true
+        })
         expect(mkdirSyncMock).toHaveBeenCalledWith('/mock/home/JiaorongAI', { recursive: true })
-        expect(settingsStore.set).toHaveBeenCalledWith('defaultProjectPath', '/mock/home/JiaorongAI')
+        expect(settingsStore.set).toHaveBeenCalledWith(
+          'defaultProjectPath',
+          '/mock/home/JiaorongAI'
+        )
         expect(warnSpy).toHaveBeenCalledWith(
           '[ProjectService] Failed to create default workspace at /mock/documents/JiaorongAI:',
           expect.any(Error)

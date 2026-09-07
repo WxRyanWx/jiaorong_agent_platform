@@ -42,6 +42,17 @@ export type SessionListPageResult = {
   hasMore: boolean
 }
 
+function appendExcludedAgentIds(
+  conditions: string[],
+  params: unknown[],
+  excludeAgentIds?: string[]
+): void {
+  const ids = [...new Set((excludeAgentIds ?? []).map((agentId) => agentId.trim()).filter(Boolean))]
+  if (ids.length === 0) return
+  conditions.push('agent_id NOT IN (SELECT value FROM json_each(?))')
+  params.push(JSON.stringify(ids))
+}
+
 export class NewSessionsTable extends BaseTable {
   constructor(db: Database.Database) {
     super(db, 'new_sessions')
@@ -238,6 +249,7 @@ export class NewSessionsTable extends BaseTable {
     projectDir?: string
     includeSubagents?: boolean
     parentSessionId?: string
+    excludeAgentIds?: string[]
   }): NewSessionRow[] {
     let sql = 'SELECT * FROM new_sessions'
     const conditions: string[] = []
@@ -258,6 +270,7 @@ export class NewSessionsTable extends BaseTable {
       conditions.push('parent_session_id = ?')
       params.push(filters.parentSessionId)
     }
+    appendExcludedAgentIds(conditions, params, filters?.excludeAgentIds)
 
     if (conditions.length > 0) {
       sql += ' WHERE ' + conditions.join(' AND ')
@@ -273,6 +286,7 @@ export class NewSessionsTable extends BaseTable {
     agentId?: string
     includeSubagents?: boolean
     parentSessionId?: string
+    excludeAgentIds?: string[]
   }): SessionListPageResult {
     const requestedLimit = Math.max(1, Math.min(options?.limit ?? 30, 100))
     let sql = 'SELECT * FROM new_sessions'
@@ -297,6 +311,7 @@ export class NewSessionsTable extends BaseTable {
       conditions.push('(updated_at < ? OR (updated_at = ? AND id < ?))')
       params.push(options.cursor.updatedAt, options.cursor.updatedAt, options.cursor.id)
     }
+    appendExcludedAgentIds(conditions, params, options?.excludeAgentIds)
 
     if (conditions.length > 0) {
       sql += ' WHERE ' + conditions.join(' AND ')

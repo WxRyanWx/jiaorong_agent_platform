@@ -4,6 +4,7 @@
  */
 import type { JiaorongSidebarItem, JiaorongSidebarSlot } from './types'
 import { BUILTIN_MODULES } from './modules'
+import { isAppRouteLocation } from '../router/apps.meta'
 import { isKnowledgeBaseRouteLocation } from '../router/knowledgeBase.meta'
 import { isSkillRouteLocation } from '../router/skills.meta'
 
@@ -20,7 +21,11 @@ export function listJiaorongSidebarItems(
 export function isJiaorongExclusiveChromeRoute(routeName: unknown, routePath?: string): boolean {
   const path = routePath ?? ''
   // 技能中心 / 知识库：路径/name 双判定（详情子路或刷新后 name 暂缺时仍可靠）
-  if (isSkillRouteLocation(routeName, path) || isKnowledgeBaseRouteLocation(routeName, path)) {
+  if (
+    isSkillRouteLocation(routeName, path) ||
+    isKnowledgeBaseRouteLocation(routeName, path) ||
+    isAppRouteLocation(routeName, path)
+  ) {
     return true
   }
 

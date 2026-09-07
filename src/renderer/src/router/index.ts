@@ -20,7 +20,8 @@ const router = createRouter({
       component: () => import('@/apps/chat-main/ChatTabView.vue'),
       meta: {
         titleKey: 'routes.chat',
-        icon: 'lucide:message-square'
+        icon: 'lucide:message-square',
+        keepAlive: true
       }
     },
     {

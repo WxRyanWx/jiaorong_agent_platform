@@ -28,6 +28,22 @@ import { app, ipcMain, webContents as electronWebContents } from 'electron'
 import { DEEPCHAT_EVENT_CHANNEL } from '@shared/contracts/channels'
 import { createDeepchatEventEnvelope, type DeepchatEventName } from '@shared/contracts/events'
 import { optimizer } from '@electron-toolkit/utils'
+import {
+  emitJiaorongAppBridgeEvent,
+  filterOfficialDeepchatPayload
+} from '@jiaorong/appHost/main/events'
+import { startJiaorongAppHost, stopJiaorongAppHost } from '@jiaorong/appHost/main/register'
+import {
+  isJiaorongAppHiddenAgent,
+  listJiaorongAppHiddenAgentIds
+} from '@jiaorong/appHost/main/agentMap'
+import type { JiaorongAppDialoguePort } from '@jiaorong/appHost/main/deps'
+import type { JiaorongAuthSession } from '@jiaorong/appHost/main/userIdentity'
+import {
+  filterEnabledSkills,
+  JIAORONG_SKILL_SWITCH_SETTING_KEY,
+  normalizeSkillSwitchMap
+} from '@jiaorong/utils/skillSwitchCore'
 import { WindowPresenter } from '../desktop/window'
 import { PluginSettingsWindow } from '../desktop/pluginSettingsWindow'
 import { ShortcutPresenter } from '../desktop/shortcut'
@@ -750,7 +766,10 @@ export async function createMainProcessControl(dependencies: {
     }
   }
   const publishDeepchatEvent = (name: DeepchatEventName, payload: unknown): void => {
-    sessionEventRouter.publish(name, payload)
+    emitJiaorongAppBridgeEvent(name, payload)
+    const official = filterOfficialDeepchatPayload(name, payload)
+    if (official === null) return
+    sessionEventRouter.publish(name, official)
   }
   dependencies.mcpAppSandboxRegistry.setConsentPublisher((windowId, payload) => {
     windowPresenter.sendToWindow(
@@ -1382,21 +1401,28 @@ export async function createMainProcessControl(dependencies: {
     {
       isDeepChatAgent: async (agentId) =>
         (await agentSettings.getAgent(agentId))?.type === 'deepchat',
-      listDeepChatAgents: async () =>
-        (await agentSettings.listAgents())
-          .filter((agent) => agent.type === 'deepchat')
+      listDeepChatAgents: async () => {
+        return (await agentSettings.listAgents())
+          .filter((agent) => agent.type === 'deepchat' && !isJiaorongAppHiddenAgent(agent))
           .map((agent) => ({
             id: agent.id,
             enabledSkillNames: agent.config?.enabledSkillNames,
             protected: agent.protected
-          })),
+          }))
+      },
       getSessionAgentId: async (sessionId) =>
         (await sessionQuery.getSession(sessionId))?.agentId ?? null,
-      listSessions: async () =>
-        (await sessionQuery.listSessions({ includeSubagents: true })).map((session) => ({
+      listSessions: async () => {
+        return (
+          await sessionQuery.listSessions({
+            includeSubagents: true,
+            excludeAgentIds: listJiaorongAppHiddenAgentIds()
+          })
+        ).map((session) => ({
           id: session.id,
           agentId: session.agentId
         }))
+      }
     }
   )
   cliSkillService = new CliSkillService({
@@ -2214,7 +2240,7 @@ export async function createMainProcessControl(dependencies: {
       getAgentType: (agentId) => agentSettings.getAgentType(agentId),
       listAgents: async () =>
         (await agentSettings.listAgents())
-          .filter((agent) => agent.enabled !== false)
+          .filter((agent) => agent.enabled !== false && !isJiaorongAppHiddenAgent(agent))
           .map((agent) => ({
             agentId: agent.id,
             agentName: agent.name || agent.id,
@@ -2567,6 +2593,7 @@ export async function createMainProcessControl(dependencies: {
   }
 
   async function destroy(): Promise<void> {
+    await runDestroyStep('jiaorongAppHost.stop', () => stopJiaorongAppHost())
     await runDestroyStep('agentCliTokenAuthority.clear', () => agentCliTokenAuthority.clear())
     await runDestroyStep('cliServer.stop', () => cliServer.stop())
     await runDestroyStep('tapeInspectorHeadWatcher.close', () => tapeInspectorHeadWatcher.close())
@@ -3475,6 +3502,83 @@ export async function createMainProcessControl(dependencies: {
 
   dependencies.bindControl(control)
   registerRoutes()
+  startJiaorongAppHost({
+    getAuthSession: () =>
+      dependencies.settingsStore.get<JiaorongAuthSession | undefined>('jiaorong_auth_session'),
+    getLocale: () => desktopSettings.getLanguage(),
+    getTheme: () => (desktopSettings.getCurrentThemeIsDark() ? 'dark' : 'light'),
+    listSlashSources: async () => {
+      const switchMap = normalizeSkillSwitchMap(
+        dependencies.settingsStore.get(JIAORONG_SKILL_SWITCH_SETTING_KEY)
+      )
+      const [skillRows, toolRows, snapshot] = await Promise.all([
+        skillService.getAllSkills().catch(() => []),
+        mcpService.getAllToolDefinitions().catch(() => []),
+        mcpService.snapshotCachedToolDefinitions().catch(() => ({
+          state: 'uninitialized' as const
+        }))
+      ])
+      const snapshotTools = snapshot.state === 'ready' ? snapshot.tools : []
+      const toolsByName = new Map<
+        string,
+        { name: string; displayName?: string; description?: string }
+      >()
+      for (const tool of [...toolRows, ...snapshotTools]) {
+        const name = tool.function.name?.trim() ?? ''
+        if (!name || toolsByName.has(name)) continue
+        toolsByName.set(name, {
+          name,
+          displayName: tool.function.displayName,
+          description: tool.function.description
+        })
+      }
+      return {
+        skills: filterEnabledSkills(
+          skillRows.filter((skill) => skill.disabled !== true),
+          switchMap
+        ).map((skill) => ({
+          name: skill.name,
+          description: skill.description,
+          metadata: skill.metadata
+        })),
+        tools: [...toolsByName.values()]
+      }
+    },
+    dialogue: {
+      createDeepChatAgent: (input) => agentSettings.createDeepChatAgent(input as never),
+      updateDeepChatAgent: (agentId, updates) =>
+        agentSettings.updateDeepChatAgent(agentId, updates as never),
+      listAgents: () => agentSettings.listAgents(),
+      getAgent: (agentId) => agentSettings.getAgent(agentId),
+      createSession: (input, webContentsId) =>
+        sessionLifecycle.createSession(input as never, webContentsId),
+      getSession: (sessionId) => sessionQuery.getSession(sessionId),
+      listLightweight: (input) => sessionQuery.listLightweight(input),
+      listMessagesPage: (sessionId, options) => sessionQuery.listMessagesPage(sessionId, options),
+      getMessage: (messageId) => sessionQuery.getMessage(messageId),
+      renameSession: (sessionId, title) => sessionQuery.renameSession(sessionId, title),
+      deleteSession: (sessionId) => sessionLifecycle.deleteSession(sessionId),
+      searchHistory: (query, options) => sessionHistorySearch.search(query, options),
+      sendMessage: (sessionId, content) => sessionTurn.sendMessage(sessionId, content as never),
+      steerActiveTurn: (sessionId, content) =>
+        sessionTurn.steerActiveTurn(sessionId, content as never),
+      cancelGeneration: (sessionId) => sessionTurn.cancelGeneration(sessionId),
+      setPermissionMode: (sessionId, mode) =>
+        sessionAssignment.setPermissionMode(sessionId, mode as never),
+      getPermissionMode: (sessionId) => sessionAssignment.getPermissionMode(sessionId),
+      updateOrchestrationPolicy: (sessionId, policy) =>
+        sessionAssignment.updateOrchestrationPolicy(sessionId, policy),
+      toggleSessionPinned: (sessionId, pinned) =>
+        sessionQuery.toggleSessionPinned(sessionId, pinned),
+      respondToolInteraction: (input) =>
+        sessionTurn.respondToolInteraction(
+          input.sessionId,
+          input.messageId,
+          input.toolCallId,
+          input.response as never
+        )
+    } as unknown as JiaorongAppDialoguePort
+  })
   deeplinkService.init()
   setupApplicationListeners()
   await runAcpRegistryMigration()

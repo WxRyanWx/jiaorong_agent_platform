@@ -1,4 +1,5 @@
 import type { DeepchatBridge } from '@shared/contracts/bridge'
+import type { JiaorongAppOpenInfo, JiaorongMenuAppItem } from '@jiaorong/appHost/types'
 
 declare global {
   interface Window {
@@ -17,6 +18,11 @@ declare global {
     __deepchatDev?: {
       goToWelcome(): boolean
       clearWelcomeOverride(): boolean
+    }
+    jiaorongApps?: {
+      listVisible(): Promise<JiaorongMenuAppItem[]>
+      getOpenInfo(appId: string): Promise<JiaorongAppOpenInfo | null>
+      leave(appId: string): Promise<{ ok: boolean }>
     }
   }
 }

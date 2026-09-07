@@ -68,5 +68,8 @@
   "settings-scheduled-tasks": "Zamanlanmış görevler",
   "settings-memory": "Bellek",
   "plugins": "Plugins",
-  "settings-debug": "Debug"
+  "settings-debug": "Debug",
+  "embeddedApp": "App",
+  "embeddedAppLoading": "Opening app…",
+  "embeddedAppUnavailable": "Unable to open this app"
 }

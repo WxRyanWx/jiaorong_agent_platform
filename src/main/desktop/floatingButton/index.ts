@@ -13,6 +13,10 @@ import {
 import type { FloatingWidgetSnapshot } from '@shared/types/floating-widget'
 import type { Agent, SessionWithState } from '@shared/types/agent-interface'
 import { listAvailableAgents } from '@/agent/shared/availableAgentCatalog'
+import {
+  isJiaorongAppOfficialHiddenAgent,
+  resolveJiaorongAppHiddenAgentIds
+} from '@jiaorong/appHost/main/agentMap'
 import { BrowserWindow, ipcMain, Menu, app, screen } from 'electron'
 import { FLOATING_BUTTON_EVENTS } from '@/events'
 import type { AgentSettingsPort } from '@/agent/settings'
@@ -636,7 +640,11 @@ export class FloatingButtonPresenter {
   }
 
   private async loadSessions(): Promise<SessionWithState[]> {
-    return await this.sessionQuery.listSessions()
+    const hiddenIds = await resolveJiaorongAppHiddenAgentIds(() => this.agentSettings.listAgents())
+    const sessions = await this.sessionQuery.listSessions({ excludeAgentIds: hiddenIds })
+    return sessions.filter(
+      (session) => !isJiaorongAppOfficialHiddenAgent(session.agentId, hiddenIds)
+    )
   }
 
   private async loadAgents(): Promise<Agent[]> {
@@ -645,6 +653,14 @@ export class FloatingButtonPresenter {
 
   private async openSession(sessionId: string): Promise<void> {
     try {
+      const session = await this.sessionQuery.getSession(sessionId)
+      const hiddenIds = await resolveJiaorongAppHiddenAgentIds(() =>
+        this.agentSettings.listAgents()
+      )
+      if (!session || isJiaorongAppOfficialHiddenAgent(session.agentId, hiddenIds)) {
+        return
+      }
+
       const targetWindow = await this.resolveChatWindow()
       if (!targetWindow || targetWindow.isDestroyed()) {
         return

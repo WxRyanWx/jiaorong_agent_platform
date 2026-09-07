@@ -20,6 +20,6 @@ export type UserInfoData = {
   id: string
   userName: string
   userFullname?: string
-  orgList?: Array<{ name?: string }>
+  orgList?: Array<{ name?: string; orgNo?: string }>
   [key: string]: unknown
 }

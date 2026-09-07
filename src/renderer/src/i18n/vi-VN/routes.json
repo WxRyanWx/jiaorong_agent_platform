@@ -68,5 +68,8 @@
   "settings-scheduled-tasks": "Tác vụ đã lên lịch",
   "settings-memory": "Bộ nhớ",
   "plugins": "Plugins",
-  "settings-debug": "Debug"
+  "settings-debug": "Debug",
+  "embeddedApp": "App",
+  "embeddedAppLoading": "Opening app…",
+  "embeddedAppUnavailable": "Unable to open this app"
 }

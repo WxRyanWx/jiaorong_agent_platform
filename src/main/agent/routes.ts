@@ -29,6 +29,7 @@ import {
   type SettingsActivityInput
 } from '@shared/contracts/routes'
 import type { AgentSettingsPort } from './settings'
+import { isJiaorongAppHiddenAgent } from '@jiaorong/appHost/main/agentMap'
 
 export function createAgentRoutes(deps: {
   agentSettings: AgentSettingsPort
@@ -178,6 +179,7 @@ export function createAgentRoutes(deps: {
         const input = configListAgentsRoute.input.parse(rawInput)
         const idSet = input.ids ? new Set(input.ids) : null
         const agents = (await agentSettings.listAgents()).filter((agent) => {
+          if (isJiaorongAppHiddenAgent(agent)) return false
           return (
             (!input.agentType || agent.type === input.agentType) && (!idSet || idSet.has(agent.id))
           )

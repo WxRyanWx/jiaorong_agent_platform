@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "apps": [
+    {
+      "id": "demo-workbench",
+      "name": "示例工作台",
+      "version": "0.0.19-dev",
+      "description": "应用 SDK 目录与接入示例，给外部团队对照",
+      "icon": "icon.png",
+      "slot": "menu",
+      "source": "builtin",
+      "auth": {
+        "orgs": ["101641966"],
+        "userIds": ["L20184974"]
+      },
+      "package": {
+        "kind": "dir",
+        "builtinDir": "demo-workbench"
+      }
+    }
+  ]
+}

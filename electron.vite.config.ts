@@ -8,7 +8,9 @@ import path from 'node:path'
 import tailwindcss from '@tailwindcss/vite'
 
 const isCustomElement = (tag: string) =>
-  tag === 'voice-agent-widget' || tag.startsWith('ui-resource-renderer')
+  tag === 'webview' ||
+  tag === 'voice-agent-widget' ||
+  tag.startsWith('ui-resource-renderer')
 const isVueDevToolsOverlayEnabled = process.env.DEEPCHAT_VUE_DEVTOOLS_OVERLAY !== '0'
 
 export default defineConfig({
@@ -56,7 +58,8 @@ export default defineConfig({
           splash: resolve('src/preload/splash-preload.ts'),
           floating: resolve('src/preload/floating-preload.ts'),
           browserOverlay: resolve('src/preload/browser-overlay-preload.ts'),
-          pluginSettings: resolve('src/preload/plugin-settings-preload.ts')
+          pluginSettings: resolve('src/preload/plugin-settings-preload.ts'),
+          jiaorongApp: resolve('src/jiaorong_src/appHost/preload.ts')
         }
       }
     }

@@ -22,4 +22,21 @@ describe('listAvailableAgents', () => {
     } as never)
     expect(result).toEqual(agents)
   })
+
+  it('hides Jiaorong app-owned DeepChat agents', async () => {
+    const result = await listAvailableAgents({
+      listAgents: vi.fn(async () => [
+        ...agents,
+        {
+          id: 'deepchat-app',
+          name: '示例工作台助手',
+          type: 'deepchat' as const,
+          enabled: true,
+          config: { jiaorongAppId: 'demo-workbench' }
+        }
+      ]),
+      getAcpEnabled: vi.fn(async () => true)
+    } as never)
+    expect(result.map((agent) => agent.id)).toEqual(['deepchat', 'acp-coder'])
+  })
 })

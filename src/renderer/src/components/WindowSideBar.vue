@@ -85,6 +85,33 @@
           <Icon v-else :icon="item.icon || 'lucide:circle'" class="w-4 h-4 text-foreground/80" />
         </DcButton>
 
+        <!-- 嵌入应用：独立列表，不并入 after-deepchat -->
+        <DcButton
+          v-for="app in jiaorongMenuApps"
+          :key="app.id"
+          :data-testid="`sidebar-jiaorong-app-${app.id}`"
+          :data-selected="String(isJiaorongMenuAppActive(app))"
+          size="icon"
+          tooltip-side="right"
+          :tooltip-delay-duration="200"
+          :tooltip="app.name"
+          class="flex items-center justify-center w-9 h-9 rounded-xl border transition-all duration-150"
+          :class="
+            isJiaorongMenuAppActive(app)
+              ? 'bg-card/50 border-white/80 dark:border-white/20 ring-1 ring-black/10 hover:bg-white/30 dark:hover:bg-white/10'
+              : 'bg-transparent border-none hover:bg-white/30 dark:hover:bg-white/10 shadow-none'
+          "
+          @click="openJiaorongMenuApp(app)"
+        >
+          <img
+            v-if="app.iconSrc"
+            :src="app.iconSrc"
+            alt=""
+            class="w-[22px] h-[22px] object-contain"
+          />
+          <Icon v-else icon="lucide:layout-grid" class="w-4 h-4 text-foreground/80" />
+        </DcButton>
+
         <DcButton
           v-for="agent in sidebarAgentPartitions.userAgents"
           :key="agent.id"
@@ -797,6 +824,8 @@ import {
 } from '@shadcn/components/ui/dropdown-menu'
 import { createSettingsClient } from '@api/SettingsClient'
 import { isJiaorongExclusiveChromeRoute, listJiaorongSidebarItems } from '@jiaorong/runtime/sidebar'
+import { useJiaorongMenuApps } from '@jiaorong/appHost/renderer/useJiaorongMenuApps'
+import type { JiaorongMenuAppItem } from '@jiaorong/appHost/types'
 import type { JiaorongSidebarItem } from '@jiaorong/runtime/types'
 import { partitionSidebarAgents } from '@shared/sidebarAgents'
 import { isMainSidebarItemHidden } from '@shared/settingsSidebarAdmin'
@@ -832,6 +861,11 @@ const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const jiaorongAfterDeepchatItems = listJiaorongSidebarItems('after-deepchat')
+const {
+  apps: jiaorongMenuApps,
+  open: openJiaorongMenuAppItem,
+  isActive: isJiaorongMenuAppRoute
+} = useJiaorongMenuApps()
 const isExclusiveChromeRoute = computed(() =>
   isJiaorongExclusiveChromeRoute(route.name, route.path)
 )
@@ -1106,6 +1140,18 @@ const openJiaorongSidebarItem = async (item: JiaorongSidebarItem) => {
     return
   }
   await router.push({ name: item.routeName })
+}
+
+const isJiaorongMenuAppActive = (app: JiaorongMenuAppItem) => {
+  return isJiaorongMenuAppRoute(app, route.name, route.params.appId)
+}
+
+const openJiaorongMenuApp = async (app: JiaorongMenuAppItem) => {
+  const allowed = ensureAuthOnMenuSwitch()
+  if (!allowed) {
+    return
+  }
+  await openJiaorongMenuAppItem(app)
 }
 
 const openSettings = () => {

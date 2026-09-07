@@ -7,6 +7,11 @@ import type {
   HistorySearchSessionHit
 } from '@shared/contracts/routes/sessions.routes'
 
+export type SessionHistorySearchOptions = HistorySearchOptions & {
+  excludeAgentIds?: string[]
+  includeAgentIds?: string[]
+}
+
 type SearchableSessionRow = {
   id: string
   title: string
@@ -95,12 +100,24 @@ export class SessionHistorySearch {
     private readonly appSessionService: Pick<AppSessionService, 'get'>
   ) {}
 
-  async search(query: string, options?: HistorySearchOptions): Promise<HistorySearchHit[]> {
+  async search(query: string, options?: SessionHistorySearchOptions): Promise<HistorySearchHit[]> {
     const normalizedQuery = query.trim().toLowerCase()
     if (!normalizedQuery) return []
     const limit = clampLimit(options?.limit)
     const db = this.database.getDatabase()
     if (!db) return []
+    const excludedAgentIds = new Set(
+      (options?.excludeAgentIds ?? []).map((agentId) => agentId.trim()).filter(Boolean)
+    )
+    const includedAgentIds = new Set(
+      (options?.includeAgentIds ?? []).map((agentId) => agentId.trim()).filter(Boolean)
+    )
+    const isExcludedSession = (sessionId: string): boolean => {
+      const agentId = this.appSessionService.get(sessionId)?.agentId
+      if (typeof agentId !== 'string') return includedAgentIds.size > 0
+      if (includedAgentIds.size > 0 && !includedAgentIds.has(agentId)) return true
+      return excludedAgentIds.has(agentId)
+    }
 
     const documentLimit = limit * 4
     const ftsRows = this.database.deepchatSearchDocumentsTable.searchFts(
@@ -117,7 +134,7 @@ export class SessionHistorySearch {
         .map((row) => {
           if (row.document_kind === 'session') {
             const session = this.appSessionService.get(row.session_id)
-            if (!session) return null
+            if (!session || isExcludedSession(session.id)) return null
             return {
               kind: 'session' as const,
               sessionId: session.id,
@@ -128,6 +145,7 @@ export class SessionHistorySearch {
             }
           }
           if (!row.message_id || (row.role !== 'user' && row.role !== 'assistant')) return null
+          if (isExcludedSession(row.session_id)) return null
           return {
             kind: 'message' as const,
             sessionId: row.session_id,
@@ -173,28 +191,36 @@ export class SessionHistorySearch {
       )
       .all(likeQuery, limit * 4) as SearchableMessageRow[]
     const sessionHits: Array<HistorySearchSessionHit & { score: number }> = sessionRows
-      .map((row) => ({
-        kind: 'session' as const,
-        sessionId: row.id,
-        title: row.title,
-        projectDir: row.projectDir,
-        updatedAt: Number(row.updatedAt ?? 0),
-        score: scoreSession(row, normalizedQuery)
-      }))
+      .flatMap((row) => {
+        if (isExcludedSession(row.id)) return []
+        return [
+          {
+            kind: 'session' as const,
+            sessionId: row.id,
+            title: row.title,
+            projectDir: row.projectDir,
+            updatedAt: Number(row.updatedAt ?? 0),
+            score: scoreSession(row, normalizedQuery)
+          }
+        ]
+      })
       .filter((item) => item.score > 0)
     const messageHits: Array<HistorySearchMessageHit & { score: number }> = messageRows
-      .map((row) => {
+      .flatMap((row) => {
+        if (isExcludedSession(row.sessionId)) return []
         const content = extractMessageContent(row.content)
-        return {
-          kind: 'message' as const,
-          sessionId: row.sessionId,
-          messageId: row.id,
-          title: row.title,
-          role: row.role,
-          snippet: buildSnippet(content, normalizedQuery),
-          updatedAt: Number(row.updatedAt ?? 0),
-          score: scoreMessage({ ...row, content }, normalizedQuery)
-        }
+        return [
+          {
+            kind: 'message' as const,
+            sessionId: row.sessionId,
+            messageId: row.id,
+            title: row.title,
+            role: row.role,
+            snippet: buildSnippet(content, normalizedQuery),
+            updatedAt: Number(row.updatedAt ?? 0),
+            score: scoreMessage({ ...row, content }, normalizedQuery)
+          }
+        ]
       })
       .filter((item) => item.score > 0)
     return [...sessionHits, ...messageHits]

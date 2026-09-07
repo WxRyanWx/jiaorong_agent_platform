@@ -207,4 +207,25 @@ describeIfSqlite('NewSessionsTable', () => {
       subagent_enabled: 1
     })
   })
+
+  it('excludes agent ids from listPage without shrinking the requested page', () => {
+    const insert = db!.prepare(
+      `INSERT INTO new_sessions (
+         id,
+         agent_id,
+         title,
+         project_dir,
+         created_at,
+         updated_at
+       ) VALUES (?, ?, ?, ?, ?, ?)`
+    )
+    insert.run('hide-new', 'app-agent', 'Hidden new', null, 300, 300)
+    insert.run('keep-new', 'official', 'Keep new', null, 200, 200)
+    insert.run('hide-old', 'app-agent', 'Hidden old', null, 150, 150)
+    insert.run('keep-old', 'official', 'Keep old', null, 100, 100)
+
+    const page = table.listPage({ limit: 2, excludeAgentIds: ['app-agent'] })
+    expect(page.rows.map((row) => row.id)).toEqual(['keep-new', 'keep-old'])
+    expect(page.hasMore).toBe(false)
+  })
 })

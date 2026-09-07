@@ -1,0 +1,14 @@
+{
+  "id": "demo-workbench",
+  "name": "示例工作台",
+  "version": "0.0.19-dev",
+  "icon": "icon.png",
+  "description": "外部团队脚手架：直连 Vue 组件 + Egg Node HTTP 转发",
+  "entry": "web-ui/index.html",
+  "slot": "menu",
+  "node": {
+    "entry": "node/server.js",
+    "startCommand": "node node/server.js",
+    "port": 8787
+  }
+}
