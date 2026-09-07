@@ -168,7 +168,20 @@ export function ensureJiaorongAppInstalled(
   const destDir = getUserAppDir(runtime.id)
   const destManifest = fs.existsSync(destDir) ? readAppManifest(destDir) : null
   const refreshUnpackaged = options?.refresh === true && !app.isPackaged
-  if (destManifest && destManifest.version === runtime.version && !refreshUnpackaged) {
+  const builtinDir = runtime.package.builtinDir
+    ? getBuiltinAppDir(runtime.package.builtinDir)
+    : null
+  const sourceManifest =
+    builtinDir && fs.existsSync(builtinDir) ? readAppManifest(builtinDir) : null
+  const nodePortChanged =
+    Boolean(destManifest && sourceManifest) &&
+    destManifest?.node?.port !== sourceManifest?.node?.port
+  if (
+    destManifest &&
+    destManifest.version === runtime.version &&
+    !refreshUnpackaged &&
+    !nodePortChanged
+  ) {
     return {
       ...runtime,
       appDir: destDir,
@@ -179,9 +192,6 @@ export function ensureJiaorongAppInstalled(
     }
   }
 
-  const builtinDir = runtime.package.builtinDir
-    ? getBuiltinAppDir(runtime.package.builtinDir)
-    : null
   if (!builtinDir || !fs.existsSync(builtinDir)) {
     if (destManifest) {
       return {

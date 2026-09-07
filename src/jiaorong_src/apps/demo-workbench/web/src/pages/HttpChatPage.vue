@@ -1,7 +1,8 @@
 <!--
   Node HTTP 对话页（#/node）
 
-  本页不 connect SDK，也不走 window.jiaorong。
+  本页不 connect SDK。对话只走 HTTP。
+  启动时用 window.jiaorong.invoke('context.get') 读宿主选好的 nodeBase。
   数据流：组件 emit 动作 → fetch POST /api/sdk → Node 调 SDK → JSON 原样回来
   → 写入本页 ref → 通过 :sessions / :messages / :live-blocks 灌进两个组件。
   流式走 GET /api/events（SSE）。SSE 丢了也不要紧，generating 期间会轮询 session.get。
@@ -26,7 +27,12 @@ import type {
 import { onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import { APP_ID, CHAT_AGENT_KEY, CHAT_AGENT_NAME, CHAT_PLACEHOLDER } from '../constants'
 import { formatError, isUserCanceledError } from '../lib/formatError'
-import { invokeSdk, openSdkEvents } from '../lib/nodeApi'
+import {
+  applyHostNodeBase,
+  invokeSdk,
+  openSdkEvents,
+  resolveNodeBaseFromHost
+} from '../lib/nodeApi'
 
 /** 当前选中的会话 id。空表示还没会话，发送时会先 session.create。 */
 const sessionId = shallowRef<string | null>(null)
@@ -57,6 +63,7 @@ const liveMessageId = shallowRef<string | null>(null)
 
 /** 关掉 EventSource 的函数。卸载页时调用。 */
 let closeEvents: (() => void) | null = null
+let offContext: (() => void) | null = null
 /** session.list 下一页游标。 */
 let sessionCursor: SessionListResult['nextCursor'] = null
 /** session.get 更早消息的游标。 */
@@ -455,6 +462,7 @@ async function bootHttpPage() {
   let lastError: unknown
   for (let attempt = 0; attempt < 20; attempt++) {
     try {
+      await resolveNodeBaseFromHost()
       const info = await invokeSdk<JiaorongUserInfo>('userinfo.get')
       userLabel.value =
         (typeof info.userName === 'string' && info.userName) ||
@@ -485,57 +493,68 @@ async function bootHttpPage() {
   throw lastError
 }
 
+function handleSdkEvent(event: string, raw: unknown) {
+  const payload = raw as {
+    sessionId?: string
+    messageId?: string
+    blocks?: AssistantMessageBlock[]
+    error?: string
+    messages?: ChatMessageRecord[]
+  }
+  // 必须和当前选中会话一致。create 尚未写回 id 时丢掉 SSE，靠返回后的
+  // poll / 后续事件补；否则空选中会把其它会话的流式灌进新对话。
+  if (payload.sessionId && abandonedSessionIds.has(payload.sessionId)) {
+    if (event === 'chat.stream.completed') void refreshSessions()
+    return
+  }
+  if (!payload.sessionId || payload.sessionId !== sessionId.value) {
+    if (event === 'chat.stream.completed') void refreshSessions()
+    return
+  }
+  // 流式增量：更新正在生成的助手块。
+  if (event === 'chat.stream.updated') {
+    liveMessageId.value = payload.messageId ?? liveMessageId.value
+    liveBlocks.value = payload.blocks ?? []
+    generating.value = true
+    return
+  }
+  // 本轮成功结束：停轮询，拉完整历史和侧栏。
+  if (event === 'chat.stream.completed') {
+    generating.value = false
+    stopHistoryPoll()
+    if (sessionId.value) void loadSession(sessionId.value)
+    void refreshSessions()
+    return
+  }
+  // 本轮失败：用户点停止不当成顶部错误；其它失败才出红字。
+  if (event === 'chat.stream.failed') {
+    generating.value = false
+    stopHistoryPoll()
+    errorText.value = isUserCanceledError(payload.error)
+      ? ''
+      : formatError(payload.error || '生成失败')
+    if (sessionId.value) void loadSession(sessionId.value)
+    return
+  }
+  // 消息落库通知：合并进当前列表。
+  if (event === 'sessions.messages.changed' && payload.messages) {
+    upsertMessages(payload.messages)
+  }
+}
+
+function bindSdkEvents() {
+  closeEvents?.()
+  closeEvents = openSdkEvents(handleSdkEvent)
+}
+
 onMounted(async () => {
+  offContext = window.jiaorong?.on?.('context', (payload) => {
+    const change = applyHostNodeBase(payload)
+    if (change === 'updated' && ready.value) bindSdkEvents()
+  })
   try {
     await bootHttpPage()
-    closeEvents = openSdkEvents((event, raw) => {
-      const payload = raw as {
-        sessionId?: string
-        messageId?: string
-        blocks?: AssistantMessageBlock[]
-        error?: string
-        messages?: ChatMessageRecord[]
-      }
-      // 必须和当前选中会话一致。create 尚未写回 id 时丢掉 SSE，靠返回后的
-      // poll / 后续事件补；否则空选中会把其它会话的流式灌进新对话。
-      if (payload.sessionId && abandonedSessionIds.has(payload.sessionId)) {
-        if (event === 'chat.stream.completed') void refreshSessions()
-        return
-      }
-      if (!payload.sessionId || payload.sessionId !== sessionId.value) {
-        if (event === 'chat.stream.completed') void refreshSessions()
-        return
-      }
-      // 流式增量：更新正在生成的助手块。
-      if (event === 'chat.stream.updated') {
-        liveMessageId.value = payload.messageId ?? liveMessageId.value
-        liveBlocks.value = payload.blocks ?? []
-        generating.value = true
-        return
-      }
-      // 本轮成功结束：停轮询，拉完整历史和侧栏。
-      if (event === 'chat.stream.completed') {
-        generating.value = false
-        stopHistoryPoll()
-        if (sessionId.value) void loadSession(sessionId.value)
-        void refreshSessions()
-        return
-      }
-      // 本轮失败：用户点停止不当成顶部错误；其它失败才出红字。
-      if (event === 'chat.stream.failed') {
-        generating.value = false
-        stopHistoryPoll()
-        errorText.value = isUserCanceledError(payload.error)
-          ? ''
-          : formatError(payload.error || '生成失败')
-        if (sessionId.value) void loadSession(sessionId.value)
-        return
-      }
-      // 消息落库通知：合并进当前列表。
-      if (event === 'sessions.messages.changed' && payload.messages) {
-        upsertMessages(payload.messages)
-      }
-    })
+    bindSdkEvents()
     ready.value = true
   } catch (error) {
     errorText.value = formatError(error)
@@ -544,6 +563,8 @@ onMounted(async () => {
 
 onUnmounted(() => {
   stopHistoryPoll()
+  offContext?.()
+  offContext = null
   closeEvents?.()
   closeEvents = null
 })

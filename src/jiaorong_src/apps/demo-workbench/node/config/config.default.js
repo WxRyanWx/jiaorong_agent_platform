@@ -21,6 +21,6 @@ module.exports = {
   },
   jiaorong: {
     appId: process.env.JIAORONG_APP_ID || 'demo-workbench',
-    port: Number(process.env.JIAORONG_NODE_PORT || 8787)
+    port: Number(process.env.JIAORONG_NODE_PORT || 0)
   }
 }

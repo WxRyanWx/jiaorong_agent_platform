@@ -1,6 +1,5 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import fs from 'node:fs'
-import net from 'node:net'
 import os from 'node:os'
 import path from 'node:path'
 import { isJiaorongBridgeFailure } from '../bridgeErrors'
@@ -19,10 +18,25 @@ type NodeInvokeMessage = {
   args?: unknown
 }
 
+type NodeListeningMessage = {
+  type: 'listening'
+  port: number
+}
+
 const NODE_GUEST_ID_BASE = 2_000_000
 const children = new Map<string, ChildProcess>()
 const guestIds = new Map<string, number>()
+const allocatedPorts = new Map<string, number>()
 let nextGuestId = NODE_GUEST_ID_BASE
+
+export function jiaorongAppNodeBase(port: number): string {
+  return `http://127.0.0.1:${Math.floor(port)}`
+}
+
+export function getAllocatedJiaorongAppNodePort(appId: string): number | null {
+  if (!isAlive(children.get(appId))) return null
+  return allocatedPorts.get(appId) ?? null
+}
 
 const GUEST_NODE_ENV_ALLOW = new Set([
   'PATH',
@@ -44,11 +58,7 @@ const GUEST_NODE_ENV_ALLOW = new Set([
   'SHELL'
 ])
 
-export function buildGuestNodeEnv(input: {
-  appId: string
-  entry: string
-  port?: number
-}): NodeJS.ProcessEnv {
+export function buildGuestNodeEnv(input: { appId: string; entry: string }): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = {}
   for (const key of GUEST_NODE_ENV_ALLOW) {
     const value = process.env[key]
@@ -59,9 +69,8 @@ export function buildGuestNodeEnv(input: {
   env.JIAORONG_NODE_ENTRY = input.entry
   env.JIAORONG_APP_ID = input.appId
   env.JIAORONG_NODE_HOST = '127.0.0.1'
-  if (typeof input.port === 'number' && Number.isFinite(input.port) && input.port > 0) {
-    env.JIAORONG_NODE_PORT = String(Math.floor(input.port))
-  }
+  // 0 = 内核分配空闲口。不要自己探 20 个或抽随机数。
+  env.JIAORONG_NODE_PORT = '0'
   return env
 }
 
@@ -71,9 +80,45 @@ export function buildGuestNodeEnv(input: {
  */
 export const guestNodeBootstrapSource = `const { pathToFileURL } = await import('node:url')
 const path = await import('node:path')
+const net = await import('node:net')
 
 const pending = new Map()
 const listeners = new Map()
+let reportedListen = false
+
+function requestedListenPort(args) {
+  const first = args[0]
+  if (first == null || typeof first === 'function') return 0
+  if (typeof first === 'number') return first
+  if (typeof first === 'string') return /^\\d+$/.test(first) ? Number(first) : -1
+  if (typeof first === 'object' && first && typeof first.port === 'number') return first.port
+  if (typeof first === 'object' && first && !first.path) return 0
+  return -1
+}
+
+function reportListening(server) {
+  if (reportedListen || typeof process.send !== 'function') return
+  const addr = server.address()
+  if (!addr || typeof addr === 'string') return
+  const host = String(addr.address || '')
+  if (host !== '127.0.0.1' && host !== '::1' && host !== '::ffff:127.0.0.1') return
+  const port = Number(addr.port)
+  if (!Number.isInteger(port) || port <= 0 || port >= 65536) return
+  reportedListen = true
+  process.send({ type: 'listening', port })
+}
+
+const originalListen = net.Server.prototype.listen
+net.Server.prototype.listen = function (...args) {
+  const requested = requestedListenPort(args)
+  this.once('listening', () => {
+    if (requested !== 0) return
+    reportListening(this)
+  })
+  return originalListen.apply(this, args)
+}
+
+
 
 function isBridgeFailure(value) {
   if (!value || typeof value !== 'object') return false
@@ -169,25 +214,27 @@ function currentVisibleRuntime(
   return findVisibleOpenableApp(apps, appId)
 }
 
-function waitForLocalPort(port: number, timeoutMs = 8000): Promise<boolean> {
-  const started = Date.now()
+function waitForChildListening(child: ChildProcess, timeoutMs = 15000): Promise<number | null> {
   return new Promise((resolve) => {
-    const tryOnce = () => {
-      const socket = net.connect({ host: '127.0.0.1', port })
-      socket.once('connect', () => {
-        socket.destroy()
-        resolve(true)
-      })
-      socket.once('error', () => {
-        socket.destroy()
-        if (Date.now() - started >= timeoutMs) {
-          resolve(false)
-          return
-        }
-        setTimeout(tryOnce, 150)
-      })
+    let settled = false
+    const finish = (port: number | null) => {
+      if (settled) return
+      settled = true
+      child.off('message', onMessage)
+      child.off('exit', onExit)
+      clearTimeout(timer)
+      resolve(port)
     }
-    tryOnce()
+    const onMessage = (raw: unknown) => {
+      const msg = raw as Partial<NodeListeningMessage>
+      if (msg?.type !== 'listening') return
+      const port = typeof msg.port === 'number' ? Math.floor(msg.port) : 0
+      if (port > 0 && port < 65536) finish(port)
+    }
+    const onExit = () => finish(null)
+    const timer = setTimeout(() => finish(null), timeoutMs)
+    child.on('message', onMessage)
+    child.once('exit', onExit)
   })
 }
 
@@ -221,6 +268,7 @@ export function sendJiaorongAppNodeEvent(appId: string, event: string, payload: 
 export function stopJiaorongAppNode(appId: string): Promise<void> {
   const child = children.get(appId)
   children.delete(appId)
+  allocatedPorts.delete(appId)
   if (!child) return Promise.resolve()
   return new Promise((resolve) => {
     const finish = () => {
@@ -272,11 +320,11 @@ export async function ensureJiaorongAppNode(
     cwd: appDir,
     env: buildGuestNodeEnv({
       appId: runtime.id,
-      entry,
-      port: node.port
+      entry
     }),
     stdio: ['ignore', 'pipe', 'pipe', 'ipc']
   })
+  const listening = waitForChildListening(child)
 
   child.stdout?.on('data', (chunk: Buffer) => {
     console.log(`[jiaorong-app:${runtime.id}] ${chunk.toString().trimEnd()}`)
@@ -285,7 +333,10 @@ export async function ensureJiaorongAppNode(
     console.warn(`[jiaorong-app:${runtime.id}] ${chunk.toString().trimEnd()}`)
   })
   child.on('exit', (code, signal) => {
-    if (children.get(runtime.id) === child) children.delete(runtime.id)
+    if (children.get(runtime.id) === child) {
+      children.delete(runtime.id)
+      allocatedPorts.delete(runtime.id)
+    }
     console.warn('[jiaorong-app] node exited', runtime.id, code, signal)
   })
   child.on('message', (raw: unknown) => {
@@ -318,10 +369,11 @@ export async function ensureJiaorongAppNode(
   })
 
   children.set(runtime.id, child)
-  if (typeof node.port === 'number' && node.port > 0) {
-    const ready = await waitForLocalPort(node.port)
-    if (!ready) {
-      console.warn('[jiaorong-app] node port not ready', runtime.id, node.port)
-    }
+  const port = await listening
+  if (!port) {
+    console.warn('[jiaorong-app] node port not ready', runtime.id)
+    await stopJiaorongAppNode(runtime.id)
+    return
   }
+  allocatedPorts.set(runtime.id, port)
 }

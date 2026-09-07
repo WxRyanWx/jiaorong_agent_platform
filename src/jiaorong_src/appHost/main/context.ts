@@ -2,6 +2,7 @@ import { resolveAuthApiBaseUrl, resolveAuthProductId } from '../../api/auth/conf
 import { readUserIdentityFromUserInfo } from '../auth'
 import type { JiaorongAppHostContext, JiaorongAppRuntime } from '../types'
 import type { JiaorongAppHostDeps } from './deps'
+import { getAllocatedJiaorongAppNodePort, jiaorongAppNodeBase } from './guestNode'
 import { readAuthToken } from './userIdentity'
 
 function parseUserInfo(session: ReturnType<JiaorongAppHostDeps['getAuthSession']>): unknown {
@@ -20,6 +21,7 @@ export function buildHostContext(
 ): JiaorongAppHostContext {
   const session = deps.getAuthSession()
   const identity = readUserIdentityFromUserInfo(parseUserInfo(session))
+  const nodePort = getAllocatedJiaorongAppNodePort(runtime.id)
   return {
     userId: identity.userName || '',
     orgId: identity.orgNos[0] ?? null,
@@ -29,6 +31,8 @@ export function buildHostContext(
     appDir: runtime.appDir || '',
     token: readAuthToken(session),
     apiBaseUrl: resolveAuthApiBaseUrl(),
-    productId: resolveAuthProductId()
+    productId: resolveAuthProductId(),
+    nodePort,
+    nodeBase: nodePort ? jiaorongAppNodeBase(nodePort) : undefined
   }
 }

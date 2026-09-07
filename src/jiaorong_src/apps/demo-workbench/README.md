@@ -16,7 +16,7 @@ demo-workbench/
 
 1. Vite `base` 必须是 `'./'`。
 2. 路由必须 `createWebHashHistory()`。
-3. `NODE_BASE` 必须等于 `app.json` 的 `node.port`。
+3. `#/node` 的地址以宿主 `context.nodeBase` 为准。`app.json` 不要写 `node.port`。Node `listen(0)`，内核分配空闲口。
 4. SDK 用 **1.0.0**：`https://c4ai.ccccltd.cn/xkprosdk/jiaorong-app-sdk-1.0.0.tgz`。
 5. Egg 必须单进程。不要 `startCluster`。
 

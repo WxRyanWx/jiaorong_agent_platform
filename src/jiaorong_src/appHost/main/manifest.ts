@@ -21,9 +21,10 @@ export function parseAppManifest(raw: unknown): JiaorongAppManifest | null {
     const nodeRecord = nodeRaw as Record<string, unknown>
     const nodeEntry = readString(nodeRecord.entry)
     const startCommand = readString(nodeRecord.startCommand)
-    const port = typeof nodeRecord.port === 'number' ? nodeRecord.port : Number(nodeRecord.port)
-    if (nodeEntry && startCommand && Number.isInteger(port) && port > 0 && port < 65536) {
-      node = { entry: nodeEntry, startCommand, port }
+    const portRaw = typeof nodeRecord.port === 'number' ? nodeRecord.port : Number(nodeRecord.port)
+    const port = Number.isInteger(portRaw) && portRaw > 0 && portRaw < 65536 ? portRaw : undefined
+    if (nodeEntry && startCommand) {
+      node = port ? { entry: nodeEntry, startCommand, port } : { entry: nodeEntry, startCommand }
     }
   }
   return {

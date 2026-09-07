@@ -96,7 +96,8 @@ function emptyGuestContext(
     theme: deps.getTheme(),
     appId,
     appDir: '',
-    token: null
+    token: null,
+    nodePort: null
   }
 }
 
@@ -158,6 +159,7 @@ export function startJiaorongAppHost(deps: JiaorongAppHostDeps): void {
     if (!runtime) return null
     const installed = ensureJiaorongAppInstalled(runtime)
     await ensureJiaorongAppNode(deps, installed)
+    void broadcastContext(deps)
     return toOpenInfo(installed)
   })
 

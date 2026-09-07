@@ -1,8 +1,8 @@
 /** 应用 id，必须与 app.json 的 id 一致。 */
 export const APP_ID = 'demo-workbench'
 
-/** HttpChatPage 的 Node 地址。必须与 app.json 的 node.port、Egg listen 一致。 */
-export const NODE_BASE = 'http://127.0.0.1:8787'
+/** 仅作说明。页面不要用这个请求，地址以宿主 context.nodeBase 为准。 */
+export const NODE_BASE = 'http://127.0.0.1:0'
 
 /** 应用内智能体的稳定 key，重复 create 会复用同一条。 */
 export const CHAT_AGENT_KEY = 'workbench'
@@ -25,7 +25,10 @@ export const CHAT_PLACEHOLDER = '请输入你的问题…例如「帮我写一�
 
 /** `appDir/skill/<目录>/SKILL.md`。宿主拷到 ~/.jiaorongchat/apps/<id>/ 后的绝对路径。 */
 export function appSkillFile(appDir: string, skillDir: string): string {
-  const root = appDir.trim().replace(/[/\\]+$/, '').replaceAll('\\', '/')
+  const root = appDir
+    .trim()
+    .replace(/[/\\]+$/, '')
+    .replaceAll('\\', '/')
   if (!root) return `skill/${skillDir}/SKILL.md`
   return `${root}/skill/${skillDir}/SKILL.md`
 }

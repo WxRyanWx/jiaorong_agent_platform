@@ -17,6 +17,8 @@ export function normalizeHostContext(raw: unknown): HostContext {
     appDir: typeof record.appDir === 'string' ? record.appDir : '',
     token: readOptionalString(record.token) ?? null,
     apiBaseUrl: readOptionalString(record.apiBaseUrl),
-    productId: readOptionalString(record.productId)
+    productId: readOptionalString(record.productId),
+    nodePort: typeof record.nodePort === 'number' && record.nodePort > 0 ? record.nodePort : null,
+    nodeBase: readOptionalString(record.nodeBase)
   }
 }

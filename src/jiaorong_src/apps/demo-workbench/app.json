@@ -8,7 +8,6 @@
   "slot": "menu",
   "node": {
     "entry": "node/server.js",
-    "startCommand": "node node/server.js",
-    "port": 8787
+    "startCommand": "node node/server.js"
   }
 }

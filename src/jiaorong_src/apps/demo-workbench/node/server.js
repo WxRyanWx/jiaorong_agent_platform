@@ -5,13 +5,13 @@
  *
  * 必须 egg.start 单进程，再自己 listen。
  * 不要 egg.startCluster / 多 worker：worker 拿不到宿主注入的桥，connect({ runtime: 'node' }) 会失败。
- * 端口必须和 app.json 的 node.port、前端 NODE_BASE 一致。
+ * 端口听 JIAORONG_NODE_PORT。宿主注入 0，由内核分配空闲口，不要写死。
  */
 process.env.EGG_SERVER_ENV = process.env.EGG_SERVER_ENV || 'prod'
 
 const egg = require('egg')
 
-const PORT = Number(process.env.JIAORONG_NODE_PORT || 8787)
+const PORT = Number(process.env.JIAORONG_NODE_PORT || 0)
 const HOST = process.env.JIAORONG_NODE_HOST || '127.0.0.1'
 
 async function main() {

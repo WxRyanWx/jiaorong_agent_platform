@@ -1,7 +1,7 @@
 'use strict'
 
 /**
- * 访客页跑在 jiaorong-app://，请求 127.0.0.1:8787 是跨源。
+ * 访客页跑在 jiaorong-app://，请求 127.0.0.1 动态端口是跨源。
  * 只回显该协议 Origin，避免任意网页读走 /api/sdk 里的 token。
  * Allow-Private-Network 给 Chrome 的 private network access 预检用。
  */

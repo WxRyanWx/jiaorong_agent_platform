@@ -10,6 +10,10 @@ export type JiaorongAppHostContext = {
   token: string | null
   apiBaseUrl?: string
   productId?: string
+  /** 本应用 Node HTTP 实际监听端口。未启动为 null。 */
+  nodePort?: number | null
+  /** `http://127.0.0.1:<nodePort>`。未启动则不传。 */
+  nodeBase?: string
 }
 
 export type JiaorongAppSlot = 'menu'
@@ -66,7 +70,8 @@ export type JiaorongAppManifest = {
   node?: {
     entry: string
     startCommand: string
-    port: number
+    /** 不要写。实际口由内核 listen(0) 分配。 */
+    port?: number
   }
 }
 

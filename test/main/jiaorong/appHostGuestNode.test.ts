@@ -3,6 +3,7 @@ import {
   buildGuestNodeEnv,
   guestNodeBootstrapSource
 } from '../../../src/jiaorong_src/appHost/main/guestNode'
+import { parseAppManifest } from '../../../src/jiaorong_src/appHost/main/manifest'
 
 /** 与 electron-vite esmShimPlugin 相同，用来抓静态 import。 */
 const ESM_STATIC_IMPORT_RE =
@@ -13,6 +14,29 @@ describe('jiaorong app node bootstrap', () => {
     expect(guestNodeBootstrapSource.match(ESM_STATIC_IMPORT_RE)).toBeNull()
   })
 
+  it('reports the kernel-assigned listen port back to the host', () => {
+    expect(guestNodeBootstrapSource).toContain("type: 'listening'")
+    expect(guestNodeBootstrapSource).toContain('net.Server.prototype.listen')
+    expect(guestNodeBootstrapSource).toContain('requested !== 0')
+  })
+
+  it('accepts node without port so host can pick a free one', () => {
+    const manifest = parseAppManifest({
+      id: 'demo-workbench',
+      name: '示例工作台',
+      version: '0.0.19-dev',
+      entry: 'web-ui/index.html',
+      node: {
+        entry: 'node/server.js',
+        startCommand: 'node node/server.js'
+      }
+    })
+    expect(manifest?.node).toEqual({
+      entry: 'node/server.js',
+      startCommand: 'node node/server.js'
+    })
+  })
+
   it('does not copy host secrets into guest node env', () => {
     const previous = process.env.JIAORONG_AUTH_TOKEN
     process.env.JIAORONG_AUTH_TOKEN = 'secret-token'
@@ -20,10 +44,9 @@ describe('jiaorong app node bootstrap', () => {
     try {
       const env = buildGuestNodeEnv({
         appId: 'demo-workbench',
-        entry: '/tmp/app.js',
-        port: 8787
+        entry: '/tmp/app.js'
       })
-      expect(env.JIAORONG_NODE_PORT).toBe('8787')
+      expect(env.JIAORONG_NODE_PORT).toBe('0')
       expect(env.JIAORONG_NODE_HOST).toBe('127.0.0.1')
       expect(env.JIAORONG_APP_ID).toBe('demo-workbench')
       expect(env.ELECTRON_RUN_AS_NODE).toBe('1')

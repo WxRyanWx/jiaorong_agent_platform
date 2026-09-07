@@ -1,9 +1,8 @@
 /**
  * 前端调本机 Egg 的薄封装。
  * HttpChatPage 只走这里，不要 import { connect } from 'jiaorong-app-sdk'。
- * NODE_BASE 必须和 app.json 的 node.port、Egg listen 端口一致。
+ * 对话请求走 HTTP。地址只信宿主 context.nodeBase，不要写死端口。
  */
-import { NODE_BASE } from '../constants'
 
 type SdkResult<T> = {
   ok?: boolean
@@ -12,11 +11,63 @@ type SdkResult<T> = {
   data?: T
 }
 
+let nodeBase = ''
+
+function notRunning(message: string): Error {
+  const error = new Error(message)
+  ;(error as Error & { code?: string }).code = 'JIAORONG_NOT_RUNNING'
+  return error
+}
+
+export function getNodeBase(): string {
+  return nodeBase
+}
+
+export function setNodeBase(next: string): void {
+  const value = next.trim().replace(/\/+$/, '')
+  if (value) nodeBase = value
+}
+
+export function clearNodeBase(): void {
+  nodeBase = ''
+}
+
+/** 宿主推下来的实际口。换账号或 Node 重启后端口会变。 */
+export function applyHostNodeBase(raw: unknown): 'updated' | 'cleared' | 'unchanged' {
+  const ctx = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
+  const next =
+    typeof ctx.nodeBase === 'string' && ctx.nodeBase.trim()
+      ? ctx.nodeBase.trim().replace(/\/+$/, '')
+      : typeof ctx.nodePort === 'number' && ctx.nodePort > 0
+        ? `http://127.0.0.1:${Math.floor(ctx.nodePort)}`
+        : ''
+  if (!next) {
+    if (!nodeBase) return 'unchanged'
+    nodeBase = ''
+    return 'cleared'
+  }
+  if (next === nodeBase) return 'unchanged'
+  nodeBase = next
+  return 'updated'
+}
+
+/** 宿主已选好的实际口。还没下发就抛 JIAORONG_NOT_RUNNING，让 boot 重试。 */
+export async function resolveNodeBaseFromHost(): Promise<string> {
+  const jr = window.jiaorong
+  if (!jr?.invoke) throw notRunning('window.jiaorong 不存在')
+  const raw = await jr.invoke('context.get', {})
+  if (applyHostNodeBase(raw) === 'cleared' || !nodeBase) {
+    throw notRunning('Node 服务尚未就绪')
+  }
+  return nodeBase
+}
+
 /** POST /api/sdk → Node 调 SDK，原样返回 data。 */
 export async function invokeSdk<T>(method: string, args?: unknown): Promise<T> {
+  if (!nodeBase) throw notRunning('Node 服务尚未就绪')
   let res: Response
   try {
-    res = await fetch(`${NODE_BASE}/api/sdk`, {
+    res = await fetch(`${nodeBase}/api/sdk`, {
       method: 'POST',
       headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
       body: JSON.stringify({ method, args: args ?? {} })
@@ -46,7 +97,8 @@ export async function invokeSdk<T>(method: string, args?: unknown): Promise<T> {
  * 同时听 unnamed message，避免代理把自定义事件名吃掉。
  */
 export function openSdkEvents(onEvent: (event: string, payload: unknown) => void): () => void {
-  const source = new EventSource(`${NODE_BASE}/api/events`)
+  if (!nodeBase) return () => {}
+  const source = new EventSource(`${nodeBase}/api/events`)
 
   const handle = (event: Event) => {
     try {
