@@ -1,8 +1,9 @@
 /**
  * 前端调本机 Egg 的薄封装。
- * HttpChatPage 只走这里，不要 import { connect } from 'jiaorong-app-sdk'。
- * 对话请求走 HTTP。地址只信宿主 context.nodeBase，不要写死端口。
+ * 对话请求走 HTTP。地址来自 connect() 之后的 getContext().nodeBase。
  */
+import { connect, type JiaorongClient } from 'jiaorong-app-sdk'
+import { APP_ID } from '../constants'
 
 type SdkResult<T> = {
   ok?: boolean
@@ -11,7 +12,11 @@ type SdkResult<T> = {
   data?: T
 }
 
+type NodeBaseChange = 'updated' | 'cleared' | 'unchanged'
+
 let nodeBase = ''
+let client: JiaorongClient | null = null
+const nodeBaseListeners = new Set<(change: Exclude<NodeBaseChange, 'unchanged'>) => void>()
 
 function notRunning(message: string): Error {
   const error = new Error(message)
@@ -23,17 +28,16 @@ export function getNodeBase(): string {
   return nodeBase
 }
 
-export function setNodeBase(next: string): void {
-  const value = next.trim().replace(/\/+$/, '')
-  if (value) nodeBase = value
+export function onNodeBaseChange(
+  handler: (change: Exclude<NodeBaseChange, 'unchanged'>) => void
+): () => void {
+  nodeBaseListeners.add(handler)
+  return () => {
+    nodeBaseListeners.delete(handler)
+  }
 }
 
-export function clearNodeBase(): void {
-  nodeBase = ''
-}
-
-/** 宿主推下来的实际口。换账号或 Node 重启后端口会变。 */
-export function applyHostNodeBase(raw: unknown): 'updated' | 'cleared' | 'unchanged' {
+export function applyHostNodeBase(raw: unknown): NodeBaseChange {
   const ctx = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
   const next =
     typeof ctx.nodeBase === 'string' && ctx.nodeBase.trim()
@@ -44,25 +48,37 @@ export function applyHostNodeBase(raw: unknown): 'updated' | 'cleared' | 'unchan
   if (!next) {
     if (!nodeBase) return 'unchanged'
     nodeBase = ''
+    for (const handler of nodeBaseListeners) handler('cleared')
     return 'cleared'
   }
   if (next === nodeBase) return 'unchanged'
   nodeBase = next
+  for (const handler of nodeBaseListeners) handler('updated')
   return 'updated'
 }
 
-/** 宿主已选好的实际口。还没下发就抛 JIAORONG_NOT_RUNNING，让 boot 重试。 */
+/** 挂载 SDK 后读宿主选好的 Node 地址。还没 listen 完就抛 JIAORONG_NOT_RUNNING。 */
 export async function resolveNodeBaseFromHost(): Promise<string> {
-  const jr = window.jiaorong
-  if (!jr?.invoke) throw notRunning('window.jiaorong 不存在')
-  const raw = await jr.invoke('context.get', {})
-  if (applyHostNodeBase(raw) === 'cleared' || !nodeBase) {
+  if (!client) {
+    client = await connect({ appId: APP_ID })
+    client.on('context', (payload) => {
+      applyHostNodeBase(payload)
+    })
+  }
+  const ctx = await client.getContext()
+  if (applyHostNodeBase(ctx) === 'cleared' || !nodeBase) {
     throw notRunning('Node 服务尚未就绪')
   }
   return nodeBase
 }
 
-/** POST /api/sdk → Node 调 SDK，原样返回 data。 */
+export async function disconnectNodeHost(): Promise<void> {
+  const current = client
+  client = null
+  nodeBase = ''
+  await current?.disconnect()
+}
+
 export async function invokeSdk<T>(method: string, args?: unknown): Promise<T> {
   if (!nodeBase) throw notRunning('Node 服务尚未就绪')
   let res: Response
@@ -72,10 +88,8 @@ export async function invokeSdk<T>(method: string, args?: unknown): Promise<T> {
       headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
       body: JSON.stringify({ method, args: args ?? {} })
     })
-  } catch (error) {
-    const next = new Error(error instanceof Error ? error.message : '无法连接 Node 服务')
-    ;(next as Error & { code?: string }).code = 'JIAORONG_NOT_RUNNING'
-    throw next
+  } catch {
+    throw notRunning('无法连接 Node 服务')
   }
 
   let body: SdkResult<T> | null = null
@@ -92,10 +106,6 @@ export async function invokeSdk<T>(method: string, args?: unknown): Promise<T> {
   return body?.data as T
 }
 
-/**
- * GET /api/events。Node 推 event: sdk。
- * 同时听 unnamed message，避免代理把自定义事件名吃掉。
- */
 export function openSdkEvents(onEvent: (event: string, payload: unknown) => void): () => void {
   if (!nodeBase) return () => {}
   const source = new EventSource(`${nodeBase}/api/events`)

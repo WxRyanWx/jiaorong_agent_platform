@@ -17,9 +17,13 @@ import {
 } from './events'
 import { appAgentIds } from './agentMap'
 import { bindGuestAppId, getBoundGuestAppId } from './guestBind'
-import { matchGuestInvokeAppId, readJiaorongAppHostname } from './guestAppId'
+import { resolveGuestInvokeAppId } from './guestAppId'
 import { ensureJiaorongAppNode, stopAllJiaorongAppNodes, stopJiaorongAppNode } from './guestNode'
 import { installJiaorongAppGuestIsolation } from './guestIsolation'
+import {
+  startStandaloneNodeBridge,
+  stopStandaloneNodeBridge
+} from './standaloneNodeBridge'
 import { registerJiaorongAppProtocolHandler } from './protocol'
 import { ensureJiaorongAppInstalled, findVisibleOpenableApp, scanJiaorongApps } from './scan'
 import { readAuthUserKey, readUserIdentityFromAuthSession } from './userIdentity'
@@ -27,13 +31,28 @@ import { readAuthUserKey, readUserIdentityFromAuthSession } from './userIdentity
 let started = false
 let lastBroadcastUserKey: string | null = null
 
+function senderUrlOf(sender: IpcMainInvokeEvent['sender']): string {
+  try {
+    return sender.getURL() || ''
+  } catch {
+    return ''
+  }
+}
+
 function senderAppId(event: IpcMainInvokeEvent): string | null {
-  const matched = matchGuestInvokeAppId({
+  let partition: unknown
+  try {
+    partition = event.sender.session?.partition
+  } catch {
+    partition = undefined
+  }
+  const matched = resolveGuestInvokeAppId({
     hasSenderFrame: Boolean(event.senderFrame),
     isMainFrame: event.senderFrame === event.sender.mainFrame,
     frameUrl: event.senderFrame?.url || '',
     boundAppId: getBoundGuestAppId(event.sender.id),
-    senderUrl: event.sender.getURL()
+    senderUrl: senderUrlOf(event.sender),
+    partition
   })
   if (!matched) return null
   if (!getBoundGuestAppId(event.sender.id)) bindGuestAppId(event.sender.id, matched)
@@ -131,6 +150,7 @@ async function broadcastContext(deps: JiaorongAppHostDeps): Promise<void> {
 export function startJiaorongAppHost(deps: JiaorongAppHostDeps): void {
   registerJiaorongAppProtocolHandler(deps)
   installJiaorongAppGuestIsolation()
+  startStandaloneNodeBridge(deps)
   if (started) return
   started = true
   lastBroadcastUserKey = readAuthUserKey(deps.getAuthSession())
@@ -199,6 +219,7 @@ export function stopJiaorongAppHost(): void {
   setJiaorongAppContextBroadcaster(null)
   setJiaorongAppSessionResolver(null)
   void stopAllJiaorongAppNodes()
+  stopStandaloneNodeBridge()
   lastBroadcastUserKey = null
   started = false
 }

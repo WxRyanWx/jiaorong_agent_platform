@@ -1,13 +1,26 @@
 'use strict'
 
 /**
- * 访客页跑在 jiaorong-app://，请求 127.0.0.1 动态端口是跨源。
- * 只回显该协议 Origin，避免任意网页读走 /api/sdk 里的 token。
+ * 访客页请求 127.0.0.1 动态端口是跨源。
+ * 允许 jiaorong-app:// 和本机 Vite（localhost / 127.0.0.1），
+ * 避免任意网页读走 /api/sdk。
  * Allow-Private-Network 给 Chrome 的 private network access 预检用。
  */
+function isLoopbackHttpOrigin(origin) {
+  try {
+    const url = new URL(origin)
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return false
+    const host = url.hostname.toLowerCase()
+    return host === '127.0.0.1' || host === 'localhost' || host === '[::1]' || host === '::1'
+  } catch {
+    return false
+  }
+}
+
 function allowedOrigin(origin) {
   if (typeof origin !== 'string' || !origin) return ''
-  return origin.startsWith('jiaorong-app://') ? origin : ''
+  if (origin.startsWith('jiaorong-app://')) return origin
+  return isLoopbackHttpOrigin(origin) ? origin : ''
 }
 
 module.exports = () => {

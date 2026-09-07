@@ -18,6 +18,8 @@ globalThis.jiaorong = { invoke, on, userinfo }
 
 不要再开 `127.0.0.1:19876`。
 
+独立 `node server.js`：宿主在 `127.0.0.1` 随机端口听 JSON 行协议，把 `{ host, port, token }` 写到 `~/.jiaorongchat/node-bridge.json`（`0600`）。脚手架在 `connect` 前调用 `attachJiaorong`，注入 `globalThis.jiaorong`。hello 必须带 token，且该应用对当前登录用户可见可打开。这不是对外 HTTP，不要写进 SDK 对外文档。
+
 ## invoke 方法名
 
 | method | 对应 SDK |
@@ -53,7 +55,9 @@ globalThis.jiaorong = { invoke, on, userinfo }
 | token | xkaitoken；请求头 `Fusion-Auth` |
 | apiBaseUrl | 当前环境 API 根，如 `http://106.63.7.106:10001/api` |
 | productId | 请求头 `Product-Id` |
-| userId / orgId / locale / theme / appId / appDir | 一期已有字段 |
+| userId / orgId / locale / theme / appId / appDir | 用户与应用目录 |
+| nodePort | 本应用 Node 实际端口；未启动为 `null` |
+| nodeBase | `http://127.0.0.1:<nodePort>`；未启动可省略 |
 
 登录、登出、切组织后推 `context` 事件，payload 与 `context.get` 相同。SDK 的 `getToken()` / `getAuthHeaders()` 读这份 context，无 token 时抛 `UNAUTHORIZED`。`userinfo.get` 返回解析后的本地 `userInfo` 对象，并带 `token`（`xkaitoken`）。
 

@@ -1,23 +1,20 @@
-# Node HTTP 脚手架（Egg）
+# Node 转发
 
-宿主 spawn 本目录的 `server.js`，并注入 `globalThis.jiaorong`。必须**单进程**启动，不要 `egg.startCluster`，否则 worker 拿不到桥。
+客户端按 `app.json` 的 `node.entry` / `node.startCommand` 启动本目录的 `server.js`。用 `egg.start` 单进程，不要 `egg.startCluster`。
 
-入口和转发层都加了中文注释，按文件头说明改。业务只动 `app/service/biz.js`。
+Node 调 SDK 走客户端提供的连接，不走 HTTP。本机 HTTP 只给页面或本地调试用；页面用 `getContext().nodeBase` 访问。
+
+本机调试：交融客户端已启动并登录后，可在系统终端执行 `node server.js`，默认 `127.0.0.1:8787`。应用须已安装。侧栏拉起的那份和终端这份都可以连 SDK；页面 HTTP 始终走 `getContext().nodeBase`。
+
+业务只改 `app/service/biz.js`。
 
 ```text
 node/
-  server.js                 # egg.start 单进程 + listen
-  app.js                    # SSE 客户端集合
-  app/controller/sdk.js     # POST /api/sdk、GET /api/events，默认原样转发
-  app/service/jiaorong.js   # 只在这里 connect({ runtime: 'node' })
-  app/service/biz.js        # 业务钩子，默认空
-  config/                   # 关 CSRF、开 CORS
+  server.js
+  app/lib/attachJiaorong.js # 终端调试时连上客户端
+  app/controller/sdk.js     # POST /api/sdk、GET /api/events
+  app/service/jiaorong.js   # connect({ runtime: 'node' })
+  app/service/biz.js        # 业务钩子
 ```
 
-业务改 `app/service/biz.js` 的 `beforeInvoke` / `afterInvoke`，不要改转发层。
-
-前端所有 SDK 调用都走 `POST /api/sdk`，body 为 `{ method, args }`。method 清单在 `app/service/jiaorong.js` 的 `dispatch`。
-
-SDK 用 1.0.0：`https://c4ai.ccccltd.cn/xkprosdk/jiaorong-app-sdk-1.0.0.tgz`。
-
-Egg 启动后会写 `run/`、`logs/`，已在应用 `.gitignore` 里，不要提交。
+SDK：`https://c4ai.ccccltd.cn/xkprosdk/jiaorong-app-sdk-1.0.0.tgz`。

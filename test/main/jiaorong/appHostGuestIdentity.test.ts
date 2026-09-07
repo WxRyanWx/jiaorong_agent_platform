@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 import {
   buildJiaorongAppEntryUrl,
   matchGuestInvokeAppId,
-  readJiaorongAppHostname
+  readAppIdFromGuestPartition,
+  readJiaorongAppHostname,
+  resolveGuestInvokeAppId
 } from '../../../src/jiaorong_src/appHost/main/guestAppId'
 import {
   bindGuestAppId,
@@ -67,16 +69,83 @@ describe('jiaorong app guest identity', () => {
     unbindGuest(9)
   })
 
-  it('rejects guest invoke without a senderFrame', () => {
+  it('rejects guest invoke without a senderFrame when the guest is unbound', () => {
     expect(
       matchGuestInvokeAppId({
         hasSenderFrame: false,
         isMainFrame: true,
         frameUrl: 'jiaorong-app://demo-workbench/web-ui/index.html',
-        boundAppId: 'demo-workbench',
+        boundAppId: null,
         senderUrl: 'jiaorong-app://demo-workbench/web-ui/index.html'
       })
     ).toBeNull()
+  })
+
+  it('accepts loopback http invoke after the guest partition is bound', () => {
+    expect(
+      matchGuestInvokeAppId({
+        hasSenderFrame: true,
+        isMainFrame: true,
+        frameUrl: 'http://127.0.0.1:5174/#/',
+        boundAppId: 'test',
+        senderUrl: 'http://127.0.0.1:5174/#/'
+      })
+    ).toBe('test')
+    expect(
+      matchGuestInvokeAppId({
+        hasSenderFrame: false,
+        isMainFrame: true,
+        frameUrl: 'http://localhost:5174/',
+        boundAppId: 'test',
+        senderUrl: 'http://localhost:5174/'
+      })
+    ).toBe('test')
+  })
+
+  it('does not crash when guest session partition is missing', () => {
+    expect(readAppIdFromGuestPartition(undefined)).toBeNull()
+    expect(readAppIdFromGuestPartition(null)).toBeNull()
+    expect(readAppIdFromGuestPartition('')).toBeNull()
+    expect(readAppIdFromGuestPartition('persist:jiaorong-app-test')).toBe('test')
+  })
+
+  it('resolves protocol guest invoke even when partition and senderFrame are missing', () => {
+    expect(
+      resolveGuestInvokeAppId({
+        hasSenderFrame: false,
+        isMainFrame: true,
+        frameUrl: '',
+        boundAppId: null,
+        senderUrl: 'jiaorong-app://test/web-ui/index.html',
+        partition: undefined
+      })
+    ).toBe('test')
+  })
+
+  it('does not trust loopback http invoke without a bound app id or partition', () => {
+    expect(
+      resolveGuestInvokeAppId({
+        hasSenderFrame: true,
+        isMainFrame: true,
+        frameUrl: 'http://127.0.0.1:5174/#/',
+        boundAppId: null,
+        senderUrl: 'http://127.0.0.1:5174/#/',
+        partition: undefined
+      })
+    ).toBeNull()
+  })
+
+  it('resolves loopback guest invoke from partition when session.partition is present', () => {
+    expect(
+      resolveGuestInvokeAppId({
+        hasSenderFrame: false,
+        isMainFrame: true,
+        frameUrl: 'http://127.0.0.1:5174/#/',
+        boundAppId: null,
+        senderUrl: 'http://127.0.0.1:5174/#/',
+        partition: 'persist:jiaorong-app-test'
+      })
+    ).toBe('test')
   })
 
   it('requires tool_call.id for pending questions', () => {

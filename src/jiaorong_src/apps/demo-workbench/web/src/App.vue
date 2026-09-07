@@ -39,8 +39,7 @@ import { RouterLink, RouterView } from 'vue-router'
   align-items: center;
   justify-content: space-between;
   padding: 10px 16px;
-  background: #fff;
-  border-bottom: 1px solid #e5e7eb;
+  background: #eff5ff;
 }
 
 nav {

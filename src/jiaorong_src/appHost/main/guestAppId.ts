@@ -1,7 +1,26 @@
 import { JIAORONG_APP_PROTOCOL } from '../channels'
 
+const GUEST_PARTITION_PREFIX = 'persist:jiaorong-app-'
+
 export function guestPartitionForApp(appId: string): string {
-  return `persist:jiaorong-app-${appId}`
+  return `${GUEST_PARTITION_PREFIX}${appId}`
+}
+
+export function readAppIdFromGuestPartition(partition: unknown): string | null {
+  if (typeof partition !== 'string' || !partition.startsWith(GUEST_PARTITION_PREFIX)) return null
+  const id = partition.slice(GUEST_PARTITION_PREFIX.length).trim()
+  return id || null
+}
+
+export function isLoopbackHttpEntry(entry: string): boolean {
+  try {
+    const url = new URL(entry)
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return false
+    const host = url.hostname.toLowerCase()
+    return host === '127.0.0.1' || host === 'localhost' || host === '[::1]' || host === '::1'
+  } catch {
+    return false
+  }
 }
 
 export function readJiaorongAppHostname(rawUrl: string): string | null {
@@ -27,15 +46,33 @@ export function matchGuestInvokeAppId(input: {
   boundAppId: string | null
   senderUrl: string
 }): string | null {
-  if (!input.hasSenderFrame) return null
   const frameHost = readJiaorongAppHostname(input.frameUrl)
-  if (!input.isMainFrame) {
-    if (!input.boundAppId || !frameHost || frameHost !== input.boundAppId) return null
-    return input.boundAppId
-  }
+  const senderHost = readJiaorongAppHostname(input.senderUrl)
   if (input.boundAppId) {
     if (frameHost && frameHost !== input.boundAppId) return null
+    if (senderHost && senderHost !== input.boundAppId) return null
     return input.boundAppId
   }
-  return frameHost || readJiaorongAppHostname(input.senderUrl)
+  if (!input.hasSenderFrame || !input.isMainFrame) return null
+  return frameHost || senderHost
+}
+
+export function resolveGuestInvokeAppId(input: {
+  hasSenderFrame: boolean
+  isMainFrame: boolean
+  frameUrl: string
+  boundAppId: string | null
+  senderUrl: string
+  partition?: unknown
+}): string | null {
+  return matchGuestInvokeAppId({
+    hasSenderFrame: input.hasSenderFrame,
+    isMainFrame: input.isMainFrame,
+    frameUrl: input.frameUrl,
+    senderUrl: input.senderUrl,
+    boundAppId:
+      input.boundAppId ||
+      readAppIdFromGuestPartition(input.partition) ||
+      readJiaorongAppHostname(input.senderUrl)
+  })
 }

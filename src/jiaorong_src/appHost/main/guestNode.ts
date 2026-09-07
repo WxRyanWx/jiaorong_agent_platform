@@ -238,7 +238,7 @@ function waitForChildListening(child: ChildProcess, timeoutMs = 15000): Promise<
   })
 }
 
-function nodeGuestId(appId: string): number {
+export function guestIdForAppNode(appId: string): number {
   const existing = guestIds.get(appId)
   if (existing) return existing
   const id = nextGuestId++
@@ -315,7 +315,7 @@ export async function ensureJiaorongAppNode(
     return
   }
 
-  const guestId = nodeGuestId(runtime.id)
+  const guestId = guestIdForAppNode(runtime.id)
   const child = spawn(process.execPath, [bootstrapPath(runtime.id)], {
     cwd: appDir,
     env: buildGuestNodeEnv({

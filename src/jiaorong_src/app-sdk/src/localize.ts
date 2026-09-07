@@ -45,6 +45,11 @@ const CODE_ZH: Record<JiaorongErrorCode, string> = {
 const KNOWN_ENGLISH_ZH: Record<string, string> = {
   'Not logged in': '未登录',
   'Failed to reach Node HTTP': '无法连接 Node 服务',
+  'Failed to fetch': '无法连接 Node 服务',
+  'failed to fetch': '无法连接 Node 服务',
+  'Load failed': '无法连接 Node 服务',
+  'fetch failed': '无法连接 Node 服务',
+  'NetworkError when attempting to fetch resource.': '无法连接 Node 服务',
   'httpBase is required': '需要提供 httpBase',
   'httpBase is required when runtime is http': 'runtime 为 http 时必须提供 httpBase',
   'appId is required': '需要提供 appId',
@@ -93,9 +98,14 @@ function extractCode(error: unknown): JiaorongErrorCode | undefined {
 
 function extractMessage(error: unknown): string {
   if (typeof error === 'string') return error
-  if (error instanceof Error) return error.message
-  if (error == null) return ''
-  return String(error)
+  const raw =
+    error instanceof Error
+      ? error.message
+      : error && typeof error === 'object' && 'message' in error
+        ? (error as { message: unknown }).message
+        : undefined
+  if (typeof raw === 'string' && raw.trim() && raw !== '[object Object]') return raw
+  return ''
 }
 
 export function isUserCanceledError(text?: string | null): boolean {

@@ -158,6 +158,8 @@ class JiaorongService extends Service {
 
   async getClient() {
     if (this.app.jiaorongClient) return this.app.jiaorongClient
+    const { attachJiaorong } = require('../lib/attachJiaorong')
+    await attachJiaorong(this.config.jiaorong.appId)
     const client = await connect({
       appId: this.config.jiaorong.appId,
       runtime: 'node'

@@ -1,41 +1,38 @@
-# 应用脚手架（demo-workbench）
+# 应用脚手架
 
-拷贝本目录即可做一个交融侧栏应用。宿主打开 `app.json` 的 `entry` 时会注入 `window.jiaorong`。
+下载后修改应用 id 和业务文案，即可接入交融侧栏。完整字段说明见组件库「交融超级智能体模块 → 应用脚手架」。
 
 ```text
 demo-workbench/
-  app.json
+  app.json              # 应用清单
   icon.png
-  web-ui/               # Vue 构建产物（不要手改）
-  web/                  # 页面源码
-  node/                 # Egg 单进程 HTTP 转发
+  web-ui/               # 构建产物，客户端打开这个
+  web/                  # Vue 页面
+  node/                 # 本机转发（Egg 单进程）
   skill/
 ```
 
-## 必须遵守
-
-1. Vite `base` 必须是 `'./'`。
-2. 路由必须 `createWebHashHistory()`。
-3. `#/node` 的地址以宿主 `context.nodeBase` 为准。`app.json` 不要写 `node.port`。Node `listen(0)`，内核分配空闲口。
-4. SDK 用 **1.0.0**：`https://c4ai.ccccltd.cn/xkprosdk/jiaorong-app-sdk-1.0.0.tgz`。
-5. Egg 必须单进程。不要 `startCluster`。
-
-## 两个示例页
+## 两种接入
 
 | 路由 | 说明 |
 | --- | --- |
-| `#/` | 直连：页面和组件 `connect()` 走 `window.jiaorong` |
-| `#/node` | 页面只 HTTP 调 Node；Node 里才调 SDK；页面把 JSON 灌进两个组件（`external`） |
+| `#/` | 页面直连 SDK，组件自己发对话 |
+| `#/node` | 页面用 `getContext().nodeBase` 拼 HTTP / SSE，对话由 Node 转发 |
 
-`#/node` **不要** `import { connect } from 'jiaorong-app-sdk'`。页面和 Node 入口都有中文注释，按注释改即可。
+## 使用约定
 
-列表默认淡蓝 `#eff5ff`，可用组件 `class` 改颜色。不引用 `chat-kit`。
+1. Vite `base` 为 `'./'`，路由用 `createWebHashHistory()`。
+2. `app.json` 声明 `node.entry` 和 `node.startCommand`。Node 调 SDK 不走 HTTP。页面要访问本应用 Node 时，用 `getContext().nodeBase`。
+3. SDK：`https://c4ai.ccccltd.cn/xkprosdk/jiaorong-app-sdk-1.0.0.tgz`。web 和 Node 同一份。
+4. Egg 用 `egg.start` 单进程，不要 `startCluster`。
+5. 本机调试可在系统终端 `cd node && node server.js`（交融客户端须已启动并登录，应用须已安装）。默认 `127.0.0.1:8787`。侧栏打开后页面仍用 `nodeBase`，不要写死 `8787`。
 
-## 重建
-
-开发机 / 打包机执行。用户机器**不要** `pnpm install`：宿主用 Electron 自带 Node（`ELECTRON_RUN_AS_NODE=1`），没有 npm / pnpm。依赖随 `node/node_modules` 打进安装包。
+改页面后重建：
 
 ```bash
-cd src/jiaorong_src/apps/demo-workbench/web && pnpm install --ignore-workspace && pnpm build
-cd ../node && pnpm install --ignore-workspace
+cd web
+pnpm install
+pnpm build
 ```
+
+`pnpm build` 产物会写到 `web-ui/`。本仓库 / 下载的脚手架带 `web/`，方便自己改、自己启动。交给交融客户端安装的应用包只带 `web-ui/`，不要带 `web/` 源码和 `web/node_modules`。有 Node 时必须带 `node/node_modules`。客户端只拉起 Node，不会执行 npm / pnpm。

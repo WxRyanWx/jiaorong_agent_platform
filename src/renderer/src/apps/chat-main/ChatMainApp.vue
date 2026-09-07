@@ -36,6 +36,7 @@ import AppBar from '@/components/AppBar.vue'
 import { useDeviceVersion } from '@/composables/useDeviceVersion'
 import WindowSideBar from '@/components/WindowSideBar.vue'
 import JiaorongAppFrameHost from '@jiaorong/appHost/renderer/JiaorongAppFrameHost.vue'
+import { isAppRouteLocation } from '@jiaorong/router'
 import SpotlightOverlay from '@/components/spotlight/SpotlightOverlay.vue'
 import { useSpotlightStore } from '@/stores/ui/spotlight'
 import { useSidepanelStore } from '@/stores/ui/sidepanel'
@@ -110,6 +111,7 @@ const { setup: setupMcpDeeplink, cleanup: cleanupMcpDeeplink } = useMcpInstallDe
 const { setup: setupAuthLoginDeeplink, cleanup: cleanupAuthLoginDeeplink } =
   useAuthLoginDeeplinkHandler()
 const isLoginRoute = computed(() => route.name === 'login')
+const isJiaorongAppRoute = computed(() => isAppRouteLocation(route.name, route.path))
 
 watch(
   [() => themeStore.themeMode, () => themeStore.isDark, () => uiSettingsStore.fontSizeClass],
@@ -565,7 +567,12 @@ onBeforeUnmount(() => {
           <!-- Main content area -->
           <div
             data-testid="app-main"
-            class="flex h-full min-h-0 flex-1 min-w-0 flex-col overflow-hidden rounded-tl-xl border-l border-t border-black/20 bg-background dark:border-white/10"
+            class="flex h-full min-h-0 flex-1 min-w-0 flex-col overflow-hidden bg-background"
+            :class="
+              isJiaorongAppRoute
+                ? ''
+                : 'rounded-tl-xl border-l border-t border-black/20 dark:border-white/10'
+            "
           >
             <div class="relative min-h-0 flex-1">
               <template v-if="isStartupRouteReady">

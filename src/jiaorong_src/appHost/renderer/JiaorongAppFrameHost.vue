@@ -12,6 +12,7 @@ defineOptions({ name: 'JiaorongAppFrameHost' })
 const { t } = useI18n()
 const route = useRoute()
 const frames = ref<JiaorongAppOpenInfo[]>([])
+const guestSrc = ref<Record<string, string>>({})
 const errorText = ref('')
 const loading = ref(false)
 const attached = new Set<string>()
@@ -64,6 +65,14 @@ function onWebviewFail(appId: string, event: Event) {
   }
 }
 
+function forgetGuestFrame(appId: string) {
+  attached.delete(appId)
+  if (!(appId in guestSrc.value)) return
+  const nextSrc = { ...guestSrc.value }
+  delete nextSrc[appId]
+  guestSrc.value = nextSrc
+}
+
 function bindFrameListeners() {
   for (const frame of frames.value) {
     if (attached.has(frame.appId)) continue
@@ -80,7 +89,7 @@ async function onAuthSessionChanged() {
     try {
       const info = await window.jiaorongApps?.getOpenInfo(frame.appId)
       if (!info?.src) {
-        attached.delete(frame.appId)
+        forgetGuestFrame(frame.appId)
         continue
       }
       if (
@@ -91,10 +100,10 @@ async function onAuthSessionChanged() {
         kept.push(frame)
         continue
       }
-      attached.delete(frame.appId)
+      forgetGuestFrame(frame.appId)
       kept.push(info)
     } catch {
-      attached.delete(frame.appId)
+      forgetGuestFrame(frame.appId)
     }
   }
   frames.value = kept
@@ -110,9 +119,23 @@ watch(activeAppId, (id) => {
 
 watch(
   frames,
-  async () => {
+  async (list) => {
     await nextTick()
     bindFrameListeners()
+    const next = { ...guestSrc.value }
+    const ids = new Set(list.map((frame) => frame.appId))
+    let changed = false
+    for (const frame of list) {
+      if (next[frame.appId] === frame.src) continue
+      next[frame.appId] = frame.src
+      changed = true
+    }
+    for (const appId of Object.keys(next)) {
+      if (ids.has(appId)) continue
+      delete next[appId]
+      changed = true
+    }
+    if (changed) guestSrc.value = next
   },
   { flush: 'post' }
 )
@@ -157,12 +180,12 @@ onUnmounted(() => {
     <webview
       v-for="frame in frames"
       :id="`jiaorong-app-frame-${frame.appId}`"
-      :key="frame.appId"
+      :key="`${frame.appId}:${frame.partition}`"
       class="jiaorong-app-frame-host__frame"
       :class="{ 'is-active': frame.appId === visibleAppId }"
-      :src="frame.src"
-      :preload="frame.preload"
       :partition="frame.partition"
+      :preload="frame.preload"
+      v-bind="guestSrc[frame.appId] ? { src: guestSrc[frame.appId] } : {}"
       webpreferences="contextIsolation=yes, nodeIntegration=no, sandbox=no, webSecurity=yes, allowRunningInsecureContent=yes"
     />
   </div>

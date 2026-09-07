@@ -13,6 +13,10 @@ export function getUserAppDir(appId: string, homeDir = os.homedir()): string {
   return path.join(getUserAppsRoot(homeDir), appId)
 }
 
+export function getNodeBridgeFile(homeDir = os.homedir()): string {
+  return path.join(getAppHomeDir(homeDir), 'node-bridge.json')
+}
+
 export function getBuiltinAppsRoot(): string {
   if (app.isPackaged) {
     return path.join(process.resourcesPath, 'jiaorong-apps')

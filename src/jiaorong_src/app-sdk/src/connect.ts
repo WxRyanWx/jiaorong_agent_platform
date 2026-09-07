@@ -120,7 +120,7 @@ function openSharedClient(
     if (!bridge) {
       throw new JiaorongError(
         'JIAORONG_NOT_RUNNING',
-        'Node 运行时未由交融宿主注入。请在 app.json 声明 node，并从侧栏打开本应用。'
+        '交融客户端未注入 Node 连接。请先启动并登录客户端；从侧栏打开本应用，或在应用已安装后于本机执行 node server.js。'
       )
     }
     const client = createClient(bridge, appId, {

@@ -8,7 +8,7 @@ import { buildHostContext } from './context'
 import { handleDialogueInvoke } from './dialogue'
 import type { JiaorongAppHostDeps } from './deps'
 import { hasPickedDirectory, isAbsoluteGuestPath, rememberPickedDirectory } from './guestBind'
-import { buildJiaorongAppEntryUrl } from './guestAppId'
+import { buildJiaorongAppEntryUrl, isLoopbackHttpEntry } from './guestAppId'
 import { getAppPreloadFileUrl, isPathInsideRoot } from './paths'
 import { ensureJiaorongAppProtocolSession } from './protocol'
 import { buildJiaorongSlashCatalog } from './slashCatalog'
@@ -36,12 +36,22 @@ export function toMenuAppItem(runtime: JiaorongAppRuntime): JiaorongMenuAppItem 
 export function toOpenInfo(runtime: JiaorongAppRuntime): JiaorongAppOpenInfo | null {
   if (!runtime.appDir || !runtime.entry) return null
   const entry = runtime.entry.trim()
-  if (!entry || /^[a-z][a-z0-9+.-]*:/i.test(entry)) return null
+  if (!entry) return null
   const partition = ensureJiaorongAppProtocolSession(runtime.id)
+  const preload = getAppPreloadFileUrl()
+  if (isLoopbackHttpEntry(entry)) {
+    return {
+      appId: runtime.id,
+      src: entry,
+      preload,
+      partition
+    }
+  }
+  if (/^[a-z][a-z0-9+.-]*:/i.test(entry)) return null
   return {
     appId: runtime.id,
     src: buildJiaorongAppEntryUrl(runtime.id, entry),
-    preload: getAppPreloadFileUrl(),
+    preload,
     partition
   }
 }

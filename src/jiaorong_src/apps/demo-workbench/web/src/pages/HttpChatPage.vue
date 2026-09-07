@@ -1,8 +1,8 @@
 <!--
   Node HTTP 对话页（#/node）
 
-  本页不 connect SDK。对话只走 HTTP。
-  启动时用 window.jiaorong.invoke('context.get') 读宿主选好的 nodeBase。
+  对话只走 HTTP。启动时 connect() 一次，用 getContext().nodeBase 拼地址。
+  不要订 chat.stream.*，流式仍走 Node SSE。
   数据流：组件 emit 动作 → fetch POST /api/sdk → Node 调 SDK → JSON 原样回来
   → 写入本页 ref → 通过 :sessions / :messages / :live-blocks 灌进两个组件。
   流式走 GET /api/events（SSE）。SSE 丢了也不要紧，generating 期间会轮询 session.get。
@@ -28,8 +28,9 @@ import { onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import { APP_ID, CHAT_AGENT_KEY, CHAT_AGENT_NAME, CHAT_PLACEHOLDER } from '../constants'
 import { formatError, isUserCanceledError } from '../lib/formatError'
 import {
-  applyHostNodeBase,
+  disconnectNodeHost,
   invokeSdk,
+  onNodeBaseChange,
   openSdkEvents,
   resolveNodeBaseFromHost
 } from '../lib/nodeApi'
@@ -548,8 +549,7 @@ function bindSdkEvents() {
 }
 
 onMounted(async () => {
-  offContext = window.jiaorong?.on?.('context', (payload) => {
-    const change = applyHostNodeBase(payload)
+  offContext = onNodeBaseChange((change) => {
     if (change === 'updated' && ready.value) bindSdkEvents()
   })
   try {
@@ -567,6 +567,7 @@ onUnmounted(() => {
   offContext = null
   closeEvents?.()
   closeEvents = null
+  void disconnectNodeHost()
 })
 </script>
 

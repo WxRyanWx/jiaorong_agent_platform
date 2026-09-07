@@ -1,8 +1,22 @@
 'use strict'
 
+const fs = require('node:fs')
+const path = require('node:path')
+
+function readManifestAppId() {
+  try {
+    const file = path.join(__dirname, '../../app.json')
+    const parsed = JSON.parse(fs.readFileSync(file, 'utf8'))
+    if (typeof parsed.id === 'string' && parsed.id.trim()) return parsed.id.trim()
+  } catch {
+    // ignore
+  }
+  return 'demo-workbench'
+}
+
 /**
  * 本机脚手架：关掉 CSRF / X-Frame，开 CORS。
- * 端口与 appId 跟宿主 spawn 环境变量对齐。
+ * 端口与 appId 跟宿主 spawn 环境变量对齐。单独 `node server.js` 时从上级 app.json 读 id。
  */
 module.exports = {
   keys: 'demo-workbench-scaffold',
@@ -20,7 +34,7 @@ module.exports = {
     formLimit: '20mb'
   },
   jiaorong: {
-    appId: process.env.JIAORONG_APP_ID || 'demo-workbench',
+    appId: process.env.JIAORONG_APP_ID || readManifestAppId(),
     port: Number(process.env.JIAORONG_NODE_PORT || 0)
   }
 }

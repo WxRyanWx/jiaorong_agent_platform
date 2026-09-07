@@ -5,6 +5,7 @@ import type { JiaorongAppHostDeps } from './deps'
 import { getBoundGuestAppId, getSessionOwner } from './guestBind'
 import { readJiaorongAppHostname } from './guestAppId'
 import { sendJiaorongAppNodeEvent } from './guestNode'
+import { sendStandaloneNodeEvent } from './standaloneNodeBridge'
 
 const APP_BRIDGE_EVENTS = new Set([
   'chat.stream.updated',
@@ -55,6 +56,7 @@ function guestAppIdForContents(contents: Electron.WebContents): string | null {
 export function sendJiaorongAppBridgeEvent(event: string, payload: unknown, appId?: string): void {
   if (!appId) return
   sendJiaorongAppNodeEvent(appId, event, payload)
+  sendStandaloneNodeEvent(appId, event, payload)
   for (const contents of webContents.getAllWebContents()) {
     if (contents.isDestroyed()) continue
     const guestAppId = guestAppIdForContents(contents)
