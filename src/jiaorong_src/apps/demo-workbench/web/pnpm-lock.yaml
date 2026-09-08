@@ -10,25 +10,25 @@ importers:
     dependencies:
       jiaorong-app-sdk:
         specifier: https://c4ai.ccccltd.cn/xkprosdk/jiaorong-app-sdk-1.0.0.tgz
-        version: https://c4ai.ccccltd.cn/xkprosdk/jiaorong-app-sdk-1.0.0.tgz
+        version: https://c4ai.ccccltd.cn/xkprosdk/jiaorong-app-sdk-1.0.0.tgz(vue@3.5.42(typescript@5.9.3))
       vue:
-        specifier: ^3.5.13
+        specifier: ^3.5.42
         version: 3.5.42(typescript@5.9.3)
       vue-router:
-        specifier: ^4.5.0
+        specifier: ^4.6.4
         version: 4.6.4(vue@3.5.42(typescript@5.9.3))
     devDependencies:
       '@vitejs/plugin-vue':
-        specifier: ^5.2.1
+        specifier: ^5.2.4
         version: 5.2.4(vite@6.4.3(jiti@2.7.0)(less@4.9.1)(lightningcss@1.32.0))(vue@3.5.42(typescript@5.9.3))
       typescript:
-        specifier: ^5.7.3
+        specifier: ^5.9.3
         version: 5.9.3
       vite:
-        specifier: ^6.2.0
+        specifier: ^6.4.3
         version: 6.4.3(jiti@2.7.0)(less@4.9.1)(lightningcss@1.32.0)
       vue-tsc:
-        specifier: ^2.2.8
+        specifier: ^2.2.12
         version: 2.2.12(typescript@5.9.3)
 
 packages:
@@ -205,6 +205,17 @@ packages:
     engines: {node: '>=18'}
     cpu: [x64]
     os: [win32]
+
+  '@iconify-json/lucide@1.2.129':
+    resolution: {integrity: sha512-pa0ufllJOXTDIH2BxE/BtWQEf/x46/lINDWcmncICV1/52veZ7KSBzQaVh9xDpmjDs8QN4j2Ex/LWlSSveL3yw==}
+
+  '@iconify/types@2.0.0':
+    resolution: {integrity: sha512-+wluvCrRhXrhyOmRDJ3q8mux9JkKy5SJ/v8ol2tu4FVjyYvtEzkc/3pK15ET6RKg4b4w4BmTk1+gsCUhf21Ykg==}
+
+  '@iconify/vue@5.0.1':
+    resolution: {integrity: sha512-aumwwooJlFJ5H5qYWB6ZTAyM0C8hpfcSVLB9/a3qnH1GGvIJ+FEbpEs4s/HfErYe/M5qZeLjwmESR5fFm3lXEw==}
+    peerDependencies:
+      vue: '>=3.0.0'
 
   '@jridgewell/sourcemap-codec@1.6.0':
     resolution: {integrity: sha512-T7jf+5zgsZHwNJ4lvQ7/aezbyk0nNX+zJVWpmHA7VYsEx7a7qr5Rg5IbtJFqkgze5Y2sruq1RUY8Q837Od7iFw==}
@@ -503,9 +514,11 @@ packages:
     engines: {node: '>=12.13'}
 
   jiaorong-app-sdk@https://c4ai.ccccltd.cn/xkprosdk/jiaorong-app-sdk-1.0.0.tgz:
-    resolution: {integrity: sha512-dvlUdBmdmNGlAEs3QuuUY7Hk/ywk7LNAPT/+oJuxb3qM8CoxfU/2kruPpVBiza+JYNXIuFgpSRP5MKLE9SdwYw==, tarball: https://c4ai.ccccltd.cn/xkprosdk/jiaorong-app-sdk-1.0.0.tgz}
+    resolution: {integrity: sha512-M0Glz6sgb15/dtohuBHDI1VEQUsPAl7lEpRRgh8xzheQW0xASweBUEWNqDh+OJG2VLgOz2BP0Jw8PwyuGXRXrA==, tarball: https://c4ai.ccccltd.cn/xkprosdk/jiaorong-app-sdk-1.0.0.tgz}
     version: 1.0.0
     engines: {node: '>=20.19.0'}
+    peerDependencies:
+      vue: ^3.5.0
 
   jiti@2.7.0:
     resolution: {integrity: sha512-AC/7JofJvZGrrneWNaEnJeOLUx+JlGt7tNa0wZiRPT4MY1wmfKjt2+6O2p2uz2+skll8OZZmJMNqeke7kKbNgQ==}
@@ -647,8 +660,8 @@ packages:
     resolution: {integrity: sha512-qcJu88Q2IWqJsDD529JKMdwGm/dvInW4HvQnRwiH9JtihJvzGOscDtHE3x1pBKeUOTysQ8kVmLnJ2kJu7yhcGA==}
     engines: {node: '>=12'}
 
-  postcss@8.5.26:
-    resolution: {integrity: sha512-u82N74LFzG8ca+dD8puPnplTXoGH4fTPpVGuIbt36G3qvNlkvfD0lEAZSxaly3KX8TS/L1A1gsCEmvKmBcVbkQ==}
+  postcss@8.5.28:
+    resolution: {integrity: sha512-RRuzqDtt5Y9h3quz5hWhK+TPnsmVs6WwSU6LkJMeY4HstUEDuYTG8UJSdawMRzmzAtV+KEoG8N3Qg2qLy5vM/A==}
     engines: {node: ^10 || ^12 || >=14}
 
   probe-image-size@7.4.0:
@@ -844,6 +857,17 @@ snapshots:
   '@esbuild/win32-x64@0.25.12':
     optional: true
 
+  '@iconify-json/lucide@1.2.129':
+    dependencies:
+      '@iconify/types': 2.0.0
+
+  '@iconify/types@2.0.0': {}
+
+  '@iconify/vue@5.0.1(vue@3.5.42(typescript@5.9.3))':
+    dependencies:
+      '@iconify/types': 2.0.0
+      vue: 3.5.42(typescript@5.9.3)
+
   '@jridgewell/sourcemap-codec@1.6.0': {}
 
   '@napi-rs/lzma-linux-x64-gnu@1.5.1':
@@ -965,7 +989,7 @@ snapshots:
       '@vue/shared': 3.5.42
       estree-walker: 2.0.2
       magic-string: 0.30.21
-      postcss: 8.5.26
+      postcss: 8.5.28
       source-map-js: 1.2.1
 
   '@vue/compiler-ssr@3.5.42':
@@ -1110,7 +1134,11 @@ snapshots:
   is-what@4.1.16:
     optional: true
 
-  jiaorong-app-sdk@https://c4ai.ccccltd.cn/xkprosdk/jiaorong-app-sdk-1.0.0.tgz: {}
+  jiaorong-app-sdk@https://c4ai.ccccltd.cn/xkprosdk/jiaorong-app-sdk-1.0.0.tgz(vue@3.5.42(typescript@5.9.3)):
+    dependencies:
+      '@iconify-json/lucide': 1.2.129
+      '@iconify/vue': 5.0.1(vue@3.5.42(typescript@5.9.3))
+      vue: 3.5.42(typescript@5.9.3)
 
   jiti@2.7.0:
     optional: true
@@ -1232,7 +1260,7 @@ snapshots:
 
   picomatch@4.0.7: {}
 
-  postcss@8.5.26:
+  postcss@8.5.28:
     dependencies:
       nanoid: 3.3.18
       picocolors: 1.1.1
@@ -1312,7 +1340,7 @@ snapshots:
       esbuild: 0.25.12
       fdir: 6.5.0(picomatch@4.0.7)
       picomatch: 4.0.7
-      postcss: 8.5.26
+      postcss: 8.5.28
       rollup: 4.63.1
       tinyglobby: 0.2.17
     optionalDependencies:

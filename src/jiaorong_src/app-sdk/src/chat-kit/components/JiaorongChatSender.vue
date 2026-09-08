@@ -2,7 +2,8 @@
 import { computed, onMounted, onUnmounted, ref, shallowRef, useTemplateRef, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import knowledgeIcon from '../assets/knowledge.png'
-import { fetchHostSlashCatalog } from '../lib/hostDialog'
+import { fetchHostSlashCatalog, pickHostFiles } from '../lib/hostDialog'
+import { browserFilesToPending, type PendingAttachment } from '../lib/files'
 import { filterSlashItems, readSlashQuery, replaceSlashToken } from '../lib/slash'
 import type { JiaorongKbSelection, JiaorongSlashItem } from '../types'
 import JiaorongChatSlashMenu from './JiaorongChatSlashMenu.vue'
@@ -23,7 +24,7 @@ const props = withDefaults(
     knowledgeBase?: boolean
     stop?: boolean
     slash?: boolean
-    files?: File[]
+    files?: PendingAttachment[]
     knowledgeBaseSelections?: JiaorongKbSelection[]
     slashItems?: readonly JiaorongSlashItem[]
     appId?: string
@@ -47,7 +48,7 @@ const props = withDefaults(
 const emit = defineEmits<{
   send: []
   stop: []
-  attach: [files: File[]]
+  attach: [files: PendingAttachment[]]
   'open-knowledge-base': []
   'remove-file': [index: number]
   'remove-kb': [key: string]
@@ -144,7 +145,12 @@ function onKeydown(event: KeyboardEvent) {
   }
 }
 
-function pickFiles() {
+async function pickFiles() {
+  const picked = await pickHostFiles(props.appId)
+  if (picked) {
+    if (picked.length) emit('attach', picked)
+    return
+  }
   fileInput.value?.click()
 }
 
@@ -152,7 +158,7 @@ function onFileChange(event: Event) {
   const input = event.target as HTMLInputElement
   const next = Array.from(input.files ?? [])
   input.value = ''
-  if (next.length) emit('attach', next)
+  if (next.length) emit('attach', browserFilesToPending(next))
 }
 
 watch(slashOpen, (open) => {
@@ -250,10 +256,10 @@ onUnmounted(() => {
       >
         <span
           v-for="(file, index) in files"
-          :key="`${file.name}:${index}`"
+          :key="`${file.name}:${file.path ?? index}`"
           class="inline-flex max-w-full items-center gap-2 rounded-full border bg-background/70 px-2.5 py-1 text-xs shadow-sm"
         >
-          <Icon icon="lucide:paperclip" class="h-4 w-4 text-muted-foreground" />
+          <KbFileTypeIcon class="h-4 w-4 shrink-0 object-contain" :file-name="file.name" />
           <span class="max-w-[180px] truncate">{{ file.name }}</span>
           <button type="button" @click="emit('remove-file', index)">
             <Icon icon="lucide:x" class="h-3 w-3" />
@@ -281,7 +287,7 @@ onUnmounted(() => {
           <button
             v-if="attachments"
             type="button"
-            class="chat-input-toolbar-icon inline-flex size-7 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground"
+            class="chat-input-toolbar-icon inline-flex size-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             title="上传附件"
             :disabled="disabled"
             @click="pickFiles"
@@ -292,7 +298,7 @@ onUnmounted(() => {
             v-if="knowledgeBase"
             type="button"
             data-testid="chat-knowledge-base-button"
-            class="chat-input-toolbar-icon inline-flex size-7 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground"
+            class="chat-input-toolbar-icon inline-flex size-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             title="知识库"
             :disabled="disabled"
             @click="emit('open-knowledge-base')"

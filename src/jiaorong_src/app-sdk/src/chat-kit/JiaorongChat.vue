@@ -11,7 +11,7 @@ import JiaorongChatStatusBar from './components/JiaorongChatStatusBar.vue'
 import JiaorongChatTopBar from './components/JiaorongChatTopBar.vue'
 import KnowledgeBasePicker from './components/KnowledgeBasePicker.vue'
 import { resolveJiaorongChatFeatures } from './features'
-import { filesToMessageFiles } from './lib/files'
+import { filesToMessageFiles, type PendingAttachment } from './lib/files'
 import {
   allowHostProjectDir,
   isAbsoluteFsPath,
@@ -119,7 +119,7 @@ const emit = defineEmits<{
 }>()
 
 const flags = computed(() => resolveJiaorongChatFeatures(props.features))
-const files = ref<File[]>([])
+const files = ref<PendingAttachment[]>([])
 const kbSelections = ref<JiaorongKbSelection[]>([])
 const pickerOpen = shallowRef(false)
 const projects = ref<JiaorongChatProject[]>(readProjects())
@@ -283,7 +283,7 @@ watch(
   { immediate: true }
 )
 
-function onAttach(next: File[]) {
+function onAttach(next: PendingAttachment[]) {
   files.value = [...files.value, ...next]
 }
 

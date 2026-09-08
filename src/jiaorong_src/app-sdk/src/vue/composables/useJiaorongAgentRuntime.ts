@@ -14,7 +14,7 @@ import {
   type MaybeRefOrGetter,
   toValue
 } from 'vue'
-import { filesToMessageFiles } from '../lib/files'
+import { filesToMessageFiles, type PendingAttachment } from '../lib/files'
 import { sortSessionsByPin } from '../lib/sessions'
 import { buildTranscript } from '../lib/transcript'
 import {
@@ -23,6 +23,8 @@ import {
   OLDER_MESSAGE_PAGE_SIZE,
   OLDER_SESSION_PAGE_SIZE
 } from '../lib/windowPolicy'
+
+const ATTACHMENT_BLOCKED_ZH = '附件无法按当前模型发送，请调整后重试'
 
 type MessagePageCursor = { orderSeq: number; id: string }
 type SessionPageCursor = { updatedAt: number; id: string }
@@ -55,7 +57,7 @@ export function useJiaorongAgentRuntime(options: {
   const generating = shallowRef(false)
   const errorText = shallowRef('')
   const draft = shallowRef('')
-  const files = ref<File[]>([])
+  const files = ref<PendingAttachment[]>([])
   const sessions = ref<SessionWithState[]>([])
   const messages = ref<ChatMessageRecord[]>([])
   const liveBlocks = ref<AssistantMessageBlock[]>([])
@@ -69,6 +71,7 @@ export function useJiaorongAgentRuntime(options: {
   const unsubscribers: Array<() => void> = []
   let historyEpoch = 0
   let closed = false
+  let mutating = false
   let messageNextCursor: MessagePageCursor | null = null
   let sessionNextCursor: SessionPageCursor | null = null
 
@@ -189,10 +192,12 @@ export function useJiaorongAgentRuntime(options: {
   async function sendDraft() {
     const text = draft.value.trim()
     const agentId = toValue(options.agentId).trim()
-    if (!text || !client || !agentId || sending.value) return
+    const messageFiles = files.value.length ? await filesToMessageFiles(files.value) : undefined
+    if ((!text && !messageFiles?.length) || !client || !agentId || sending.value || mutating) {
+      return
+    }
     sending.value = true
     errorText.value = ''
-    const messageFiles = files.value.length ? await filesToMessageFiles(files.value) : undefined
     const content = { text, files: messageFiles }
     const wasGenerating = generating.value
     try {
@@ -203,23 +208,36 @@ export function useJiaorongAgentRuntime(options: {
           message: text,
           files: messageFiles
         })
+        options.onSessionId(created.session.id)
+        await refreshSessions()
+        if (created.accepted === false) {
+          errorText.value = ATTACHMENT_BLOCKED_ZH
+          return
+        }
         generating.value = true
         liveMessageId.value = created.initialTurn?.messageId ?? null
         liveBlocks.value = []
         draft.value = ''
         files.value = []
-        options.onSessionId(created.session.id)
-        await refreshSessions()
         return
       }
       if (generating.value) {
-        await client.session.steer({ sessionId, content })
+        const steered = await client.session.steer({ sessionId, content })
+        if (steered.accepted === false) {
+          errorText.value = ATTACHMENT_BLOCKED_ZH
+          return
+        }
         draft.value = ''
         files.value = []
         return
       }
       generating.value = true
       const result = await client.session.send({ sessionId, content })
+      if (result.accepted === false) {
+        if (!wasGenerating) generating.value = false
+        errorText.value = ATTACHMENT_BLOCKED_ZH
+        return
+      }
       liveMessageId.value = result.messageId
       liveBlocks.value = []
       draft.value = ''
@@ -318,6 +336,83 @@ export function useJiaorongAgentRuntime(options: {
     }
   }
 
+  async function retryMessage(messageId: string) {
+    const sessionId = activeSessionId.value
+    if (!client || !sessionId || !messageId || mutating || sending.value) return
+    mutating = true
+    const wasGenerating = generating.value
+    try {
+      errorText.value = ''
+      generating.value = true
+      const result = await client.session.retryMessage({ sessionId, messageId })
+      if (result.accepted === false) {
+        if (!wasGenerating) generating.value = false
+        errorText.value = ATTACHMENT_BLOCKED_ZH
+        return
+      }
+      liveMessageId.value = result.messageId
+      liveBlocks.value = []
+    } catch (error) {
+      if (!wasGenerating) generating.value = false
+      setError(error)
+      await loadSession(sessionId)
+    } finally {
+      mutating = false
+    }
+  }
+
+  async function deleteMessage(messageId: string) {
+    const sessionId = activeSessionId.value
+    if (!client || !sessionId || !messageId || mutating) return
+    mutating = true
+    try {
+      errorText.value = ''
+      await client.session.deleteMessage({ sessionId, messageId })
+      generating.value = false
+      liveBlocks.value = []
+      liveMessageId.value = null
+      await loadSession(sessionId)
+    } catch (error) {
+      setError(error)
+    } finally {
+      mutating = false
+    }
+  }
+
+  async function editUserMessage(messageId: string, text: string) {
+    const sessionId = activeSessionId.value
+    const next = text.trim()
+    if (!client || !sessionId || !messageId || !next || mutating) return
+    mutating = true
+    try {
+      errorText.value = ''
+      const result = await client.session.editUserMessage({ sessionId, messageId, text: next })
+      messages.value = upsertMessages(messages.value, [result.message])
+    } catch (error) {
+      setError(error)
+      mutating = false
+      return
+    }
+    mutating = false
+    await retryMessage(messageId)
+  }
+
+  async function forkSession(messageId: string) {
+    const sessionId = activeSessionId.value
+    if (!client || !sessionId || !messageId || mutating || generating.value) return
+    mutating = true
+    try {
+      errorText.value = ''
+      const result = await client.session.fork({ sessionId, messageId })
+      options.onSessionId(result.session.id)
+      await refreshSessions()
+    } catch (error) {
+      setError(error)
+    } finally {
+      mutating = false
+    }
+  }
+
   async function boot() {
     errorText.value = ''
     try {
@@ -410,9 +505,13 @@ export function useJiaorongAgentRuntime(options: {
     loadMoreSessions,
     togglePin,
     removeSession,
+    retryMessage,
+    deleteMessage,
+    editUserMessage,
+    forkSession,
     respondApproval,
     respondQuestion,
-    attachFiles(next: File[]) {
+    attachFiles(next: PendingAttachment[]) {
       files.value = [...files.value, ...next]
     },
     removeFile(index: number) {

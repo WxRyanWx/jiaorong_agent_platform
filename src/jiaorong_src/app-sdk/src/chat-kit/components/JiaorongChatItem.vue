@@ -7,6 +7,7 @@ import duihuaIcon from '../assets/duihua.png'
 import JiaorongChatContent from './JiaorongChatContent.vue'
 import JiaorongChatLoading from './JiaorongChatLoading.vue'
 import JiaorongChatReasoning from './JiaorongChatReasoning.vue'
+import KbFileTypeIcon from './KbFileTypeIcon.vue'
 import KnowledgeBaseChips from './KnowledgeBaseChips.vue'
 
 const props = defineProps<{
@@ -66,7 +67,7 @@ const hasAssistantBody = computed(() =>
             :key="name"
             class="inline-flex max-w-full items-center gap-2 rounded-full border border-border bg-background/70 px-2.5 py-1 text-xs text-foreground shadow-sm"
           >
-            <Icon icon="lucide:paperclip" class="h-4 w-4 shrink-0 text-muted-foreground" />
+            <KbFileTypeIcon class="h-4 w-4 shrink-0 object-contain" :file-name="name" />
             <span class="max-w-[180px] truncate">{{ name }}</span>
           </span>
         </div>

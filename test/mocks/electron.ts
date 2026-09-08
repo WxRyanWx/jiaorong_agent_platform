@@ -53,26 +53,33 @@ export const dialog = {
   showMessageBoxSync: (_opts?: any) => 1
 }
 
+export const webContents = {
+  fromId: (_id: number) => null
+}
+
 export const session = {}
 
-export const BrowserWindow = function () {
-  return {
-    loadURL: (_: string) => {},
-    loadFile: (_: string) => {},
-    on: (_: string, __: any) => {},
-    webContents: {
-      send: (_: string, __?: any) => {},
+export const BrowserWindow = Object.assign(
+  function () {
+    return {
+      loadURL: (_: string) => {},
+      loadFile: (_: string) => {},
       on: (_: string, __: any) => {},
-      setWindowOpenHandler: (_: any) => {},
-      isDestroyed: () => false
-    },
-    isDestroyed: () => false,
-    close: () => {},
-    show: () => {},
-    focus: () => {},
-    hide: () => {}
-  }
-} as unknown as { new (...args: any[]): any }
+      webContents: {
+        send: (_: string, __?: any) => {},
+        on: (_: string, __: any) => {},
+        setWindowOpenHandler: (_: any) => {},
+        isDestroyed: () => false
+      },
+      isDestroyed: () => false,
+      close: () => {},
+      show: () => {},
+      focus: () => {},
+      hide: () => {}
+    }
+  },
+  { fromWebContents: (_contents: unknown) => null }
+) as unknown as { new (...args: any[]): any; fromWebContents: (contents: unknown) => null }
 
 export const nativeImage = {
   createFromPath: (_: string) => ({})

@@ -10,6 +10,7 @@ export const JiaorongAgentChat: DefineComponent<{
   placeholder?: string
   httpBase?: string
   external?: boolean
+  attachments?: boolean
   messages?: ChatMessageRecord[]
   liveBlocks?: AssistantMessageBlock[]
   liveMessageId?: string | null

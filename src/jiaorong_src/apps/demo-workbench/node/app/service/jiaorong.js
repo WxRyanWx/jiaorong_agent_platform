@@ -101,6 +101,14 @@ async function dispatch(client, method, args) {
       return client.session.delete(args)
     case 'session.send': // 已有会话里发一条，开始生成
       return client.session.send(args)
+    case 'session.retryMessage': // 从某条消息重试
+      return client.session.retryMessage(args)
+    case 'session.deleteMessage': // 删除该条及之后的消息
+      return client.session.deleteMessage(args)
+    case 'session.editUserMessage': // 改用户消息文本
+      return client.session.editUserMessage(args)
+    case 'session.fork': // 从某条消息分出新会话
+      return client.session.fork(args)
     case 'session.stop': // 停止当前生成
       return client.session.stop(args)
     case 'session.steer': // 生成中追加指令

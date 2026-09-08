@@ -1,10 +1,16 @@
 <template>
   <div
+    ref="rootRef"
     data-testid="chat-message-assistant"
+    :data-message-id="id"
     class="flex flex-row pl-4 pt-5 pr-11 group gap-2 w-full min-w-0 max-w-full justify-start assistant-message-item"
   >
     <div class="shrink-0 w-5 h-5 flex items-center justify-center">
-      <img :src="duihuaIcon" alt="交融对话" class="model-icon-img h-[18px] w-[18px] shrink-0 object-contain" />
+      <img
+        :src="duihuaIcon"
+        alt="交融对话"
+        class="model-icon-img h-[18px] w-[18px] shrink-0 object-contain"
+      />
     </div>
     <div class="flex min-w-0 flex-col w-full space-y-1.5">
       <MessageInfo :name="agentName" :timestamp="timestamp" />
@@ -27,7 +33,8 @@
           <MessageBlockContent v-else-if="item.block.type === 'content'" :block="item.block" />
           <MessageBlockThink
             v-else-if="
-              (item.block.type === 'reasoning_content' || item.block.type === 'artifact-thinking') &&
+              (item.block.type === 'reasoning_content' ||
+                item.block.type === 'artifact-thinking') &&
               item.block.content
             "
             :block="item.block"
@@ -45,13 +52,29 @@
           <MessageBlockError v-else-if="item.block.type === 'error'" :block="item.block" />
         </template>
       </div>
+      <MessageToolbar
+        v-if="!capturing"
+        is-assistant
+        :loading="streaming || (status === 'pending' && (generating || threadGenerating))"
+        :generating="threadGenerating"
+        :disabled="disabled"
+        :capturing="capturing"
+        :copy-text="copyText"
+        @retry="emit('retry')"
+        @delete="emit('delete')"
+        @fork="emit('fork')"
+        @copy-image="onCopyImage(false)"
+        @copy-image-from-top="onCopyImage(true)"
+      />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, useTemplateRef } from 'vue'
 import { Icon } from '@iconify/vue'
+import { collectAssistantText } from '../../helpers'
+import { copyElementAsPng } from '../lib/copyAsImage'
 import duihuaIcon from '../assets/duihua.png'
 import {
   buildResolvedPermissionStatusByToolCallId,
@@ -61,6 +84,7 @@ import {
 } from '../model/display'
 import { buildAssistantRenderItems } from '../model/activityGroups'
 import MessageInfo from './MessageInfo.vue'
+import MessageToolbar from './MessageToolbar.vue'
 import MessageBlockActivityGroup from './MessageBlockActivityGroup.vue'
 import MessageBlockContent from './MessageBlockContent.vue'
 import MessageBlockThink from './MessageBlockThink.vue'
@@ -76,7 +100,19 @@ const props = defineProps<{
   generating?: boolean
   streaming?: boolean
   status?: string
+  threadGenerating?: boolean
+  disabled?: boolean
 }>()
+
+const emit = defineEmits<{
+  retry: []
+  delete: []
+  fork: []
+}>()
+
+const rootRef = useTemplateRef<HTMLElement>('rootRef')
+const capturing = ref(false)
+const copyText = computed(() => collectAssistantText(props.blocks))
 
 const usage = computed(() => {
   const reasoning = props.blocks.find(
@@ -125,4 +161,20 @@ const hasBody = computed(() =>
       block.type === 'tool_call'
   )
 )
+
+async function onCopyImage(fromTop: boolean) {
+  const root = rootRef.value
+  const target = fromTop
+    ? root?.closest('[data-testid="chat-message-list"]')
+    : root?.querySelector('[data-message-content="true"]')
+  if (!(target instanceof HTMLElement)) return
+  capturing.value = true
+  try {
+    await copyElementAsPng(target)
+  } catch {
+    // 截图失败时静默恢复操作栏，避免空按钮态。
+  } finally {
+    capturing.value = false
+  }
+}
 </script>

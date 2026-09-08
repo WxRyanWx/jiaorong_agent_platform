@@ -100,7 +100,16 @@ export type MessageFile = {
   mimeType?: string
   token?: number
   thumbnail?: string
+  /** @deprecated 用 content。宿主会转成 content。 */
   dataBase64?: string
+  metadata?: {
+    fileName?: string
+    fileSize?: number
+    fileDescription?: string
+    fileCreated?: string
+    fileModified?: string
+    [key: string]: unknown
+  }
 }
 
 export type UserMessageInlineItem =
@@ -185,9 +194,11 @@ export type SlashCatalogResult = {
 
 export type CreateSessionResult = {
   session: SessionWithState
+  accepted?: boolean
   initialTurn?: {
     requestId: string | null
     messageId: string | null
+    attachmentPreparation?: unknown
   }
 }
 

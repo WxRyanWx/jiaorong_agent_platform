@@ -14,6 +14,19 @@ import { ensureJiaorongAppProtocolSession } from './protocol'
 import { buildJiaorongSlashCatalog } from './slashCatalog'
 import { buildUserInfoPayload, readAuthToken } from './userIdentity'
 
+async function openGuestDialog(
+  webContentsId: number,
+  options: Electron.OpenDialogOptions
+): Promise<string[]> {
+  const contents = webContents.fromId(webContentsId)
+  const win = contents ? BrowserWindow.fromWebContents(contents) : null
+  const picked = win
+    ? await dialog.showOpenDialog(win, options)
+    : await dialog.showOpenDialog(options)
+  if (picked.canceled) return []
+  return picked.filePaths.filter((filePath) => Boolean(filePath?.trim()))
+}
+
 export function toMenuAppItem(runtime: JiaorongAppRuntime): JiaorongMenuAppItem {
   const appDir = runtime.appDir
   const iconFile = runtime.icon && appDir ? path.resolve(appDir, runtime.icon) : null
@@ -78,17 +91,24 @@ export async function handleAppBridgeInvoke(
       case 'disconnect':
         return { ok: true }
       case 'dialog.selectDirectory': {
-        const contents = webContents.fromId(webContentsId)
-        const win = contents ? BrowserWindow.fromWebContents(contents) : null
-        const options: Electron.OpenDialogOptions = {
+        const picked = await openGuestDialog(webContentsId, {
           properties: ['openDirectory', 'createDirectory']
-        }
-        const picked = win
-          ? await dialog.showOpenDialog(win, options)
-          : await dialog.showOpenDialog(options)
-        if (picked.canceled || !picked.filePaths[0]) return { path: null }
-        rememberPickedDirectory(webContentsId, picked.filePaths[0])
-        return { path: picked.filePaths[0] }
+        })
+        if (!picked[0]) return { path: null }
+        rememberPickedDirectory(webContentsId, picked[0])
+        return { path: picked[0] }
+      }
+      case 'dialog.selectFiles': {
+        const picked = await openGuestDialog(webContentsId, {
+          properties: ['openFile', 'multiSelections']
+        })
+        const files = picked.flatMap((filePath) => {
+          const value = filePath.trim()
+          if (!isAbsoluteGuestPath(value)) return []
+          rememberPickedDirectory(webContentsId, value)
+          return [{ path: value, name: path.basename(value) }]
+        })
+        return { files }
       }
       case 'dialog.allowProjectDir': {
         const pathValue = typeof record.path === 'string' ? record.path.trim() : ''

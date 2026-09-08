@@ -3544,6 +3544,11 @@ export async function createMainProcessControl(dependencies: {
         tools: [...toolsByName.values()]
       }
     },
+    files: {
+      writeTemp: (file) => fileService.writeTemp(file),
+      writeImageBase64: (file) => fileService.writeImageBase64(file),
+      prepareFile: (filePath, mimeType) => fileService.prepareFile(filePath, mimeType)
+    },
     dialogue: {
       createDeepChatAgent: (input) => agentSettings.createDeepChatAgent(input as never),
       updateDeepChatAgent: (agentId, updates) =>
@@ -3560,6 +3565,12 @@ export async function createMainProcessControl(dependencies: {
       deleteSession: (sessionId) => sessionLifecycle.deleteSession(sessionId),
       searchHistory: (query, options) => sessionHistorySearch.search(query, options),
       sendMessage: (sessionId, content) => sessionTurn.sendMessage(sessionId, content as never),
+      retryMessage: (sessionId, messageId) => sessionTurn.retryMessage(sessionId, messageId),
+      deleteMessage: (sessionId, messageId) => sessionTurn.deleteMessage(sessionId, messageId),
+      editUserMessage: (sessionId, messageId, text) =>
+        sessionTurn.editUserMessage(sessionId, messageId, text),
+      forkSession: (sourceSessionId, targetMessageId) =>
+        sessionLifecycle.forkSession(sourceSessionId, targetMessageId),
       steerActiveTurn: (sessionId, content) =>
         sessionTurn.steerActiveTurn(sessionId, content as never),
       cancelGeneration: (sessionId) => sessionTurn.cancelGeneration(sessionId),

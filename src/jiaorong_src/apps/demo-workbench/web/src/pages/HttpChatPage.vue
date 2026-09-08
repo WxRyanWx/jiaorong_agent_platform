@@ -79,6 +79,9 @@ let historyPoll: ReturnType<typeof setInterval> | null = null
 const abandonedSessionIds = new Set<string>()
 /** 换会话 / 一轮结束时 +1，丢掉过期的 session.get。 */
 let historyEpoch = 0
+/** 消息操作栏进行中，避免连点重试 / 删除 / 分叉。 */
+let mutating = false
+const ATTACHMENT_BLOCKED_ZH = '附件无法按当前模型发送，请调整后重试'
 
 /** 置顶会话排前面，同组再按更新时间倒序。 */
 function sortSessions(items: SessionWithState[]) {
@@ -135,6 +138,12 @@ function appendLocalUser(text: string, files?: MessageFile[]) {
       updatedAt: now
     }
   ]
+}
+
+function dropLastLocalUser() {
+  const last = messages.value[messages.value.length - 1]
+  if (!last?.id.startsWith('local-')) return
+  messages.value = messages.value.slice(0, -1)
 }
 
 /** 停掉 session.get 轮询。生成结束、换会话、卸载页时调用。 */
@@ -327,25 +336,34 @@ async function onSend(payload: { text: string; files?: MessageFile[] }) {
   try {
     // 还没有会话：create 会带上第一条用户消息并开始生成。
     if (!id) {
-      generating.value = true
       const created = await invokeSdk<CreateSessionResult>('session.create', {
         agentId: agentId.value,
         message: payload.text,
         files: payload.files
       })
+      sessionId.value = created.session.id
+      await refreshSessions()
+      if (created.accepted === false) {
+        dropLastLocalUser()
+        errorText.value = ATTACHMENT_BLOCKED_ZH
+        return
+      }
+      generating.value = true
       liveMessageId.value = created.initialTurn?.messageId ?? null
       liveBlocks.value = []
-      sessionId.value = created.session.id
       startHistoryPoll()
-      await refreshSessions()
       return
     }
     // 上一轮还在生成：这条作为追加指令，不新开一轮。
     if (steering) {
-      await invokeSdk('session.steer', {
+      const steered = await invokeSdk<{ accepted?: boolean }>('session.steer', {
         sessionId: id,
         content: { text: payload.text, files: payload.files }
       })
+      if (steered?.accepted === false) {
+        dropLastLocalUser()
+        errorText.value = ATTACHMENT_BLOCKED_ZH
+      }
       return
     }
     generating.value = true
@@ -353,7 +371,13 @@ async function onSend(payload: { text: string; files?: MessageFile[] }) {
       sessionId: id,
       content: { text: payload.text, files: payload.files }
     })
-    liveMessageId.value = result.messageId
+    if (result?.accepted === false) {
+      generating.value = false
+      dropLastLocalUser()
+      errorText.value = ATTACHMENT_BLOCKED_ZH
+      return
+    }
+    liveMessageId.value = result?.messageId ?? null
     liveBlocks.value = []
     startHistoryPoll()
   } catch (error) {
@@ -362,6 +386,7 @@ async function onSend(payload: { text: string; files?: MessageFile[] }) {
       generating.value = false
       stopHistoryPoll()
     }
+    dropLastLocalUser()
     errorText.value = formatError(error)
   } finally {
     sending.value = false
@@ -408,6 +433,96 @@ async function onDelete(id: string) {
     await refreshSessions()
   } catch (error) {
     errorText.value = formatError(error)
+  }
+}
+
+/** 消息操作栏：重试当前或历史消息。 */
+async function onRetryMessage(messageId: string) {
+  const id = sessionId.value
+  if (!id || !messageId || mutating || sending.value) return
+  mutating = true
+  const wasGenerating = generating.value
+  try {
+    errorText.value = ''
+    generating.value = true
+    const result = await invokeSdk<SendMessageResult>('session.retryMessage', {
+      sessionId: id,
+      messageId
+    })
+    if (result?.accepted === false) {
+      if (!wasGenerating) generating.value = false
+      errorText.value = ATTACHMENT_BLOCKED_ZH
+      return
+    }
+    liveMessageId.value = result?.messageId ?? null
+    liveBlocks.value = []
+    startHistoryPoll()
+  } catch (error) {
+    if (!wasGenerating) generating.value = false
+    errorText.value = formatError(error)
+  } finally {
+    mutating = false
+  }
+}
+
+/** 消息操作栏：删除该条及之后的消息。 */
+async function onDeleteMessage(messageId: string) {
+  const id = sessionId.value
+  if (!id || !messageId || mutating || sending.value) return
+  mutating = true
+  try {
+    errorText.value = ''
+    await invokeSdk('session.deleteMessage', { sessionId: id, messageId })
+    generating.value = false
+    liveBlocks.value = []
+    liveMessageId.value = null
+    stopHistoryPoll()
+    await loadSession(id)
+  } catch (error) {
+    errorText.value = formatError(error)
+  } finally {
+    mutating = false
+  }
+}
+
+/** 消息操作栏：改用户消息后立刻按新文本重试。 */
+async function onEditSave(payload: { messageId: string; text: string }) {
+  const id = sessionId.value
+  const text = payload.text.trim()
+  if (!id || !payload.messageId || !text || mutating || sending.value) return
+  try {
+    errorText.value = ''
+    const edited = await invokeSdk<{ message: ChatMessageRecord }>('session.editUserMessage', {
+      sessionId: id,
+      messageId: payload.messageId,
+      text
+    })
+    if (edited?.message) upsertMessages([edited.message])
+    await onRetryMessage(payload.messageId)
+  } catch (error) {
+    errorText.value = formatError(error)
+  }
+}
+
+/** 消息操作栏：从该条消息分出新会话并切过去。 */
+async function onForkMessage(messageId: string) {
+  const id = sessionId.value
+  if (!id || !messageId || generating.value || mutating || sending.value) return
+  mutating = true
+  try {
+    errorText.value = ''
+    const result = await invokeSdk<{ session: SessionWithState }>('session.fork', {
+      sessionId: id,
+      messageId
+    })
+    const nextId = result?.session?.id
+    if (!nextId) return
+    sessionId.value = nextId
+    await refreshSessions()
+  } catch (error) {
+    errorText.value = formatError(error)
+  } finally {
+    mutating = false
   }
 }
 
@@ -616,6 +731,10 @@ onUnmounted(() => {
         @load-older="loadOlderMessages"
         @respond-approval="onRespondApproval"
         @respond-question="onRespondQuestion"
+        @retry="onRetryMessage"
+        @delete="onDeleteMessage"
+        @edit-save="onEditSave"
+        @fork="onForkMessage"
       />
     </div>
   </section>

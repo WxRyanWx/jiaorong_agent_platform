@@ -91,7 +91,11 @@ export type JiaorongAppDialoguePort = {
     webContentsId: number
   ): Promise<
     JiaorongAppSessionRecord & {
-      initialTurn?: { requestId: string | null; messageId: string | null }
+      initialTurn?: {
+        requestId: string | null
+        messageId: string | null
+        attachmentPreparation?: unknown
+      }
     }
   >
   getSession(sessionId: string): Promise<JiaorongAppSessionRecord | null>
@@ -128,6 +132,21 @@ export type JiaorongAppDialoguePort = {
     messageId: string | null
     attachmentPreparation?: unknown
   }>
+  retryMessage(
+    sessionId: string,
+    messageId: string
+  ): Promise<{
+    requestId: string | null
+    messageId: string | null
+    attachmentPreparation?: unknown
+  }>
+  deleteMessage(sessionId: string, messageId: string): Promise<void>
+  editUserMessage(
+    sessionId: string,
+    messageId: string,
+    text: string
+  ): Promise<JiaorongAppMessageRecord>
+  forkSession(sourceSessionId: string, targetMessageId: string): Promise<JiaorongAppSessionRecord>
   steerActiveTurn(
     sessionId: string,
     content: JiaorongAppSendContent
@@ -166,10 +185,17 @@ export type JiaorongAppSlashSources = {
   }>
 }
 
+export type JiaorongAppFilePort = {
+  writeTemp(file: { name: string; content: Buffer | string }): Promise<string>
+  writeImageBase64(file: { name: string; content: string }): Promise<string>
+  prepareFile(path: string, mimeType?: string): Promise<Record<string, unknown>>
+}
+
 export type JiaorongAppHostDeps = {
   getAuthSession(): JiaorongAuthSession | undefined
   getLocale(): string
   getTheme(): ThemeMode
   dialogue?: JiaorongAppDialoguePort
   listSlashSources?: () => Promise<JiaorongAppSlashSources>
+  files?: JiaorongAppFilePort
 }

@@ -71,6 +71,14 @@ export type JiaorongClient = {
       content: string | SendMessageInput
       submissionId?: string
     }): Promise<SendMessageResult>
+    retryMessage(input: { sessionId: string; messageId: string }): Promise<SendMessageResult>
+    deleteMessage(input: { sessionId: string; messageId: string }): Promise<{ deleted: true }>
+    editUserMessage(input: {
+      sessionId: string
+      messageId: string
+      text: string
+    }): Promise<{ message: ChatMessageRecord }>
+    fork(input: { sessionId: string; messageId: string }): Promise<{ session: SessionWithState }>
     stop(input: { sessionId?: string; requestId?: string }): Promise<{ stopped: boolean }>
     steer(input: {
       sessionId: string
@@ -289,6 +297,42 @@ export function createClient(
           ...input,
           content: normalizeSendContent(input.content)
         })
+      },
+      retryMessage(input) {
+        if (!input.sessionId?.trim() || !input.messageId?.trim()) {
+          return Promise.reject(
+            new JiaorongError('VALIDATION_ERROR', '需要提供 sessionId 和 messageId')
+          )
+        }
+        return invoke<SendMessageResult>('session.retryMessage', { appId, ...input })
+      },
+      deleteMessage(input) {
+        if (!input.sessionId?.trim() || !input.messageId?.trim()) {
+          return Promise.reject(
+            new JiaorongError('VALIDATION_ERROR', '需要提供 sessionId 和 messageId')
+          )
+        }
+        return invoke<{ deleted: true }>('session.deleteMessage', { appId, ...input })
+      },
+      editUserMessage(input) {
+        if (!input.sessionId?.trim() || !input.messageId?.trim() || !input.text?.trim()) {
+          return Promise.reject(
+            new JiaorongError('VALIDATION_ERROR', '需要提供 sessionId、messageId 和 text')
+          )
+        }
+        return invoke<{ message: ChatMessageRecord }>('session.editUserMessage', {
+          appId,
+          ...input,
+          text: input.text.trim()
+        })
+      },
+      fork(input) {
+        if (!input.sessionId?.trim() || !input.messageId?.trim()) {
+          return Promise.reject(
+            new JiaorongError('VALIDATION_ERROR', '需要提供 sessionId 和 messageId')
+          )
+        }
+        return invoke<{ session: SessionWithState }>('session.fork', { appId, ...input })
       },
       stop(input) {
         if (!input.sessionId?.trim() && !input.requestId?.trim()) {

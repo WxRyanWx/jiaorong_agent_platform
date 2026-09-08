@@ -27,10 +27,11 @@ globalThis.jiaorong = { invoke, on, userinfo }
 | context.get | jr.getContext |
 | userinfo.get | jr.userinfo / window.jiaorong.userinfo |
 | agent.create / agent.get / agent.list / agent.update | jr.agent.* |
-| session.create / list / search / get / rename / pin / delete / send / stop / steer | jr.session.* |
+| session.create / list / search / get / rename / pin / delete / send / stop / steer / retryMessage / deleteMessage / editUserMessage / fork | jr.session.* |
 | chat.respondToolInteraction | jr.respondToolInteraction |
 | disconnect | jr.disconnect |
 | dialog.selectDirectory | 选本地项目目录，返回 `{ path }` |
+| dialog.selectFiles | 选本地附件，返回 `{ files: [{ path, name }] }`；路径会加入本窗口白名单 |
 | dialog.allowProjectDir | 仅当本窗口已经用 `dialog.selectDirectory` 选过该路径时返回 ok；不能给任意绝对路径开白名单 |
 | session.setPermissionMode | 写入当前会话权限，进入 DeepChat 进程 |
 | session.setOrchestrationPolicy | 写入 `explicit` / `proactive`，主动协作进编排 |
@@ -42,7 +43,9 @@ globalThis.jiaorong = { invoke, on, userinfo }
 
 `agent.create` 若只传 `skills`，SDK 会补 `config.enabledSkillNames` 为 `app.<appId>.<skill>`。宿主只保留本应用 `app.<id>.*` 与非 `app.` 前缀的官方技能名，丢掉其它应用的技能；`systemPrompt` / `assistantModel` / `permissionMode` 会写入，其它 config 字段丢掉。
 
-`session.create` 的 `projectDir` 必须是绝对路径，且为本窗口 `dialog.selectDirectory` 选过，或已是本应用会话上的目录。`dialog.allowProjectDir` 不能绕过文件夹选择器。路径会去掉末尾斜杠后再比对（Windows 盘符根目录 `C:\` 除外）。
+`session.retryMessage` / `session.deleteMessage` / `session.editUserMessage` / `session.fork` 都要带本应用已有会话的 `sessionId` 和该会话里的 `messageId`。`editUserMessage` 只能改用户消息。`fork` 会记下新会话归属，并把原会话项目目录加入本窗口白名单。
+
+`session.create` / `session.send` / `session.steer` / `session.retryMessage` 在附件需要用户处理时返回 `accepted: false`。Guest 传入的文件路径必须是本窗口选过的绝对路径；未授权路径会拒绝整次发送。
 
 ## context.get 出参
 

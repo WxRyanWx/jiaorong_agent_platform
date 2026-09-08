@@ -26,6 +26,7 @@ import {
   rememberPickedDirectory,
   rememberSessionOwner
 } from './guestBind'
+import { materializeGuestFiles } from './guestAttachments'
 import { readAuthToken } from './userIdentity'
 
 /** 与超级智能体 `messageWindowPolicy` 对齐：首屏 10，单次最多 50。 */
@@ -153,6 +154,13 @@ function sanitizeSkillNames(appId: string, names: unknown): string[] {
   )
 }
 
+function hasGuestFilePayload(row: Record<string, unknown>): boolean {
+  return (
+    (typeof row.content === 'string' && Boolean(row.content.trim())) ||
+    (typeof row.dataBase64 === 'string' && Boolean(row.dataBase64.trim()))
+  )
+}
+
 function sanitizeGuestFiles(
   files: unknown,
   webContentsId: number,
@@ -161,6 +169,7 @@ function sanitizeGuestFiles(
   if (!Array.isArray(files)) return undefined
   const allowedRoot = typeof projectDir === 'string' ? canonicalizeGuestPath(projectDir) : ''
   const next: unknown[] = []
+  let dropped = 0
   for (const file of files) {
     if (!file || typeof file !== 'object') continue
     const row = file as Record<string, unknown>
@@ -169,10 +178,25 @@ function sanitizeGuestFiles(
       next.push(file)
       continue
     }
+    if (!isAbsoluteGuestPath(filePath)) {
+      if (!hasGuestFilePayload(row)) {
+        dropped += 1
+        continue
+      }
+      const rest = { ...row }
+      delete rest.path
+      next.push(rest)
+      continue
+    }
     const underProject = Boolean(allowedRoot) && isGuestPathInsideDir(allowedRoot, filePath)
     if (underProject || isGuestPathAllowed(webContentsId, filePath)) {
       next.push(file)
+    } else {
+      dropped += 1
     }
+  }
+  if (dropped > 0) {
+    throw bridgeError('FORBIDDEN', '附件路径未授权，请通过「+」重新选择文件')
   }
   return next
 }
@@ -223,6 +247,28 @@ async function requireOwnedSession(
   return session
 }
 
+async function requireOwnedMessage(
+  dialogue: JiaorongAppDialoguePort,
+  appId: string,
+  sessionId: string,
+  messageId: string
+) {
+  await requireOwnedSession(dialogue, appId, sessionId)
+  const message = await dialogue.getMessage(messageId)
+  if (!message || message.sessionId !== sessionId) {
+    throw bridgeError('SESSION_NOT_FOUND', '未找到该消息')
+  }
+  return message
+}
+
+function isBlockedAttachment(preparation: unknown): boolean {
+  return Boolean(
+    preparation &&
+    typeof preparation === 'object' &&
+    (preparation as { status?: string }).status === 'needs_user_action'
+  )
+}
+
 async function resolveOwnedAgentId(
   dialogue: JiaorongAppDialoguePort,
   appId: string,
@@ -260,6 +306,21 @@ function sanitizeSendContent(
     ...content,
     files,
     activeSkills: skills.length > 0 ? skills : undefined
+  }
+}
+
+async function prepareGuestSendContent(
+  deps: JiaorongAppHostDeps,
+  appId: string,
+  webContentsId: number,
+  projectDir: string | null | undefined,
+  content: string | Record<string, unknown>
+): Promise<string | Record<string, unknown>> {
+  const sanitized = sanitizeSendContent(appId, webContentsId, projectDir, content)
+  if (typeof sanitized === 'string') return sanitized
+  return {
+    ...sanitized,
+    files: await materializeGuestFiles(sanitized.files, deps.files)
   }
 }
 
@@ -465,7 +526,10 @@ export async function handleDialogueInvoke(
         {
           agentId,
           message,
-          files: sanitizeGuestFiles(record.files, webContentsId, projectDir),
+          files: await materializeGuestFiles(
+            sanitizeGuestFiles(record.files, webContentsId, projectDir),
+            deps.files
+          ),
           search: typeof record.search === 'boolean' ? record.search : undefined,
           inlineItems: Array.isArray(record.inlineItems) ? record.inlineItems : undefined,
           projectDir,
@@ -492,6 +556,7 @@ export async function handleDialogueInvoke(
       const { initialTurn, ...session } = created
       return {
         session: toSdkSession(session),
+        accepted: !isBlockedAttachment(initialTurn?.attachmentPreparation),
         ...(initialTurn ? { initialTurn } : {})
       }
     }
@@ -579,10 +644,24 @@ export async function handleDialogueInvoke(
       rememberSessionOwner(sessionId, appId)
       const result = await dialogue.sendMessage(
         sessionId,
-        sanitizeSendContent(appId, webContentsId, session.projectDir, readSendContent(record))
+        await prepareGuestSendContent(
+          deps,
+          appId,
+          webContentsId,
+          session.projectDir,
+          readSendContent(record)
+        )
       )
+      if (isBlockedAttachment(result.attachmentPreparation)) {
+        return {
+          accepted: false as const,
+          requestId: result.requestId,
+          messageId: result.messageId,
+          attachmentPreparation: result.attachmentPreparation
+        }
+      }
       return {
-        accepted: true,
+        accepted: true as const,
         requestId: result.requestId,
         messageId: result.messageId,
         attachmentPreparation: result.attachmentPreparation
@@ -607,13 +686,15 @@ export async function handleDialogueInvoke(
       const session = await requireOwnedSession(dialogue, appId, sessionId)
       const result = await dialogue.steerActiveTurn(
         sessionId,
-        sanitizeSendContent(appId, webContentsId, session.projectDir, readSendContent(record))
+        await prepareGuestSendContent(
+          deps,
+          appId,
+          webContentsId,
+          session.projectDir,
+          readSendContent(record)
+        )
       )
-      if (
-        result.attachmentPreparation &&
-        typeof result.attachmentPreparation === 'object' &&
-        (result.attachmentPreparation as { status?: string }).status === 'needs_user_action'
-      ) {
+      if (isBlockedAttachment(result.attachmentPreparation)) {
         return { accepted: false as const, message: null }
       }
       if (!result.userMessage) {
@@ -669,6 +750,72 @@ export async function handleDialogueInvoke(
       }
       await requireOwnedSession(dialogue, appId, sessionId)
       const session = await dialogue.toggleSessionPinned(sessionId, record.pinned)
+      return { session: toSdkSession(session) }
+    }
+    case 'session.retryMessage': {
+      const sessionId = readString(record, 'sessionId')
+      const messageId = readString(record, 'messageId')
+      if (!sessionId || !messageId) {
+        throw bridgeError('VALIDATION_ERROR', '需要提供 sessionId 和 messageId')
+      }
+      await requireOwnedMessage(dialogue, appId, sessionId, messageId)
+      rememberSessionOwner(sessionId, appId)
+      const result = await dialogue.retryMessage(sessionId, messageId)
+      if (isBlockedAttachment(result.attachmentPreparation)) {
+        return {
+          accepted: false as const,
+          requestId: result.requestId,
+          messageId: result.messageId,
+          attachmentPreparation: result.attachmentPreparation
+        }
+      }
+      return {
+        accepted: true as const,
+        requestId: result.requestId,
+        messageId: result.messageId,
+        attachmentPreparation: result.attachmentPreparation
+      }
+    }
+    case 'session.deleteMessage': {
+      const sessionId = readString(record, 'sessionId')
+      const messageId = readString(record, 'messageId')
+      if (!sessionId || !messageId) {
+        throw bridgeError('VALIDATION_ERROR', '需要提供 sessionId 和 messageId')
+      }
+      await requireOwnedMessage(dialogue, appId, sessionId, messageId)
+      await dialogue.deleteMessage(sessionId, messageId)
+      return { deleted: true as const }
+    }
+    case 'session.editUserMessage': {
+      const sessionId = readString(record, 'sessionId')
+      const messageId = readString(record, 'messageId')
+      const text = typeof record.text === 'string' ? record.text.trim() : ''
+      if (!sessionId || !messageId) {
+        throw bridgeError('VALIDATION_ERROR', '需要提供 sessionId 和 messageId')
+      }
+      if (!text) throw bridgeError('VALIDATION_ERROR', '编辑内容不能为空')
+      const message = await requireOwnedMessage(dialogue, appId, sessionId, messageId)
+      if (message.role !== 'user') {
+        throw bridgeError('VALIDATION_ERROR', '只能编辑用户消息')
+      }
+      const updated = await dialogue.editUserMessage(sessionId, messageId, text)
+      return { message: updated }
+    }
+    case 'session.fork': {
+      const sessionId = readString(record, 'sessionId')
+      const messageId = readString(record, 'messageId')
+      if (!sessionId || !messageId) {
+        throw bridgeError('VALIDATION_ERROR', '需要提供 sessionId 和 messageId')
+      }
+      const source = await requireOwnedSession(dialogue, appId, sessionId)
+      await requireOwnedMessage(dialogue, appId, sessionId, messageId)
+      const session = await dialogue.forkSession(sessionId, messageId)
+      rememberSessionOwner(session.id, appId)
+      if (session.projectDir) {
+        rememberPickedDirectory(webContentsId, session.projectDir)
+      } else if (source.projectDir) {
+        rememberPickedDirectory(webContentsId, source.projectDir)
+      }
       return { session: toSdkSession(session) }
     }
     default:

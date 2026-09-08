@@ -1,6 +1,7 @@
 <template>
   <div
     data-testid="chat-message-user"
+    :data-message-id="id"
     class="flex min-w-0 max-w-full flex-row-reverse group pt-5 pl-11 gap-2 user-message-item"
   >
     <div class="w-5 h-5 bg-muted rounded-md overflow-hidden">
@@ -10,10 +11,7 @@
     </div>
     <div class="flex flex-col w-full space-y-1.5 items-end">
       <MessageInfo class="flex-row-reverse" :name="userName" :timestamp="timestamp" />
-      <div
-        v-if="skills.length"
-        class="flex max-w-full flex-wrap justify-end gap-1.5 pr-1"
-      >
+      <div v-if="skills.length" class="flex max-w-full flex-wrap justify-end gap-1.5 pr-1">
         <span
           v-for="skillName in skills"
           :key="skillName"
@@ -28,30 +26,94 @@
         data-message-content="true"
       >
         <div v-if="files.length" class="flex flex-wrap gap-1.5">
-          <span
-            v-for="file in files"
-            :key="file"
-            class="inline-flex max-w-full items-center gap-2 rounded-full border border-border bg-background/70 px-2.5 py-1 text-xs text-foreground shadow-sm"
-          >
-            <Icon icon="lucide:paperclip" class="h-4 w-4 shrink-0 text-muted-foreground" />
-            <span class="max-w-[180px] truncate">{{ file }}</span>
-          </span>
+          <FileAttachmentChip v-for="file in files" :key="file" :file-name="file" />
         </div>
-        <div class="w-full min-w-0 text-sm break-all whitespace-pre-wrap">{{ text }}</div>
+        <textarea
+          v-if="isEditMode"
+          ref="editTextarea"
+          v-model="editedText"
+          class="min-h-[2.5rem] min-w-[40vw] w-full resize-none overflow-y-auto bg-transparent text-sm break-all whitespace-pre-wrap outline-none"
+          rows="1"
+          @input="autoResize"
+          @keydown.meta.enter.prevent="saveEdit"
+          @keydown.ctrl.enter.prevent="saveEdit"
+          @keydown.esc="cancelEdit"
+        />
+        <div v-else class="w-full min-w-0 text-sm break-all whitespace-pre-wrap">{{ text }}</div>
       </div>
+      <MessageToolbar
+        :is-assistant="false"
+        :is-edit-mode="isEditMode"
+        :disabled="disabled"
+        :copy-text="text"
+        @retry="emit('retry')"
+        @delete="emit('delete')"
+        @edit="startEdit"
+        @save="saveEdit"
+        @cancel="cancelEdit"
+      />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { nextTick, ref, useTemplateRef, watch } from 'vue'
 import { Icon } from '@iconify/vue'
+import FileAttachmentChip from './FileAttachmentChip.vue'
 import MessageInfo from './MessageInfo.vue'
+import MessageToolbar from './MessageToolbar.vue'
 
-defineProps<{
+const props = defineProps<{
+  id: string
   userName: string
   timestamp: number
   text: string
   files: string[]
   skills: string[]
+  disabled?: boolean
 }>()
+
+const emit = defineEmits<{
+  retry: []
+  delete: []
+  save: [text: string]
+}>()
+
+const isEditMode = ref(false)
+const editedText = ref(props.text)
+const editTextarea = useTemplateRef<HTMLTextAreaElement>('editTextarea')
+
+watch(
+  () => props.text,
+  (value) => {
+    if (!isEditMode.value) editedText.value = value
+  }
+)
+
+function autoResize() {
+  const el = editTextarea.value
+  if (!el) return
+  el.style.height = 'auto'
+  el.style.height = `${el.scrollHeight}px`
+}
+
+async function startEdit() {
+  editedText.value = props.text
+  isEditMode.value = true
+  await nextTick()
+  autoResize()
+  editTextarea.value?.focus()
+}
+
+function cancelEdit() {
+  isEditMode.value = false
+  editedText.value = props.text
+}
+
+function saveEdit() {
+  const next = editedText.value.trim()
+  if (!next) return
+  isEditMode.value = false
+  emit('save', next)
+}
 </script>

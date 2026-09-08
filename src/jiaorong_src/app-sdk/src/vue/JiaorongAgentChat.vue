@@ -2,7 +2,7 @@
 import { computed, ref, shallowRef } from 'vue'
 import { TOP_HISTORY_PREFETCH_PX } from './lib/windowPolicy'
 import { registerJiaorongAgentIcons } from './lib/icons'
-import { filesToMessageFiles } from './lib/files'
+import { filesToMessageFiles, type PendingAttachment } from './lib/files'
 import { buildTranscript } from './lib/transcript'
 import { useJiaorongAgentRuntime } from './composables/useJiaorongAgentRuntime'
 import ChatInputBox from './components/ChatInputBox.vue'
@@ -25,6 +25,8 @@ const props = withDefaults(
     httpBase?: string
     /** 页面自己灌数据时打开。组件不再 connect SDK。 */
     external?: boolean
+    /** 是否显示输入框附件按钮。默认显示。 */
+    attachments?: boolean
     messages?: ChatMessageRecord[]
     liveBlocks?: AssistantMessageBlock[]
     liveMessageId?: string | null
@@ -40,6 +42,7 @@ const props = withDefaults(
     agentName: '交融对话',
     userName: 'You',
     external: false,
+    attachments: true,
     ready: true
   }
 )
@@ -50,11 +53,15 @@ const emit = defineEmits<{
   'load-older': []
   'respond-approval': [payload: { block: AssistantMessageBlock; granted: boolean }]
   'respond-question': [payload: { kind: 'option' | 'custom'; value: string }]
+  retry: [messageId: string]
+  delete: [messageId: string]
+  'edit-save': [payload: { messageId: string; text: string }]
+  fork: [messageId: string]
 }>()
 
 const sessionId = defineModel<string | null>('sessionId', { default: null })
 const localDraft = shallowRef('')
-const localFiles = ref<File[]>([])
+const localFiles = ref<PendingAttachment[]>([])
 
 const runtime = props.external
   ? null
@@ -120,7 +127,7 @@ async function onSend() {
     return
   }
   const text = draft.value.trim()
-  if (!text || sending.value) return
+  if ((!text && !files.value.length) || sending.value) return
   const messageFiles = files.value.length ? await filesToMessageFiles(files.value) : undefined
   emit('send', { text, files: messageFiles })
   draft.value = ''
@@ -135,7 +142,7 @@ function onStop() {
   emit('stop')
 }
 
-function onAttach(next: File[]) {
+function onAttach(next: PendingAttachment[]) {
   if (runtime) {
     runtime.attachFiles(next)
     return
@@ -165,6 +172,38 @@ function onRespondQuestion(kind: 'option' | 'custom', value: string) {
     return
   }
   emit('respond-question', { kind, value })
+}
+
+function onRetry(messageId: string) {
+  if (runtime) {
+    void runtime.retryMessage(messageId)
+    return
+  }
+  emit('retry', messageId)
+}
+
+function onDeleteMessage(messageId: string) {
+  if (runtime) {
+    void runtime.deleteMessage(messageId)
+    return
+  }
+  emit('delete', messageId)
+}
+
+function onEditSave(messageId: string, text: string) {
+  if (runtime) {
+    void runtime.editUserMessage(messageId, text)
+    return
+  }
+  emit('edit-save', { messageId, text })
+}
+
+function onFork(messageId: string) {
+  if (runtime) {
+    void runtime.forkSession(messageId)
+    return
+  }
+  emit('fork', messageId)
 }
 
 function questionOptions(block: AssistantMessageBlock | undefined) {
@@ -205,11 +244,15 @@ function questionOptions(block: AssistantMessageBlock | undefined) {
               <template v-for="item in transcript" :key="item.id">
                 <MessageItemUser
                   v-if="item.role === 'user'"
+                  :id="item.id"
                   :user-name="userName"
                   :timestamp="item.createdAt"
                   :text="item.text"
                   :files="item.files"
                   :skills="item.skills"
+                  @retry="onRetry(item.id)"
+                  @delete="onDeleteMessage(item.id)"
+                  @save="(text) => onEditSave(item.id, text)"
                 />
                 <MessageItemAssistant
                   v-else
@@ -221,6 +264,10 @@ function questionOptions(block: AssistantMessageBlock | undefined) {
                   :generating="generating && item.id === (liveMessageId || lastAssistantId)"
                   :streaming="Boolean(liveMessageId) && item.id === liveMessageId"
                   :status="item.status"
+                  :thread-generating="generating"
+                  @retry="onRetry(item.id)"
+                  @delete="onDeleteMessage(item.id)"
+                  @fork="onFork(item.id)"
                 />
               </template>
               <div class="h-px w-full" aria-hidden="true" />
@@ -281,6 +328,8 @@ function questionOptions(block: AssistantMessageBlock | undefined) {
             :agent-name="agentName"
             :placeholder="placeholder"
             :files="files"
+            :attachments="attachments"
+            :app-id="appId"
             @send="onSend()"
             @stop="onStop()"
             @attach="onAttach"

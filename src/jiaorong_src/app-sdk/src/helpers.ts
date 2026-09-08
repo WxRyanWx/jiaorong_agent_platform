@@ -22,8 +22,18 @@ export function stripDataUrlBase64(value: string) {
 }
 
 export function normalizeMessageFile(file: MessageFile): MessageFile {
-  if (!file.dataBase64) return file
-  return { ...file, dataBase64: stripDataUrlBase64(file.dataBase64) }
+  const raw = file.content?.trim() || file.dataBase64?.trim() || ''
+  if (!raw) {
+    return { ...file, dataBase64: undefined }
+  }
+  const mimeType = file.mimeType || file.type || ''
+  const keepDataUrl = mimeType.startsWith('image/') || raw.startsWith('data:image/')
+  return {
+    ...file,
+    mimeType: mimeType || file.mimeType,
+    content: keepDataUrl ? raw : stripDataUrlBase64(raw),
+    dataBase64: undefined
+  }
 }
 
 export function normalizeSendContent(content: string | SendMessageInput): SendMessageInput {
@@ -51,7 +61,13 @@ export function parseUserMessage(record: ChatMessageRecord): UserMessageContent 
     const value = parsed as UserMessageContent
     return {
       text: typeof value.text === 'string' ? value.text : '',
-      files: value.files,
+      files: Array.isArray(value.files)
+        ? value.files.map((file) => ({
+            ...file,
+            content: undefined,
+            dataBase64: undefined
+          }))
+        : undefined,
       links: value.links,
       search: value.search,
       think: value.think,
@@ -59,7 +75,21 @@ export function parseUserMessage(record: ChatMessageRecord): UserMessageContent 
       inlineItems: value.inlineItems
     }
   }
-  return { text: typeof parsed === 'string' ? parsed : '' }
+  if (typeof parsed === 'string') {
+    const trimmed = parsed.trim()
+    if (trimmed.startsWith('{') && trimmed.includes('"text"')) {
+      const match = trimmed.match(/"text"\s*:\s*"((?:\\.|[^"\\])*)"/)
+      if (match) {
+        try {
+          return { text: JSON.parse(`"${match[1]}"`) as string }
+        } catch {
+          return { text: match[1] }
+        }
+      }
+    }
+    return { text: parsed }
+  }
+  return { text: '' }
 }
 
 export function findPendingToolPermission(

@@ -94,6 +94,10 @@
   color: #4d76ad;
 }
 
+.chat-input-toolbar-icon:hover:not(:disabled) {
+  background-color: var(--accent);
+}
+
 .model-icon-img {
   display: block;
   max-width: none;

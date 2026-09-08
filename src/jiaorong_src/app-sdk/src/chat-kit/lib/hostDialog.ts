@@ -70,6 +70,34 @@ export async function pickHostDirectory(
   }
 }
 
+export async function pickHostFiles(
+  appId?: string
+): Promise<Array<{ path: string; name: string }> | null> {
+  const host = hostBridge()
+  if (!host?.invoke) return null
+  try {
+    const result = await host.invoke('dialog.selectFiles', hostArgs(appId))
+    const rows =
+      result && typeof result === 'object' && Array.isArray((result as { files?: unknown }).files)
+        ? (result as { files: unknown[] }).files
+        : []
+    const files = rows.flatMap((item) => {
+      if (!item || typeof item !== 'object') return []
+      const row = item as { path?: unknown; name?: unknown }
+      const path = typeof row.path === 'string' ? row.path.trim() : ''
+      if (!isAbsoluteFsPath(path)) return []
+      const name =
+        typeof row.name === 'string' && row.name.trim()
+          ? row.name.trim()
+          : path.split(/[\\/]/).filter(Boolean).at(-1) || path
+      return [{ path, name }]
+    })
+    return files
+  } catch {
+    return null
+  }
+}
+
 export function normalizeFsDir(path: string) {
   const value = path.trim()
   if (!value) return ''

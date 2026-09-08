@@ -8,21 +8,14 @@
     "
   >
     <input ref="fileInput" type="file" class="hidden" multiple @change="onFileSelect" />
-    <div
-      v-if="files.length"
-      class="flex flex-wrap gap-2 border-b border-border/50 px-4 pt-2 pb-1"
-    >
-      <span
+    <div v-if="files.length" class="flex flex-wrap gap-2 border-b border-border/50 px-4 pt-2 pb-1">
+      <FileAttachmentChip
         v-for="(file, index) in files"
-        :key="`${file.name}:${index}`"
-        class="inline-flex max-w-full items-center gap-2 rounded-full border bg-background/70 px-2.5 py-1 text-xs shadow-sm"
-      >
-        <Icon icon="lucide:paperclip" class="h-4 w-4 text-muted-foreground" />
-        <span class="max-w-[180px] truncate">{{ file.name }}</span>
-        <button type="button" @click="emit('remove-file', index)">
-          <Icon icon="lucide:x" class="h-3 w-3" />
-        </button>
-      </span>
+        :key="`${file.name}:${file.path ?? index}`"
+        :file-name="file.name"
+        removable
+        @remove="emit('remove-file', index)"
+      />
     </div>
     <div class="chat-input-editor px-4 pt-4 pb-2 text-sm" :aria-disabled="disabled">
       <textarea
@@ -38,11 +31,12 @@
     <div class="flex items-center justify-between px-3 py-2">
       <div class="flex items-center gap-1">
         <button
+          v-if="attachments"
           type="button"
-          class="chat-input-toolbar-icon inline-flex size-7 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground"
+          class="chat-input-toolbar-icon inline-flex size-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           title="添加附件"
           :disabled="disabled"
-          @click="fileInput?.click()"
+          @click="onPickFiles"
         >
           <Icon icon="lucide:plus" class="size-4" />
         </button>
@@ -78,6 +72,9 @@
 <script setup lang="ts">
 import { computed, useTemplateRef } from 'vue'
 import { Icon } from '@iconify/vue'
+import { pickHostFiles } from '../../chat-kit/lib/hostDialog'
+import { browserFilesToPending, type PendingAttachment } from '../lib/files'
+import FileAttachmentChip from './FileAttachmentChip.vue'
 
 const draft = defineModel<string>({ default: '' })
 
@@ -89,29 +86,36 @@ const props = withDefaults(
     agentName?: string
     /** 自定义占位文案。不传则用「向 {agentName} 发送消息…」。 */
     placeholder?: string
-    files?: File[]
+    files?: PendingAttachment[]
+    attachments?: boolean
+    appId?: string
   }>(),
   {
     sending: false,
     generating: false,
     disabled: false,
     agentName: '交融对话',
-    files: () => []
+    files: () => [],
+    attachments: true,
+    appId: ''
   }
 )
 
 const emit = defineEmits<{
   send: []
   stop: []
-  attach: [files: File[]]
+  attach: [files: PendingAttachment[]]
   'remove-file': [index: number]
 }>()
 
 const fileInput = useTemplateRef<HTMLInputElement>('fileInput')
-const placeholder = computed(
-  () => props.placeholder?.trim() || `向 ${props.agentName} 发送消息`
+const placeholder = computed(() => props.placeholder?.trim() || `向 ${props.agentName} 发送消息`)
+const canSend = computed(
+  () =>
+    !props.disabled &&
+    !props.sending &&
+    (Boolean(draft.value.trim()) || (props.attachments && props.files.length > 0))
 )
-const canSend = computed(() => !props.disabled && !props.sending && Boolean(draft.value.trim()))
 
 function onKeydown(event: KeyboardEvent) {
   if (event.isComposing || event.keyCode === 229) return
@@ -124,10 +128,19 @@ function onKeydown(event: KeyboardEvent) {
   if (canSend.value) emit('send')
 }
 
+async function onPickFiles() {
+  const picked = await pickHostFiles(props.appId)
+  if (picked) {
+    if (picked.length) emit('attach', picked)
+    return
+  }
+  fileInput.value?.click()
+}
+
 function onFileSelect(event: Event) {
   const input = event.target as HTMLInputElement
   const next = Array.from(input.files ?? [])
   input.value = ''
-  if (next.length) emit('attach', next)
+  if (next.length) emit('attach', browserFilesToPending(next))
 }
 </script>
