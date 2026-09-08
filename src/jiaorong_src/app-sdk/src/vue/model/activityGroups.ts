@@ -25,14 +25,26 @@ const isFiniteTimestamp = (value: number): boolean => Number.isFinite(value) && 
 const normalizeTimestamp = (value: number, fallback: number): number =>
   isFiniteTimestamp(value) ? value : fallback
 
+const ACTIVITY_BLOCK_TYPES = new Set<DisplayAssistantMessageBlock['type']>([
+  'reasoning_content',
+  'artifact-thinking',
+  'tool_call'
+])
+
+const isReasoningActivityBlock = (block: DisplayAssistantMessageBlock): boolean =>
+  (block.type === 'reasoning_content' || block.type === 'artifact-thinking') &&
+  typeof block.content === 'string' &&
+  block.content.trim().length > 0
+
 const isEmptyReasoningBlock = (block: DisplayAssistantMessageBlock): boolean =>
   (block.type === 'reasoning_content' || block.type === 'artifact-thinking') &&
   (typeof block.content !== 'string' || block.content.trim().length === 0)
 
-/** 只有工具调用进详情组。思考单独渲染，才能默认展开正文。 */
 export const isCompletedActivityBlock = (block: DisplayAssistantMessageBlock): boolean => {
-  if (block.type !== 'tool_call') return false
-  return block.status !== 'loading' && block.status !== 'pending'
+  if (!ACTIVITY_BLOCK_TYPES.has(block.type)) return false
+  if (block.status === 'loading' || block.status === 'pending') return false
+  if (block.type === 'tool_call') return true
+  return isReasoningActivityBlock(block)
 }
 
 const buildBlockKey = (

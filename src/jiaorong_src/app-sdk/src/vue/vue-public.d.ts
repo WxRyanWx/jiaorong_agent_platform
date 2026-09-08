@@ -1,6 +1,14 @@
 import type { DefineComponent } from 'vue'
 import type { AssistantMessageBlock, ChatMessageRecord, SessionWithState } from 'jiaorong-app-sdk'
 
+export type JiaorongToolbarAction =
+  | 'copy'
+  | 'copyImage'
+  | 'retry'
+  | 'fork'
+  | 'edit'
+  | 'delete'
+
 export const JiaorongAgentChat: DefineComponent<{
   appId?: string
   agentId?: string
@@ -11,6 +19,7 @@ export const JiaorongAgentChat: DefineComponent<{
   httpBase?: string
   external?: boolean
   attachments?: boolean
+  toolbar?: JiaorongToolbarAction[]
   messages?: ChatMessageRecord[]
   liveBlocks?: AssistantMessageBlock[]
   liveMessageId?: string | null

@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import { pathToFileURL } from 'node:url'
 import path from 'node:path'
-import { BrowserWindow, dialog, webContents } from 'electron'
+import { BrowserWindow, clipboard, dialog, nativeImage, webContents } from 'electron'
 import { isJiaorongBridgeFailure } from '../bridgeErrors'
 import type { JiaorongAppOpenInfo, JiaorongAppRuntime, JiaorongMenuAppItem } from '../types'
 import { buildHostContext } from './context'
@@ -110,6 +110,16 @@ export async function handleAppBridgeInvoke(
         })
         return { files }
       }
+      case 'dialog.rememberDroppedFiles': {
+        const rows = Array.isArray(record.files) ? record.files : []
+        const files = rows.flatMap((item) => {
+          const value = typeof item === 'string' ? item.trim() : ''
+          if (!isAbsoluteGuestPath(value)) return []
+          rememberPickedDirectory(webContentsId, value)
+          return [value]
+        })
+        return { files }
+      }
       case 'dialog.allowProjectDir': {
         const pathValue = typeof record.path === 'string' ? record.path.trim() : ''
         if (!isAbsoluteGuestPath(pathValue)) {
@@ -124,6 +134,35 @@ export async function handleAppBridgeInvoke(
         }
         rememberPickedDirectory(webContentsId, dir)
         return { ok: true }
+      }
+      case 'clipboard.writeImage': {
+        const raw = typeof record.pngBase64 === 'string' ? record.pngBase64.trim() : ''
+        const pngBase64 = raw.includes(',') ? raw.slice(raw.indexOf(',') + 1) : raw
+        if (!pngBase64) return { code: 'VALIDATION_ERROR', message: '需要 pngBase64' }
+        const image = nativeImage.createFromBuffer(Buffer.from(pngBase64, 'base64'))
+        if (image.isEmpty()) return { code: 'VALIDATION_ERROR', message: '图片无效' }
+        clipboard.writeImage(image)
+        return { ok: true }
+      }
+      case 'capture.pageArea': {
+        const contents = webContents.fromId(webContentsId)
+        if (!contents || contents.isDestroyed()) {
+          return { code: 'GENERATION_FAILED', message: '无法截图' }
+        }
+        const x = Math.round(Number(record.x))
+        const y = Math.round(Number(record.y))
+        const width = Math.round(Number(record.width))
+        const height = Math.round(Number(record.height))
+        if (
+          ![x, y, width, height].every((value) => Number.isFinite(value)) ||
+          width < 1 ||
+          height < 1
+        ) {
+          return { code: 'VALIDATION_ERROR', message: '截图区域无效' }
+        }
+        const image = await contents.capturePage({ x, y, width, height })
+        if (image.isEmpty()) return { code: 'GENERATION_FAILED', message: '截图为空' }
+        return { pngBase64: image.toPNG().toString('base64') }
       }
       case 'catalog.slash': {
         if (!readAuthToken(deps.getAuthSession())) {

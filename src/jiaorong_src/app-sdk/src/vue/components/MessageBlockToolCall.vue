@@ -5,7 +5,7 @@
       data-testid="tool-call-trigger"
       class="tool-call-pill inline-flex w-fit min-h-7 border rounded-lg items-center gap-2 px-2 py-1.5 text-left text-xs leading-4 transition-colors duration-[var(--dc-motion-fast)] ease-[var(--dc-ease-out-soft)] select-none overflow-hidden bg-accent hover:bg-accent/40"
       :aria-expanded="isExpanded"
-      @click="isExpanded = !isExpanded"
+      @click="onToggle"
     >
       <span
         v-if="statusVariant === 'running'"
@@ -98,16 +98,33 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { DisplayAssistantMessageBlock } from '../model/display'
 
 const props = defineProps<{
   block: DisplayAssistantMessageBlock
   permissionStatus?: 'granted' | 'denied'
+  /** 当前这条正在生成时展开参数/响应；历史默认收起。 */
+  live?: boolean
 }>()
 
 const isExpanded = ref(false)
+const userToggled = ref(false)
+
+function onToggle() {
+  userToggled.value = true
+  isExpanded.value = !isExpanded.value
+}
+
+watch(
+  () => Boolean(props.live),
+  (shouldExpand) => {
+    if (userToggled.value) return
+    isExpanded.value = shouldExpand
+  },
+  { immediate: true }
+)
 const paramsText = computed(() => props.block.tool_call?.params ?? '')
 const responseText = computed(() => props.block.tool_call?.response ?? '')
 const hasParams = computed(() => paramsText.value.trim().length > 0)

@@ -39,10 +39,12 @@
             "
             :block="item.block"
             :usage="usage"
+            :live="isLive"
           />
           <MessageBlockToolCall
             v-else-if="item.block.type === 'tool_call'"
             :block="item.block"
+            :live="isLive"
             :permission-status="
               item.block.tool_call?.id
                 ? permissionStatusByToolCallId[item.block.tool_call.id]
@@ -53,12 +55,14 @@
         </template>
       </div>
       <MessageToolbar
-        v-if="!capturing"
+        v-if="showToolbar && !capturing"
         is-assistant
+        :actions="toolbarActions"
         :loading="streaming || (status === 'pending' && (generating || threadGenerating))"
         :generating="threadGenerating"
         :disabled="disabled"
         :capturing="capturing"
+        :image-copied="imageCopied"
         :copy-text="copyText"
         @retry="emit('retry')"
         @delete="emit('delete')"
@@ -71,7 +75,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, useTemplateRef } from 'vue'
+import { computed, nextTick, ref, useTemplateRef } from 'vue'
 import { Icon } from '@iconify/vue'
 import { collectAssistantText } from '../../helpers'
 import { copyElementAsPng } from '../lib/copyAsImage'
@@ -90,6 +94,11 @@ import MessageBlockContent from './MessageBlockContent.vue'
 import MessageBlockThink from './MessageBlockThink.vue'
 import MessageBlockToolCall from './MessageBlockToolCall.vue'
 import MessageBlockError from './MessageBlockError.vue'
+import {
+  resolveToolbarActions,
+  toolbarHasVisibleActions,
+  type JiaorongToolbarAction
+} from '../lib/toolbar'
 
 const props = defineProps<{
   id: string
@@ -102,7 +111,11 @@ const props = defineProps<{
   status?: string
   threadGenerating?: boolean
   disabled?: boolean
+  toolbar?: JiaorongToolbarAction[]
 }>()
+
+const toolbarActions = computed(() => resolveToolbarActions(props.toolbar))
+const showToolbar = computed(() => toolbarHasVisibleActions(toolbarActions.value, 'assistant'))
 
 const emit = defineEmits<{
   retry: []
@@ -112,6 +125,7 @@ const emit = defineEmits<{
 
 const rootRef = useTemplateRef<HTMLElement>('rootRef')
 const capturing = ref(false)
+const imageCopied = ref(false)
 const copyText = computed(() => collectAssistantText(props.blocks))
 
 const usage = computed(() => {
@@ -141,12 +155,14 @@ const visibleBlocks = computed(() =>
   })
 )
 
+const isLive = computed(() => Boolean(props.streaming))
+
 const renderItems = computed(() =>
   buildAssistantRenderItems({
     blocks: visibleBlocks.value,
     messageId: props.id,
     messageUpdatedAt: props.updatedAt,
-    shouldGroup: !props.streaming && props.status !== 'pending',
+    shouldGroup: !isLive.value,
     isInternalToolCall: isInternalAssistantToolCallBlock
   })
 )
@@ -168,11 +184,14 @@ async function onCopyImage(fromTop: boolean) {
     ? root?.closest('[data-testid="chat-message-list"]')
     : root?.querySelector('[data-message-content="true"]')
   if (!(target instanceof HTMLElement)) return
+  imageCopied.value = false
   capturing.value = true
   try {
+    await nextTick()
     await copyElementAsPng(target)
-  } catch {
-    // 截图失败时静默恢复操作栏，避免空按钮态。
+    imageCopied.value = true
+  } catch (error) {
+    console.error('[jiaorong] copy image failed', error)
   } finally {
     capturing.value = false
   }

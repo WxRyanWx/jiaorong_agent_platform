@@ -106,12 +106,22 @@ export async function filesToMessageFiles(
   )
 }
 
+export function filePathOf(file: File): string {
+  const fromFile = (file as File & { path?: string }).path?.trim()
+  if (fromFile && isAbsoluteFsPath(fromFile)) return fromFile
+  return ''
+}
+
 export function browserFilesToPending(files: File[]): PendingAttachment[] {
-  return files.map((file) => ({
-    name: file.name || 'file',
-    mimeType: file.type || undefined,
-    file
-  }))
+  return files.map((file) => {
+    const path = filePathOf(file)
+    return {
+      name: file.name || 'file',
+      mimeType: file.type || undefined,
+      path: path || undefined,
+      file
+    }
+  })
 }
 
 export { stripDataUrlBase64 }

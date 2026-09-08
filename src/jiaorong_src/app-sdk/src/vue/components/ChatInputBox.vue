@@ -6,6 +6,7 @@
       backdrop-filter: blur(var(--dc-blur-panel));
       -webkit-backdrop-filter: blur(var(--dc-blur-panel));
     "
+    v-on="fileDropListeners"
   >
     <input ref="fileInput" type="file" class="hidden" multiple @change="onFileSelect" />
     <div v-if="files.length" class="flex flex-wrap gap-2 border-b border-border/50 px-4 pt-2 pb-1">
@@ -72,8 +73,12 @@
 <script setup lang="ts">
 import { computed, useTemplateRef } from 'vue'
 import { Icon } from '@iconify/vue'
-import { pickHostFiles } from '../../chat-kit/lib/hostDialog'
-import { browserFilesToPending, type PendingAttachment } from '../lib/files'
+import {
+  browserFilesToHostPending,
+  pickHostFiles,
+  rememberHostDroppedFiles
+} from '../../chat-kit/lib/hostDialog'
+import { type PendingAttachment } from '../lib/files'
 import FileAttachmentChip from './FileAttachmentChip.vue'
 
 const draft = defineModel<string>({ default: '' })
@@ -87,6 +92,7 @@ const props = withDefaults(
     /** 自定义占位文案。不传则用「向 {agentName} 发送消息…」。 */
     placeholder?: string
     files?: PendingAttachment[]
+    /** 显示「+」按钮时才允许拖入 / 粘贴文件。 */
     attachments?: boolean
     appId?: string
   }>(),
@@ -137,10 +143,55 @@ async function onPickFiles() {
   fileInput.value?.click()
 }
 
+function canAcceptFiles() {
+  return Boolean(props.attachments) && !props.disabled
+}
+
+const fileDropListeners = computed(() => {
+  if (!props.attachments) return {}
+  return {
+    dragenter: onDragOver,
+    dragover: onDragOver,
+    drop: onDrop,
+    paste: onPaste
+  }
+})
+
+async function attachBrowserFiles(list: File[]) {
+  if (!canAcceptFiles() || !list.length) return
+  const next = browserFilesToHostPending(list)
+  const paths = next.flatMap((file) => (file.path ? [file.path] : []))
+  await rememberHostDroppedFiles(paths, props.appId)
+  emit('attach', next)
+}
+
+function onDragOver(event: DragEvent) {
+  if (!canAcceptFiles()) return
+  event.preventDefault()
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = 'copy'
+  }
+}
+
+function onDrop(event: DragEvent) {
+  event.preventDefault()
+  if (!canAcceptFiles()) return
+  const files = Array.from(event.dataTransfer?.files ?? [])
+  if (files.length) void attachBrowserFiles(files)
+}
+
+function onPaste(event: ClipboardEvent) {
+  if (!canAcceptFiles()) return
+  const files = Array.from(event.clipboardData?.files ?? [])
+  if (!files.length) return
+  event.preventDefault()
+  void attachBrowserFiles(files)
+}
+
 function onFileSelect(event: Event) {
   const input = event.target as HTMLInputElement
   const next = Array.from(input.files ?? [])
   input.value = ''
-  if (next.length) emit('attach', browserFilesToPending(next))
+  if (next.length) void attachBrowserFiles(next)
 }
 </script>

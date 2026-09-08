@@ -4,7 +4,7 @@
     :expanded="!collapse"
     :thinking="block.status === 'loading'"
     :content="block.content"
-    @toggle="collapse = !collapse"
+    @toggle="onToggle"
   />
 </template>
 
@@ -16,10 +16,12 @@ import ThinkContent from './ThinkContent.vue'
 const props = defineProps<{
   block: DisplayAssistantMessageBlock
   usage: { reasoning_start_time: number; reasoning_end_time: number }
+  /** 当前这条正在生成时展开；历史默认收起。 */
+  live?: boolean
 }>()
 
-// 思考标题和正文默认展开；详情组 / 工具参数保持收起。
-const collapse = ref(false)
+const collapse = ref(true)
+const userToggled = ref(false)
 const displayedSeconds = ref(0)
 let updateTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -35,6 +37,20 @@ const headerText = computed(() => {
   const seconds = displayedSeconds.value
   return props.block.status === 'loading' ? `正在思考（第 ${seconds} 秒）` : `思考了 ${seconds} 秒`
 })
+
+function onToggle() {
+  userToggled.value = true
+  collapse.value = !collapse.value
+}
+
+watch(
+  () => Boolean(props.live),
+  (shouldExpand) => {
+    if (userToggled.value) return
+    collapse.value = !shouldExpand
+  },
+  { immediate: true }
+)
 
 function tick() {
   displayedSeconds.value = Math.max(0, Math.floor(reasoningDuration.value))

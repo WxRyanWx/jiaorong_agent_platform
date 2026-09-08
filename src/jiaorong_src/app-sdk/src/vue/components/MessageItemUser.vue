@@ -42,7 +42,9 @@
         <div v-else class="w-full min-w-0 text-sm break-all whitespace-pre-wrap">{{ text }}</div>
       </div>
       <MessageToolbar
+        v-if="showToolbar || isEditMode"
         :is-assistant="false"
+        :actions="toolbarActions"
         :is-edit-mode="isEditMode"
         :disabled="disabled"
         :copy-text="text"
@@ -57,11 +59,16 @@
 </template>
 
 <script setup lang="ts">
-import { nextTick, ref, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import FileAttachmentChip from './FileAttachmentChip.vue'
 import MessageInfo from './MessageInfo.vue'
 import MessageToolbar from './MessageToolbar.vue'
+import {
+  resolveToolbarActions,
+  toolbarHasVisibleActions,
+  type JiaorongToolbarAction
+} from '../lib/toolbar'
 
 const props = defineProps<{
   id: string
@@ -71,7 +78,11 @@ const props = defineProps<{
   files: string[]
   skills: string[]
   disabled?: boolean
+  toolbar?: JiaorongToolbarAction[]
 }>()
+
+const toolbarActions = computed(() => resolveToolbarActions(props.toolbar))
+const showToolbar = computed(() => toolbarHasVisibleActions(toolbarActions.value, 'user'))
 
 const emit = defineEmits<{
   retry: []

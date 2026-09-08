@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import {
   JIAORONG_APP_BRIDGE_EVENT_CHANNEL,
   JIAORONG_APP_BRIDGE_INVOKE_CHANNEL
@@ -33,8 +33,17 @@ function invoke(method: string, args?: unknown) {
   })
 }
 
+function getPathForFile(file: File) {
+  try {
+    return webUtils.getPathForFile(file) || ''
+  } catch {
+    return ''
+  }
+}
+
 const jiaorong = Object.freeze({
   invoke,
+  getPathForFile,
   on(event: string, handler: Handler) {
     const set = listeners.get(event) ?? new Set<Handler>()
     set.add(handler)

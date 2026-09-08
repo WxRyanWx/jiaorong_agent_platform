@@ -4,6 +4,7 @@ export type JiaorongHostBridge = {
   invoke(method: string, args?: unknown): Promise<unknown>
   on(event: string, handler: (payload: unknown) => void): () => void
   userinfo?(): Promise<JiaorongUserInfo>
+  getPathForFile?(file: File): string
 }
 
 declare global {

@@ -28,9 +28,48 @@ export function resolvePickedDirectory(
 function hostBridge() {
   return (
     window as Window & {
-      jiaorong?: { invoke: (method: string, args?: unknown) => Promise<unknown> }
+      jiaorong?: {
+        invoke: (method: string, args?: unknown) => Promise<unknown>
+        getPathForFile?: (file: File) => string
+      }
     }
   ).jiaorong
+}
+
+export function resolveHostFilePath(file: File): string {
+  const fromFile = (file as File & { path?: string }).path?.trim()
+  if (fromFile && isAbsoluteFsPath(fromFile)) return fromFile
+  const getter = hostBridge()?.getPathForFile
+  if (typeof getter !== 'function') return ''
+  try {
+    const value = getter(file)?.trim()
+    return value && isAbsoluteFsPath(value) ? value : ''
+  } catch {
+    return ''
+  }
+}
+
+export function browserFilesToHostPending(files: File[]) {
+  return files.map((file) => {
+    const path = resolveHostFilePath(file)
+    return {
+      name: file.name || 'file',
+      mimeType: file.type || undefined,
+      path: path || undefined,
+      file
+    }
+  })
+}
+
+export async function rememberHostDroppedFiles(paths: string[], appId?: string): Promise<void> {
+  const host = hostBridge()
+  const filePaths = paths.map((value) => value.trim()).filter((value) => isAbsoluteFsPath(value))
+  if (!host?.invoke || !filePaths.length) return
+  try {
+    await host.invoke('dialog.rememberDroppedFiles', { ...hostArgs(appId), files: filePaths })
+  } catch {
+    // 没有宿主桥时走浏览器兜底，不阻断附件。
+  }
 }
 
 function hostArgs(appId?: string) {

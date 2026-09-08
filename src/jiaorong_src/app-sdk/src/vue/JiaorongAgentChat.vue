@@ -11,6 +11,7 @@ import MessageItemUser from './components/MessageItemUser.vue'
 import { findPendingQuestion, findPendingToolPermission } from '../helpers'
 import { isUserCanceledError, localizeErrorText } from '../localize'
 import type { AssistantMessageBlock, ChatMessageRecord, MessageFile } from '../types'
+import { resolveToolbarActions, type JiaorongToolbarAction } from './lib/toolbar'
 
 registerJiaorongAgentIcons()
 
@@ -25,8 +26,10 @@ const props = withDefaults(
     httpBase?: string
     /** 页面自己灌数据时打开。组件不再 connect SDK。 */
     external?: boolean
-    /** 是否显示输入框附件按钮。默认显示。 */
+    /** 是否显示输入框「+」按钮。为 false 时同时关闭拖入 / 粘贴文件。 */
     attachments?: boolean
+    /** 消息操作栏按钮。不传显示全部，空数组隐藏。 */
+    toolbar?: JiaorongToolbarAction[]
     messages?: ChatMessageRecord[]
     liveBlocks?: AssistantMessageBlock[]
     liveMessageId?: string | null
@@ -94,6 +97,8 @@ const transcript = computed(() =>
     ? runtime.transcript.value
     : buildTranscript(props.messages ?? [], props.liveBlocks ?? [], props.liveMessageId ?? null)
 )
+
+const toolbarActions = computed(() => resolveToolbarActions(props.toolbar))
 
 const lastAssistantId = computed(() => {
   const last = [...transcript.value].reverse().find((item) => item.role === 'assistant')
@@ -250,6 +255,7 @@ function questionOptions(block: AssistantMessageBlock | undefined) {
                   :text="item.text"
                   :files="item.files"
                   :skills="item.skills"
+                  :toolbar="toolbarActions"
                   @retry="onRetry(item.id)"
                   @delete="onDeleteMessage(item.id)"
                   @save="(text) => onEditSave(item.id, text)"
@@ -265,6 +271,7 @@ function questionOptions(block: AssistantMessageBlock | undefined) {
                   :streaming="Boolean(liveMessageId) && item.id === liveMessageId"
                   :status="item.status"
                   :thread-generating="generating"
+                  :toolbar="toolbarActions"
                   @retry="onRetry(item.id)"
                   @delete="onDeleteMessage(item.id)"
                   @fork="onFork(item.id)"
