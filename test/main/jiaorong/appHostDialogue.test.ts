@@ -212,6 +212,57 @@ describe('jiaorong app dialogue bridge', () => {
     expect(createDeepChatAgent).toHaveBeenCalledTimes(1)
   })
 
+  it('defaults a new app agent to the Super Agent jiaorong model', async () => {
+    const createDeepChatAgent = vi.fn().mockResolvedValue({
+      id: 'deepchat-app-model',
+      name: '示例工作台助手',
+      enabled: true
+    })
+
+    await handleAppBridgeInvoke(
+      deps({
+        getAuthSession: () => ({ token: 'tok-1' }),
+        dialogue: {
+          createDeepChatAgent,
+          updateDeepChatAgent: vi.fn(),
+          listAgents: vi.fn(),
+          getAgent: vi.fn(),
+          createSession: vi.fn(),
+          getSession: vi.fn(),
+          listLightweight: vi.fn(),
+          listMessagesPage: vi.fn(),
+          getMessage: vi.fn(),
+          renameSession: vi.fn(),
+          deleteSession: vi.fn(),
+          searchHistory: vi.fn(),
+          sendMessage: vi.fn(),
+          retryMessage: vi.fn(),
+          deleteMessage: vi.fn(),
+          editUserMessage: vi.fn(),
+          forkSession: vi.fn(),
+          steerActiveTurn: vi.fn(),
+          cancelGeneration: vi.fn(),
+          respondToolInteraction: vi.fn()
+        }
+      }),
+      runtime,
+      'agent.create',
+      { appId: 'demo-workbench', key: 'inherit-model', name: '示例工作台助手' },
+      1
+    )
+
+    expect(createDeepChatAgent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        config: expect.objectContaining({
+          assistantModel: { providerId: 'jiaorong', modelId: 'jiaorong-deepseek-v4-pro' },
+          defaultModelPreset: { providerId: 'jiaorong', modelId: 'jiaorong-deepseek-v4-pro' },
+          jiaorongAppId: 'demo-workbench',
+          jiaorongAppKey: 'inherit-model'
+        })
+      })
+    )
+  })
+
   it('does not overwrite prompt on create retry, and skips update when unchanged', async () => {
     const existing = {
       id: 'deepchat-app3',
@@ -373,6 +424,7 @@ describe('jiaorong app dialogue bridge', () => {
         systemPrompt: 'keep this prompt',
         permissionMode: 'full_access',
         assistantModel: { providerId: 'jiaorong', modelId: 'm1' },
+        defaultModelPreset: { providerId: 'jiaorong', modelId: 'm1' },
         jiaorongAppId: 'demo-workbench',
         jiaorongAppKey: 'skill-filter'
       }

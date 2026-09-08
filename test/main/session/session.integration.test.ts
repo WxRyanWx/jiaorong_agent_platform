@@ -1584,12 +1584,19 @@ describe('Session application coordinators', () => {
       )
     })
 
-    it('throws when no provider/model available', async () => {
+    it('uses jiaorong Super Agent defaults when no provider/model is stored', async () => {
       providerSettings.getDefaultModel.mockReturnValue(null)
 
-      await expect(
-        lifecycle.createSession({ agentId: 'deepchat', message: 'Hi' }, 1)
-      ).rejects.toThrow('No provider or model configured')
+      await lifecycle.createSession({ agentId: 'deepchat', message: 'Hi' }, 1)
+
+      expect(deepChatAgent.initSession).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          agentId: 'deepchat',
+          providerId: 'jiaorong',
+          modelId: 'jiaorong-deepseek-v4-pro'
+        })
+      )
     })
 
     it('passes active skills as initial message-scoped skills without pinning the session', async () => {

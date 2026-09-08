@@ -1,3 +1,4 @@
+import { JIAORONG_DEFAULT_MODEL_ID, JIAORONG_DEFAULT_PROVIDER_ID } from '@jiaorong/brand'
 import { bridgeError } from '../bridgeErrors'
 import type { JiaorongAppRuntime } from '../types'
 import {
@@ -115,6 +116,30 @@ function agentNeedsWrite(
     }
   }
   return false
+}
+
+const SUPER_AGENT_DEFAULT_MODEL = {
+  providerId: JIAORONG_DEFAULT_PROVIDER_ID,
+  modelId: JIAORONG_DEFAULT_MODEL_ID
+}
+
+function readModelPair(value: unknown): { providerId: string; modelId: string } | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const record = value as Record<string, unknown>
+  const providerId = typeof record.providerId === 'string' ? record.providerId.trim() : ''
+  const modelId = typeof record.modelId === 'string' ? record.modelId.trim() : ''
+  if (!providerId || !modelId) return null
+  return { providerId, modelId }
+}
+
+function applySuperAgentDefaultModel(config: Record<string, unknown>): Record<string, unknown> {
+  if (config.assistantModel === null) return config
+  const preset = readModelPair(config.assistantModel) ?? SUPER_AGENT_DEFAULT_MODEL
+  return {
+    ...config,
+    assistantModel: preset,
+    defaultModelPreset: preset
+  }
 }
 
 function toSdkSession(session: JiaorongAppSessionRecord) {
@@ -430,17 +455,18 @@ export async function handleDialogueInvoke(
             ? (record.config as Record<string, unknown>)
             : null
         )
+        const config = applySuperAgentDefaultModel({
+          ...(sanitized ?? {}),
+          jiaorongAppId: appId,
+          jiaorongAppKey: key
+        })
         const created = await dialogue.createDeepChatAgent({
           name,
           enabled: record.enabled !== false,
           description: readString(record, 'description') || undefined,
           icon: readString(record, 'icon') || undefined,
           avatar: record.avatar,
-          config: {
-            ...sanitized,
-            jiaorongAppId: appId,
-            jiaorongAppKey: key
-          }
+          config
         })
         const binding = { appId, key, agentId: created.id }
         upsertAppAgentBinding(binding)

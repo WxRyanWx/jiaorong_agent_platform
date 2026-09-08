@@ -14,6 +14,7 @@ import type {
   SessionAssignmentPolicyPort,
   SubagentAssignmentInput
 } from './contracts'
+import { JIAORONG_DEFAULT_MODEL_ID, JIAORONG_DEFAULT_PROVIDER_ID } from '@jiaorong/brand'
 import {
   normalizeActiveSkills,
   normalizeDisabledAgentTools
@@ -38,6 +39,16 @@ function resolveCrossAgentPermissionMode(
   return PERMISSION_MODE_RANK[targetMode] < PERMISSION_MODE_RANK[parent] ? targetMode : parent
 }
 
+function readModelPair(
+  providerId: string | null | undefined,
+  modelId: string | null | undefined
+): { providerId: string; modelId: string } | null {
+  const nextProvider = providerId?.trim() || ''
+  const nextModel = modelId?.trim() || ''
+  if (!nextProvider || !nextModel) return null
+  return { providerId: nextProvider, modelId: nextModel }
+}
+
 export class SessionAssignmentPolicy implements SessionAssignmentPolicyPort {
   constructor(
     private readonly catalog: SessionAssignmentCatalogPort,
@@ -51,22 +62,12 @@ export class SessionAssignmentPolicy implements SessionAssignmentPolicyPort {
         ? await this.config.resolveDeepChatAgentConfig(descriptor.id)
         : null
     const projectDir = this.resolveProjectDir(input, agentConfig?.defaultProjectPath)
-    const defaultModel = this.config.getDefaultModel()
-    const providerId =
+    const model =
       descriptor.kind === 'acp'
-        ? 'acp'
-        : (input.providerId ??
-          agentConfig?.defaultModelPreset?.providerId ??
-          defaultModel?.providerId ??
-          '')
-    const modelId =
-      descriptor.kind === 'acp'
-        ? descriptor.id
-        : (input.modelId ?? agentConfig?.defaultModelPreset?.modelId ?? defaultModel?.modelId ?? '')
-
-    if (!providerId || !modelId) {
-      throw new Error('No provider or model configured. Please set a default model in settings.')
-    }
+        ? { providerId: 'acp', modelId: descriptor.id }
+        : this.resolveDeepChatModel(agentConfig, input)
+    const providerId = model.providerId
+    const modelId = model.modelId
     this.assertAcpSessionHasWorkdir(providerId, projectDir)
 
     return {
@@ -191,14 +192,9 @@ export class SessionAssignmentPolicy implements SessionAssignmentPolicyPort {
     }
 
     const agentConfig = await this.config.resolveDeepChatAgentConfig(descriptor.id)
-    const defaultModel = this.config.getDefaultModel()
-    const providerId =
-      agentConfig?.defaultModelPreset?.providerId?.trim() || defaultModel?.providerId?.trim() || ''
-    const modelId =
-      agentConfig?.defaultModelPreset?.modelId?.trim() || defaultModel?.modelId?.trim() || ''
-    if (!providerId || !modelId) {
-      throw new Error('Target JiaorongAI agent does not have a default model.')
-    }
+    const model = this.resolveDeepChatModel(agentConfig)
+    const providerId = model.providerId
+    const modelId = model.modelId
     if (providerId.toLowerCase() === 'acp') {
       throw new Error('Conversation history cannot be moved to ACP agents.')
     }
@@ -222,6 +218,28 @@ export class SessionAssignmentPolicy implements SessionAssignmentPolicyPort {
     if (providerId === 'acp' && !projectDir?.trim()) {
       throw new Error('ACP agent requires selecting a workdir before sending messages.')
     }
+  }
+
+  private resolveDeepChatModel(
+    agentConfig: DeepChatAgentConfig | null,
+    input?: Pick<CreateAssignmentInput, 'providerId' | 'modelId'>
+  ): { providerId: string; modelId: string } {
+    const defaultModel = this.config.getDefaultModel()
+    return (
+      readModelPair(input?.providerId, input?.modelId) ??
+      readModelPair(
+        agentConfig?.assistantModel?.providerId,
+        agentConfig?.assistantModel?.modelId
+      ) ??
+      readModelPair(
+        agentConfig?.defaultModelPreset?.providerId,
+        agentConfig?.defaultModelPreset?.modelId
+      ) ??
+      readModelPair(defaultModel?.providerId, defaultModel?.modelId) ?? {
+        providerId: JIAORONG_DEFAULT_PROVIDER_ID,
+        modelId: JIAORONG_DEFAULT_MODEL_ID
+      }
+    )
   }
 
   private resolveProjectDir(

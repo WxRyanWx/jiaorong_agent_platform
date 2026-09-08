@@ -41,7 +41,7 @@ globalThis.jiaorong = { invoke, on, userinfo }
 
 `agent.create` 按 `key` 幂等：已绑定且智能体还在就原样返回，**不会**用这次没传的提示词 / 模型覆盖旧配置。改配置走 `agent.update`（部分字段）。update 入参和当前值相同则不写库、返回 `updated: false`。
 
-`agent.create` 若只传 `skills`，SDK 会补 `config.enabledSkillNames` 为 `app.<appId>.<skill>`。宿主只保留本应用 `app.<id>.*` 与非 `app.` 前缀的官方技能名，丢掉其它应用的技能；`systemPrompt` / `assistantModel` / `permissionMode` 会写入，其它 config 字段丢掉。
+`agent.create` 若只传 `skills`，SDK 会补 `config.enabledSkillNames` 为 `app.<appId>.<skill>`。宿主只保留本应用 `app.<id>.*` 与非 `app.` 前缀的官方技能名，丢掉其它应用的技能；`systemPrompt` / `assistantModel` / `permissionMode` 会写入，其它 config 字段丢掉。未传 `assistantModel` 时写入超级智能体同一套默认：服务商 `jiaorong`、模型 `jiaorong-deepseek-v4-pro`。
 
 `session.retryMessage` / `session.deleteMessage` / `session.editUserMessage` / `session.fork` 都要带本应用已有会话的 `sessionId` 和该会话里的 `messageId`。`editUserMessage` 只能改用户消息。`fork` 会记下新会话归属，并把原会话项目目录加入本窗口白名单。
 
