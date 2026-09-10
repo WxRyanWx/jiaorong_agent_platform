@@ -45,6 +45,7 @@ export type JiaorongClient = {
   getToken(): Promise<string>
   getAuthHeaders(): Promise<{ 'Fusion-Auth': string; 'Product-Id'?: string }>
   userinfo(): Promise<JiaorongUserInfo>
+  openDevTools(): Promise<{ ok: true }>
   agent: {
     create(input: CreateAppAgentInput): Promise<AppAgent>
     update(input: UpdateAppAgentInput): Promise<AppAgent>
@@ -251,6 +252,9 @@ export function createClient(
       } catch (error) {
         throw toJiaorongError(error)
       }
+    },
+    openDevTools() {
+      return invoke<{ ok: true }>('devtools.open', { appId })
     },
     agent: {
       create(input) {

@@ -171,6 +171,8 @@ async function dispatch(client, method, args) {
       return client.session.steer(args)
     case 'chat.respondToolInteraction': // 工具授权或回答提问
       return client.respondToolInteraction(args)
+    case 'devtools.open': // 对本应用侧栏页面弹出独立 DevTools
+      return client.openDevTools()
     case 'disconnect': // HTTP 模式不断宿主进程，只回 ok
       return { ok: true }
     default: {

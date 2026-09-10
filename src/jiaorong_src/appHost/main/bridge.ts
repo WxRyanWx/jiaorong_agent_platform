@@ -8,6 +8,7 @@ import { buildHostContext } from './context'
 import { handleDialogueInvoke } from './dialogue'
 import type { JiaorongAppHostDeps } from './deps'
 import {
+  getBoundGuestAppId,
   hasPickedDirectory,
   isAbsoluteGuestPath,
   isGuestPathAllowed,
@@ -32,6 +33,19 @@ async function openGuestDialog(
     : await dialog.showOpenDialog(options)
   if (picked.canceled) return []
   return picked.filePaths.filter((filePath) => Boolean(filePath?.trim()))
+}
+
+function findGuestPageWebContents(appId: string, preferredWebContentsId: number) {
+  const preferred = webContents.fromId(preferredWebContentsId)
+  if (preferred && !preferred.isDestroyed() && getBoundGuestAppId(preferred.id) === appId) {
+    return preferred
+  }
+  for (const contents of webContents.getAllWebContents()) {
+    if (contents.isDestroyed()) continue
+    if (getBoundGuestAppId(contents.id) !== appId) continue
+    return contents
+  }
+  return null
 }
 
 export function toMenuAppItem(runtime: JiaorongAppRuntime): JiaorongMenuAppItem {
@@ -97,6 +111,14 @@ export async function handleAppBridgeInvoke(
         return buildUserInfoPayload(deps.getAuthSession())
       case 'disconnect':
         return { ok: true }
+      case 'devtools.open': {
+        const contents = findGuestPageWebContents(runtime.id, webContentsId)
+        if (!contents) {
+          return { code: 'FORBIDDEN', message: '找不到本应用页面，请从侧栏打开后再打开调试器' }
+        }
+        contents.openDevTools({ mode: 'detach' })
+        return { ok: true }
+      }
       case 'dialog.selectDirectory': {
         const picked = await openGuestDialog(webContentsId, {
           properties: ['openDirectory', 'createDirectory']

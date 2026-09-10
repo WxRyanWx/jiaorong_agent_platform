@@ -1,9 +1,27 @@
 <!--
-  脚手架壳：只负责顶栏和路由出口。
+  脚手架壳：顶栏、路由出口，以及本页调试按钮。
   连接、智能体、会话都在各个页面自己完成，复制其中一个页面即可单独使用。
 -->
 <script setup lang="ts">
+import { connect } from 'jiaorong-app-sdk'
 import { RouterLink, RouterView } from 'vue-router'
+import { shallowRef } from 'vue'
+import { APP_ID } from './constants'
+import { formatError } from './lib/formatError'
+
+/** 打开调试台失败时的短文案；成功则清空。 */
+const debugError = shallowRef('')
+
+/** 弹出本应用页面的独立 DevTools。不 disconnect，避免误断各页共用的连接。 */
+async function openDebug() {
+  debugError.value = ''
+  try {
+    const jr = await connect({ appId: APP_ID })
+    await jr.openDevTools()
+  } catch (error) {
+    debugError.value = formatError(error)
+  }
+}
 </script>
 
 <template>
@@ -14,6 +32,8 @@ import { RouterLink, RouterView } from 'vue-router'
       <nav>
         <RouterLink to="/">直连对话</RouterLink>
         <RouterLink to="/node">Node HTTP</RouterLink>
+        <button type="button" class="debug" @click="openDebug">打开调试台</button>
+        <span v-if="debugError" class="debug-err">{{ debugError }}</span>
       </nav>
     </header>
     <!-- 页面内容：#/ 直连，#/node HTTP -->
@@ -58,6 +78,20 @@ nav a {
 nav a.router-link-active {
   color: #1677ff;
   font-weight: 600;
+}
+
+.debug {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #1677ff;
+  cursor: pointer;
+  font: inherit;
+}
+
+.debug-err {
+  color: #b42318;
 }
 
 .main {

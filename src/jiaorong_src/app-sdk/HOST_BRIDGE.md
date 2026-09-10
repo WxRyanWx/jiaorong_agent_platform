@@ -30,6 +30,7 @@ globalThis.jiaorong = { invoke, on, userinfo }
 | session.create / list / search / get / rename / pin / delete / send / stop / steer / retryMessage / deleteMessage / editUserMessage / fork | jr.session.* |
 | chat.respondToolInteraction | jr.respondToolInteraction |
 | disconnect | jr.disconnect |
+| devtools.open | jr.openDevTools：对本应用侧栏页面弹出独立 DevTools。找不到页面时 FORBIDDEN |
 | dialog.selectDirectory | 选本地项目目录，返回 `{ path }` |
 | dialog.selectFiles | 选本地附件，返回 `{ files: [{ path, name }] }`；路径会加入本窗口白名单 |
 | dialog.readFilePreview | 读已选附件的预览。仅白名单绝对路径。图片返回 `{ mimeType, thumbnail }`（data URL），其它类型只返回 `{ mimeType }` |

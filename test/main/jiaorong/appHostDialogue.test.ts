@@ -1,14 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+type GuestWebContents = {
+  id: number
+  isDestroyed: () => boolean
+  openDevTools: ReturnType<typeof vi.fn>
+}
+
 const store = new Map<string, { appId: string; key: string; agentId: string }>()
 const showOpenDialog = vi.hoisted(() =>
   vi.fn(async () => ({ canceled: true as const, filePaths: [] as string[] }))
 )
+const fromId = vi.hoisted(() => vi.fn(() => null as GuestWebContents | null))
+const getAllWebContents = vi.hoisted(() => vi.fn(() => [] as GuestWebContents[]))
 
 vi.mock('electron', () => ({
   BrowserWindow: { fromWebContents: () => null },
   dialog: { showOpenDialog },
-  webContents: { fromId: () => null },
+  webContents: { fromId, getAllWebContents },
   clipboard: { writeImage: vi.fn() },
   nativeImage: {
     createFromPath: () => ({
@@ -96,6 +104,10 @@ describe('jiaorong app dialogue bridge', () => {
   beforeEach(() => {
     store.clear()
     unbindGuest(1)
+    fromId.mockReset()
+    fromId.mockReturnValue(null)
+    getAllWebContents.mockReset()
+    getAllWebContents.mockReturnValue([])
     showOpenDialog.mockReset()
     showOpenDialog.mockResolvedValue({ canceled: true, filePaths: [] })
   })
@@ -105,6 +117,41 @@ describe('jiaorong app dialogue bridge', () => {
     const result = await handleAppBridgeInvoke(deps(), runtime, 'disconnect', {}, 1)
     expect(result).toEqual({ ok: true })
     expect(getBoundGuestAppId(1)).toBe('demo-workbench')
+  })
+
+  it('opens detached DevTools for the bound guest page', async () => {
+    bindGuestAppId(1, 'demo-workbench')
+    const openDevTools = vi.fn()
+    fromId.mockReturnValue({
+      id: 1,
+      isDestroyed: () => false,
+      openDevTools
+    })
+    const result = await handleAppBridgeInvoke(deps(), runtime, 'devtools.open', {}, 1)
+    expect(result).toEqual({ ok: true })
+    expect(openDevTools).toHaveBeenCalledWith({ mode: 'detach' })
+  })
+
+  it('opens DevTools by appId when invoke sender is not the page', async () => {
+    bindGuestAppId(9, 'demo-workbench')
+    const openDevTools = vi.fn()
+    fromId.mockReturnValue(null)
+    getAllWebContents.mockReturnValue([
+      {
+        id: 9,
+        isDestroyed: () => false,
+        openDevTools
+      }
+    ])
+    const result = await handleAppBridgeInvoke(deps(), runtime, 'devtools.open', {}, 2_000_001)
+    expect(result).toEqual({ ok: true })
+    expect(openDevTools).toHaveBeenCalledWith({ mode: 'detach' })
+  })
+
+  it('rejects DevTools when the guest page is not open', async () => {
+    const result = await handleAppBridgeInvoke(deps(), runtime, 'devtools.open', {}, 1)
+    expect(isJiaorongBridgeFailure(result)).toBe(true)
+    expect(result).toMatchObject({ code: 'FORBIDDEN' })
   })
 
   it('returns persisted userInfo from userinfo.get', async () => {
