@@ -36,6 +36,7 @@
             "
             :block="block"
             :usage="usage"
+            live
           />
           <MessageBlockToolCall
             v-else-if="block.type === 'tool_call'"
@@ -53,7 +54,11 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref } from 'vue'
 import { Icon } from '@iconify/vue'
-import type { DisplayAssistantMessageBlock, DisplayMessageUsage, ResolvedPermissionStatus } from '../model/display'
+import type {
+  DisplayAssistantMessageBlock,
+  DisplayMessageUsage,
+  ResolvedPermissionStatus
+} from '../model/display'
 import { buildActivityBlockKey, formatActivityDuration } from '../model/activityGroups'
 import MessageBlockThink from './MessageBlockThink.vue'
 import MessageBlockToolCall from './MessageBlockToolCall.vue'

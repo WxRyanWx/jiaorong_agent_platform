@@ -1,4 +1,5 @@
 import type { JiaorongSlashItem } from '../types'
+import { mimeFromFileName } from '../../fileTypeIcon'
 
 export function isAbsoluteFsPath(value: string) {
   const path = value.trim()
@@ -25,7 +26,7 @@ export function resolvePickedDirectory(
   return null
 }
 
-function hostBridge() {
+export function hostBridge() {
   return (
     window as Window & {
       jiaorong?: {
@@ -72,7 +73,7 @@ export async function rememberHostDroppedFiles(paths: string[], appId?: string):
   }
 }
 
-function hostArgs(appId?: string) {
+export function hostArgs(appId?: string) {
   const resolvedAppId = appId?.trim() || resolveHostAppId()
   return resolvedAppId ? { appId: resolvedAppId } : {}
 }
@@ -111,7 +112,7 @@ export async function pickHostDirectory(
 
 export async function pickHostFiles(
   appId?: string
-): Promise<Array<{ path: string; name: string }> | null> {
+): Promise<Array<{ path: string; name: string; mimeType: string }> | null> {
   const host = hostBridge()
   if (!host?.invoke) return null
   try {
@@ -129,7 +130,7 @@ export async function pickHostFiles(
         typeof row.name === 'string' && row.name.trim()
           ? row.name.trim()
           : path.split(/[\\/]/).filter(Boolean).at(-1) || path
-      return [{ path, name }]
+      return [{ path, name, mimeType: mimeFromFileName(name) }]
     })
     return files
   } catch {

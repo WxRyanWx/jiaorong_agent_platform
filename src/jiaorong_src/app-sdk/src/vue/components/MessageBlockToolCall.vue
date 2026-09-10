@@ -67,7 +67,9 @@
               {{ displayFunctionName }}
             </div>
             <div v-if="hasParams" class="space-y-2 flex-1 min-w-0">
-              <h5 class="text-xs font-medium text-accent-foreground flex flex-row gap-2 items-center">
+              <h5
+                class="text-xs font-medium text-accent-foreground flex flex-row gap-2 items-center"
+              >
                 <Icon icon="lucide:arrow-up-from-dot" class="w-4 h-4 text-foreground" />
                 参数
               </h5>
@@ -79,7 +81,9 @@
               </div>
             </div>
             <div v-if="hasResponse" class="space-y-2 flex-1 min-w-0">
-              <h5 class="text-xs font-medium text-accent-foreground flex flex-row gap-2 items-center">
+              <h5
+                class="text-xs font-medium text-accent-foreground flex flex-row gap-2 items-center"
+              >
                 <Icon icon="lucide:arrow-down-to-dot" class="w-4 h-4 text-foreground" />
                 响应
               </h5>
@@ -98,33 +102,20 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { DisplayAssistantMessageBlock } from '../model/display'
 
 const props = defineProps<{
   block: DisplayAssistantMessageBlock
   permissionStatus?: 'granted' | 'denied'
-  /** 当前这条正在生成时展开参数/响应；历史默认收起。 */
-  live?: boolean
 }>()
 
 const isExpanded = ref(false)
-const userToggled = ref(false)
 
 function onToggle() {
-  userToggled.value = true
   isExpanded.value = !isExpanded.value
 }
-
-watch(
-  () => Boolean(props.live),
-  (shouldExpand) => {
-    if (userToggled.value) return
-    isExpanded.value = shouldExpand
-  },
-  { immediate: true }
-)
 const paramsText = computed(() => props.block.tool_call?.params ?? '')
 const responseText = computed(() => props.block.tool_call?.response ?? '')
 const hasParams = computed(() => paramsText.value.trim().length > 0)
@@ -137,9 +128,9 @@ const summaryText = computed(() => {
     const parsed = JSON.parse(raw) as Record<string, unknown>
     const path = typeof parsed.path === 'string' ? parsed.path : ''
     const command = typeof parsed.command === 'string' ? parsed.command : ''
-    return path || command || raw.slice(0, 80)
+    return path || command
   } catch {
-    return raw.slice(0, 80)
+    return ''
   }
 })
 

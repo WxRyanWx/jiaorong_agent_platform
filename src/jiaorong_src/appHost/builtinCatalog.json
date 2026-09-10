@@ -4,7 +4,7 @@
     {
       "id": "demo-workbench",
       "name": "示例工作台",
-      "version": "0.0.24-dev",
+      "version": "0.0.29-dev",
       "description": "应用 SDK 目录与接入示例，给外部团队对照",
       "icon": "icon.png",
       "slot": "menu",

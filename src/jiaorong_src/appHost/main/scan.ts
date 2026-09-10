@@ -176,9 +176,10 @@ export function ensureJiaorongAppInstalled(
   const nodePortChanged =
     Boolean(destManifest && sourceManifest) &&
     destManifest?.node?.port !== sourceManifest?.node?.port
+  const sourceVersion = sourceManifest?.version ?? runtime.version
   if (
     destManifest &&
-    destManifest.version === runtime.version &&
+    destManifest.version === sourceVersion &&
     !refreshUnpackaged &&
     !nodePortChanged
   ) {

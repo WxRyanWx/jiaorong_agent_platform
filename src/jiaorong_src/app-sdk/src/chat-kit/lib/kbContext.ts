@@ -77,10 +77,6 @@ export function buildKnowledgeBaseContextFile(
   selections: JiaorongKbSelection[]
 ): JiaorongChatMessageFile | null {
   if (selections.length === 0) return null
-  const names = selections
-    .map((item) => item.name)
-    .filter(Boolean)
-    .join('、')
   const mcpSelections = selections
     .filter((item) => item.id.trim())
     .map((item) => ({
@@ -92,14 +88,20 @@ export function buildKnowledgeBaseContextFile(
             : 'FILE',
       id: item.id
     }))
+  const names = selections
+    .map((item) => item.name)
+    .filter(Boolean)
+    .join('、')
+  const toolAlias = 'jiaorong-knowledge-base_knowledge_base_retrieve'
   const content = [
     '[交融知识库 · 强制工具调用]',
     names ? `用户已选中范围：${names}` : '用户已选中知识库范围',
     '',
     '你必须遵守：',
-    '1. 回答前先调用知识库检索工具 knowledge_base_retrieve。',
+    `1. 回答前先调用工具 knowledge_base_retrieve（若工具名被重命名，则为 ${toolAlias}）。`,
     '2. 只能根据该工具返回的内容回答；工具结果中没有的信息不要补充、不要猜测。',
-    '3. 禁止在未调用工具前输出「根据知识库…」等结论。',
+    '3. 禁止在未调用工具前输出「根据知识库…」「检索为空」等结论，禁止编造申请字段、法规条款等内容。',
+    '4. 先完成工具调用，拿到结果后再组织最终回答；不要先写答案再补检索。',
     '',
     '请使用以下 arguments（不要改 id / type）：',
     JSON.stringify({ request: { msg: text, selections: mcpSelections } }, null, 2)

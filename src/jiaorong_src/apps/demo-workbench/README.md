@@ -4,26 +4,38 @@
 
 ```text
 demo-workbench/
-  app.json              # 应用清单
+  app.json
   icon.png
-  web-ui/               # 构建产物，客户端打开这个
-  web/                  # Vue 页面
-  node/                 # 本机转发（Egg 单进程）
+  web-ui/                         # 构建产物，客户端打开这个
+  web/                            # Vue 源码
+    src/
+      main.ts
+      App.vue
+      router/index.ts             # Hash 路由
+      pages/                      # 直连 / Node HTTP 页
+      components/
+        jiaorongagentchat/        # 对话组件源码，可改 UI
+        jiaorongagentsessionList/ # 会话列表源码，可改 UI
+      lib/
+      constants.ts
+  node/
   skill/
 ```
+
+对话和会话列表已放在脚手架内，不再从 `jiaorong-app-sdk/vue` 引用。页面仍使用 `JiaorongAgentChat` / `JiaorongAgentSessionList` 和原来的参数。`jiaorong-app-sdk` 只负责 `connect`、发消息和类型。
 
 ## 两种接入
 
 | 路由 | 说明 |
 | --- | --- |
-| `#/` | 页面直连 SDK，组件自己发对话 |
-| `#/node` | 页面用 `getContext().nodeBase` 拼 HTTP / SSE，对话由 Node 转发 |
+| `#/` | 直连宿主对话；本页自己 `connect`、创建智能体 |
+| `#/node` | 本页自己等 Node，走 `/api/sdk` 与 `/api/events` |
 
 ## 使用约定
 
 1. Vite `base` 为 `'./'`，路由用 `createWebHashHistory()`。
 2. `app.json` 声明 `node.entry` 和 `node.startCommand`。Node 调 SDK 不走 HTTP。页面要访问本应用 Node 时，用 `getContext().nodeBase`。
-3. SDK：`https://c4ai.ccccltd.cn/xkprosdk/jiaorong-app-sdk-1.0.0.tgz`。web 和 Node 同一份。
+3. SDK 只用于 `connect` / 会话 API。依赖写 OSS 包：`https://c4ai.ccccltd.cn/xkprosdk/jiaorong-app-sdk-1.0.0.tgz`。
 4. Egg 用 `egg.start` 单进程，不要 `startCluster`。
 5. 本机调试可在系统终端 `cd node && node server.js`（交融客户端须已启动并登录，应用须已安装）。默认 `127.0.0.1:8787`。侧栏打开后页面仍用 `nodeBase`，不要写死 `8787`。
 

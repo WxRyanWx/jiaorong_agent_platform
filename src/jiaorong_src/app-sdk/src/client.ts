@@ -22,12 +22,20 @@ import type {
   JiaorongEventMap,
   JiaorongUserInfo,
   JiaorongEventName,
+  PermissionMode,
   RestoreSessionResult,
   SendMessageInput,
   SendMessageResult,
   SessionListResult,
   SessionWithState,
   SlashCatalogResult,
+  CatalogModel,
+  SessionGenerationSettings,
+  SessionGenerationSettingsPatch,
+  SessionContextOccupancy,
+  SystemPromptOption,
+  AgentToolItem,
+  ToolMode,
   ToolInteractionResponse,
   UpdateAppAgentInput
 } from './types'
@@ -45,6 +53,20 @@ export type JiaorongClient = {
   }
   catalog: {
     slash(): Promise<SlashCatalogResult>
+    models(): Promise<{ models: CatalogModel[] }>
+    systemPrompts(): Promise<{ prompts: SystemPromptOption[] }>
+    agentTools(input?: { sessionId?: string }): Promise<{ tools: AgentToolItem[] }>
+  }
+  knowledgeBase: {
+    query(input?: { type?: 1 | 2; name?: string; page?: number; size?: number }): Promise<{
+      data: unknown
+    }>
+    queryDirectory(input: {
+      directoryId: string
+      page?: number
+      size?: number
+      fileName?: string
+    }): Promise<{ data: unknown }>
   }
   session: {
     create(input: CreateSessionInput): Promise<CreateSessionResult>
@@ -65,6 +87,38 @@ export type JiaorongClient = {
     }): Promise<RestoreSessionResult>
     rename(input: { sessionId: string; title: string }): Promise<{ session: SessionWithState }>
     pin(input: { sessionId: string; pinned: boolean }): Promise<{ session: SessionWithState }>
+    setModel(input: {
+      sessionId: string
+      providerId: string
+      modelId: string
+    }): Promise<{ session: SessionWithState }>
+    setPermissionMode(input: {
+      sessionId: string
+      mode: PermissionMode
+    }): Promise<{ ok: true; mode: string }>
+    setOrchestrationPolicy(input: {
+      sessionId: string
+      policy: 'explicit' | 'proactive'
+    }): Promise<{ ok: true; policy: 'explicit' | 'proactive' }>
+    getGenerationSettings(input: { sessionId: string }): Promise<{
+      settings: SessionGenerationSettings | null
+    }>
+    updateGenerationSettings(input: {
+      sessionId: string
+      settings: SessionGenerationSettingsPatch
+    }): Promise<{ settings: SessionGenerationSettings }>
+    getContextOccupancy(input: { sessionId: string }): Promise<{
+      occupancy: SessionContextOccupancy
+    }>
+    setToolMode(input: {
+      sessionId: string
+      override: ToolMode | null
+    }): Promise<{ session: SessionWithState }>
+    getDisabledAgentTools(input: { sessionId: string }): Promise<{ toolNames: string[] }>
+    updateDisabledAgentTools(input: {
+      sessionId: string
+      toolNames: string[]
+    }): Promise<{ toolNames: string[] }>
     delete(input: { sessionId: string }): Promise<{ deleted: true }>
     send(input: {
       sessionId: string
@@ -230,7 +284,21 @@ export function createClient(
       list: () => invoke<{ agents: AppAgent[] }>('agent.list', { appId })
     },
     catalog: {
-      slash: async () => normalizeSlashCatalog(await invoke<unknown>('catalog.slash', { appId }))
+      slash: async () => normalizeSlashCatalog(await invoke<unknown>('catalog.slash', { appId })),
+      models: () => invoke<{ models: CatalogModel[] }>('catalog.models', { appId }),
+      systemPrompts: () =>
+        invoke<{ prompts: SystemPromptOption[] }>('catalog.systemPrompts', { appId }),
+      agentTools: (input) =>
+        invoke<{ tools: AgentToolItem[] }>('catalog.agentTools', { appId, ...input })
+    },
+    knowledgeBase: {
+      query: (input) => invoke<{ data: unknown }>('knowledgeBase.query', { appId, ...input }),
+      queryDirectory: (input) => {
+        if (!input.directoryId?.trim()) {
+          return Promise.reject(new JiaorongError('VALIDATION_ERROR', '需要提供 directoryId'))
+        }
+        return invoke<{ data: unknown }>('knowledgeBase.queryDirectory', { appId, ...input })
+      }
     },
     session: {
       create(input) {
@@ -281,6 +349,108 @@ export function createClient(
           )
         }
         return invoke<{ session: SessionWithState }>('session.pin', { appId, ...input })
+      },
+      setModel(input) {
+        if (!input.sessionId?.trim() || !input.providerId?.trim() || !input.modelId?.trim()) {
+          return Promise.reject(
+            new JiaorongError('VALIDATION_ERROR', '需要提供 sessionId、providerId 和 modelId')
+          )
+        }
+        return invoke<{ session: SessionWithState }>('session.setModel', { appId, ...input })
+      },
+      setPermissionMode(input) {
+        if (!input.sessionId?.trim() || !input.mode) {
+          return Promise.reject(new JiaorongError('VALIDATION_ERROR', '需要提供 sessionId 和 mode'))
+        }
+        if (
+          input.mode !== 'default' &&
+          input.mode !== 'auto_approve' &&
+          input.mode !== 'full_access'
+        ) {
+          return Promise.reject(
+            new JiaorongError(
+              'VALIDATION_ERROR',
+              'mode 必须是 default、auto_approve 或 full_access'
+            )
+          )
+        }
+        return invoke<{ ok: true; mode: string }>('session.setPermissionMode', { appId, ...input })
+      },
+      setOrchestrationPolicy(input) {
+        if (!input.sessionId?.trim() || !input.policy) {
+          return Promise.reject(
+            new JiaorongError('VALIDATION_ERROR', '需要提供 sessionId 和 policy')
+          )
+        }
+        return invoke<{ ok: true; policy: 'explicit' | 'proactive' }>(
+          'session.setOrchestrationPolicy',
+          { appId, ...input }
+        )
+      },
+      getGenerationSettings(input) {
+        if (!input.sessionId?.trim()) {
+          return Promise.reject(new JiaorongError('VALIDATION_ERROR', '需要提供 sessionId'))
+        }
+        return invoke<{ settings: SessionGenerationSettings | null }>(
+          'session.getGenerationSettings',
+          { appId, ...input }
+        )
+      },
+      updateGenerationSettings(input) {
+        if (!input.sessionId?.trim() || !input.settings || typeof input.settings !== 'object') {
+          return Promise.reject(
+            new JiaorongError('VALIDATION_ERROR', '需要提供 sessionId 和 settings')
+          )
+        }
+        return invoke<{ settings: SessionGenerationSettings }>('session.updateGenerationSettings', {
+          appId,
+          ...input
+        })
+      },
+      getContextOccupancy(input) {
+        if (!input.sessionId?.trim()) {
+          return Promise.reject(new JiaorongError('VALIDATION_ERROR', '需要提供 sessionId'))
+        }
+        return invoke<{ occupancy: SessionContextOccupancy }>('session.getContextOccupancy', {
+          appId,
+          ...input
+        })
+      },
+      setToolMode(input) {
+        if (!input.sessionId?.trim()) {
+          return Promise.reject(new JiaorongError('VALIDATION_ERROR', '需要提供 sessionId'))
+        }
+        if (
+          input.override !== null &&
+          input.override !== 'agent' &&
+          input.override !== 'code' &&
+          input.override !== 'minimal'
+        ) {
+          return Promise.reject(
+            new JiaorongError('VALIDATION_ERROR', 'override 必须是 agent、code、minimal 或 null')
+          )
+        }
+        return invoke<{ session: SessionWithState }>('session.setToolMode', { appId, ...input })
+      },
+      getDisabledAgentTools(input) {
+        if (!input.sessionId?.trim()) {
+          return Promise.reject(new JiaorongError('VALIDATION_ERROR', '需要提供 sessionId'))
+        }
+        return invoke<{ toolNames: string[] }>('session.getDisabledAgentTools', {
+          appId,
+          ...input
+        })
+      },
+      updateDisabledAgentTools(input) {
+        if (!input.sessionId?.trim() || !Array.isArray(input.toolNames)) {
+          return Promise.reject(
+            new JiaorongError('VALIDATION_ERROR', '需要提供 sessionId 和 toolNames')
+          )
+        }
+        return invoke<{ toolNames: string[] }>('session.updateDisabledAgentTools', {
+          appId,
+          ...input
+        })
       },
       delete(input) {
         if (!input.sessionId?.trim()) {

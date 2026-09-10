@@ -31,3 +31,5 @@ const { blocks } = await waiting
 import { JiaorongAgentChat, JiaorongAgentSessionList } from 'jiaorong-app-sdk/vue'
 import 'jiaorong-app-sdk/vue/style.css'
 ```
+
+直连页不传 `httpBase`。Node 转发页把 `getContext().nodeBase` 作为 `httpBase` 传给两个组件，对话 invoke / 流式都经本机 Node，不要再让组件直连宿主。

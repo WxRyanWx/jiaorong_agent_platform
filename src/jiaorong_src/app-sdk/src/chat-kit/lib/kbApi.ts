@@ -1,3 +1,4 @@
+import { resolveHostAppId } from './hostDialog'
 import type {
   JiaorongChatKnowledgeBaseAuth,
   KnowledgeBaseDirectoryItem,
@@ -6,6 +7,27 @@ import type {
 } from '../types'
 
 const SUCCESS_CODES = new Set([200, 8000000])
+const FETCH_ERROR_RE = /failed to fetch|load failed|networkerror|abort/i
+
+function hostBridge() {
+  if (typeof window === 'undefined') return undefined
+  return (
+    window as Window & {
+      jiaorong?: { invoke: (method: string, args?: unknown) => Promise<unknown> }
+    }
+  ).jiaorong
+}
+
+export function formatKnowledgeBaseError(error: unknown): string {
+  if (error && typeof error === 'object' && 'message' in error) {
+    const message = String((error as { message: unknown }).message || '').trim()
+    if (message && !FETCH_ERROR_RE.test(message)) return message
+  }
+  if (error instanceof Error && error.message.trim() && !FETCH_ERROR_RE.test(error.message)) {
+    return error.message
+  }
+  return '无法连接知识库服务'
+}
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === 'object' ? (value as Record<string, unknown>) : null
@@ -30,26 +52,61 @@ function authHeaders(auth: JiaorongChatKnowledgeBaseAuth) {
   return headers
 }
 
-async function postJson(auth: JiaorongChatKnowledgeBaseAuth, path: string, body: unknown) {
-  const base = auth.apiBaseUrl.replace(/\/$/, '')
-  const res = await fetch(`${base}/${path.replace(/^\//, '')}`, {
-    method: 'POST',
-    headers: authHeaders(auth),
-    body: JSON.stringify(body)
+function hostMethodForPath(path: string) {
+  if (path.replace(/^\//, '') === 'knowledge-base/queryDirectory') {
+    return 'knowledgeBase.queryDirectory'
+  }
+  return 'knowledgeBase.query'
+}
+
+function unwrapHostData(result: unknown) {
+  const record = asRecord(result)
+  if (record && 'data' in record) return record.data
+  return result
+}
+
+async function postViaHost(path: string, body: unknown) {
+  const host = hostBridge()
+  if (!host?.invoke) return null
+  const payload = asRecord(body) ?? {}
+  const appId = resolveHostAppId()
+  const result = await host.invoke(hostMethodForPath(path), {
+    ...(appId ? { appId } : {}),
+    ...payload
   })
-  let json: { code?: number; message?: string; data?: unknown } | null = null
+  return { data: unwrapHostData(result) }
+}
+
+async function postJson(auth: JiaorongChatKnowledgeBaseAuth, path: string, body: unknown) {
   try {
-    json = (await res.json()) as { code?: number; message?: string; data?: unknown }
-  } catch {
-    json = null
+    const hosted = await postViaHost(path, body)
+    if (hosted) return hosted.data
+  } catch (error) {
+    throw new Error(formatKnowledgeBaseError(error))
   }
-  if (!res.ok) {
-    throw new Error(json?.message || `知识库请求失败 HTTP ${res.status}`)
+  try {
+    const base = auth.apiBaseUrl.replace(/\/$/, '')
+    const res = await fetch(`${base}/${path.replace(/^\//, '')}`, {
+      method: 'POST',
+      headers: authHeaders(auth),
+      body: JSON.stringify(body)
+    })
+    let json: { code?: number; message?: string; data?: unknown } | null = null
+    try {
+      json = (await res.json()) as { code?: number; message?: string; data?: unknown }
+    } catch {
+      json = null
+    }
+    if (!res.ok) {
+      throw new Error(json?.message || `知识库请求失败 HTTP ${res.status}`)
+    }
+    if (json?.code != null && !SUCCESS_CODES.has(Number(json.code))) {
+      throw new Error(json.message || `知识库请求失败 code ${json.code}`)
+    }
+    return json?.data
+  } catch (error) {
+    throw new Error(formatKnowledgeBaseError(error))
   }
-  if (json?.code != null && !SUCCESS_CODES.has(Number(json.code))) {
-    throw new Error(json.message || `知识库请求失败 code ${json.code}`)
-  }
-  return json?.data
 }
 
 function toListItem(raw: unknown): KnowledgeBaseListItem | null {

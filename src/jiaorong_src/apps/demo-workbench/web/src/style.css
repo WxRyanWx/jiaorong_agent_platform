@@ -1,3 +1,8 @@
+/**
+ * 脚手架全局样式。
+ * 撑满侧栏 webview，并限制 Markdown / 工具调用把页面撑宽。
+ */
+
 * {
   box-sizing: border-box;
 }

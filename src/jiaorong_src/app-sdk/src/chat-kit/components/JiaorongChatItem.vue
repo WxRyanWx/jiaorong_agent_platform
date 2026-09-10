@@ -7,7 +7,7 @@ import duihuaIcon from '../assets/duihua.png'
 import JiaorongChatContent from './JiaorongChatContent.vue'
 import JiaorongChatLoading from './JiaorongChatLoading.vue'
 import JiaorongChatReasoning from './JiaorongChatReasoning.vue'
-import KbFileTypeIcon from './KbFileTypeIcon.vue'
+import FileAttachmentChip from './FileAttachmentChip.vue'
 import KnowledgeBaseChips from './KnowledgeBaseChips.vue'
 
 const props = defineProps<{
@@ -62,14 +62,7 @@ const hasAssistantBody = computed(() =>
           class="flex flex-wrap gap-1.5"
         >
           <KnowledgeBaseChips :items="item.knowledgeBaseSelections ?? []" />
-          <span
-            v-for="name in item.attachmentNames"
-            :key="name"
-            class="inline-flex max-w-full items-center gap-2 rounded-full border border-border bg-background/70 px-2.5 py-1 text-xs text-foreground shadow-sm"
-          >
-            <KbFileTypeIcon class="h-4 w-4 shrink-0 object-contain" :file-name="name" />
-            <span class="max-w-[180px] truncate">{{ name }}</span>
-          </span>
+          <FileAttachmentChip v-for="name in item.attachmentNames" :key="name" :file-name="name" />
         </div>
         <div class="w-full min-w-0 text-sm break-all whitespace-pre-wrap">{{ item.text }}</div>
       </div>

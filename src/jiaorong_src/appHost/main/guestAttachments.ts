@@ -1,4 +1,8 @@
 import { isAbsoluteGuestPath } from './guestBind'
+import {
+  JIAORONG_KB_CONTEXT_MIME,
+  JIAORONG_KB_CONTEXT_PATH
+} from '../../knowledgeBase/mcp/knowledgeBaseMcpConstants'
 
 export type JiaorongGuestFilePort = {
   writeTemp(file: { name: string; content: Buffer | string }): Promise<string>
@@ -47,6 +51,30 @@ function toImageDataUrl(mime: string, payload: string): string {
   return `data:${mime || 'image/png'};base64,${stripDataUrl(payload)}`
 }
 
+export function isJiaorongGuestKnowledgeBaseContextFile(
+  row: Record<string, unknown> | null | undefined
+): boolean {
+  if (!row) return false
+  const filePath = typeof row.path === 'string' ? row.path.trim() : ''
+  const mimeType = readMime(row)
+  return filePath === JIAORONG_KB_CONTEXT_PATH || mimeType === JIAORONG_KB_CONTEXT_MIME
+}
+
+export function normalizeGuestKnowledgeBaseContextFile(
+  row: Record<string, unknown>
+): Record<string, unknown> {
+  const payload = readPayload(row)
+  const next: Record<string, unknown> = {
+    ...row,
+    name: readName(row) || '知识库',
+    path: JIAORONG_KB_CONTEXT_PATH,
+    mimeType: JIAORONG_KB_CONTEXT_MIME,
+    content: payload
+  }
+  delete next.dataBase64
+  return next
+}
+
 /** 与超级智能体一致：落临时文件后走 prepareFile，抽取文档文本 / 图片表示。 */
 export async function materializeGuestFiles(
   files: unknown,
@@ -57,6 +85,10 @@ export async function materializeGuestFiles(
   for (const file of files) {
     const row = asRecord(file)
     if (!row) continue
+    if (isJiaorongGuestKnowledgeBaseContextFile(row)) {
+      next.push(normalizeGuestKnowledgeBaseContextFile(row))
+      continue
+    }
     const name = readName(row)
     const mimeType = readMime(row)
     const filePath = typeof row.path === 'string' ? row.path.trim() : ''

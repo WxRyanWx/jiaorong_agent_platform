@@ -1,8 +1,10 @@
+/**
+ * 脚手架业务常量与智能体入参。
+ * 改应用 id / 技能 / 提示词时只动这个文件，页面只引用这里的导出。
+ */
+
 /** 应用 id，必须与 app.json 的 id 一致。 */
 export const APP_ID = 'demo-workbench'
-
-/** 仅作说明。页面不要用这个请求，地址以宿主 context.nodeBase 为准。 */
-export const NODE_BASE = 'http://127.0.0.1:0'
 
 /** 应用内智能体的稳定 key，重复 create 会复用同一条。 */
 export const CHAT_AGENT_KEY = 'workbench'
@@ -18,6 +20,33 @@ export const CHAT_SKILLS = [
   'contract-review',
   'data-query'
 ] as const
+/** 传给 JiaorongAgentChat 的 `/` 列表。skillDir 是 `skill/` 下目录名，不要写 app.{id}.{dir}。 */
+export const CHAT_SLASH_ITEMS = [
+  {
+    category: 'skill' as const,
+    skillDir: 'app.demo-workbench.weekly-report',
+    label: '周报整理',
+    description: '把零散工作记录整理成周报。用户提到本周进展、周报、小结、汇报时必须使用。'
+  },
+  {
+    category: 'skill' as const,
+    skillDir: 'meeting-minutes',
+    label: '会议纪要',
+    description: '把会议发言整理成纪要。用户提到开会、纪要、决议、待办、会议记录时必须使用。'
+  },
+  {
+    category: 'skill' as const,
+    skillDir: 'contract-review',
+    label: '合同审核',
+    description: '按清单审核合同风险。用户提到合同、条款、违约、审核合同时必须使用。'
+  },
+  {
+    category: 'skill' as const,
+    skillDir: 'data-query',
+    label: '数据查询',
+    description: '按用户问题查询业务数据。用户提到查数、报表、库存、订单量、统计时必须使用。'
+  }
+]
 /** 创建智能体时默认要求读取的技能。 */
 export const DEFAULT_SKILL = 'weekly-report'
 /** 传给 JiaorongAgentChat 的输入框占位文案。不传则组件用默认「向 xxx 发送消息…」。 */
@@ -29,6 +58,7 @@ export function appSkillFile(appDir: string, skillDir: string): string {
     .trim()
     .replace(/[/\\]+$/, '')
     .replaceAll('\\', '/')
+  // 没有应用目录时退回相对路径，提示词里仍能看出技能文件位置
   if (!root) return `skill/${skillDir}/SKILL.md`
   return `${root}/skill/${skillDir}/SKILL.md`
 }

@@ -32,10 +32,24 @@ globalThis.jiaorong = { invoke, on, userinfo }
 | disconnect | jr.disconnect |
 | dialog.selectDirectory | 选本地项目目录，返回 `{ path }` |
 | dialog.selectFiles | 选本地附件，返回 `{ files: [{ path, name }] }`；路径会加入本窗口白名单 |
+| dialog.readFilePreview | 读已选附件的预览。仅白名单绝对路径。图片返回 `{ mimeType, thumbnail }`（data URL），其它类型只返回 `{ mimeType }` |
+| dialog.rememberDroppedFiles | 把拖入的本地**文件**加入本窗口白名单，返回 `{ files: string[] }`。只接受真实存在的文件；目录、不存在的路径一律丢掉。不能用来给任意目录开白名单 |
 | dialog.allowProjectDir | 仅当本窗口已经用 `dialog.selectDirectory` 选过该路径时返回 ok；不能给任意绝对路径开白名单 |
-| session.setPermissionMode | 写入当前会话权限，进入 DeepChat 进程 |
+| session.setPermissionMode | 写入当前会话权限（`default` / `auto_approve` / `full_access`），进入 DeepChat 进程 |
 | session.setOrchestrationPolicy | 写入 `explicit` / `proactive`，主动协作进编排 |
+| session.setModel | 切换当前会话模型，需登录且会话属于本应用 |
+| session.getGenerationSettings | 读当前会话高级设置；需登录且会话属于本应用 |
+| session.updateGenerationSettings | 写入温度 / Top P / 上下文 / Token / 思考预算等；需登录且会话属于本应用 |
+| session.getContextOccupancy | 读当前会话上下文占用；需登录且会话属于本应用 |
+| session.setToolMode | 写入 `agent` / `code` / `minimal` 或 `null`（模型默认）；需登录且会话属于本应用 |
+| session.getDisabledAgentTools | 读当前会话关闭的内置工具名；需登录且会话属于本应用 |
+| session.updateDisabledAgentTools | 写入关闭的内置工具名；需登录且会话属于本应用 |
 | catalog.slash | jr.catalog.slash：应用技能 + 平台技能 + MCP 工具；需登录 |
+| catalog.models | jr.catalog.models：已启用服务商与模型（含 providerName）；需登录 |
+| catalog.systemPrompts | 系统提示词列表（id / name / content）；需登录 |
+| catalog.agentTools | 可配置内置工具（name / group）；可带 sessionId。带 sessionId 时会话必须属于本应用；需登录 |
+| knowledgeBase.query | 知识库列表（个人/共享）；需登录；主进程请求，guest 不要直连云端 |
+| knowledgeBase.queryDirectory | 知识库目录下探；需登录且带 directoryId |
 
 入参都带 `appId`。`session.list` 必须带本应用 `agentId`。对话字段与现有 sessions/chat 一致，只增加文档里的应用字段。宿主以 **webview 绑定的 appId** 为准，忽略 guest 改 URL。`disconnect` 只释放 SDK 监听，不摘 webview 身份。
 
@@ -45,7 +59,7 @@ globalThis.jiaorong = { invoke, on, userinfo }
 
 `session.retryMessage` / `session.deleteMessage` / `session.editUserMessage` / `session.fork` 都要带本应用已有会话的 `sessionId` 和该会话里的 `messageId`。`editUserMessage` 只能改用户消息。`fork` 会记下新会话归属，并把原会话项目目录加入本窗口白名单。
 
-`session.create` / `session.send` / `session.steer` / `session.retryMessage` 在附件需要用户处理时返回 `accepted: false`。Guest 传入的文件路径必须是本窗口选过的绝对路径；未授权路径会拒绝整次发送。
+`session.create` / `session.send` / `session.steer` / `session.retryMessage` 在附件需要用户处理时返回 `accepted: false`。Guest 传入的文件路径必须是本窗口选过的绝对路径；未授权路径会拒绝整次发送。`jiaorong-kb://context`（`application/x-jiaorong-kb-context`）是知识库合成说明，宿主原样交给 DeepChat，不要写成临时文件。
 
 ## context.get 出参
 

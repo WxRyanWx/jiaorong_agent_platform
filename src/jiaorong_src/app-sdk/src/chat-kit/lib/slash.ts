@@ -9,15 +9,16 @@ export function readSlashQuery(text: string, cursor: number) {
   return { query, start, end: cursor }
 }
 
-export function filterSlashItems<T extends { label: string; description?: string }>(
-  items: readonly T[],
-  query: string
-) {
+export function filterSlashItems<
+  T extends { label: string; description?: string; skillName?: string; id?: string }
+>(items: readonly T[], query: string) {
   const normalized = query.trim().toLowerCase()
   if (!normalized) return [...items]
   return items
     .filter((item) => {
       if (item.label.toLowerCase().includes(normalized)) return true
+      if (item.skillName?.toLowerCase().includes(normalized)) return true
+      if (item.id?.toLowerCase().includes(normalized)) return true
       return item.description?.toLowerCase().includes(normalized)
     })
     .slice(0, MAX_SLASH_RESULTS)

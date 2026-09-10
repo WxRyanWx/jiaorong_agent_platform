@@ -18,15 +18,24 @@
           class="inline-flex h-5 items-center gap-1 rounded-full border border-border/60 bg-background/70 px-2 text-[11px] leading-none text-muted-foreground shadow-sm"
         >
           <Icon icon="lucide:sparkles" class="h-3 w-3 text-primary/70" />
-          {{ skillName }}
+          {{ skillLabel(skillName) }}
         </span>
       </div>
       <div
         class="text-sm bg-muted dark:bg-muted rounded-lg p-2 border flex flex-col gap-1.5"
         data-message-content="true"
       >
-        <div v-if="files.length" class="flex flex-wrap gap-1.5">
-          <FileAttachmentChip v-for="file in files" :key="file" :file-name="file" />
+        <div v-if="files.length || knowledgeBaseSelections.length" class="flex flex-wrap gap-1.5">
+          <KnowledgeBaseChips :items="knowledgeBaseSelections" />
+          <FileAttachmentChip
+            v-for="(file, index) in files"
+            :key="`${file.path || file.name}-${index}`"
+            :file-name="file.name"
+            :mime-type="file.mimeType"
+            :file-path="file.path"
+            :thumbnail="file.thumbnail"
+            :app-id="appId"
+          />
         </div>
         <textarea
           v-if="isEditMode"
@@ -61,25 +70,43 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
 import { Icon } from '@iconify/vue'
-import FileAttachmentChip from './FileAttachmentChip.vue'
+import FileAttachmentChip from '../../chat-kit/components/FileAttachmentChip.vue'
 import MessageInfo from './MessageInfo.vue'
 import MessageToolbar from './MessageToolbar.vue'
+import KnowledgeBaseChips from '../../chat-kit/components/KnowledgeBaseChips.vue'
+import type { JiaorongKbChip, JiaorongSlashItem } from '../../chat-kit/types'
+import type { TranscriptFile } from '../lib/transcript'
+import { displaySkillLabel } from '../lib/slashCommands'
 import {
   resolveToolbarActions,
   toolbarHasVisibleActions,
   type JiaorongToolbarAction
 } from '../lib/toolbar'
 
-const props = defineProps<{
-  id: string
-  userName: string
-  timestamp: number
-  text: string
-  files: string[]
-  skills: string[]
-  disabled?: boolean
-  toolbar?: JiaorongToolbarAction[]
-}>()
+const props = withDefaults(
+  defineProps<{
+    id: string
+    userName: string
+    timestamp: number
+    text: string
+    files: TranscriptFile[]
+    knowledgeBaseSelections?: JiaorongKbChip[]
+    skills: string[]
+    slashItems?: readonly JiaorongSlashItem[]
+    appId?: string
+    disabled?: boolean
+    toolbar?: JiaorongToolbarAction[]
+  }>(),
+  {
+    knowledgeBaseSelections: () => [],
+    slashItems: () => [],
+    appId: ''
+  }
+)
+
+function skillLabel(skillName: string) {
+  return displaySkillLabel(skillName, props.slashItems)
+}
 
 const toolbarActions = computed(() => resolveToolbarActions(props.toolbar))
 const showToolbar = computed(() => toolbarHasVisibleActions(toolbarActions.value, 'user'))

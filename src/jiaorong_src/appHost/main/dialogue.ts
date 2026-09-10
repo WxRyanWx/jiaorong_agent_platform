@@ -18,6 +18,11 @@ import type {
   JiaorongAppUpdateAgentInput
 } from './deps'
 import {
+  isJiaorongGuestKnowledgeBaseContextFile,
+  materializeGuestFiles,
+  normalizeGuestKnowledgeBaseContextFile
+} from './guestAttachments'
+import {
   canonicalizeGuestPath,
   forgetSessionOwner,
   hasPickedDirectory,
@@ -27,7 +32,6 @@ import {
   rememberPickedDirectory,
   rememberSessionOwner
 } from './guestBind'
-import { materializeGuestFiles } from './guestAttachments'
 import { readAuthToken } from './userIdentity'
 
 /** 与超级智能体 `messageWindowPolicy` 对齐：首屏 10，单次最多 50。 */
@@ -198,6 +202,10 @@ function sanitizeGuestFiles(
   for (const file of files) {
     if (!file || typeof file !== 'object') continue
     const row = file as Record<string, unknown>
+    if (isJiaorongGuestKnowledgeBaseContextFile(row)) {
+      next.push(normalizeGuestKnowledgeBaseContextFile(row))
+      continue
+    }
     const filePath = typeof row.path === 'string' ? row.path.trim() : ''
     if (!filePath) {
       next.push(file)
@@ -750,9 +758,27 @@ export async function handleDialogueInvoke(
       if (!sessionId || !mode) {
         throw bridgeError('VALIDATION_ERROR', '需要提供 sessionId 和 mode')
       }
+      if (mode !== 'default' && mode !== 'auto_approve' && mode !== 'full_access') {
+        throw bridgeError('VALIDATION_ERROR', 'mode 必须是 default、auto_approve 或 full_access')
+      }
       await requireOwnedSession(dialogue, appId, sessionId)
       await dialogue.setPermissionMode(sessionId, mode)
       return { ok: true as const, mode }
+    }
+    case 'session.setModel': {
+      const sessionId = readString(record, 'sessionId')
+      const providerId = readString(record, 'providerId')
+      const modelId = readString(record, 'modelId')
+      if (!sessionId || !providerId || !modelId) {
+        throw bridgeError('VALIDATION_ERROR', '需要提供 sessionId、providerId 和 modelId')
+      }
+      if (!deps.setSessionModel) {
+        throw bridgeError('FORBIDDEN', '当前不能切换模型')
+      }
+      await requireOwnedSession(dialogue, appId, sessionId)
+      const session = await deps.setSessionModel(sessionId, providerId, modelId)
+      if (!session) throw bridgeError('SESSION_NOT_FOUND', '未找到会话')
+      return { session: toSdkSession(session) }
     }
     case 'session.setOrchestrationPolicy': {
       const sessionId = readString(record, 'sessionId')
@@ -764,6 +790,82 @@ export async function handleDialogueInvoke(
       await requireOwnedSession(dialogue, appId, sessionId)
       const next = await dialogue.updateOrchestrationPolicy(sessionId, policy)
       return { ok: true as const, policy: next }
+    }
+    case 'session.getGenerationSettings': {
+      const sessionId = readString(record, 'sessionId')
+      if (!sessionId) throw bridgeError('VALIDATION_ERROR', '需要提供 sessionId')
+      if (!dialogue.getGenerationSettings) {
+        throw bridgeError('FORBIDDEN', '当前不能读取模型高级设置')
+      }
+      await requireOwnedSession(dialogue, appId, sessionId)
+      return { settings: await dialogue.getGenerationSettings(sessionId) }
+    }
+    case 'session.updateGenerationSettings': {
+      const sessionId = readString(record, 'sessionId')
+      const settings =
+        record.settings && typeof record.settings === 'object' && !Array.isArray(record.settings)
+          ? (record.settings as Record<string, unknown>)
+          : null
+      if (!sessionId || !settings) {
+        throw bridgeError('VALIDATION_ERROR', '需要提供 sessionId 和 settings')
+      }
+      if (!dialogue.updateGenerationSettings) {
+        throw bridgeError('FORBIDDEN', '当前不能写入模型高级设置')
+      }
+      await requireOwnedSession(dialogue, appId, sessionId)
+      return { settings: await dialogue.updateGenerationSettings(sessionId, settings) }
+    }
+    case 'session.getContextOccupancy': {
+      const sessionId = readString(record, 'sessionId')
+      if (!sessionId) throw bridgeError('VALIDATION_ERROR', '需要提供 sessionId')
+      if (!dialogue.getContextOccupancy) {
+        throw bridgeError('FORBIDDEN', '当前不能读取上下文占用')
+      }
+      await requireOwnedSession(dialogue, appId, sessionId)
+      return { occupancy: await dialogue.getContextOccupancy(sessionId) }
+    }
+    case 'session.setToolMode': {
+      const sessionId = readString(record, 'sessionId')
+      if (!sessionId) throw bridgeError('VALIDATION_ERROR', '需要提供 sessionId')
+      if (!dialogue.setToolMode) {
+        throw bridgeError('FORBIDDEN', '当前不能切换工具模式')
+      }
+      const override =
+        record.override === 'agent' || record.override === 'code' || record.override === 'minimal'
+          ? record.override
+          : record.override === null
+            ? null
+            : undefined
+      if (override === undefined) {
+        throw bridgeError('VALIDATION_ERROR', 'override 必须是 agent、code、minimal 或 null')
+      }
+      await requireOwnedSession(dialogue, appId, sessionId)
+      const session = await dialogue.setToolMode(sessionId, override)
+      if (!session) throw bridgeError('SESSION_NOT_FOUND', '未找到会话')
+      return { session: toSdkSession(session) }
+    }
+    case 'session.getDisabledAgentTools': {
+      const sessionId = readString(record, 'sessionId')
+      if (!sessionId) throw bridgeError('VALIDATION_ERROR', '需要提供 sessionId')
+      if (!dialogue.getDisabledAgentTools) {
+        throw bridgeError('FORBIDDEN', '当前不能读取工具开关')
+      }
+      await requireOwnedSession(dialogue, appId, sessionId)
+      return { toolNames: await dialogue.getDisabledAgentTools(sessionId) }
+    }
+    case 'session.updateDisabledAgentTools': {
+      const sessionId = readString(record, 'sessionId')
+      const toolNames = Array.isArray(record.toolNames)
+        ? record.toolNames.filter((item): item is string => typeof item === 'string')
+        : null
+      if (!sessionId || !toolNames) {
+        throw bridgeError('VALIDATION_ERROR', '需要提供 sessionId 和 toolNames')
+      }
+      if (!dialogue.updateDisabledAgentTools) {
+        throw bridgeError('FORBIDDEN', '当前不能写入工具开关')
+      }
+      await requireOwnedSession(dialogue, appId, sessionId)
+      return { toolNames: await dialogue.updateDisabledAgentTools(sessionId, toolNames) }
     }
     case 'session.pin': {
       const sessionId = readString(record, 'sessionId')

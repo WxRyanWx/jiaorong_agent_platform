@@ -145,14 +145,11 @@ describe('jiaorong guest attachments', () => {
 
   it('drops relative paths that have no inline payload', async () => {
     const prepareFile = vi.fn()
-    const files = await materializeGuestFiles(
-      [{ name: 'secret.env', path: '../../secret.env' }],
-      {
-        writeTemp: vi.fn(),
-        writeImageBase64: vi.fn(),
-        prepareFile
-      }
-    )
+    const files = await materializeGuestFiles([{ name: 'secret.env', path: '../../secret.env' }], {
+      writeTemp: vi.fn(),
+      writeImageBase64: vi.fn(),
+      prepareFile
+    })
     expect(prepareFile).not.toHaveBeenCalled()
     expect(files).toEqual([])
   })
@@ -178,5 +175,40 @@ describe('jiaorong guest attachments', () => {
     )
     expect(writeTemp).toHaveBeenCalledOnce()
     expect(files?.[0]).toMatchObject({ name: 'note.txt', path: '/tmp/guest-note.txt' })
+  })
+
+  it('keeps jiaorong knowledge-base context as UTF-8 instruction, not a temp file', async () => {
+    const writeTemp = vi.fn()
+    const writeImageBase64 = vi.fn()
+    const prepareFile = vi.fn()
+    const instruction = '[交融知识库 · 强制工具调用]\n请使用 knowledge_base_retrieve'
+    const files = await materializeGuestFiles(
+      [
+        {
+          name: '知识库',
+          path: 'jiaorong-kb://context',
+          mimeType: 'application/x-jiaorong-kb-context',
+          content: instruction,
+          metadata: {
+            jiaorongKnowledgeBase: JSON.stringify({
+              version: 1,
+              selections: [
+                { key: 'knowledgeBase:kb-1', kind: 'knowledgeBase', id: 'kb-1', name: 'wzy1' }
+              ]
+            })
+          }
+        }
+      ],
+      { writeTemp, writeImageBase64, prepareFile }
+    )
+    expect(writeTemp).not.toHaveBeenCalled()
+    expect(writeImageBase64).not.toHaveBeenCalled()
+    expect(prepareFile).not.toHaveBeenCalled()
+    expect(files?.[0]).toMatchObject({
+      name: '知识库',
+      path: 'jiaorong-kb://context',
+      mimeType: 'application/x-jiaorong-kb-context',
+      content: instruction
+    })
   })
 })

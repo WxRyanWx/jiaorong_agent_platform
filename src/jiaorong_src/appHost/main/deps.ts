@@ -163,6 +163,18 @@ export type JiaorongAppDialoguePort = {
     sessionId: string,
     policy: 'explicit' | 'proactive'
   ): Promise<'explicit' | 'proactive'>
+  getGenerationSettings?(sessionId: string): Promise<Record<string, unknown> | null>
+  updateGenerationSettings?(
+    sessionId: string,
+    settings: Record<string, unknown>
+  ): Promise<Record<string, unknown>>
+  getContextOccupancy?(sessionId: string): Promise<Record<string, unknown>>
+  setToolMode?(
+    sessionId: string,
+    override: 'agent' | 'code' | 'minimal' | null
+  ): Promise<JiaorongAppSessionRecord | null>
+  getDisabledAgentTools?(sessionId: string): Promise<string[]>
+  updateDisabledAgentTools?(sessionId: string, toolNames: string[]): Promise<string[]>
   toggleSessionPinned?(sessionId: string, pinned: boolean): Promise<JiaorongAppSessionRecord>
   respondToolInteraction(input: {
     sessionId: string
@@ -197,5 +209,20 @@ export type JiaorongAppHostDeps = {
   getTheme(): ThemeMode
   dialogue?: JiaorongAppDialoguePort
   listSlashSources?: () => Promise<JiaorongAppSlashSources>
+  listEnabledModels?: () => Array<{
+    providerId: string
+    modelId: string
+    name: string
+    providerName?: string
+  }>
+  setSessionModel?: (
+    sessionId: string,
+    providerId: string,
+    modelId: string
+  ) => Promise<JiaorongAppSessionRecord | null>
+  listSystemPrompts?: () => Promise<Array<{ id: string; name: string; content: string }>>
+  listConfigurableAgentTools?: (input: {
+    sessionId?: string
+  }) => Promise<Array<{ name: string; group: string }>>
   files?: JiaorongAppFilePort
 }

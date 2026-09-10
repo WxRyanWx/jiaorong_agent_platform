@@ -111,7 +111,7 @@
           @mouseleave="hideTip"
           @click="emit('edit')"
         >
-          <Icon icon="lucide:edit" class="size-3" />
+          <Icon icon="lucide:pencil" class="size-3" />
         </button>
         <button
           v-if="showAction('delete')"

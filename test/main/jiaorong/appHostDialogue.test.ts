@@ -8,7 +8,20 @@ const showOpenDialog = vi.hoisted(() =>
 vi.mock('electron', () => ({
   BrowserWindow: { fromWebContents: () => null },
   dialog: { showOpenDialog },
-  webContents: { fromId: () => null }
+  webContents: { fromId: () => null },
+  clipboard: { writeImage: vi.fn() },
+  nativeImage: {
+    createFromPath: () => ({
+      isEmpty: () => true,
+      getSize: () => ({ width: 0, height: 0 }),
+      resize: () => ({ toPNG: () => Buffer.from('') }),
+      toPNG: () => Buffer.from('')
+    }),
+    createFromBuffer: () => ({
+      isEmpty: () => true,
+      toPNG: () => Buffer.from('')
+    })
+  }
 }))
 
 vi.mock('../../../src/jiaorong_src/appHost/main/agentMap', async (importOriginal) => {
@@ -440,6 +453,534 @@ describe('jiaorong app dialogue bridge', () => {
       1
     )
     expect(result).toEqual({ code: 'UNAUTHORIZED', message: '未登录' })
+  })
+
+  it('returns UNAUTHORIZED for catalog.models without a token', async () => {
+    const result = await handleAppBridgeInvoke(
+      deps(),
+      runtime,
+      'catalog.models',
+      { appId: 'demo-workbench' },
+      1
+    )
+    expect(result).toEqual({ code: 'UNAUTHORIZED', message: '未登录' })
+  })
+
+  it('lists enabled models through catalog.models', async () => {
+    bindGuestAppId(1, 'demo-workbench')
+    const result = await handleAppBridgeInvoke(
+      deps({
+        getAuthSession: () => ({ token: 'tok-1' }),
+        listEnabledModels: () => [
+          { providerId: 'jiaorong', modelId: 'jiaorong-deepseek-v4-pro', name: 'DeepSeek V4 Pro' }
+        ]
+      }),
+      runtime,
+      'catalog.models',
+      { appId: 'demo-workbench' },
+      1
+    )
+    expect(result).toEqual({
+      models: [
+        { providerId: 'jiaorong', modelId: 'jiaorong-deepseek-v4-pro', name: 'DeepSeek V4 Pro' }
+      ]
+    })
+  })
+
+  it('sets the session model on an owned session', async () => {
+    store.set('demo-workbench::workbench', {
+      appId: 'demo-workbench',
+      key: 'workbench',
+      agentId: 'ag-1'
+    })
+    const setSessionModel = vi.fn().mockResolvedValue({
+      id: 's-1',
+      agentId: 'ag-1',
+      title: 'hello',
+      projectDir: '/tmp/work',
+      isPinned: false,
+      sessionKind: 'chat',
+      orchestrationPolicy: {},
+      toolModeOverride: null,
+      createdAt: 1,
+      updatedAt: 1,
+      status: 'idle',
+      providerId: 'jiaorong',
+      modelId: 'jiaorong-deepseek-v4-pro'
+    })
+    const result = await handleAppBridgeInvoke(
+      deps({
+        getAuthSession: () => ({ token: 'tok-1' }),
+        setSessionModel,
+        dialogue: {
+          createDeepChatAgent: vi.fn(),
+          updateDeepChatAgent: vi.fn(),
+          listAgents: vi.fn(),
+          getAgent: vi.fn(),
+          createSession: vi.fn(),
+          getSession: vi.fn().mockResolvedValue({
+            id: 's-1',
+            agentId: 'ag-1',
+            title: 'hello',
+            projectDir: '/tmp/work',
+            isPinned: false,
+            sessionKind: 'chat',
+            orchestrationPolicy: {},
+            toolModeOverride: null,
+            createdAt: 1,
+            updatedAt: 1,
+            status: 'idle'
+          }),
+          listLightweight: vi.fn(),
+          listMessagesPage: vi.fn(),
+          getMessage: vi.fn(),
+          renameSession: vi.fn(),
+          deleteSession: vi.fn(),
+          searchHistory: vi.fn(),
+          sendMessage: vi.fn(),
+          steerActiveTurn: vi.fn(),
+          cancelGeneration: vi.fn(),
+          respondToolInteraction: vi.fn()
+        }
+      }),
+      runtime,
+      'session.setModel',
+      {
+        appId: 'demo-workbench',
+        sessionId: 's-1',
+        providerId: 'jiaorong',
+        modelId: 'jiaorong-deepseek-v4-pro'
+      },
+      1
+    )
+    expect(setSessionModel).toHaveBeenCalledWith('s-1', 'jiaorong', 'jiaorong-deepseek-v4-pro')
+    expect(result).toMatchObject({
+      session: expect.objectContaining({
+        id: 's-1',
+        providerId: 'jiaorong',
+        modelId: 'jiaorong-deepseek-v4-pro'
+      })
+    })
+  })
+
+  it('reads and writes generation settings on an owned session', async () => {
+    store.set('demo-workbench::workbench', {
+      appId: 'demo-workbench',
+      key: 'workbench',
+      agentId: 'ag-1'
+    })
+    const ownedSession = {
+      id: 's-1',
+      agentId: 'ag-1',
+      title: 'hello',
+      projectDir: '/tmp/work',
+      isPinned: false,
+      sessionKind: 'chat',
+      orchestrationPolicy: {},
+      toolModeOverride: null,
+      createdAt: 1,
+      updatedAt: 1,
+      status: 'idle'
+    }
+    const getGenerationSettings = vi.fn().mockResolvedValue({ temperature: 0.4 })
+    const updateGenerationSettings = vi.fn().mockResolvedValue({ temperature: 0.8 })
+    const dialogue = {
+      createDeepChatAgent: vi.fn(),
+      updateDeepChatAgent: vi.fn(),
+      listAgents: vi.fn(),
+      getAgent: vi.fn(),
+      createSession: vi.fn(),
+      getSession: vi.fn().mockResolvedValue(ownedSession),
+      listLightweight: vi.fn(),
+      listMessagesPage: vi.fn(),
+      getMessage: vi.fn(),
+      renameSession: vi.fn(),
+      deleteSession: vi.fn(),
+      searchHistory: vi.fn(),
+      sendMessage: vi.fn(),
+      steerActiveTurn: vi.fn(),
+      cancelGeneration: vi.fn(),
+      respondToolInteraction: vi.fn(),
+      getGenerationSettings,
+      updateGenerationSettings
+    }
+    const read = await handleAppBridgeInvoke(
+      deps({
+        getAuthSession: () => ({ token: 'tok-1' }),
+        dialogue
+      }),
+      runtime,
+      'session.getGenerationSettings',
+      { appId: 'demo-workbench', sessionId: 's-1' },
+      1
+    )
+    const written = await handleAppBridgeInvoke(
+      deps({
+        getAuthSession: () => ({ token: 'tok-1' }),
+        dialogue
+      }),
+      runtime,
+      'session.updateGenerationSettings',
+      { appId: 'demo-workbench', sessionId: 's-1', settings: { temperature: 0.8 } },
+      1
+    )
+    expect(getGenerationSettings).toHaveBeenCalledWith('s-1')
+    expect(updateGenerationSettings).toHaveBeenCalledWith('s-1', { temperature: 0.8 })
+    expect(read).toEqual({ settings: { temperature: 0.4 } })
+    expect(written).toEqual({ settings: { temperature: 0.8 } })
+  })
+
+  it('returns system prompts through catalog.systemPrompts', async () => {
+    bindGuestAppId(1, 'demo-workbench')
+    const result = await handleAppBridgeInvoke(
+      deps({
+        getAuthSession: () => ({ token: 'tok-1' }),
+        listSystemPrompts: async () => [{ id: 'p1', name: 'JiaorongAI', content: '你是交融' }]
+      }),
+      runtime,
+      'catalog.systemPrompts',
+      { appId: 'demo-workbench' },
+      1
+    )
+    expect(result).toEqual({
+      prompts: [{ id: 'p1', name: 'JiaorongAI', content: '你是交融' }]
+    })
+  })
+
+  it('lists catalog.agentTools for an owned session', async () => {
+    store.set('demo-workbench::workbench', {
+      appId: 'demo-workbench',
+      key: 'workbench',
+      agentId: 'ag-1'
+    })
+    const listConfigurableAgentTools = vi.fn().mockResolvedValue([{ name: 'read', group: 'fs' }])
+    const result = await handleAppBridgeInvoke(
+      deps({
+        getAuthSession: () => ({ token: 'tok-1' }),
+        listConfigurableAgentTools,
+        dialogue: {
+          createDeepChatAgent: vi.fn(),
+          updateDeepChatAgent: vi.fn(),
+          listAgents: vi.fn(),
+          getAgent: vi.fn(),
+          createSession: vi.fn(),
+          getSession: vi.fn().mockResolvedValue({
+            id: 's-1',
+            agentId: 'ag-1',
+            title: 'hello',
+            projectDir: '/tmp/work',
+            isPinned: false,
+            sessionKind: 'chat',
+            orchestrationPolicy: {},
+            toolModeOverride: null,
+            createdAt: 1,
+            updatedAt: 1,
+            status: 'idle'
+          }),
+          listLightweight: vi.fn(),
+          listMessagesPage: vi.fn(),
+          getMessage: vi.fn(),
+          renameSession: vi.fn(),
+          deleteSession: vi.fn(),
+          searchHistory: vi.fn(),
+          sendMessage: vi.fn(),
+          steerActiveTurn: vi.fn(),
+          cancelGeneration: vi.fn(),
+          respondToolInteraction: vi.fn()
+        }
+      }),
+      runtime,
+      'catalog.agentTools',
+      { appId: 'demo-workbench', sessionId: 's-1' },
+      1
+    )
+    expect(listConfigurableAgentTools).toHaveBeenCalledWith({ sessionId: 's-1' })
+    expect(result).toEqual({ tools: [{ name: 'read', group: 'fs' }] })
+  })
+
+  it('rejects catalog.agentTools for a session the app does not own', async () => {
+    store.set('demo-workbench::workbench', {
+      appId: 'demo-workbench',
+      key: 'workbench',
+      agentId: 'ag-1'
+    })
+    const listConfigurableAgentTools = vi.fn()
+    const result = await handleAppBridgeInvoke(
+      deps({
+        getAuthSession: () => ({ token: 'tok-1' }),
+        listConfigurableAgentTools,
+        dialogue: {
+          createDeepChatAgent: vi.fn(),
+          updateDeepChatAgent: vi.fn(),
+          listAgents: vi.fn(),
+          getAgent: vi.fn(),
+          createSession: vi.fn(),
+          getSession: vi.fn().mockResolvedValue({
+            id: 's-other',
+            agentId: 'ag-foreign',
+            title: 'other',
+            projectDir: '/tmp/other',
+            isPinned: false,
+            sessionKind: 'chat',
+            orchestrationPolicy: {},
+            toolModeOverride: null,
+            createdAt: 1,
+            updatedAt: 1,
+            status: 'idle'
+          }),
+          listLightweight: vi.fn(),
+          listMessagesPage: vi.fn(),
+          getMessage: vi.fn(),
+          renameSession: vi.fn(),
+          deleteSession: vi.fn(),
+          searchHistory: vi.fn(),
+          sendMessage: vi.fn(),
+          steerActiveTurn: vi.fn(),
+          cancelGeneration: vi.fn(),
+          respondToolInteraction: vi.fn()
+        }
+      }),
+      runtime,
+      'catalog.agentTools',
+      { appId: 'demo-workbench', sessionId: 's-other' },
+      1
+    )
+    expect(listConfigurableAgentTools).not.toHaveBeenCalled()
+    expect(result).toEqual({ code: 'FORBIDDEN', message: '会话不属于本应用' })
+  })
+
+  it('rejects invalid session.setPermissionMode values', async () => {
+    store.set('demo-workbench::workbench', {
+      appId: 'demo-workbench',
+      key: 'workbench',
+      agentId: 'ag-1'
+    })
+    const setPermissionMode = vi.fn()
+    const result = await handleAppBridgeInvoke(
+      deps({
+        getAuthSession: () => ({ token: 'tok-1' }),
+        dialogue: {
+          createDeepChatAgent: vi.fn(),
+          updateDeepChatAgent: vi.fn(),
+          listAgents: vi.fn(),
+          getAgent: vi.fn(),
+          createSession: vi.fn(),
+          getSession: vi.fn().mockResolvedValue({
+            id: 's-1',
+            agentId: 'ag-1',
+            title: 'hello',
+            projectDir: '/tmp/work',
+            isPinned: false,
+            sessionKind: 'chat',
+            orchestrationPolicy: {},
+            toolModeOverride: null,
+            createdAt: 1,
+            updatedAt: 1,
+            status: 'idle'
+          }),
+          listLightweight: vi.fn(),
+          listMessagesPage: vi.fn(),
+          getMessage: vi.fn(),
+          renameSession: vi.fn(),
+          deleteSession: vi.fn(),
+          searchHistory: vi.fn(),
+          sendMessage: vi.fn(),
+          steerActiveTurn: vi.fn(),
+          cancelGeneration: vi.fn(),
+          respondToolInteraction: vi.fn(),
+          setPermissionMode
+        }
+      }),
+      runtime,
+      'session.setPermissionMode',
+      { appId: 'demo-workbench', sessionId: 's-1', mode: 'please_pwn' },
+      1
+    )
+    expect(setPermissionMode).not.toHaveBeenCalled()
+    expect(result).toEqual({
+      code: 'VALIDATION_ERROR',
+      message: 'mode 必须是 default、auto_approve 或 full_access'
+    })
+  })
+
+  it('rejects knowledgeBase.query when not logged in', async () => {
+    bindGuestAppId(1, 'demo-workbench')
+    const result = await handleAppBridgeInvoke(
+      deps(),
+      runtime,
+      'knowledgeBase.query',
+      { appId: 'demo-workbench' },
+      1
+    )
+    expect(result).toEqual({ code: 'UNAUTHORIZED', message: '未登录' })
+  })
+
+  it('proxies knowledgeBase.query through the main-process fetch', async () => {
+    bindGuestAppId(1, 'demo-workbench')
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ code: 200, data: [{ id: 'kb-1', name: '个人库' }] })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    try {
+      const result = await handleAppBridgeInvoke(
+        deps({
+          getAuthSession: () => ({ token: 'tok-1' })
+        }),
+        runtime,
+        'knowledgeBase.query',
+        { appId: 'demo-workbench', type: 1, name: '周报' },
+        1
+      )
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+      const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+      expect(String(url)).toContain('knowledge-base/query')
+      expect(init.method).toBe('POST')
+      expect(init.headers).toMatchObject({ 'Fusion-Auth': 'tok-1' })
+      expect(JSON.parse(String(init.body))).toEqual({
+        page: 1,
+        size: 200,
+        type: 1,
+        name: '周报'
+      })
+      expect(result).toEqual({ data: [{ id: 'kb-1', name: '个人库' }] })
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('clamps knowledgeBase.query size', async () => {
+    bindGuestAppId(1, 'demo-workbench')
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ code: 200, data: [] })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    try {
+      await handleAppBridgeInvoke(
+        deps({
+          getAuthSession: () => ({ token: 'tok-1' })
+        }),
+        runtime,
+        'knowledgeBase.query',
+        { appId: 'demo-workbench', type: 1, size: 999999 },
+        1
+      )
+      const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+      expect(JSON.parse(String(init.body))).toMatchObject({ size: 200 })
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('requires directoryId for knowledgeBase.queryDirectory', async () => {
+    bindGuestAppId(1, 'demo-workbench')
+    const result = await handleAppBridgeInvoke(
+      deps({
+        getAuthSession: () => ({ token: 'tok-1' })
+      }),
+      runtime,
+      'knowledgeBase.queryDirectory',
+      { appId: 'demo-workbench' },
+      1
+    )
+    expect(result).toEqual({ code: 'VALIDATION_ERROR', message: '需要提供 directoryId' })
+  })
+
+  it('reads occupancy and tool mode on an owned session', async () => {
+    store.set('demo-workbench::workbench', {
+      appId: 'demo-workbench',
+      key: 'workbench',
+      agentId: 'ag-1'
+    })
+    const ownedSession = {
+      id: 's-1',
+      agentId: 'ag-1',
+      title: 'hello',
+      projectDir: '/tmp/work',
+      isPinned: false,
+      sessionKind: 'chat',
+      orchestrationPolicy: {},
+      toolModeOverride: 'agent',
+      createdAt: 1,
+      updatedAt: 1,
+      status: 'idle'
+    }
+    const getContextOccupancy = vi.fn().mockResolvedValue({
+      freshness: 'current',
+      source: 'estimated',
+      occupiedTokens: 1200,
+      contextWindowTokens: 128000
+    })
+    const setToolMode = vi.fn().mockResolvedValue({ ...ownedSession, toolModeOverride: 'code' })
+    const getDisabledAgentTools = vi.fn().mockResolvedValue(['exec'])
+    const updateDisabledAgentTools = vi.fn().mockResolvedValue(['exec', 'write'])
+    const dialogue = {
+      createDeepChatAgent: vi.fn(),
+      updateDeepChatAgent: vi.fn(),
+      listAgents: vi.fn(),
+      getAgent: vi.fn(),
+      createSession: vi.fn(),
+      getSession: vi.fn().mockResolvedValue(ownedSession),
+      listLightweight: vi.fn(),
+      listMessagesPage: vi.fn(),
+      getMessage: vi.fn(),
+      renameSession: vi.fn(),
+      deleteSession: vi.fn(),
+      searchHistory: vi.fn(),
+      sendMessage: vi.fn(),
+      steerActiveTurn: vi.fn(),
+      cancelGeneration: vi.fn(),
+      respondToolInteraction: vi.fn(),
+      getContextOccupancy,
+      setToolMode,
+      getDisabledAgentTools,
+      updateDisabledAgentTools
+    }
+    const occupancy = await handleAppBridgeInvoke(
+      deps({
+        getAuthSession: () => ({ token: 'tok-1' }),
+        dialogue
+      }),
+      runtime,
+      'session.getContextOccupancy',
+      { appId: 'demo-workbench', sessionId: 's-1' },
+      1
+    )
+    const mode = await handleAppBridgeInvoke(
+      deps({
+        getAuthSession: () => ({ token: 'tok-1' }),
+        dialogue
+      }),
+      runtime,
+      'session.setToolMode',
+      { appId: 'demo-workbench', sessionId: 's-1', override: 'code' },
+      1
+    )
+    const disabled = await handleAppBridgeInvoke(
+      deps({
+        getAuthSession: () => ({ token: 'tok-1' }),
+        dialogue
+      }),
+      runtime,
+      'session.updateDisabledAgentTools',
+      { appId: 'demo-workbench', sessionId: 's-1', toolNames: ['exec', 'write'] },
+      1
+    )
+    expect(getContextOccupancy).toHaveBeenCalledWith('s-1')
+    expect(setToolMode).toHaveBeenCalledWith('s-1', 'code')
+    expect(occupancy).toEqual({
+      occupancy: {
+        freshness: 'current',
+        source: 'estimated',
+        occupiedTokens: 1200,
+        contextWindowTokens: 128000
+      }
+    })
+    expect(mode).toMatchObject({ session: { id: 's-1', toolModeOverride: 'code' } })
+    expect(disabled).toEqual({ toolNames: ['exec', 'write'] })
   })
 
   it('rejects relative projectDir on session.create', async () => {
@@ -1125,6 +1666,65 @@ describe('jiaorong app dialogue bridge', () => {
       files: [{ path: filePath, name: 'JiaorongAI-应用SDK技术方案-里程碑1.docx' }]
     })
     expect(isGuestPathAllowed(1, filePath)).toBe(true)
+  })
+
+  it('only allowlists real files from dialog.rememberDroppedFiles', async () => {
+    const droppedFile = '/tmp/jiaorong-drop-file.txt'
+    const droppedDir = '/tmp/jiaorong-drop-dir'
+    const fs = await import('node:fs')
+    vi.mocked(fs.statSync).mockImplementation((target) => {
+      const value = String(target)
+      if (value === droppedFile) {
+        return { isFile: () => true } as unknown as ReturnType<typeof fs.statSync>
+      }
+      if (value === droppedDir) {
+        return { isFile: () => false } as unknown as ReturnType<typeof fs.statSync>
+      }
+      throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' })
+    })
+
+    const result = await handleAppBridgeInvoke(
+      deps(),
+      runtime,
+      'dialog.rememberDroppedFiles',
+      { appId: 'demo-workbench', files: [droppedFile, droppedDir, '/no/such/file.bin'] },
+      1
+    )
+    expect(result).toEqual({ files: [droppedFile] })
+    expect(isGuestPathAllowed(1, droppedFile)).toBe(true)
+    expect(isGuestPathAllowed(1, `${droppedDir}/other.txt`)).toBe(false)
+  })
+
+  it('reads file preview only for allowlisted paths', async () => {
+    const filePath = '/tmp/preview-demo.png'
+    const denied = await handleAppBridgeInvoke(
+      deps(),
+      runtime,
+      'dialog.readFilePreview',
+      { appId: 'demo-workbench', path: filePath },
+      1
+    )
+    expect(denied).toMatchObject({ code: 'FORBIDDEN' })
+
+    showOpenDialog.mockResolvedValueOnce({
+      canceled: false,
+      filePaths: [filePath]
+    })
+    await handleAppBridgeInvoke(
+      deps(),
+      runtime,
+      'dialog.selectFiles',
+      { appId: 'demo-workbench' },
+      1
+    )
+    const preview = await handleAppBridgeInvoke(
+      deps(),
+      runtime,
+      'dialog.readFilePreview',
+      { appId: 'demo-workbench', path: filePath },
+      1
+    )
+    expect(preview).toMatchObject({ code: 'NOT_FOUND' })
   })
 
   it('retries an owned message through session.retryMessage', async () => {

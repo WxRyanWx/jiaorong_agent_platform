@@ -1,6 +1,6 @@
 <!--
-  脚手架壳：两个示例页。
-  #/ 直连宿主；#/node 只 HTTP 到本机 Egg，再由 Node connect SDK。
+  脚手架壳：只负责顶栏和路由出口。
+  连接、智能体、会话都在各个页面自己完成，复制其中一个页面即可单独使用。
 -->
 <script setup lang="ts">
 import { RouterLink, RouterView } from 'vue-router'
@@ -8,6 +8,7 @@ import { RouterLink, RouterView } from 'vue-router'
 
 <template>
   <div class="shell">
+    <!-- 顶栏：两个示例页入口，高亮当前路由 -->
     <header class="bar">
       <strong>应用脚手架</strong>
       <nav>
@@ -15,6 +16,7 @@ import { RouterLink, RouterView } from 'vue-router'
         <RouterLink to="/node">Node HTTP</RouterLink>
       </nav>
     </header>
+    <!-- 页面内容：#/ 直连，#/node HTTP -->
     <main class="main">
       <RouterView />
     </main>
@@ -22,6 +24,7 @@ import { RouterLink, RouterView } from 'vue-router'
 </template>
 
 <style scoped>
+/* 纵向铺满 webview，避免子页把宿主撑出滚动条 */
 .shell {
   display: flex;
   width: 100%;

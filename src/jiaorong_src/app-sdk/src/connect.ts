@@ -136,10 +136,7 @@ function openSharedClient(
 
   const bridge = resolveWebBridge()
   if (!bridge) {
-    throw new JiaorongError(
-      'NOT_IN_JIAORONG',
-      'window.jiaorong 不存在。请从交融侧栏打开本应用。'
-    )
+    throw new JiaorongError('NOT_IN_JIAORONG', 'window.jiaorong 不存在。请从交融侧栏打开本应用。')
   }
   const client = createClient(bridge, appId, {
     timeoutMs,
@@ -158,10 +155,7 @@ export async function connect(opts: ConnectOptions): Promise<JiaorongClient> {
     throw new JiaorongError('VALIDATION_ERROR', '需要提供 appId')
   }
   if (!APP_ID_RE.test(appId)) {
-    throw new JiaorongError(
-      'VALIDATION_ERROR',
-      'appId 只能包含小写字母、数字和连字符'
-    )
+    throw new JiaorongError('VALIDATION_ERROR', 'appId 只能包含小写字母、数字和连字符')
   }
 
   const runtime = opts.runtime ?? 'web'

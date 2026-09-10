@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import {
+  formatKnowledgeBaseError,
   formatKnowledgeFileSize,
   kbSelectionKey,
   queryKnowledgeBaseDirectory,
@@ -120,7 +121,7 @@ async function loadList() {
     kbList.value = list
   } catch (error) {
     if (seq !== listLoadSeq) return
-    errorMessage.value = error instanceof Error ? error.message : '加载知识库失败'
+    errorMessage.value = formatKnowledgeBaseError(error)
   } finally {
     if (seq === listLoadSeq) listLoading.value = false
   }
@@ -153,7 +154,7 @@ async function loadDirectory(directoryId: string, append: boolean, pageOverride?
     if (append) directoryPage.value = page
   } catch (error) {
     if (seq !== directoryLoadSeq) return
-    errorMessage.value = error instanceof Error ? error.message : '加载目录失败'
+    errorMessage.value = formatKnowledgeBaseError(error)
     if (!append) directoryList.value = []
   } finally {
     if (seq === directoryLoadSeq) directoryLoading.value = false

@@ -7,8 +7,15 @@ import type { JiaorongAppOpenInfo, JiaorongAppRuntime, JiaorongMenuAppItem } fro
 import { buildHostContext } from './context'
 import { handleDialogueInvoke } from './dialogue'
 import type { JiaorongAppHostDeps } from './deps'
-import { hasPickedDirectory, isAbsoluteGuestPath, rememberPickedDirectory } from './guestBind'
+import {
+  hasPickedDirectory,
+  isAbsoluteGuestPath,
+  isGuestPathAllowed,
+  rememberPickedDirectory
+} from './guestBind'
 import { buildJiaorongAppEntryUrl, isLoopbackHttpEntry } from './guestAppId'
+import { appAgentIds } from './agentMap'
+import { queryJiaorongKnowledgeBaseDirectory, queryJiaorongKnowledgeBases } from './knowledgeBase'
 import { getAppPreloadFileUrl, isPathInsideRoot } from './paths'
 import { ensureJiaorongAppProtocolSession } from './protocol'
 import { buildJiaorongSlashCatalog } from './slashCatalog'
@@ -110,11 +117,61 @@ export async function handleAppBridgeInvoke(
         })
         return { files }
       }
+      case 'dialog.readFilePreview': {
+        const filePath = typeof record.path === 'string' ? record.path.trim() : ''
+        if (!isAbsoluteGuestPath(filePath)) {
+          return { code: 'VALIDATION_ERROR', message: 'path 必须是绝对路径' }
+        }
+        if (!isGuestPathAllowed(webContentsId, filePath)) {
+          return { code: 'FORBIDDEN', message: '附件路径未授权' }
+        }
+        if (!fs.existsSync(filePath)) {
+          return { code: 'NOT_FOUND', message: '文件不存在' }
+        }
+        const stat = fs.statSync(filePath)
+        if (!stat?.isFile()) {
+          return { code: 'VALIDATION_ERROR', message: '不是文件' }
+        }
+        const ext = path.extname(filePath).toLowerCase()
+        const imageMime: Record<string, string> = {
+          '.png': 'image/png',
+          '.jpg': 'image/jpeg',
+          '.jpeg': 'image/jpeg',
+          '.gif': 'image/gif',
+          '.webp': 'image/webp',
+          '.bmp': 'image/bmp'
+        }
+        const mimeType = imageMime[ext] || ''
+        if (!mimeType || stat.size > 12 * 1024 * 1024) {
+          return { mimeType: mimeType || 'application/octet-stream' }
+        }
+        const image = nativeImage.createFromPath(filePath)
+        if (image.isEmpty()) return { mimeType }
+        const size = image.getSize()
+        const maxEdge = 1280
+        const needsResize = Math.max(size.width, size.height) > maxEdge
+        const preview = needsResize
+          ? image.resize({
+              width: size.width >= size.height ? maxEdge : undefined,
+              height: size.height > size.width ? maxEdge : undefined,
+              quality: 'best'
+            })
+          : image
+        return {
+          mimeType,
+          thumbnail: `data:image/png;base64,${preview.toPNG().toString('base64')}`
+        }
+      }
       case 'dialog.rememberDroppedFiles': {
         const rows = Array.isArray(record.files) ? record.files : []
         const files = rows.flatMap((item) => {
           const value = typeof item === 'string' ? item.trim() : ''
           if (!isAbsoluteGuestPath(value)) return []
+          try {
+            if (!fs.statSync(value).isFile()) return []
+          } catch {
+            return []
+          }
           rememberPickedDirectory(webContentsId, value)
           return [value]
         })
@@ -178,6 +235,47 @@ export async function handleAppBridgeInvoke(
           tools: sources.tools
         })
       }
+      case 'catalog.models': {
+        if (!readAuthToken(deps.getAuthSession())) {
+          return { code: 'UNAUTHORIZED', message: '未登录' }
+        }
+        return { models: deps.listEnabledModels ? deps.listEnabledModels() : [] }
+      }
+      case 'catalog.systemPrompts': {
+        if (!readAuthToken(deps.getAuthSession())) {
+          return { code: 'UNAUTHORIZED', message: '未登录' }
+        }
+        return { prompts: deps.listSystemPrompts ? await deps.listSystemPrompts() : [] }
+      }
+      case 'catalog.agentTools': {
+        if (!readAuthToken(deps.getAuthSession())) {
+          return { code: 'UNAUTHORIZED', message: '未登录' }
+        }
+        const sessionId = typeof record.sessionId === 'string' ? record.sessionId.trim() : ''
+        if (sessionId) {
+          if (!deps.dialogue) {
+            return { code: 'FORBIDDEN', message: '当前不能列出工具' }
+          }
+          const session = await deps.dialogue.getSession(sessionId)
+          if (!session) {
+            return { code: 'SESSION_NOT_FOUND', message: '未找到会话' }
+          }
+          if (!appAgentIds(runtime.id).has(session.agentId)) {
+            return { code: 'FORBIDDEN', message: '会话不属于本应用' }
+          }
+        }
+        return {
+          tools: deps.listConfigurableAgentTools
+            ? await deps.listConfigurableAgentTools({
+                sessionId: sessionId || undefined
+              })
+            : []
+        }
+      }
+      case 'knowledgeBase.query':
+        return queryJiaorongKnowledgeBases(deps, record)
+      case 'knowledgeBase.queryDirectory':
+        return queryJiaorongKnowledgeBaseDirectory(deps, record)
       default: {
         const result = await handleDialogueInvoke(deps, runtime, method, args, webContentsId)
         if (result !== undefined) return result

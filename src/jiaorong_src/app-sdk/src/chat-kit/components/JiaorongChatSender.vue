@@ -2,11 +2,13 @@
 import { computed, onMounted, onUnmounted, ref, shallowRef, useTemplateRef, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import knowledgeIcon from '../assets/knowledge.png'
-import { fetchHostSlashCatalog, pickHostFiles } from '../lib/hostDialog'
+import { pickHostFiles } from '../lib/hostDialog'
 import { browserFilesToPending, type PendingAttachment } from '../lib/files'
+import { hydratePendingAttachments } from '../lib/filePreview'
 import { filterSlashItems, readSlashQuery, replaceSlashToken } from '../lib/slash'
 import type { JiaorongKbSelection, JiaorongSlashItem } from '../types'
 import JiaorongChatSlashMenu from './JiaorongChatSlashMenu.vue'
+import FileAttachmentChip from './FileAttachmentChip.vue'
 import KbFileTypeIcon from './KbFileTypeIcon.vue'
 import KbIcon from './KbIcon.vue'
 import './KnowledgeBaseSelectionChips.less'
@@ -60,17 +62,19 @@ const slashMenu = useTemplateRef<{ onKeyDown: (event: KeyboardEvent) => boolean 
   'slashMenu'
 )
 const cursor = shallowRef(0)
-const hostItems = ref<JiaorongSlashItem[]>([])
 const slashDismissed = shallowRef(false)
 const slashMenuStyle = ref({ left: '0px', bottom: '0px' })
 const placeholder = computed(() => `向 ${props.agentName} 发送消息，@ 可引用文件，/ 可使用命令`)
+const hasInlineChips = computed(() => props.files.length > 0 || activeSkills.value.length > 0)
+const editorPlaceholder = computed(() => (hasInlineChips.value ? '' : placeholder.value))
 const canSend = computed(() => !props.disabled && !props.sending && Boolean(draft.value.trim()))
 const buttonMode = computed(() => (props.generating && !draft.value.trim() ? 'stop' : 'send'))
-const catalog = computed(() => (props.slashItems.length ? props.slashItems : hostItems.value))
 const slashRange = computed(() => (props.slash ? readSlashQuery(draft.value, cursor.value) : null))
-const slashOpen = computed(() => Boolean(slashRange.value) && !slashDismissed.value)
+const slashOpen = computed(
+  () => Boolean(slashRange.value) && !slashDismissed.value && props.slashItems.length > 0
+)
 const filteredSlashItems = computed(() =>
-  slashRange.value ? filterSlashItems(catalog.value, slashRange.value.query) : []
+  slashRange.value ? filterSlashItems(props.slashItems, slashRange.value.query) : []
 )
 
 watch(
@@ -82,11 +86,6 @@ watch(
 
 function syncCursor() {
   cursor.value = textarea.value?.selectionStart ?? draft.value.length
-}
-
-async function loadCatalog() {
-  if (!props.slash || props.slashItems.length) return
-  hostItems.value = await fetchHostSlashCatalog(props.appId)
 }
 
 function updateSlashPosition() {
@@ -148,27 +147,29 @@ function onKeydown(event: KeyboardEvent) {
 async function pickFiles() {
   const picked = await pickHostFiles(props.appId)
   if (picked) {
-    if (picked.length) emit('attach', picked)
+    if (picked.length) {
+      emit('attach', await hydratePendingAttachments(picked, props.appId))
+    }
     return
   }
   fileInput.value?.click()
 }
 
-function onFileChange(event: Event) {
+async function onFileChange(event: Event) {
   const input = event.target as HTMLInputElement
   const next = Array.from(input.files ?? [])
   input.value = ''
-  if (next.length) emit('attach', browserFilesToPending(next))
+  if (next.length) {
+    emit('attach', await hydratePendingAttachments(browserFilesToPending(next), props.appId))
+  }
 }
 
 watch(slashOpen, (open) => {
   if (!open) return
   updateSlashPosition()
-  void loadCatalog()
 })
 
 onMounted(() => {
-  void loadCatalog()
   window.addEventListener('resize', updateSlashPosition)
 })
 
@@ -234,46 +235,45 @@ onUnmounted(() => {
       </div>
 
       <div
-        v-if="activeSkills.length > 0"
-        class="flex flex-wrap gap-2 border-b border-border/50 px-4 pt-2 pb-1"
+        class="chat-input-editor chat-input-editor-flow px-4 pb-2 text-sm"
+        :class="knowledgeBaseSelections.length > 0 ? 'pt-2' : 'pt-4'"
+        :aria-disabled="disabled"
       >
         <span
           v-for="skill in activeSkills"
           :key="skill.skillName || skill.id"
-          class="inline-flex max-w-full items-center gap-2 rounded-full border bg-background/70 px-2.5 py-1 text-xs shadow-sm"
+          class="jr-inline-skill"
+          data-testid="skill-chip"
+          data-skill-chip
         >
-          <span class="text-muted-foreground">技能</span>
-          <span class="max-w-[180px] truncate">{{ skill.label }}</span>
-          <button type="button" @click="removeSkill(skill.skillName || '')">
+          <Icon icon="lucide:sparkles" class="h-3 w-3 shrink-0" />
+          <span class="jr-inline-chip-name">{{ skill.label }}</span>
+          <button
+            type="button"
+            class="jr-inline-chip-remove"
+            :aria-label="`移除 ${skill.label}`"
+            @click="removeSkill(skill.skillName || '')"
+          >
             <Icon icon="lucide:x" class="h-3 w-3" />
           </button>
         </span>
-      </div>
-
-      <div
-        v-if="files.length"
-        class="flex flex-wrap gap-2 border-b border-border/50 px-4 pt-2 pb-1"
-      >
-        <span
+        <FileAttachmentChip
           v-for="(file, index) in files"
-          :key="`${file.name}:${file.path ?? index}`"
-          class="inline-flex max-w-full items-center gap-2 rounded-full border bg-background/70 px-2.5 py-1 text-xs shadow-sm"
-        >
-          <KbFileTypeIcon class="h-4 w-4 shrink-0 object-contain" :file-name="file.name" />
-          <span class="max-w-[180px] truncate">{{ file.name }}</span>
-          <button type="button" @click="emit('remove-file', index)">
-            <Icon icon="lucide:x" class="h-3 w-3" />
-          </button>
-        </span>
-      </div>
-
-      <div class="chat-input-editor px-4 pt-4 pb-2 text-sm" :aria-disabled="disabled">
+          :key="`file:${file.path ?? file.name}:${index}`"
+          :file-name="file.name"
+          :mime-type="file.mimeType"
+          :thumbnail="file.thumbnail"
+          :file-path="file.path"
+          :app-id="appId"
+          removable
+          @remove="emit('remove-file', index)"
+        />
         <textarea
           ref="textarea"
           v-model="draft"
-          class="min-h-[60px] w-full resize-none bg-transparent text-sm leading-6 outline-none placeholder:text-muted-foreground"
-          rows="3"
-          :placeholder="placeholder"
+          class="resize-none bg-transparent text-sm leading-6 outline-none placeholder:text-muted-foreground"
+          rows="1"
+          :placeholder="editorPlaceholder"
           :disabled="disabled || sending"
           @keydown="onKeydown"
           @keyup="syncCursor"

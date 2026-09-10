@@ -86,6 +86,80 @@
   background-color: var(--accent);
 }
 
+.chat-input-editor-flow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 6px;
+  min-height: 60px;
+}
+
+.chat-input-editor-flow textarea {
+  flex: 1 1 100%;
+  min-width: 8rem;
+  min-height: 60px;
+  field-sizing: content;
+}
+
+.jr-inline-skill {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+  padding: 2px 6px;
+  color: var(--primary);
+  font-size: 12px;
+  line-height: 1.25;
+  user-select: none;
+}
+
+.jr-inline-file {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid color-mix(in srgb, var(--muted-foreground) 25%, transparent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--muted-foreground) 8%, transparent);
+  padding: 2px 6px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  line-height: 1.25;
+  user-select: none;
+}
+
+.jr-inline-chip-name {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.jr-inline-chip-remove {
+  display: inline-flex;
+  width: 14px;
+  height: 14px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 4px;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.jr-inline-chip-remove:hover {
+  background: color-mix(in srgb, var(--muted-foreground) 20%, transparent);
+}
+
+.jr-inline-skill .jr-inline-chip-remove:hover {
+  background: color-mix(in srgb, var(--primary) 20%, transparent);
+}
+
 .model-icon-img {
   display: block;
   max-width: none;
@@ -114,7 +188,7 @@
 .kb-picker-overlay {
   position: fixed;
   inset: 0;
-  z-index: 50;
+  z-index: 200;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -341,7 +415,9 @@
 .jr-chat-md h1,
 .jr-chat-md h2,
 .jr-chat-md h3,
-.jr-chat-md h4 {
+.jr-chat-md h4,
+.jr-chat-md h5,
+.jr-chat-md h6 {
   margin: 0.75rem 0 0.4rem;
   font-weight: 600;
   line-height: 1.4;
@@ -386,9 +462,16 @@
   padding: 0.1em 0.35em;
 }
 
+.jr-chat-md blockquote {
+  margin: 0.5rem 0;
+  padding-left: 0.75rem;
+  border-left: 3px solid var(--border);
+  color: var(--muted-foreground);
+}
+
 .jr-chat-md table {
   width: 100%;
-  margin: 0.5rem 0;
+  margin: 0;
   border-collapse: collapse;
   font-size: 0.8125rem;
 }
@@ -398,11 +481,25 @@
   border: 1px solid var(--border);
   padding: 0.4rem 0.6rem;
   text-align: left;
+  overflow-wrap: anywhere;
+  word-break: normal;
 }
 
 .jr-chat-md th {
   background: hsl(0 0% 0% / 0.04);
   font-weight: 600;
+}
+
+.jr-chat-md .md-table-wrap {
+  max-width: 100%;
+  margin: 0.5rem 0;
+  overflow-x: auto;
+}
+
+.jr-chat-md hr {
+  margin: 0.75rem 0;
+  border: 0;
+  border-top: 1px solid var(--border);
 }
 
 .think-prose {

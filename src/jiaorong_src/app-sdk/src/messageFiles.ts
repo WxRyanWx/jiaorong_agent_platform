@@ -1,10 +1,12 @@
 import type { MessageFile } from './types'
+import { mimeFromFileName } from './fileTypeIcon'
 
 export type PendingAttachment = {
   name: string
   path?: string
   mimeType?: string
   file?: File
+  thumbnail?: string
 }
 
 export function isAbsoluteFsPath(value: string) {
@@ -117,7 +119,7 @@ export function browserFilesToPending(files: File[]): PendingAttachment[] {
     const path = filePathOf(file)
     return {
       name: file.name || 'file',
-      mimeType: file.type || undefined,
+      mimeType: file.type || mimeFromFileName(file.name),
       path: path || undefined,
       file
     }

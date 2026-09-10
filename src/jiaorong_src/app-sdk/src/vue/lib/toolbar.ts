@@ -1,10 +1,4 @@
-export type JiaorongToolbarAction =
-  | 'copy'
-  | 'copyImage'
-  | 'retry'
-  | 'fork'
-  | 'edit'
-  | 'delete'
+export type JiaorongToolbarAction = 'copy' | 'copyImage' | 'retry' | 'fork' | 'edit' | 'delete'
 
 export const DEFAULT_TOOLBAR_ACTIONS: readonly JiaorongToolbarAction[] = [
   'copy',

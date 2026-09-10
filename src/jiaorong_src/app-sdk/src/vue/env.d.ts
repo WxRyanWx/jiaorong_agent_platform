@@ -1,7 +1,9 @@
-declare module '@iconify-json/lucide/icons.json' {
+declare module '*.json' {
   const data: {
-    prefix: string
-    icons: Record<string, unknown>
+    prefix?: string
+    width?: number
+    height?: number
+    icons?: Record<string, unknown>
   }
   export default data
 }
@@ -15,6 +17,11 @@ declare module '*.vue' {
 }
 
 declare module '*.png' {
+  const src: string
+  export default src
+}
+
+declare module '*.svg' {
   const src: string
   export default src
 }

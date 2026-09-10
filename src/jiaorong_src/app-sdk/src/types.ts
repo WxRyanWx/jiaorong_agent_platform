@@ -192,6 +192,55 @@ export type SlashCatalogResult = {
   items: SlashCatalogItem[]
 }
 
+export type CatalogModel = {
+  providerId: string
+  modelId: string
+  name: string
+  providerName?: string
+}
+
+export type SessionGenerationSettings = {
+  systemPrompt?: string
+  temperature?: number
+  topP?: number
+  contextLength?: number
+  maxTokens?: number
+  timeout?: number
+  thinkingBudget?: number
+  reasoningEffort?: 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max'
+  verbosity?: 'low' | 'medium' | 'high'
+  forceInterleavedThinkingCompat?: boolean
+}
+
+export type SessionGenerationSettingsPatch = Partial<SessionGenerationSettings>
+
+export type ToolMode = 'agent' | 'code' | 'minimal'
+
+export type SessionContextOccupancy =
+  | {
+      freshness: 'current' | 'stale'
+      source: 'provider' | 'estimated'
+      occupiedTokens: number
+      contextWindowTokens: number
+    }
+  | {
+      freshness: 'unavailable'
+      source: null
+      occupiedTokens: null
+      contextWindowTokens: null
+    }
+
+export type SystemPromptOption = {
+  id: string
+  name: string
+  content: string
+}
+
+export type AgentToolItem = {
+  name: string
+  group: string
+}
+
 export type CreateSessionResult = {
   session: SessionWithState
   accepted?: boolean

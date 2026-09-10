@@ -44,7 +44,6 @@
           <MessageBlockToolCall
             v-else-if="item.block.type === 'tool_call'"
             :block="item.block"
-            :live="isLive"
             :permission-status="
               item.block.tool_call?.id
                 ? permissionStatusByToolCallId[item.block.tool_call.id]

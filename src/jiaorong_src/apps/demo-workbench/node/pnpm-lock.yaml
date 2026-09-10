@@ -9,7 +9,7 @@ importers:
   .:
     dependencies:
       egg:
-        specifier: ^3.34.0
+        specifier: ^3.30.0
         version: 3.34.0
       jiaorong-app-sdk:
         specifier: https://c4ai.ccccltd.cn/xkprosdk/jiaorong-app-sdk-1.0.0.tgz
@@ -761,7 +761,7 @@ packages:
     resolution: {integrity: sha512-Yljz7ffyPbrLpLngrMtZ7NduUgVvi6wG9RJ9IUcyCd59YQ911PBJphODUcbOVbqYfxe1wuYf/LJ8PauMRwsM/g==}
 
   jiaorong-app-sdk@https://c4ai.ccccltd.cn/xkprosdk/jiaorong-app-sdk-1.0.0.tgz:
-    resolution: {integrity: sha512-M0Glz6sgb15/dtohuBHDI1VEQUsPAl7lEpRRgh8xzheQW0xASweBUEWNqDh+OJG2VLgOz2BP0Jw8PwyuGXRXrA==, tarball: https://c4ai.ccccltd.cn/xkprosdk/jiaorong-app-sdk-1.0.0.tgz}
+    resolution: {tarball: https://c4ai.ccccltd.cn/xkprosdk/jiaorong-app-sdk-1.0.0.tgz}
     version: 1.0.0
     engines: {node: '>=20.19.0'}
     peerDependencies:

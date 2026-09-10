@@ -1,0 +1,29 @@
+# 任务
+
+- [x] 宿主 catalog.models + session.setModel
+- [x] SDK client / 类型 / HOST_BRIDGE
+- [x] features、auto-scroll、Chat 顶栏/状态栏/Steer/事件
+- [x] 去掉 SessionList/Chat 的 external
+- [x] Node 页走 httpBase；Node dispatch 补模型/权限方法
+- [x] 知识库、斜杠、输入队列（features 默认开）
+- [x] Direct / Http 页面与格式化测试
+- [x] 工作台壳层单次连接 + keep-alive；Node 仅进页再连
+- [x] 两页 -1 自动续发 1（绑对话组件内部 client）
+- [x] catalog.models 带 providerName；状态栏展示对齐超级智能体
+- [x] 宿主 / SDK / Node 生成设置；状态栏高级设置面板
+- [x] 首条发送不白屏：create 期间跳过 loadSession / 不 await 生成设置
+- [x] 列表平面不拉历史；keep-alive 隐藏页不抢流式状态
+- [x] 附件 + 知识库同时可见；知识库弹层 CSS 进入 vue/style.css
+- [x] 壳层一条连接给 Chat/List 复用；去掉 keep-alive；启动不拉 slash/生成设置；lucide 子集
+- [x] 启动卡顿：安装比对改用源 `app.json` 版本；catalog 与 demo `app.json` 对齐为 `0.0.29-dev`
+- [x] 高级配置弹层按超级智能体复制（系统提示词 / Agent·Code·Minimal / 文件系统工具）；见 `batches.md` 第 5 批
+- [x] 状态栏「使用默认值」位置与上下文占用百分比对齐超级智能体；见 `batches.md` 第 4 批
+- [x] 输入框 `+` 与超级智能体同尺寸；宿主 occupancy/toolMode/disabledTools/prompts/agentTools
+- [x] `JiaorongAgentChat` attachments 默认 true；知识库列表/目录走宿主代理，guest 不再直连云端 fetch
+- [x] 知识库合成附件不转临时文件；用户消息回显所选库/文件夹/文件；输入 chip 带图标
+- [x] 单轮清空：发送后、切会话后清附件/知识库/技能；输入区与超级智能体同一套 chip；思考展开、工具收起
+- [x] 输入区：知识库 chip 在框内上半；技能和本地附件在编辑区行内，和光标同一块
+- [x] 模型列表每项图标 +「搜索模型...」；「使用默认值」弹层含推理力度并写会话
+- [x] 有会话时权限 / 协作立即写宿主；无会话记 pending；打开弹层拉生成设置
+- [x] 进入已有会话时拉 occupancy 与 generationSettings；清空字段用 null 落盘
+- [x] `/` 列表由应用传入 `slashItems`（技能名或 `skillDir`），不拉用户技能目录；附件 chip 对齐超级智能体 vscode 图标，图片可点开展示

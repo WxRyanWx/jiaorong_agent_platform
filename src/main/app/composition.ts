@@ -37,7 +37,7 @@ import {
   isJiaorongAppHiddenAgent,
   listJiaorongAppHiddenAgentIds
 } from '@jiaorong/appHost/main/agentMap'
-import type { JiaorongAppDialoguePort } from '@jiaorong/appHost/main/deps'
+import type { JiaorongAppDialoguePort, JiaorongAppSessionRecord } from '@jiaorong/appHost/main/deps'
 import type { JiaorongAuthSession } from '@jiaorong/appHost/main/userIdentity'
 import {
   filterEnabledSkills,
@@ -3507,6 +3507,64 @@ export async function createMainProcessControl(dependencies: {
       dependencies.settingsStore.get<JiaorongAuthSession | undefined>('jiaorong_auth_session'),
     getLocale: () => desktopSettings.getLanguage(),
     getTheme: () => (desktopSettings.getCurrentThemeIsDark() ? 'dark' : 'light'),
+    listEnabledModels: () => {
+      const models: Array<{
+        providerId: string
+        modelId: string
+        name: string
+        providerName?: string
+      }> = []
+      for (const provider of providerSettings.getProviders()) {
+        if (!provider.enable) continue
+        for (const model of providerSettings.getProviderModels(provider.id)) {
+          if (model.enabled === false) continue
+          const modelId = model.id?.trim()
+          if (!modelId) continue
+          models.push({
+            providerId: provider.id,
+            modelId,
+            name: model.name?.trim() || modelId,
+            providerName: provider.name?.trim() || provider.id
+          })
+        }
+      }
+      return models
+    },
+    setSessionModel: async (sessionId, providerId, modelId) => {
+      await sessionAssignment.setSessionModel(sessionId, providerId, modelId)
+      return (await sessionQuery.getSession(sessionId)) as JiaorongAppSessionRecord | null
+    },
+    listSystemPrompts: async () => {
+      const prompts = await promptSettings.getSystemPrompts()
+      return prompts.map((prompt) => ({
+        id: prompt.id,
+        name: prompt.name,
+        content: prompt.content
+      }))
+    },
+    listConfigurableAgentTools: async ({ sessionId }) => {
+      let projectDir: string | null = null
+      if (sessionId) {
+        const session = await sessionQuery.getSession(sessionId)
+        projectDir = session?.projectDir ?? null
+      }
+      try {
+        const tools = await toolService.getConfigurableAgentToolDefinitions({
+          chatMode: 'agent',
+          conversationId: sessionId,
+          agentWorkspacePath: projectDir
+        })
+        return tools
+          .filter((tool) => tool.source === 'agent')
+          .map((tool) => ({
+            name: tool.function.name,
+            group: tool.server.name
+          }))
+      } catch (error) {
+        console.warn('[jiaorong-app] Failed to list configurable agent tools', error)
+        return []
+      }
+    },
     listSlashSources: async () => {
       const switchMap = normalizeSkillSwitchMap(
         dependencies.settingsStore.get(JIAORONG_SKILL_SWITCH_SETTING_KEY)
@@ -3579,6 +3637,19 @@ export async function createMainProcessControl(dependencies: {
       getPermissionMode: (sessionId) => sessionAssignment.getPermissionMode(sessionId),
       updateOrchestrationPolicy: (sessionId, policy) =>
         sessionAssignment.updateOrchestrationPolicy(sessionId, policy),
+      getGenerationSettings: (sessionId) =>
+        sessionAssignment.getSessionGenerationSettings(sessionId),
+      updateGenerationSettings: (sessionId, settings) =>
+        sessionAssignment.updateSessionGenerationSettings(sessionId, settings as never),
+      getContextOccupancy: (sessionId) => sessionTurn.getSessionContextOccupancy(sessionId),
+      setToolMode: async (sessionId, override) => {
+        await sessionAssignment.setSessionToolMode(sessionId, override)
+        return (await sessionQuery.getSession(sessionId)) as JiaorongAppSessionRecord | null
+      },
+      getDisabledAgentTools: (sessionId) =>
+        sessionAssignment.getSessionDisabledAgentTools(sessionId),
+      updateDisabledAgentTools: (sessionId, toolNames) =>
+        sessionAssignment.updateSessionDisabledAgentTools(sessionId, toolNames),
       toggleSessionPinned: (sessionId, pinned) =>
         sessionQuery.toggleSessionPinned(sessionId, pinned),
       respondToolInteraction: (input) =>
