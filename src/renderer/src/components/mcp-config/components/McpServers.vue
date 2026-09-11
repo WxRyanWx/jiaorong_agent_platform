@@ -31,7 +31,7 @@ import McpResourceViewer from './McpResourceViewer.vue'
 import type { MCPServerConfig, McpCredentialBinding, McpCredentialInput } from '@shared/types/mcp'
 import { createMcpClient } from '@api/McpClient'
 import { createSettingsClient } from '@api/SettingsClient'
-import { resolveMcpServerListName } from '@jiaorong/knowledgeBase/mcp/knowledgeBaseMcpConstants'
+import { resolveJiaorongMcpServerListName as resolveMcpServerListName } from '@jiaorong/plugins/mcp'
 
 const mcpStore = useMcpStore()
 const { t } = useI18n()
@@ -139,6 +139,12 @@ const isBuiltInServer = (serverName: string) => {
   return config?.type === 'inmemory' || isDeepChatManagedServer(config)
 }
 
+const localizedServerListName = (serverName: string) =>
+  t(`mcp.inmemory.${serverName}.name`, resolveMcpServerListName(serverName))
+
+const localizedServerDescription = (serverName: string, fallback = '') =>
+  t(`mcp.inmemory.${serverName}.desc`, fallback)
+
 const filteredServers = computed(() => {
   const query = searchQuery.value.trim().toLowerCase()
 
@@ -146,7 +152,7 @@ const filteredServers = computed(() => {
     const matchesQuery =
       !query ||
       server.name.toLowerCase().includes(query) ||
-      resolveMcpServerListName(server.name).toLowerCase().includes(query) ||
+      localizedServerListName(server.name).toLowerCase().includes(query) ||
       server.descriptions?.toLowerCase().includes(query)
     const matchesFilter =
       activeFilter.value === 'all' ||
@@ -737,8 +743,12 @@ defineExpose({
     <DcSheetPanel
       appearance="plain"
       :open="Boolean(selectedDetailServer)"
-      :title="selectedDetailServer ? resolveMcpServerListName(selectedDetailServer.name) : ''"
-      :description="selectedDetailServer?.descriptions ?? ''"
+      :title="selectedDetailServer ? localizedServerListName(selectedDetailServer.name) : ''"
+      :description="
+        selectedDetailServer
+          ? localizedServerDescription(selectedDetailServer.name, selectedDetailServer.descriptions)
+          : ''
+      "
       @update:open="closeDetail"
     >
       <div v-if="selectedDetailServer" class="flex flex-1 flex-col gap-4 overflow-y-auto px-4 pb-4">

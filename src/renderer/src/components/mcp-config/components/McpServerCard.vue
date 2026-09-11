@@ -21,6 +21,8 @@ import {
   isJiaorongKnowledgeBaseMcpServer,
   JIAORONG_KB_MCP_SERVER_DISPLAY_NAME
 } from '@jiaorong/knowledgeBase/mcp/knowledgeBaseMcpConstants'
+import { getJiaorongPluginMcpServer } from '@jiaorong/plugins/mcp'
+import { getJiaorongPluginMcpIconSrc } from '@jiaorong/plugins/mcp/icons'
 
 interface ServerInfo {
   name: string
@@ -75,7 +77,13 @@ const getLocalizedServerName = (serverName: string) => {
   return t(`mcp.inmemory.${serverName}.name`, serverName)
 }
 
+const pluginMcp = computed(() => getJiaorongPluginMcpServer(props.server.name))
+const pluginMcpIconSrc = computed(() => getJiaorongPluginMcpIconSrc(props.server.name))
+
 const displayServerName = computed(() => {
+  if (pluginMcp.value) {
+    return t(`mcp.inmemory.${pluginMcp.value.name}.name`, pluginMcp.value.displayName)
+  }
   if (isJiaorongKnowledgeBaseMcpServer(props.server.name)) {
     return JIAORONG_KB_MCP_SERVER_DISPLAY_NAME
   }
@@ -154,6 +162,9 @@ const statusConfig = computed(() => {
 
 // 获取完整描述
 const fullDescription = computed(() => {
+  if (pluginMcp.value) {
+    return t(`mcp.inmemory.${pluginMcp.value.name}.desc`, props.server.descriptions)
+  }
   return props.isBuiltIn
     ? getLocalizedServerDesc(props.server.name, props.server.descriptions)
     : props.server.descriptions
@@ -185,6 +196,7 @@ watch(watchDescription, () => {
 
 <template>
   <div
+    :data-mcp-server="server.name"
     class="bg-card flex flex-col shadow-sm border rounded-lg overflow-hidden transition-all duration-200 hover:shadow-md group"
   >
     <div class="px-4 py-2 flex-1">
@@ -192,7 +204,13 @@ watch(watchDescription, () => {
       <div class="flex items-center justify-between mb-1">
         <div class="flex items-center gap-1.5 flex-1 min-w-0">
           <!-- 服务器图标 -->
-          <span class="shrink-0">{{ server.icons }}</span>
+          <img
+            v-if="pluginMcpIconSrc"
+            :src="pluginMcpIconSrc"
+            alt=""
+            class="size-4 shrink-0 rounded-[3px] object-contain"
+          />
+          <span v-else class="shrink-0">{{ server.icons }}</span>
 
           <!-- 名称 -->
           <h3 class="text-sm font-bold truncate flex-1">

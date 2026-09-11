@@ -218,6 +218,10 @@
     "deepchat/apple-server": {
       "name": "macOS Sistem Asistanı",
       "desc": "Modellerin Takvim, Kişiler, Mail, Haritalar, Notlar ve Anımsatıcılar gibi macOS uygulamalarını çalıştırmasına izin verin."
+    },
+    "tencent-meeting": {
+      "name": "Tencent Meeting",
+      "desc": "Official Tencent Meeting MCP. Personal accounts only. Get a token at https://meeting.tencent.com/ai-skill.html, fill in X-Tencent-Meeting-Token, then enable it. Schedule meetings, check calendars, and fetch minutes."
     }
   },
   "prompts": {

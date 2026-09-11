@@ -184,6 +184,35 @@
   background: #eff5ff;
 }
 
+/*
+ * PluginCenterPage.vue → 与 WindowSideBarSessionItem 同一套 token：
+ * 选中 bg-accent = var(--accent) = hsl(0 0 15% / 0.05)
+ * 悬停 hover:bg-accent/50
+ * 文字 text-foreground/80
+ */
+.plugin-center-page__title {
+  color: var(--foreground);
+}
+
+.plugin-center-page__nav-item {
+  -webkit-app-region: no-drag;
+  color: color-mix(in srgb, var(--foreground) 80%, transparent);
+  background-color: transparent;
+  transition:
+    background-color 150ms,
+    color 150ms;
+}
+
+.plugin-center-page__nav-item:hover {
+  background-color: color-mix(in srgb, var(--accent) 50%, transparent);
+}
+
+.plugin-center-page__nav-item.is-active,
+.plugin-center-page__nav-item.is-active:hover {
+  background-color: var(--accent);
+  color: var(--accent-foreground);
+}
+
 /* ChatInputBox.vue → .chat-input-box */
 .chat-input-box {
   background: #ffffff;

@@ -38,10 +38,12 @@
               <Icon icon="lucide:plus" class="size-4" />
               {{ t('common.add') }}
             </DcButton>
-            <DcButton variant="outline" size="sm" @click="openMarketView">
-              <Icon icon="lucide:shopping-bag" class="size-4" />
-              {{ t('routes.settings-mcp-market') }}
-            </DcButton>
+            <span data-mcp-market-button>
+              <DcButton variant="outline" size="sm" @click="openMarketView">
+                <Icon icon="lucide:shopping-bag" class="size-4" />
+                {{ t('routes.settings-mcp-market') }}
+              </DcButton>
+            </span>
             <Switch
               dir="ltr"
               :model-value="mcpEnabled"

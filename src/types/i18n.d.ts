@@ -1731,6 +1731,10 @@ declare module 'vue-i18n' {
         name: string
         desc: string
       }
+      'tencent-meeting': {
+        name: string
+        desc: string
+      }
     }
     prompts: {
       noPromptsAvailable: string

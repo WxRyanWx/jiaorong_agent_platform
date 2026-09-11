@@ -76,6 +76,12 @@ describe('debug settings navigation', () => {
     expect(isMainSidebarItemHidden('chat')).toBe(false)
   })
 
+  it('keeps the main sidebar plugins entry visible for admin users', () => {
+    localStorage.setItem('userInfo', JSON.stringify({ phone: '13039619789' }))
+    expect(isMainSidebarItemHidden('plugins')).toBe(false)
+    localStorage.removeItem('userInfo')
+  })
+
   it('defaults non-admin settings landing to common instead of overview', () => {
     expect(getDefaultSettingsRouteName()).toBe('settings-common')
     expect(isForbiddenSettingsLandingRoute('settings-overview')).toBe(true)

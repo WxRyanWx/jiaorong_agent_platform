@@ -73,6 +73,10 @@ import {
   MCP_CLIENT_CREDENTIALS_DRAFT_REVISION
 } from './mcpOAuthManager'
 import { isJiaorongKnowledgeBaseMcpServer } from '@jiaorong/knowledgeBase/mcp/knowledgeBaseMcpConstants'
+import {
+  usesJiaorongPluginMcpLegacyWire,
+  withJiaorongPluginMcpRequiredHeaders
+} from '@jiaorong/plugins/mcp'
 
 const ALLOWED_SAMPLING_IMAGE_MIME_TYPES = new Set([
   'image/png',
@@ -476,9 +480,13 @@ export class McpClient {
 
   private async performConnect(attempt: number, phase: McpServerStatusPhase): Promise<void> {
     const transportType = this.serverConfig.type
+    // 知识库 / 插件中心预置云端 MCP 不认新版 era probe（会回 HTTP 500），走 legacy initialize。
+    const useReducedRemoteCapabilities =
+      isJiaorongKnowledgeBaseMcpServer(this.serverName) ||
+      usesJiaorongPluginMcpLegacyWire(this.serverName)
     const useModernNegotiation =
       !this.serverConfig.forceLegacyWire &&
-      !isJiaorongKnowledgeBaseMcpServer(this.serverName) &&
+      !useReducedRemoteCapabilities &&
       (transportType === 'stdio' || transportType === 'http')
     try {
       console.info(`Starting MCP server ${this.serverName}...`, {
@@ -487,7 +495,10 @@ export class McpClient {
 
       // Handle customHeaders and AuthProvider
       let authProvider: SimpleOAuthProvider | null = null
-      const customHeaders = normalizeCustomHeaders(this.serverConfig.customHeaders)
+      const customHeaders = withJiaorongPluginMcpRequiredHeaders(
+        this.serverName,
+        normalizeCustomHeaders(this.serverConfig.customHeaders)
+      )
 
       const authorizationHeaderKeys = Object.keys(customHeaders).filter(
         (key) => key.toLowerCase() === 'authorization'
@@ -677,11 +688,10 @@ export class McpClient {
       this.client = new Client(
         { name: 'JiaorongAI', version: app.getVersion() },
         {
-          capabilities: isJiaorongKnowledgeBaseMcpServer(this.serverName)
+          capabilities: useReducedRemoteCapabilities
             ? {
-                // 正式服 Spring AI Jackson 默认 FAIL_ON_UNKNOWN_PROPERTIES。
-                // 新版 MCP 客户端会带 form/url/applyDefaults/extensions，旧服务会拒绝 initialize，
-                // 发送侧只看到「知识库服务未就绪」。其它 MCP 仍走完整 capabilities。
+                // 知识库 Spring AI / 腾讯会议云端不认未知 JSON 字段与 era probe。
+                // 其它 MCP 仍走完整 capabilities。
                 sampling: {},
                 elicitation: {},
                 roots: {}

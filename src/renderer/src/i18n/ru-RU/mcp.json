@@ -193,6 +193,10 @@
     "deepchat/apple-server": {
       "desc": "Пусть модель работает системные функции MacOS, такие как календарь, контакты, электронные письма, карты, записки, напоминания и другие системы",
       "name": "MacOS System Assistant"
+    },
+    "tencent-meeting": {
+      "name": "Tencent Meeting",
+      "desc": "Official Tencent Meeting MCP. Personal accounts only. Get a token at https://meeting.tencent.com/ai-skill.html, fill in X-Tencent-Meeting-Token, then enable it. Schedule meetings, check calendars, and fetch minutes."
     }
   },
   "prompts": {

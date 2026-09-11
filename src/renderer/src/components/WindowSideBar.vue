@@ -2,8 +2,8 @@
   <TooltipProvider :delay-duration="200">
     <div
       data-testid="window-sidebar"
-      class="window-sidebar-shell flex flex-row h-full shrink-0 overflow-hidden window-drag-region transition-[width] duration-[var(--dc-motion-fast)] ease-[var(--dc-ease-out-express)] motion-reduce:transition-none"
-      :class="sidebarShellWidthClass"
+      class="window-sidebar-shell flex flex-row h-full shrink-0 overflow-hidden window-drag-region motion-reduce:transition-none"
+      :class="[sidebarShellWidthClass, sidebarShellMotionClass]"
     >
       <!-- Left Column: Agent Icons (48px) -->
       <div class="window-no-drag-region flex flex-col items-center shrink-0 pt-2 pb-2 gap-1 w-12">
@@ -58,7 +58,7 @@
           <AgentAvatar :agent="sidebarAgentPartitions.deepchat" class-name="w-4 h-4" />
         </DcButton>
 
-        <!-- 交融私有侧栏贡献（技能中心 / 知识库） -->
+        <!-- 交融私有侧栏贡献（插件中心 / 知识库） -->
         <DcButton
           v-for="item in jiaorongAfterDeepchatItems"
           :key="item.id"
@@ -765,7 +765,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, nextTick, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import draggable from 'vuedraggable'
 import { Icon } from '@iconify/vue'
@@ -880,11 +880,24 @@ const themeModeLabel = computed(() => {
 })
 
 const collapsed = computed(() => sidebarStore.collapsed)
+const skipSidebarWidthTransition = ref(false)
 const sidebarShellWidthClass = computed(() => {
   if (collapsed.value || isExclusiveChromeRoute.value) {
     return 'w-12'
   }
   return 'w-[288px]'
+})
+const sidebarShellMotionClass = computed(() =>
+  skipSidebarWidthTransition.value || isExclusiveChromeRoute.value
+    ? 'transition-none'
+    : 'transition-[width] duration-[var(--dc-motion-fast)] ease-[var(--dc-ease-out-express)]'
+)
+
+watch(isExclusiveChromeRoute, () => {
+  skipSidebarWidthTransition.value = true
+  void nextTick(() => {
+    skipSidebarWidthTransition.value = false
+  })
 })
 const sessionSearchQuery = ref('')
 const pluginsRouteActive = computed(() =>

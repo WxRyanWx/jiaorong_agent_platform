@@ -1,16 +1,16 @@
 {
   "login": "登录",
-  "skills": "技能中心",
+  "skills": "插件",
   "knowledgeBase": "知识库",
   "skillsDetail": "技能详情",
   "skillsCreateButton": "新建技能",
   "skillsCreateAction": "创建技能",
-  "skillsPageTitle": "技能中心",
+  "skillsPageTitle": "插件",
   "skillsPageSubtitle": "发现并管理可在通用对话中使用的技能。",
   "skillsInstalled": "已安装",
   "skillsNotInstalled": "未安装",
   "skillsViewDetail": "查看详情",
-  "skillsBackToList": "返回技能中心",
+  "skillsBackToList": "返回插件",
   "skillsBack": "返回",
   "skillsNotFound": "未找到该技能",
   "skillsEnabled": "已启用",
@@ -68,5 +68,11 @@
   "settings-plugins": "插件",
   "settings-overview": "设置概览",
   "settings-memory": "记忆",
-  "settings-debug": "调试"
+  "settings-debug": "调试",
+  "pluginCenterTitle": "插件中心",
+  "pluginCenterSkills": "技能",
+  "pluginCenterConnectors": "连接器",
+  "pluginCenterMcp": "MCP",
+  "pluginCenterConnectorsSubtitle": "统一管理 JiaorongAI 的连接器。",
+  "pluginCenterConnectorsAvailable": "可用连接器"
 }

@@ -29,6 +29,7 @@ import CliApprovalDialog from '@/components/cli/CliApprovalDialog.vue'
 import { initAppStores, useMcpInstallDeeplinkHandler } from '@/lib/storeInitializer'
 import { ensureShellBootstrap } from '@/lib/shellBootstrap'
 import { getToken, useAuthLoginDeeplinkHandler } from '@jiaorong/auth/host'
+import { isSkillRouteLocation } from '@jiaorong/router'
 import { ensureIconsLoaded } from '@/lib/iconLoader'
 import { useFontManager } from '@/composables/useFontManager'
 import { applyDocumentAppearance } from '@/foundation/appearance/documentAppearance'
@@ -109,6 +110,7 @@ const { setup: setupMcpDeeplink, cleanup: cleanupMcpDeeplink } = useMcpInstallDe
 const { setup: setupAuthLoginDeeplink, cleanup: cleanupAuthLoginDeeplink } =
   useAuthLoginDeeplinkHandler()
 const isLoginRoute = computed(() => route.name === 'login')
+const isPluginCenterShell = computed(() => isSkillRouteLocation(route.name, route.path))
 
 watch(
   [() => themeStore.themeMode, () => themeStore.isDark, () => uiSettingsStore.fontSizeClass],
@@ -564,7 +566,12 @@ onBeforeUnmount(() => {
           <!-- Main content area -->
           <div
             data-testid="app-main"
-            class="flex h-full min-h-0 flex-1 min-w-0 flex-col overflow-hidden rounded-tl-xl border-l border-t border-black/20 bg-background dark:border-white/10"
+            class="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
+            :class="
+              isPluginCenterShell
+                ? 'bg-window-background'
+                : 'rounded-tl-xl border-l border-t border-black/20 bg-background dark:border-white/10'
+            "
           >
             <div class="min-h-0 flex-1">
               <RouterView v-if="isStartupRouteReady" />

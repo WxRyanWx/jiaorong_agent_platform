@@ -57,6 +57,7 @@ type SetupOptions = {
   defaultProjectPath?: string | null
   projectSnapshotReady?: boolean
   currentRouteName?: string
+  exclusiveChrome?: boolean
   isAdmin?: boolean
   jiaorongSidebarItems?: Array<{
     id: string
@@ -504,7 +505,7 @@ const setup = async (options: SetupOptions = {}) => {
   }))
   vi.doMock('@jiaorong/runtime/sidebar', () => ({
     listJiaorongSidebarItems: () => options.jiaorongSidebarItems ?? [],
-    isJiaorongExclusiveChromeRoute: () => false
+    isJiaorongExclusiveChromeRoute: () => options.exclusiveChrome === true
   }))
   vi.doMock('@jiaorong/auth/host', () => ({
     scheduleAuthRevalidateOnMenuSwitch: () => true
@@ -712,7 +713,7 @@ describe('WindowSideBar agent switch', () => {
         jiaorongSidebarItems: [
           {
             id: 'skills',
-            title: '技能中心',
+            title: '插件中心',
             routeName: 'skills',
             testId: 'sidebar-skills-button',
             slot: 'after-deepchat'
@@ -1865,6 +1866,22 @@ describe('WindowSideBar agent switch', () => {
       await spotlightButton!.trigger('click')
 
       expect(spotlightStore.toggleSpotlight).toHaveBeenCalledTimes(1)
+    },
+    TEST_TIMEOUT_MS
+  )
+
+  it(
+    'skips the shell width transition on exclusive chrome so plugin-center does not collapse then expand',
+    async () => {
+      const { wrapper } = await setup({
+        currentRouteName: 'skills',
+        exclusiveChrome: true
+      })
+
+      const sidebar = wrapper.get('[data-testid="window-sidebar"]')
+      expect(sidebar.classes()).toContain('w-12')
+      expect(sidebar.classes()).toContain('transition-none')
+      expect(wrapper.find('[data-testid="window-sidebar-session-column"]').exists()).toBe(false)
     },
     TEST_TIMEOUT_MS
   )

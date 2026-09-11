@@ -3,9 +3,11 @@
     <div class="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-8">
       <header class="flex items-start justify-between gap-4">
         <div class="space-y-1">
-          <h1 class="text-2xl font-semibold tracking-normal">{{ t('routes.plugins') }}</h1>
+          <h1 class="text-2xl font-semibold tracking-normal">
+            {{ t('routes.pluginCenterConnectors') }}
+          </h1>
           <p class="text-sm text-muted-foreground">
-            {{ t('settings.pluginsHub.subtitle') }}
+            {{ t('routes.pluginCenterConnectorsSubtitle') }}
           </p>
         </div>
 
@@ -30,13 +32,14 @@
 
       <section class="space-y-4">
         <div class="border-b border-border/70 pb-2">
-          <h2 class="text-sm font-semibold">{{ t('settings.pluginsHub.available') }}</h2>
+          <h2 class="text-sm font-semibold">{{ t('routes.pluginCenterConnectorsAvailable') }}</h2>
         </div>
 
         <div v-if="catalogItems.length" class="grid gap-3 lg:grid-cols-2">
           <article
             v-for="item in catalogItems"
             :key="item.id"
+            :data-plugin-id="item.id"
             class="flex min-w-0 items-center gap-3 rounded-lg border border-border bg-background p-3"
           >
             <div
@@ -95,7 +98,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { Icon } from '@iconify/vue'
 import { DcButton } from '@dc-ui/components/button'
@@ -103,6 +106,7 @@ import { ScrollArea } from '@shadcn/components/ui/scroll-area'
 import { createOcrClient } from '@api/OcrClient'
 import { createPluginClient } from '@api/PluginClient'
 import { createRemoteControlClient } from '@api/RemoteControlClient'
+import { resolveConnectorManageTarget } from '@jiaorong/plugins/navigation'
 import { CUA_PLUGIN_ID, type PluginActionResult, type PluginListItem } from '@shared/types/plugin'
 import type { RemoteChannel } from '@shared/types/remote'
 import { usePluginCatalogStore } from '@/stores/pluginCatalog'
@@ -169,6 +173,7 @@ const pluginIcon = (plugin: PluginListItem): string =>
       : 'lucide:puzzle'
 
 const { t } = useI18n()
+const route = useRoute()
 const router = useRouter()
 const ocrClient = createOcrClient()
 const pluginClient = createPluginClient()
@@ -345,14 +350,14 @@ async function runPluginAction(
 
 function handleCatalogAction(item: CatalogItem): void {
   if (item.kind === 'builtin') {
-    void router.push({ name: 'plugins-builtin-ocr' })
+    void router.push(resolveConnectorManageTarget('ocr', route))
     return
   }
 
   if (item.kind === 'official') {
     const plugin = item.plugin
     if (item.enabled || isFeishuOfficialPlugin(plugin)) {
-      void router.push({ name: 'plugins-detail', params: { pluginId: plugin.id } })
+      void router.push(resolveConnectorManageTarget('detail', route, plugin.id))
     } else {
       void runPluginAction(item.id, plugin, true, () => pluginClient.enablePlugin(plugin.id))
     }
@@ -360,7 +365,7 @@ function handleCatalogAction(item: CatalogItem): void {
   }
 
   if (item.kind === 'remote') {
-    void router.push({ name: 'plugins-detail', params: { pluginId: remotePluginId(item.channel) } })
+    void router.push(resolveConnectorManageTarget('detail', route, remotePluginId(item.channel)))
   }
 }
 

@@ -23,6 +23,9 @@ const buttonStub = defineComponent({
 
 const translations: Record<string, string> = {
   'routes.plugins': 'Plugins',
+  'routes.pluginCenterConnectors': 'Connectors',
+  'routes.pluginCenterConnectorsSubtitle': 'Manage JiaorongAI connectors.',
+  'routes.pluginCenterConnectorsAvailable': 'Available connectors',
   'routes.settings-ocr': 'OCR',
   'settings.ocr.available': 'Available',
   'settings.ocr.description': 'Extract image text locally.',
@@ -53,7 +56,10 @@ const AVAILABLE_OCR_STATUS: OcrRuntimeStatus = {
   cache: null
 }
 
-async function mountCatalog(options?: { ocrStatus?: OcrRuntimeStatus | Error }) {
+async function mountCatalog(options?: {
+  ocrStatus?: OcrRuntimeStatus | Error
+  route?: { name: string; path: string }
+}) {
   vi.resetModules()
   vi.clearAllMocks()
 
@@ -119,7 +125,8 @@ async function mountCatalog(options?: { ocrStatus?: OcrRuntimeStatus | Error }) 
     createRemoteControlClient: () => remoteControlClient
   }))
   vi.doMock('vue-router', () => ({
-    useRouter: () => router
+    useRouter: () => router,
+    useRoute: () => options?.route ?? { name: 'plugins', path: '/plugins' }
   }))
   vi.doMock('vue-i18n', () => ({
     useI18n: () => ({
@@ -186,7 +193,9 @@ describe('PluginsCatalogPage', () => {
   it('shows available plugins heading instead of unsupported category filters', async () => {
     const { wrapper } = await mountCatalog()
 
-    expect(wrapper.text()).toContain('Available plugins')
+    expect(wrapper.text()).toContain('Connectors')
+    expect(wrapper.text()).toContain('Manage JiaorongAI connectors.')
+    expect(wrapper.text()).toContain('Available connectors')
     expect(wrapper.text()).not.toContain('settings.pluginsHub.available')
     expect(wrapper.text()).not.toContain('settings.pluginsHub.filters.official')
     expect(wrapper.text()).not.toContain('settings.pluginsHub.filters.workspace')
@@ -246,6 +255,22 @@ describe('PluginsCatalogPage', () => {
     await ocrCard.get('button').trigger('click')
 
     expect(router.push).toHaveBeenCalledWith({ name: 'plugins-builtin-ocr' })
+  })
+
+  it('opens manage pages inside the plugin center connectors shell', async () => {
+    const { wrapper, router } = await mountCatalog({
+      route: { name: 'skills-connectors', path: '/skills/connectors' }
+    })
+    const cards = wrapper.findAll('article')
+
+    await cards[0].get('button').trigger('click')
+    expect(router.push).toHaveBeenCalledWith({ name: 'skills-connector-ocr' })
+
+    await cards[1].get('button').trigger('click')
+    expect(router.push).toHaveBeenCalledWith({
+      name: 'skills-connector-detail',
+      params: { pluginId: 'com.deepchat.plugins.cua' }
+    })
   })
 
   it('keeps OCR management available when the status IPC fails', async () => {

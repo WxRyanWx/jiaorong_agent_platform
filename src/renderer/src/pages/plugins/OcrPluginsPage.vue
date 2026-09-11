@@ -1,7 +1,7 @@
 <template>
   <div class="flex h-full min-h-0 w-full flex-col">
     <div class="mx-auto w-full max-w-7xl shrink-0 px-4 pt-4 lg:px-6">
-      <DcButton variant="ghost" size="sm" @click="router.push({ name: 'plugins' })">
+      <DcButton variant="ghost" size="sm" @click="goBack">
         <Icon icon="lucide:arrow-left" class="mr-2 size-4" />
         {{ t('common.back') }}
       </DcButton>
@@ -13,12 +13,18 @@
 </template>
 
 <script setup lang="ts">
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { Icon } from '@iconify/vue'
 import { DcButton } from '@dc-ui/components/button'
+import { resolveConnectorManageBack } from '@jiaorong/plugins/navigation'
 import OcrSettings from '../../../settings/components/OcrSettings.vue'
 
 const { t } = useI18n()
+const route = useRoute()
 const router = useRouter()
+
+const goBack = () => {
+  void router.push(resolveConnectorManageBack(route))
+}
 </script>
