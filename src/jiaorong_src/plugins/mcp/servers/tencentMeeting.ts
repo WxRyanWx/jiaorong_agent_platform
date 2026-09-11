@@ -16,7 +16,7 @@ export const TENCENT_MEETING_MCP: JiaorongPluginMcpDefinition = {
     command: '',
     args: [],
     env: {},
-    descriptions: `腾讯会议官方 MCP，仅可用个人账号。请先到 ${TENCENT_MEETING_MCP_TOKEN_PAGE_URL} 获取 Token，再点「编辑服务器」，下滑到「自定义请求头」，把 ${TENCENT_MEETING_MCP_TOKEN_HEADER} 里的 ${TENCENT_MEETING_MCP_TOKEN_PLACEHOLDER} 换成你的 Token 后启用。可预约会议、查询日程和获取纪要。`,
+    descriptions: `腾讯会议官方 MCP，仅可用个人账号。请先到 ${TENCENT_MEETING_MCP_TOKEN_PAGE_URL} 获取 Token，再点「编辑服务器」，下滑到「自定义请求头」，把 ${TENCENT_MEETING_MCP_TOKEN_HEADER} 里的 ${TENCENT_MEETING_MCP_TOKEN_PLACEHOLDER} 换成你的 Token 后启用。支持预约会议、查询日程、获取会议纪要等操作。`,
     icons: '📅',
     disable: false,
     type: 'http',
