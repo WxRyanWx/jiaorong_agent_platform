@@ -82,7 +82,7 @@
           @toggle-agent-server="handleToggleAgentServer"
         >
           <template #status-bar>
-            <div class="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1">
+            <div data-mcp-server-counts class="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1">
               <span class="text-xs text-muted-foreground">
                 {{ t('settings.mcp.totalServers') }}:
                 <span class="font-medium text-foreground">{{ mcpStore.serverList.length }}</span>

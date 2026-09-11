@@ -196,7 +196,7 @@
     },
     "tencent-meeting": {
       "name": "Tencent Meeting",
-      "desc": "Official Tencent Meeting MCP. Personal accounts only. Get a token at https://meeting.tencent.com/ai-skill.html, fill in X-Tencent-Meeting-Token, then enable it. Schedule meetings, check calendars, and fetch minutes."
+      "desc": "Official Tencent Meeting MCP. Personal accounts only. Get a token at https://meeting.tencent.com/ai-skill.html, then click Edit Server, scroll to Custom Request Headers, and replace YOUR_TENCENT_MEETING_TOKEN with your token before enabling. Schedule meetings, check calendars, and fetch minutes."
     }
   },
   "prompts": {

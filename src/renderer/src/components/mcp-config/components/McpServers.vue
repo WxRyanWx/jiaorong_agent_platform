@@ -689,7 +689,7 @@ defineExpose({
       <div class="flex items-center justify-between gap-3 px-4 py-3">
         <div class="flex min-w-0 flex-1 items-center gap-3">
           <slot name="status-bar">
-            <div class="flex items-center space-x-3">
+            <div data-mcp-server-counts class="flex items-center space-x-3">
               <div class="flex items-center space-x-1">
                 <Icon icon="lucide:server" class="h-3 w-3 text-muted-foreground" />
                 <span class="text-xs text-muted-foreground">

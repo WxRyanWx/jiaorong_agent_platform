@@ -22,6 +22,9 @@ describe('plugin center mcp catalog', () => {
     expect(usesJiaorongPluginMcpLegacyWire(TENCENT_MEETING_MCP.name)).toBe(true)
     expect(TENCENT_MEETING_MCP.config.descriptions).toContain(TENCENT_MEETING_MCP_TOKEN_PAGE_URL)
     expect(TENCENT_MEETING_MCP.config.descriptions).toContain('仅可用个人账号')
+    expect(TENCENT_MEETING_MCP.config.descriptions).toContain('编辑服务器')
+    expect(TENCENT_MEETING_MCP.config.descriptions).toContain('自定义请求头')
+    expect(TENCENT_MEETING_MCP.config.descriptions).toContain('YOUR_TENCENT_MEETING_TOKEN')
     expect(JIAORONG_PLUGIN_MCP_DEFAULT_SERVERS[TENCENT_MEETING_MCP.name]).toMatchObject({
       type: 'http',
       baseUrl: 'https://mcp.meeting.tencent.com/mcp/wemeet-open/v1',

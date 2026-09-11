@@ -221,7 +221,7 @@
     },
     "tencent-meeting": {
       "name": "腾讯会议",
-      "desc": "腾讯会议官方 MCP，仅可用个人账号。请到 https://meeting.tencent.com/ai-skill.html 获取 Token，填入 X-Tencent-Meeting-Token 后启用。可预约会议、查询日程和获取纪要。"
+      "desc": "腾讯会议官方 MCP，仅可用个人账号。请先到 https://meeting.tencent.com/ai-skill.html 获取 Token，再点「编辑服务器」，下滑到「自定义请求头」，把 X-Tencent-Meeting-Token 里的 YOUR_TENCENT_MEETING_TOKEN 换成你的 Token 后启用。可预约会议、查询日程和获取纪要。"
     }
   },
   "prompts": {
