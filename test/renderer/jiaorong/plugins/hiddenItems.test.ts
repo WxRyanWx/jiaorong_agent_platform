@@ -18,6 +18,9 @@ describe('plugin center hide css', () => {
     expect(buildPluginCenterHideCss()).toContain(
       '.plugin-center-page [data-mcp-market-button]{display:none!important}'
     )
+    expect(buildPluginCenterHideCss()).toContain(
+      '.plugin-center-page [data-mcp-master-switch]{display:none!important}'
+    )
     expect(css).not.toContain('[data-plugin-id="builtin:ocr"]')
     expect(buildPluginCenterHideCss()).toContain(
       '.plugin-center-page [data-plugin-id="builtin:ocr"]{display:none!important}'

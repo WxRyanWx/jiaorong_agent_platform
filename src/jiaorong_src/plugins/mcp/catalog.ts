@@ -1,6 +1,7 @@
 import type { MCPServerConfig } from '@shared/types/mcp'
 import { resolveMcpServerListName as resolveKnowledgeBaseMcpServerListName } from '@jiaorong/knowledgeBase/mcp/knowledgeBaseMcpConstants'
 import { TENCENT_MEETING_MCP } from './servers/tencentMeeting'
+import { overlayTencentMeetingToolPresentation } from './servers/tencentMeetingTools'
 import type { JiaorongPluginMcpDefinition } from './types'
 
 /**
@@ -42,6 +43,31 @@ export function resolveJiaorongMcpServerListName(serverName: string): string {
     getJiaorongPluginMcpServer(serverName)?.displayName ??
     resolveKnowledgeBaseMcpServerListName(serverName)
   )
+}
+
+/** 仅预置插件 MCP 叠本地中文 title；description / 协议 id 保持远端原样。 */
+export function overlayJiaorongPluginMcpToolPresentation(
+  serverName: string,
+  toolName: string,
+  current: { title: string; description: string }
+): { title: string; description: string } {
+  return overlayTencentMeetingToolPresentation(serverName, toolName, current)
+}
+
+/** 插件 MCP 下拉展示中文点名；开关/调用仍用英文 toolName。其它 MCP 原样。 */
+export function resolveJiaorongPluginMcpToolListLabel(
+  serverName: string,
+  toolName: string,
+  displayName?: string
+): string {
+  if (!getJiaorongPluginMcpServer(serverName)) {
+    return toolName
+  }
+  const overlayTitle = overlayJiaorongPluginMcpToolPresentation(serverName, toolName, {
+    title: displayName?.trim() || '',
+    description: ''
+  }).title
+  return overlayTitle || toolName
 }
 
 /** 连接时补上目录里缺失的必填头（如 X-Skill-Version），不覆盖用户已填的值。 */

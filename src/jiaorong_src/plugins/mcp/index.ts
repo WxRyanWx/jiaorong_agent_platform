@@ -5,7 +5,9 @@ export {
   JIAORONG_PLUGIN_MCP_DEFAULT_SERVERS,
   JIAORONG_PLUGIN_MCP_SERVERS,
   getJiaorongPluginMcpServer,
+  overlayJiaorongPluginMcpToolPresentation,
   resolveJiaorongMcpServerListName,
+  resolveJiaorongPluginMcpToolListLabel,
   usesJiaorongPluginMcpLegacyWire,
   withJiaorongPluginMcpRequiredHeaders
 } from './catalog'

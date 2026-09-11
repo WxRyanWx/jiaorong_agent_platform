@@ -24,8 +24,11 @@ export const PLUGIN_CENTER_HIDDEN_PLUGIN_IDS = [
   // 'remote:weixin-ilink'
 ] as const
 
-/** 插件中心额外藏掉的控件（MCP 市场入口等） */
-export const PLUGIN_CENTER_HIDDEN_SELECTORS = ['[data-mcp-market-button]'] as const
+/** 插件中心额外藏掉的控件（MCP 市场入口、MCP 总开关等）。只藏 UI，不改默认开启。 */
+export const PLUGIN_CENTER_HIDDEN_SELECTORS = [
+  '[data-mcp-market-button]',
+  '[data-mcp-master-switch]'
+] as const
 
 const cssAttr = (value: string): string => JSON.stringify(value)
 

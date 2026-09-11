@@ -3,7 +3,9 @@ import { JIAORONG_KB_MCP_SERVER_DISPLAY_NAME } from '@jiaorong/knowledgeBase/mcp
 import {
   JIAORONG_PLUGIN_MCP_DEFAULT_SERVERS,
   getJiaorongPluginMcpServer,
+  overlayJiaorongPluginMcpToolPresentation,
   resolveJiaorongMcpServerListName,
+  resolveJiaorongPluginMcpToolListLabel,
   usesJiaorongPluginMcpLegacyWire,
   withJiaorongPluginMcpRequiredHeaders
 } from '@jiaorong/plugins/mcp'
@@ -12,6 +14,7 @@ import {
   TENCENT_MEETING_MCP,
   TENCENT_MEETING_MCP_TOKEN_PAGE_URL
 } from '@jiaorong/plugins/mcp/servers/tencentMeeting'
+import { TENCENT_MEETING_TOOL_TITLES } from '@jiaorong/plugins/mcp/servers/tencentMeetingTools'
 
 describe('plugin center mcp catalog', () => {
   it('registers tencent-meeting as a disabled legacy HTTP server', () => {
@@ -61,5 +64,52 @@ describe('plugin center mcp catalog', () => {
   it('resolves the tencent-meeting card icon from the plugin asset', () => {
     expect(getJiaorongPluginMcpIconSrc(TENCENT_MEETING_MCP.name)).toContain('txmeeting')
     expect(getJiaorongPluginMcpIconSrc('Artifacts')).toBeUndefined()
+  })
+
+  it('overlays Chinese titles only for tencent-meeting tools', () => {
+    const remote = { title: 'get_user_meetings', description: 'Remote English description' }
+    expect(
+      overlayJiaorongPluginMcpToolPresentation(
+        TENCENT_MEETING_MCP.name,
+        'get_user_meetings',
+        remote
+      )
+    ).toEqual({
+      title: '腾讯会议-查即将开始/进行中的会议',
+      description: 'Remote English description'
+    })
+    expect(
+      overlayJiaorongPluginMcpToolPresentation(TENCENT_MEETING_MCP.name, 'meeting_control_kick', {
+        title: '',
+        description: 'Kick members'
+      })
+    ).toEqual({
+      title: '腾讯会议-会中踢出成员',
+      description: 'Kick members'
+    })
+    expect(
+      overlayJiaorongPluginMcpToolPresentation(TENCENT_MEETING_MCP.name, 'brand_new_tool', remote)
+    ).toEqual(remote)
+    expect(overlayJiaorongPluginMcpToolPresentation('brave', 'get_user_meetings', remote)).toEqual(
+      remote
+    )
+    expect(TENCENT_MEETING_TOOL_TITLES.schedule_meeting).toBe('创建会议（支持普通/周期性）')
+    expect(TENCENT_MEETING_TOOL_TITLES.convert_timestamp).toBe('时间转换 / 相对时间换算')
+  })
+
+  it('uses Chinese labels only for plugin MCP tools in the switch list', () => {
+    expect(
+      resolveJiaorongPluginMcpToolListLabel(
+        TENCENT_MEETING_MCP.name,
+        'get_user_meetings',
+        'ignored-remote-title'
+      )
+    ).toBe('腾讯会议-查即将开始/进行中的会议')
+    expect(resolveJiaorongPluginMcpToolListLabel('demo-server', 'mcp_tool', '中文标题')).toBe(
+      'mcp_tool'
+    )
+    expect(
+      resolveJiaorongPluginMcpToolListLabel(TENCENT_MEETING_MCP.name, 'unknown_future_tool')
+    ).toBe('unknown_future_tool')
   })
 })

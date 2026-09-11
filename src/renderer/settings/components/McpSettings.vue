@@ -44,12 +44,14 @@
                 {{ t('routes.settings-mcp-market') }}
               </DcButton>
             </span>
-            <Switch
-              dir="ltr"
-              :model-value="mcpEnabled"
-              :disabled="isAgentScope || mcpMasterSaving"
-              @update:model-value="handleMcpEnabledChange"
-            />
+            <span data-mcp-master-switch>
+              <Switch
+                dir="ltr"
+                :model-value="mcpEnabled"
+                :disabled="isAgentScope || mcpMasterSaving"
+                @update:model-value="handleMcpEnabledChange"
+              />
+            </span>
           </div>
         </div>
       </div>
