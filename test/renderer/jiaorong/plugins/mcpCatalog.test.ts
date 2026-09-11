@@ -59,6 +59,8 @@ describe('plugin center mcp catalog', () => {
     expect(resolveJiaorongMcpServerListName('Artifacts')).toBe('Artifacts')
     expect(usesJiaorongPluginMcpLegacyWire('other-mcp')).toBe(false)
     expect(getJiaorongPluginMcpServer(undefined)).toBeUndefined()
+    expect(getJiaorongPluginMcpServer(TENCENT_MEETING_MCP.name)?.name).toBe('tencent-meeting')
+    expect(getJiaorongPluginMcpServer('Artifacts')).toBeUndefined()
   })
 
   it('resolves the tencent-meeting card icon from the plugin asset', () => {
