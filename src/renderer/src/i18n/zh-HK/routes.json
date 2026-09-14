@@ -1,16 +1,16 @@
 {
   "login": "Login",
-  "skills": "Skills Center",
+  "skills": "插件",
   "knowledgeBase": "Knowledge Base",
   "skillsDetail": "Skill Detail",
   "skillsCreateButton": "New skill",
   "skillsCreateAction": "Create skill",
-  "skillsPageTitle": "Skill Center",
+  "skillsPageTitle": "插件",
   "skillsPageSubtitle": "Discover and manage skills available in general chat.",
   "skillsInstalled": "Installed",
   "skillsNotInstalled": "Not installed",
   "skillsViewDetail": "View details",
-  "skillsBackToList": "Back to Skill Center",
+  "skillsBackToList": "返回插件",
   "skillsBack": "Back",
   "skillsNotFound": "Skill not found",
   "skillsEnabled": "Enabled",
@@ -71,5 +71,11 @@
   "settings-debug": "偵錯",
   "embeddedApp": "App",
   "embeddedAppLoading": "Opening app…",
-  "embeddedAppUnavailable": "Unable to open this app"
+  "embeddedAppUnavailable": "Unable to open this app",
+  "pluginCenterTitle": "插件中心",
+  "pluginCenterSkills": "技能",
+  "pluginCenterConnectors": "連接器",
+  "pluginCenterMcp": "MCP",
+  "pluginCenterConnectorsSubtitle": "統一管理 JiaorongAI 的連接器。",
+  "pluginCenterConnectorsAvailable": "可用連接器"
 }

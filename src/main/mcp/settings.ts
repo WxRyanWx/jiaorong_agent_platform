@@ -21,6 +21,7 @@ import {
   JIAORONG_MCP_DEFAULT_ADDONS_MIGRATION_KEY,
   JIAORONG_MCP_DEFAULT_ON_ADDONS
 } from '@jiaorong/mcp/defaultEnabledServers'
+import { JIAORONG_PLUGIN_MCP_DEFAULT_SERVERS } from '@jiaorong/plugins/mcp'
 
 // NPM Registry cache interface
 export interface INpmRegistryCache {
@@ -284,7 +285,8 @@ const DEFAULT_MCP_SERVERS = {
       customHeaders: {
         Authorization: 'Bearer YOUR_MCP_TOKEN'
       }
-    }
+    },
+    ...JIAORONG_PLUGIN_MCP_DEFAULT_SERVERS
   } satisfies Record<string, Omit<MCPServerConfig, 'enabled'>>,
   mcpEnabled: false // MCP functionality is disabled by default
 }

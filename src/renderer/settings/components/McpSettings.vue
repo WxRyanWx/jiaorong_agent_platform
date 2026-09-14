@@ -38,16 +38,20 @@
               <Icon icon="lucide:plus" class="size-4" />
               {{ t('common.add') }}
             </DcButton>
-            <DcButton variant="outline" size="sm" @click="openMarketView">
-              <Icon icon="lucide:shopping-bag" class="size-4" />
-              {{ t('routes.settings-mcp-market') }}
-            </DcButton>
-            <Switch
-              dir="ltr"
-              :model-value="mcpEnabled"
-              :disabled="isAgentScope || mcpMasterSaving"
-              @update:model-value="handleMcpEnabledChange"
-            />
+            <span data-mcp-market-button>
+              <DcButton variant="outline" size="sm" @click="openMarketView">
+                <Icon icon="lucide:shopping-bag" class="size-4" />
+                {{ t('routes.settings-mcp-market') }}
+              </DcButton>
+            </span>
+            <span data-mcp-master-switch>
+              <Switch
+                dir="ltr"
+                :model-value="mcpEnabled"
+                :disabled="isAgentScope || mcpMasterSaving"
+                @update:model-value="handleMcpEnabledChange"
+              />
+            </span>
           </div>
         </div>
       </div>
@@ -78,7 +82,7 @@
           @toggle-agent-server="handleToggleAgentServer"
         >
           <template #status-bar>
-            <div class="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1">
+            <div data-mcp-server-counts class="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1">
               <span class="text-xs text-muted-foreground">
                 {{ t('settings.mcp.totalServers') }}:
                 <span class="font-medium text-foreground">{{ mcpStore.serverList.length }}</span>

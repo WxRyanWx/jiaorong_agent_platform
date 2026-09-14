@@ -2,7 +2,7 @@
   <ScrollArea v-if="remoteChannel" class="h-full w-full">
     <div class="mx-auto flex w-full max-w-4xl flex-col gap-6 px-6 py-8">
       <div class="flex items-center gap-2">
-        <DcButton variant="ghost" size="sm" @click="router.push({ name: 'plugins' })">
+        <DcButton variant="ghost" size="sm" @click="goBack">
           <Icon icon="lucide:arrow-left" class="mr-2 size-4" />
           {{ t('common.back') }}
         </DcButton>
@@ -106,7 +106,7 @@
   <ScrollArea v-else class="h-full w-full">
     <div class="mx-auto flex w-full max-w-4xl flex-col gap-6 px-6 py-8">
       <div class="flex items-center gap-2">
-        <DcButton variant="ghost" size="sm" @click="router.push({ name: 'plugins' })">
+        <DcButton variant="ghost" size="sm" @click="goBack">
           <Icon icon="lucide:arrow-left" class="mr-2 size-4" />
           {{ t('common.back') }}
         </DcButton>
@@ -297,6 +297,7 @@ import { DcButton } from '@dc-ui/components/button'
 import { ScrollArea } from '@shadcn/components/ui/scroll-area'
 import { createPluginClient } from '@api/PluginClient'
 import { createRemoteControlClient } from '@api/RemoteControlClient'
+import { resolveConnectorManageBack } from '@jiaorong/plugins/navigation'
 import { usePluginCatalogStore } from '@/stores/pluginCatalog'
 import RemoteSettings from '../../../settings/components/RemoteSettings.vue'
 import type { ChannelSettingsMap, RemoteChannel } from '@shared/types/remote'
@@ -313,6 +314,10 @@ const router = useRouter()
 const pluginClient = createPluginClient()
 const remoteControlClient = createRemoteControlClient()
 const pluginCatalogStore = usePluginCatalogStore()
+
+const goBack = () => {
+  void router.push(resolveConnectorManageBack(route))
+}
 
 const loading = ref(false)
 const remoteLoading = ref(false)

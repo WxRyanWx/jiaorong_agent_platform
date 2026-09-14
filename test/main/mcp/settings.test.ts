@@ -153,6 +153,28 @@ describe('McpSettings', () => {
     })
   })
 
+  it('adds the disabled Tencent Meeting MCP server with a token placeholder for existing users', async () => {
+    const { McpSettings } = await loadHelper('darwin')
+    const helper = new McpSettings()
+    const mcpStore = (helper as any).mcpStore
+
+    mcpStore.set('mcpServers', {})
+
+    const servers = await helper.getMcpServers()
+
+    expect(servers['tencent-meeting']).toMatchObject({
+      type: 'http',
+      baseUrl: 'https://mcp.meeting.tencent.com/mcp/wemeet-open/v1',
+      forceLegacyWire: true,
+      authorization: { mode: 'none' },
+      customHeaders: {
+        'X-Tencent-Meeting-Token': 'YOUR_TENCENT_MEETING_TOKEN',
+        'X-Skill-Version': 'v1.0.6'
+      },
+      enabled: false
+    })
+  })
+
   it('does not recreate the Apple built-in server after the user removed it', async () => {
     const { McpSettings } = await loadHelper('darwin')
     const helper = new McpSettings()

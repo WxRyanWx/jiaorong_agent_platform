@@ -8,7 +8,8 @@ import {
   ProtocolError,
   Client,
   ProtocolErrorCode,
-  SdkErrorCode
+  SdkErrorCode,
+  StreamableHTTPClientTransport
 } from '@modelcontextprotocol/client'
 import { JIAORONG_KB_MCP_SERVER_NAME } from '../../../src/jiaorong_src/knowledgeBase/mcp/knowledgeBaseMcpConstants'
 
@@ -606,6 +607,33 @@ describe('McpClient Runtime Command Processing Tests', () => {
       expect(otherOptions?.capabilities?.extensions).toMatchObject({
         'io.modelcontextprotocol/ui': {
           mimeTypes: ['text/html;profile=mcp-app']
+        }
+      })
+    })
+
+    it('skips modern era negotiation for tencent-meeting', async () => {
+      const tencentClient = createMcpClient('tencent-meeting', {
+        type: 'http',
+        baseUrl: 'https://mcp.meeting.tencent.com/mcp/wemeet-open/v1',
+        customHeaders: {
+          'X-Tencent-Meeting-Token': 'user-token'
+        }
+      })
+      await tencentClient.connect()
+
+      const tencentOptions = vi.mocked(Client).mock.calls.at(-1)?.[1]
+      expect(tencentOptions?.versionNegotiation).toEqual({ mode: 'legacy' })
+      expect(tencentOptions?.capabilities).toEqual({
+        sampling: {},
+        elicitation: {},
+        roots: {}
+      })
+      expect(vi.mocked(StreamableHTTPClientTransport).mock.calls.at(-1)?.[1]).toMatchObject({
+        requestInit: {
+          headers: {
+            'X-Tencent-Meeting-Token': 'user-token',
+            'X-Skill-Version': 'v1.0.6'
+          }
         }
       })
     })

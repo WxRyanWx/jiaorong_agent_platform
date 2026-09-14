@@ -1751,6 +1751,10 @@ declare module 'vue-i18n' {
         name: string
         desc: string
       }
+      'tencent-meeting': {
+        name: string
+        desc: string
+      }
     }
     prompts: {
       noPromptsAvailable: string
@@ -2259,6 +2263,12 @@ declare module 'vue-i18n' {
     embeddedApp: string
     embeddedAppLoading: string
     embeddedAppUnavailable: string
+    pluginCenterTitle: string
+    pluginCenterSkills: string
+    pluginCenterConnectors: string
+    pluginCenterMcp: string
+    pluginCenterConnectorsSubtitle: string
+    pluginCenterConnectorsAvailable: string
     common: {
       commandShell: {
         title: string

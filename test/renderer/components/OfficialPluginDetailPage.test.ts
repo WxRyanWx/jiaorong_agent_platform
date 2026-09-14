@@ -191,6 +191,8 @@ async function mountDetail(
     return {
       ...actual,
       useRoute: () => ({
+        name: 'plugins-detail',
+        path: `/plugins/${pluginId}`,
         params: { pluginId }
       }),
       useRouter: () => router

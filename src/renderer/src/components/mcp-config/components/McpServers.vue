@@ -31,7 +31,10 @@ import McpResourceViewer from './McpResourceViewer.vue'
 import type { MCPServerConfig, McpCredentialBinding, McpCredentialInput } from '@shared/types/mcp'
 import { createMcpClient } from '@api/McpClient'
 import { createSettingsClient } from '@api/SettingsClient'
-import { resolveMcpServerListName } from '@jiaorong/knowledgeBase/mcp/knowledgeBaseMcpConstants'
+import {
+  getJiaorongPluginMcpServer,
+  resolveJiaorongMcpServerListName as resolveMcpServerListName
+} from '@jiaorong/plugins/mcp'
 
 const mcpStore = useMcpStore()
 const { t } = useI18n()
@@ -136,8 +139,18 @@ const isDeepChatManagedServer = (config?: MCPServerConfig) => {
 
 const isBuiltInServer = (serverName: string) => {
   const config = mcpStore.config.mcpServers[serverName]
-  return config?.type === 'inmemory' || isDeepChatManagedServer(config)
+  return (
+    config?.type === 'inmemory' ||
+    isDeepChatManagedServer(config) ||
+    Boolean(getJiaorongPluginMcpServer(serverName))
+  )
 }
+
+const localizedServerListName = (serverName: string) =>
+  t(`mcp.inmemory.${serverName}.name`, resolveMcpServerListName(serverName))
+
+const localizedServerDescription = (serverName: string, fallback = '') =>
+  t(`mcp.inmemory.${serverName}.desc`, fallback)
 
 const filteredServers = computed(() => {
   const query = searchQuery.value.trim().toLowerCase()
@@ -146,7 +159,7 @@ const filteredServers = computed(() => {
     const matchesQuery =
       !query ||
       server.name.toLowerCase().includes(query) ||
-      resolveMcpServerListName(server.name).toLowerCase().includes(query) ||
+      localizedServerListName(server.name).toLowerCase().includes(query) ||
       server.descriptions?.toLowerCase().includes(query)
     const matchesFilter =
       activeFilter.value === 'all' ||
@@ -676,7 +689,7 @@ defineExpose({
       <div class="flex items-center justify-between gap-3 px-4 py-3">
         <div class="flex min-w-0 flex-1 items-center gap-3">
           <slot name="status-bar">
-            <div class="flex items-center space-x-3">
+            <div data-mcp-server-counts class="flex items-center space-x-3">
               <div class="flex items-center space-x-1">
                 <Icon icon="lucide:server" class="h-3 w-3 text-muted-foreground" />
                 <span class="text-xs text-muted-foreground">
@@ -695,7 +708,9 @@ defineExpose({
 
         <!-- Action buttons -->
         <div class="flex space-x-2">
-          <McpEnterpriseProfiles v-if="!props.agentScopedToggle" />
+          <span v-if="!props.agentScopedToggle" data-mcp-enterprise-identity>
+            <McpEnterpriseProfiles />
+          </span>
           <Dialog :open="isAddServerDialogOpen" @update:open="handleAddDialogOpenChange">
             <DialogTrigger v-if="props.showFooterAddButton" as-child>
               <DcButton size="sm" class="h-8 px-3 text-xs">
@@ -737,8 +752,12 @@ defineExpose({
     <DcSheetPanel
       appearance="plain"
       :open="Boolean(selectedDetailServer)"
-      :title="selectedDetailServer ? resolveMcpServerListName(selectedDetailServer.name) : ''"
-      :description="selectedDetailServer?.descriptions ?? ''"
+      :title="selectedDetailServer ? localizedServerListName(selectedDetailServer.name) : ''"
+      :description="
+        selectedDetailServer
+          ? localizedServerDescription(selectedDetailServer.name, selectedDetailServer.descriptions)
+          : ''
+      "
       @update:open="closeDetail"
     >
       <div v-if="selectedDetailServer" class="flex flex-1 flex-col gap-4 overflow-y-auto px-4 pb-4">

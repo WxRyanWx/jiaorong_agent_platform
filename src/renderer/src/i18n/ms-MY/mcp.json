@@ -218,6 +218,10 @@
     "deepchat/apple-server": {
       "name": "Pembantu sistem macOS",
       "desc": "Benarkan model mengendalikan kalendar, kenalan, e-mel, peta, memo, peringatan dan fungsi sistem lain macOS"
+    },
+    "tencent-meeting": {
+      "name": "Tencent Meeting",
+      "desc": "Official Tencent Meeting MCP. Personal accounts only. Get a token at https://meeting.tencent.com/ai-skill.html, then click Edit Server, scroll to Custom Request Headers, and replace YOUR_TENCENT_MEETING_TOKEN with your token before enabling. Schedule meetings, check calendars, and fetch minutes."
     }
   },
   "prompts": {

@@ -1,16 +1,16 @@
 {
   "login": "Login",
-  "skills": "Skills Center",
+  "skills": "Plugins",
   "knowledgeBase": "Knowledge Base",
   "skillsDetail": "Skill Detail",
   "skillsCreateButton": "New skill",
   "skillsCreateAction": "Create skill",
-  "skillsPageTitle": "Skill Center",
+  "skillsPageTitle": "Plugins",
   "skillsPageSubtitle": "Discover and manage skills available in general chat.",
   "skillsInstalled": "Installed",
   "skillsNotInstalled": "Not installed",
   "skillsViewDetail": "View details",
-  "skillsBackToList": "Back to Skill Center",
+  "skillsBackToList": "Back to Plugins",
   "skillsBack": "Back",
   "skillsNotFound": "Skill not found",
   "skillsEnabled": "Enabled",
@@ -71,5 +71,11 @@
   "settings-debug": "デバッグ",
   "embeddedApp": "App",
   "embeddedAppLoading": "Opening app…",
-  "embeddedAppUnavailable": "Unable to open this app"
+  "embeddedAppUnavailable": "Unable to open this app",
+  "pluginCenterTitle": "Plugin Center",
+  "pluginCenterSkills": "Skills",
+  "pluginCenterConnectors": "Connectors",
+  "pluginCenterMcp": "MCP",
+  "pluginCenterConnectorsSubtitle": "Manage JiaorongAI connectors.",
+  "pluginCenterConnectorsAvailable": "Available connectors"
 }

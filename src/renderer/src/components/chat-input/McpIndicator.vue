@@ -335,6 +335,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
+import { resolveJiaorongPluginMcpToolListLabel } from '@jiaorong/plugins/mcp'
 import { isMainSidebarItemHidden } from '@shared/settingsSidebarAdmin'
 import { Icon } from '@iconify/vue'
 import { DcButton } from '@dc-ui/components/button'
@@ -584,7 +585,11 @@ const groupedAgentTools = computed<ToolGroup[]>(() => {
     const existing = groups.get(tool.server.name) ?? []
     existing.push({
       id: tool.function.name,
-      label: tool.function.name,
+      label: resolveJiaorongPluginMcpToolListLabel(
+        tool.server.name,
+        tool.function.name,
+        tool.function.displayName
+      ),
       toolName: tool.function.name,
       configurable: true
     })

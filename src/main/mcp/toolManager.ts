@@ -43,6 +43,7 @@ import {
   isJiaorongKnowledgeBaseMcpServer,
   overlayJiaorongKbToolPresentation
 } from '@jiaorong/knowledgeBase/mcp/knowledgeBaseMcpConstants'
+import { overlayJiaorongPluginMcpToolPresentation } from '@jiaorong/plugins/mcp'
 
 const isAbortError = (error: unknown): boolean =>
   error instanceof Error && (error.name === 'AbortError' || error.name === 'CanceledError')
@@ -538,14 +539,18 @@ export class ToolManager {
           }
           let finalName = tool.name
           const originalName = tool.name
-          const overlay = overlayJiaorongKbToolPresentation(source.serverName, originalName, {
-            title:
-              (typeof tool.title === 'string' && tool.title.trim()) ||
-              (typeof tool.annotations?.title === 'string' &&
-                String(tool.annotations.title).trim()) ||
-              '',
-            description: tool.description ?? ''
-          })
+          const overlay = overlayJiaorongPluginMcpToolPresentation(
+            source.serverName,
+            originalName,
+            overlayJiaorongKbToolPresentation(source.serverName, originalName, {
+              title:
+                (typeof tool.title === 'string' && tool.title.trim()) ||
+                (typeof tool.annotations?.title === 'string' &&
+                  String(tool.annotations.title).trim()) ||
+                '',
+              description: tool.description ?? ''
+            })
+          )
           let finalDescription = overlay.description
 
           if (renamesForThisServer.has(originalName)) {

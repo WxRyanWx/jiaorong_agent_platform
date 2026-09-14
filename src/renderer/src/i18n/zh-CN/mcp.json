@@ -218,6 +218,10 @@
     "deepchat/apple-server": {
       "name": "macOS系统助手",
       "desc": "让模型能操作macOS的日历、联系人、邮件、地图、备忘录、提醒事项等系统功能"
+    },
+    "tencent-meeting": {
+      "name": "腾讯会议",
+      "desc": "腾讯会议官方 MCP，仅可用个人账号。请先到 https://meeting.tencent.com/ai-skill.html 获取 Token，再点「编辑服务器」，下滑到「自定义请求头」，把 X-Tencent-Meeting-Token 里的 YOUR_TENCENT_MEETING_TOKEN 换成你的 Token 后启用。支持预约会议、查询日程、获取会议纪要等操作。"
     }
   },
   "prompts": {
