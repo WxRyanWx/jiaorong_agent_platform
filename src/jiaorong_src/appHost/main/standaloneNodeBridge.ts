@@ -1,3 +1,5 @@
+/** 独立 node server.js：node-bridge.json JSON 行协议。 */
+
 import { randomBytes } from 'node:crypto'
 import fs from 'node:fs'
 import net from 'node:net'
@@ -11,32 +13,45 @@ import { ensureDir, getNodeBridgeFile } from './paths'
 import { findVisibleOpenableApp, scanJiaorongApps } from './scan'
 import { readUserIdentityFromAuthSession } from './userIdentity'
 
+/** 独立 Node TCP 客户端。 */
 type BridgeClient = {
+  /** TCP socket。 */
   socket: net.Socket
+  /** 当前应用 id。 */
   appId: string
 }
 
+/** 一行 JSON 消息。 */
 type ParsedLine = Record<string, unknown>
 
+/** TCP 服务器。 */
 let server: net.Server | null = null
+/** 独立 Node 桥地址文件。 */
 let endpointFile = ''
+/** 已连接的独立 Node 客户端。 */
 const clients = new Set<BridgeClient>()
 
+/** 往 socket 写一行 JSON。 */
 function writeLine(socket: net.Socket, payload: unknown): void {
   if (socket.destroyed) return
   socket.write(`${JSON.stringify(payload)}\n`)
 }
 
+/** 按行拆 TCP 缓冲并回调。 */
 function createLineReader(onMessage: (msg: ParsedLine) => void): (chunk: Buffer) => void {
+  /** 未拆完的行缓冲。 */
   let buffer = ''
   return (chunk: Buffer) => {
     buffer += chunk.toString('utf8')
+    /** 下标。 */
     let index = buffer.indexOf('\n')
     while (index >= 0) {
+      /** 一行文本。 */
       const line = buffer.slice(0, index).trim()
       buffer = buffer.slice(index + 1)
       if (line) {
         try {
+          /** 解析结果。 */
           const parsed = JSON.parse(line) as unknown
           if (parsed && typeof parsed === 'object') onMessage(parsed as ParsedLine)
         } catch {
@@ -48,8 +63,11 @@ function createLineReader(onMessage: (msg: ParsedLine) => void): (chunk: Buffer)
   }
 }
 
+/** 当前可见的该应用运行时。 */
 function visibleRuntime(deps: JiaorongAppHostDeps, appId: string): JiaorongAppRuntime | null {
+  /** 当前用户身份。 */
   const user = readUserIdentityFromAuthSession(deps.getAuthSession())
+  /** 应用列表。 */
   const apps = scanJiaorongApps(user).filter((item) => {
     if (!item.visible) return false
     if (item.source === 'store' && item.installStatus === 'not_installed') return false
@@ -58,20 +76,27 @@ function visibleRuntime(deps: JiaorongAppHostDeps, appId: string): JiaorongAppRu
   return findVisibleOpenableApp(apps, appId) ?? null
 }
 
+/** 向独立 Node 客户端推事件。 */
 export function sendStandaloneNodeEvent(appId: string, event: string, payload: unknown): void {
+  /** 一个 TCP 客户端。 */
   for (const client of clients) {
     if (client.appId !== appId) continue
     writeLine(client.socket, { type: 'event', event, payload })
   }
 }
 
+/** 启动本机独立 Node TCP 桥。 */
 export function startStandaloneNodeBridge(deps: JiaorongAppHostDeps): void {
   if (server) return
+  /** 登录 token。 */
   const token = randomBytes(32).toString('hex')
   endpointFile = getNodeBridgeFile()
   server = net.createServer((socket) => {
+    /** 已鉴权的客户端。 */
     let authed: BridgeClient | null = null
+    /** 收到一行消息时的回调。 */
     const onMessage = (msg: ParsedLine) => {
+      /** 类型。 */
       const type = typeof msg.type === 'string' ? msg.type : ''
       if (!authed) {
         if (type !== 'hello') {
@@ -90,7 +115,9 @@ export function startStandaloneNodeBridge(deps: JiaorongAppHostDeps): void {
           socket.end()
           return
         }
+        /** 当前应用 id。 */
         const appId = typeof msg.appId === 'string' ? msg.appId.trim() : ''
+        /** 当前应用运行时。 */
         const runtime = appId ? visibleRuntime(deps, appId) : null
         if (!runtime?.appDir) {
           writeLine(socket, {
@@ -106,6 +133,7 @@ export function startStandaloneNodeBridge(deps: JiaorongAppHostDeps): void {
         return
       }
       if (type !== 'invoke' || typeof msg.id !== 'string') return
+      /** 当前应用运行时。 */
       const runtime = visibleRuntime(deps, authed.appId)
       if (!runtime?.appDir) {
         writeLine(socket, {
@@ -115,6 +143,7 @@ export function startStandaloneNodeBridge(deps: JiaorongAppHostDeps): void {
         })
         return
       }
+      /** 桥方法名。 */
       const method = typeof msg.method === 'string' ? msg.method : ''
       void handleAppBridgeInvoke(
         deps,
@@ -131,6 +160,7 @@ export function startStandaloneNodeBridge(deps: JiaorongAppHostDeps): void {
           writeLine(socket, { type: 'invoke:ok', id: msg.id, result })
         })
         .catch((error) => {
+          /** 事件或请求负载。 */
           const payload = isJiaorongBridgeFailure(error)
             ? error
             : { code: 'GENERATION_FAILED', message: '请求失败' }
@@ -146,8 +176,10 @@ export function startStandaloneNodeBridge(deps: JiaorongAppHostDeps): void {
     })
   })
   server.listen(0, '127.0.0.1', () => {
+    /** 地址。 */
     const address = server?.address()
     if (!address || typeof address === 'string') return
+    /** 目录。 */
     const dir = path.dirname(endpointFile)
     ensureDir(dir)
     fs.writeFileSync(
@@ -166,7 +198,9 @@ export function startStandaloneNodeBridge(deps: JiaorongAppHostDeps): void {
   })
 }
 
+/** 关掉独立 Node TCP 桥。 */
 export function stopStandaloneNodeBridge(): void {
+  /** 一个 TCP 客户端。 */
   for (const client of clients) {
     try {
       client.socket.destroy()
@@ -175,6 +209,7 @@ export function stopStandaloneNodeBridge(): void {
     }
   }
   clients.clear()
+  /** 当前值。 */
   const current = server
   server = null
   if (endpointFile) {

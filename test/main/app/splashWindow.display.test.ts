@@ -185,7 +185,7 @@ describe('SplashWindow display gating', () => {
     })
   })
 
-  it('waits 200ms before showing the splash window', async () => {
+  it('does not auto-show the splash window after create', async () => {
     const { SplashWindow } = await import('../../../src/main/app/splashWindow')
 
     manager = new SplashWindow()
@@ -195,13 +195,9 @@ describe('SplashWindow display gating', () => {
     expect(splashWindow).toBeTruthy()
 
     splashWindow.emit('ready-to-show')
+    await vi.advanceTimersByTimeAsync(200)
     expect(splashWindow.show).not.toHaveBeenCalled()
-
-    await vi.advanceTimersByTimeAsync(199)
-    expect(splashWindow.show).not.toHaveBeenCalled()
-
-    await vi.advanceTimersByTimeAsync(1)
-    expect(splashWindow.show).toHaveBeenCalledTimes(1)
+    expect(manager.isVisible()).toBe(false)
   })
 
   it('skips showing the splash window when the main window is created first', async () => {
@@ -222,7 +218,7 @@ describe('SplashWindow display gating', () => {
     expect(manager.isVisible()).toBe(false)
   })
 
-  it('does not suppress the splash when a non-main window is created first', async () => {
+  it('does not auto-show the splash when a non-main window is created first', async () => {
     const { SplashWindow } = await import('../../../src/main/app/splashWindow')
 
     manager = new SplashWindow()
@@ -236,8 +232,8 @@ describe('SplashWindow display gating', () => {
     await vi.advanceTimersByTimeAsync(200)
 
     expect(splashWindow.close).not.toHaveBeenCalled()
-    expect(splashWindow.show).toHaveBeenCalledTimes(1)
-    expect(manager.isVisible()).toBe(true)
+    expect(splashWindow.show).not.toHaveBeenCalled()
+    expect(manager.isVisible()).toBe(false)
   })
 
   it('closes a hidden splash immediately without waiting for the 500ms transition delay', async () => {
@@ -254,6 +250,32 @@ describe('SplashWindow display gating', () => {
 
     expect(splashWindow.close).toHaveBeenCalledTimes(1)
     await closePromise
+  })
+
+  it('lazily creates the splash window for manual database unlock', async () => {
+    const { SplashWindow } = await import('../../../src/main/app/splashWindow')
+
+    manager = new SplashWindow()
+    const unlockPromise = manager.requestDatabaseUnlock({
+      reason: 'system-key-missing',
+      safeStorageAvailable: true
+    })
+    await flushPromises()
+
+    const splashWindow = createdWindows[0]
+    expect(splashWindow).toBeTruthy()
+    splashWindow.emit('ready-to-show')
+    splashWindow.emitWebContents('did-finish-load')
+    await flushPromises()
+
+    expect(splashWindow.show).toHaveBeenCalled()
+    expect(splashWindow.focus).toHaveBeenCalled()
+
+    const closePromise = manager.close()
+    await vi.runAllTimersAsync()
+    await expect(unlockPromise).resolves.toBeNull()
+    await closePromise
+    manager = null
   })
 
   it('shows manual database unlock as soon as the renderer has loaded', async () => {
@@ -281,7 +303,7 @@ describe('SplashWindow display gating', () => {
     manager = null
   })
 
-  it('shows encrypted database progress before password detection without waiting for the delay', async () => {
+  it('does not show encrypted database progress on the splash', async () => {
     const { SplashWindow } = await import('../../../src/main/app/splashWindow')
 
     manager = new SplashWindow()
@@ -298,9 +320,9 @@ describe('SplashWindow display gating', () => {
       { skipDelay: true }
     )
     await Promise.resolve()
+    await vi.advanceTimersByTimeAsync(200)
 
-    expect(splashWindow.show).toHaveBeenCalledTimes(1)
-    expect(splashWindow.focus).toHaveBeenCalledTimes(1)
+    expect(splashWindow.show).not.toHaveBeenCalled()
   })
 
   it('does not show the splash for inactive database unlock progress', async () => {

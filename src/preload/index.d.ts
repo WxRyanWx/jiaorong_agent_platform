@@ -23,6 +23,7 @@ declare global {
       listVisible(): Promise<JiaorongMenuAppItem[]>
       getOpenInfo(appId: string): Promise<JiaorongAppOpenInfo | null>
       leave(appId: string): Promise<{ ok: boolean }>
+      onCatalogChanged(handler: () => void): () => void
     }
   }
 }

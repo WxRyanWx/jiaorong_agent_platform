@@ -20,7 +20,7 @@
 | H13 | `src/renderer/index.html` | 已移除全局 sm4 script | auth | 低 | title 亦可由 main.ts 覆盖 |
 | H14 | `src/main/.../deeplinkPresenter` + events | `AUTH_LOGIN` 扫码回调 IPC | auth | 高 | 协议层仍宿主，勿整文件搬走；曾记 H29，已合并 |
 | H15 | `src/shared/settingsSidebarAdmin.ts` | 薄 re-export → `@jiaorong/config/...` | config | 低 | |
-| H15b | `src/renderer/settings/App.vue` `settings/main.ts` | 非管理员侧栏项 `hidden`；默认进通用 | config | 中 | `isSettingsSidebarItemVisuallyHidden`；落地 `getDefaultSettingsRouteName`；白名单号码不要改 |
+| H15b | `src/renderer/settings/App.vue` `settings/main.ts` `settingsSidebarAdmin.ts` | 非管理员侧栏项 `hidden`；默认进通用；管理员名单改 OSS `jiaorong-runtime-config.json` | config | 中 | hydrate 异步不堵首屏；失败空名单并静默重试 |
 | H16 | `src/main/.../systemPromptHelper.ts` | 引用 `@jiaorong/prompts/...` | prompts | 中 | 仅默认文案 |
 | H17 | `src/main/lib/watermark.ts` | 品牌默认文案 → `@jiaorong/brand` | brand | 低 | |
 | H18 | `src/main/.../devicePresenter` | X-Title / UA → `@jiaorong/brand` | brand | 低 | |
@@ -85,7 +85,7 @@
 | H80 | `agentToolManager.ts` 技能四件套 | 按 master 写入中文 `description`（displayName 已有） | skills | 中 | 斜杠菜单描述读 function.description；函数 name 仍英文 |
 | H81 | `chatSettingsTools.ts` | 按 master 写入五条中文 description + `JiaorongAI settings control` | skills | 中 | schema/失败文案 DeepChat→JiaorongAI 同步 master |
 | H82 | `agentTapeTools` `tool/index.ts` `agentImageGenerationTool` `liveDelegationTool` `agentMemoryTools` `cronJobTool` | 用户/模型可见 DeepChat→JiaorongAI | brand | 低 | 不改协议字段 `source: 'DeepChat'`；tape 工具 API 保持上游 search/context，只换品牌词 |
-| H83 | `splashWindow.ts` `splash/loading.vue` `skill/index.ts` Runtime Context / Skills README | 启动页与技能同步目录按 master 品牌 | brand | 低 | 标题/hint `JiaorongAI`；Splash 圆底用电蓝/青，中间图用 H57 PNG |
+| H83 | `splashWindow.ts` `splash/loading.vue` `skill/index.ts` Runtime Context / Skills README | 启动页与技能同步目录按 master 品牌 | brand | 低 | 普通启动不创建 Splash 窗；仅解锁/恢复/调试预览才打开 |
 | H84 | `systemPromptBuilder.ts` 验证段 | `In the JiaorongAI repository` 以便 hostPromptLocalize 命中 | prompts | 低 | 包名检测仍走 format/i18n/lint 脚本启发式 |
 | H85 | `deepChatLoopRunner.ts` `contextCoordinator.ts` | 上下文溢出用户可见文案 DeepChat→JiaorongAI | brand | 低 | 类型错误里的 DeepChat Agent/session 不改；CLI 所有权标记不改 |
 | H86 | `McpAppView.vue` `liveDelegationService.ts` `toolPermissionReviewer.ts` | MCP App host / 委托交接 / 自动批准审阅品牌词 → `APP_NAME` | brand | 低 | 与 MCP 客户端 `{ name: 'JiaorongAI' }` 一致；不改 `source: 'DeepChat'`、CLI `DeepChat CLI` |
@@ -149,11 +149,11 @@
 | H144 | `launcherService.ts` `docs/guides/cli.md` `docs/guides/cli-user.md` `jiaorong-cli/SKILL.md` | 用户 PATH 安装 `jiaorong`；文档中文化 | cli | 中 | 不改 `# >>> DeepChat CLI >>>`；owned 旧 `deepchat` 入口升级后删除；`deepchat.mjs` / `deepchat tool call` 不动；`model invoke` 默认 `DEFAULT_SYSTEM_PROMPT`；`jiaorong '<prompt>'` 展开为 `model invoke` |
 | H145 | `electron.vite.config.ts` | preload 入口 `jiaorongApp`；Vue `webview` 为 custom element | app embed | 低 | 专用 preload 在 `jiaorong_src/appHost/preload.ts` |
 | H146 | `src/main/appMain.ts` | `registerJiaorongAppSchemes()` | app embed | 低 | `jiaorong-app://` 须在 app ready 前登记 |
-| H147 | `src/main/app/composition.ts` | 启动/销毁 `startJiaorongAppHost`；远程 `catalog.listAgents` 过滤隐藏 Agent；SkillService 列表排除应用 Agent，prune 仍保留隐藏 id | app embed | 中 | 私有 IPC，不进 DeepChat route map；官方技能页不展示应用 Agent，不 prune 掉应用绑定 |
+| H147 | `src/main/app/composition.ts` | 启动/销毁 `startJiaorongAppHost`；远程 `catalog.listAgents` 过滤隐藏 Agent；SkillService 列表排除应用 Agent，prune 仍保留隐藏 id；应用目录改 OSS | app embed | 中 | `jiaorong-runtime-config.json`；拉失败 apps 为空，不打断启动 |
 | H148 | `src/main/desktop/window/index.ts` | 主窗口 `webviewTag: true` | app embed | 中 | 仅宿主页用 webview 加载应用；应用 guest 走独立 partition |
-| H149 | `src/preload/index.ts` `index.d.ts` | 暴露 `window.jiaorongApps` | app embed | 低 | listVisible / getOpenInfo / leave |
+| H149 | `src/preload/index.ts` `index.d.ts` | 暴露 `window.jiaorongApps` | app embed | 低 | listVisible / getOpenInfo / leave / onCatalogChanged |
 | H150 | `src/renderer/src/components/WindowSideBar.vue` `useJiaorongMenuApps.ts` | 嵌入应用独立 v-for；`jiaorong_auth_session` 变化刷新 listVisible | app embed | 中 | **不**并入 `listJiaorongSidebarItems('after-deepchat')` |
-| H151 | `electron-builder.yml` | extraResources `jiaorong-apps/demo-workbench` | app embed | 低 | 排除 `web/` 源码；带上 `node/node_modules` |
+| H151 | `electron-builder.yml` | extraResources `jiaorong-apps/demo-workbench`、`jiaorong-apps/collaboration-platform` | app embed | 低 | 排除 `web/` 源码；有 Node 的应用带上 `node/node_modules` |
 | H152 | `src/renderer/src/i18n/*/routes.json` | embeddedApp* 文案 | app embed | 低 | |
 | H153 | `tsconfig.node.json` / `tsconfig.app.json` | include appHost main / bridgeErrors；renderer 排除 main/preload | app embed | 低 | |
 | H154 | `src/main/app/composition.ts` | dialogue 端口含权限/编排写入 + `publishDeepchatEvent` 转应用 guest；已归属应用的 session 事件不再 `renderer-all` | app embed | 高 | 不改 DeepChat route map；事件另发 `jiaorong-app:bridge-event`，必须带目标 appId |

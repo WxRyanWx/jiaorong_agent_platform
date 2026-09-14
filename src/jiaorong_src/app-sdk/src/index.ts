@@ -1,3 +1,5 @@
+/** 包入口：连接、错误、helpers、公开类型。Vue / chat-kit 走子路径。 */
+
 export {
   connect,
   isJiaorongNode,

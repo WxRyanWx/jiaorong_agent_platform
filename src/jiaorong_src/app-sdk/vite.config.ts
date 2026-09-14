@@ -1,3 +1,4 @@
+/** Vue 组件库 Vite 构建。 */
 import { fileURLToPath } from 'node:url'
 import tailwindcss from '@tailwindcss/vite'
 import vue from '@vitejs/plugin-vue'

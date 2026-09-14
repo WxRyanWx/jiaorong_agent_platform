@@ -17,6 +17,7 @@ const errorText = ref('')
 const loading = ref(false)
 const attached = new Set<string>()
 const parkedAppId = ref('')
+let stopCatalogListener: (() => void) | undefined
 
 const activeAppId = computed(() => {
   const value = route.params?.appId
@@ -146,9 +147,13 @@ onMounted(() => {
     void ensureFrame(activeAppId.value)
   }
   window.addEventListener(JIAORONG_AUTH_SESSION_CHANGED_EVENT, onAuthSessionChanged)
+  stopCatalogListener = window.jiaorongApps?.onCatalogChanged?.(() => {
+    if (activeAppId.value) void ensureFrame(activeAppId.value)
+  })
 })
 
 onUnmounted(() => {
+  stopCatalogListener?.()
   window.removeEventListener(JIAORONG_AUTH_SESSION_CHANGED_EVENT, onAuthSessionChanged)
   for (const frame of frames.value) {
     void window.jiaorongApps?.leave?.(frame.appId)

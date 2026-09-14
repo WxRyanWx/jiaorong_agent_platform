@@ -1,0 +1,212 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "任务数据",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "任务id",
+      "rule": "编辑时继续沿用id。创建时不需要在本任务数据JSON schema里生成该id字段"
+    },
+    "title": {
+      "type": "string",
+      "description": "填入任务名称；",
+      "rule": "自行总结，无需用户确认"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["进行中", "已完成"],
+      "default": "进行中",
+      "description": "填入任务状态，任务状态分为进行中、已完成；根据title、name等信息综合判断任务状态。如果无法判断状态，默认填入进行中",
+      "rule": "自行总结，无需用户确认"
+    },
+    "deadline": {
+      "type": "string",
+      "format": "date",
+      "description": "完成时间，用户有说按照用户提供的完成时间；用户没有说，提供给用户完成时间选项；时间格式要求必须遵从 yyyy-mm-xx"
+    },
+    "summary": {
+      "type": "string",
+      "description": "任务概要，通过简短描述根据用户输入给出任务概要",
+      "rule": "自行总结，无需用户确认"
+    },
+    "memberList": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "description": "通过./work-person.json里面的人员数据获取id"
+          },
+          "name": {
+            "type": "string",
+            "description": "通过./work-person.json里面获取的该id的完整的人员名称"
+          },
+          "isCreator": {
+            "type": "boolean",
+            "default": true,
+            "description": "是否是创建人，默认值为true"
+          }
+        },
+        "required": ["userId", "name", "isCreator"]
+      }
+    },
+    "itemList": {
+      "type": "array",
+      "description": "根据用户输入内容拆解任务的子事项，分别由子事项的任务名称，子事项的contentList的工作范围;更多子事项拆解规则，参考./taskchildrenrule.md",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "子事项的任务名称",
+            "rule": "自行总结，无需用户确认"
+          },
+          "contentList": {
+            "type": "array",
+            "description": "子事项contentList的工作范围",
+            "rule": "自行总结，无需用户确认",
+            "items": {
+              "type": "object",
+              "properties": {
+                "content": {
+                  "type": "string",
+                  "description": "子事项contentList的工作范围内容",
+                  "rule": "自行总结，无需用户确认"
+                },
+                "attachments": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/attachment"
+                  }
+                }
+              },
+              "required": ["content", "attachments"]
+            }
+          }
+        },
+        "required": ["name", "contentList"]
+      }
+    },
+    "progressList": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "creator": {
+            "type": "string",
+            "description": "提交人",
+            "rule": "自行总结，无需用户确认"
+          },
+          "content": {
+            "type": "string",
+            "description": "进度内容，描述已完成的工作",
+            "rule": "自行总结，无需用户确认"
+          },
+          "attachments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/attachment"
+            }
+          }
+        },
+        "required": ["creator", "content", "attachments"]
+      }
+    },
+    "newsList": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "任务id",
+            "rule": "编辑时继续沿用原id。新创建的newsList item不需要在本任务数据JSON schema里生成该id字段"
+          },
+          "creator": {
+            "type": "string",
+            "description": "人员姓名",
+            "rule": "自行总结，无需用户确认"
+          },
+          "content": {
+            "type": "string",
+            "description": "动态更新的内容",
+            "rule": "自行总结，无需用户确认"
+          },
+          "attachments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/attachment"
+            }
+          }
+        },
+        "required": ["creator", "content", "attachments"]
+      }
+    },
+    "personalContents": {
+      "type": "object",
+      "description": "按人员维度汇总的工作内容，键为通过./work-person.json里面的人员数据获取的id",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "creator": {
+              "type": "string",
+              "description": "提交人",
+              "rule": "自行总结，无需用户确认"
+            },
+            "content": {
+              "type": "string",
+              "description": "根据用户输入内容总结工作内容",
+              "rule": "自行总结，无需用户确认"
+            },
+            "attachments": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/attachment"
+              }
+            }
+          },
+          "required": ["creator", "content", "attachments"]
+        }
+      }
+    },
+    "kbId": {
+      "type": ["string", "null"],
+      "description": "知识库ID"
+    },
+    "attachments": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/attachment"
+      }
+    }
+  },
+  "required": [
+    "title",
+    "status",
+    "deadline",
+    "summary",
+    "memberList",
+    "itemList",
+    "progressList",
+    "newsList",
+    "personalContents",
+    "kbId",
+    "attachments"
+  ],
+  "definitions": {
+    "attachment": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "rule": "编辑时继续沿用原id。创建的不需要在本任务数据JSON schema里生成该id字段"},
+        "name": { "type": "string" },
+        "extension": { "type": "string" },
+        "docId": { "type": "string", "rule": "编辑时继续沿用原id。创建的不需要在本任务数据JSON schema里生成docId字段" }
+      },
+      "required": ["name", "extension"]
+    }
+  }
+}

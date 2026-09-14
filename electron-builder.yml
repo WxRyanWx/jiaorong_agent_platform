@@ -77,6 +77,14 @@ extraResources:
       - node/pnpm-lock.yaml
       - node/.npmrc
       - node/node_modules/**
+  - from: ./src/jiaorong_src/apps/collaboration-platform
+    to: jiaorong-apps/collaboration-platform
+    filter:
+      - app.json
+      - icon.png
+      - web-ui/**
+      - skill/**
+      - exe/**
   - from: ./build/bundled-plugins/
     to: app.asar.unpacked/plugins
     filter: ['**/*.dcplugin']

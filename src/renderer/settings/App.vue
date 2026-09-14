@@ -150,6 +150,7 @@ import { preloadSettingsRoute } from './settingsRouteComponents'
 import {
   getDefaultSettingsRouteName,
   isForbiddenSettingsLandingRoute,
+  isSettingsSidebarAdmin,
   isSettingsSidebarItemVisuallyHidden
 } from '@jiaorong/config/settingsSidebarAdmin'
 
@@ -614,6 +615,19 @@ watch(
 )
 
 watch(() => route.name, redirectForbiddenLandingRoute, { immediate: true })
+
+const hasUpgradedAdminLanding = ref(false)
+watch(
+  () => isSettingsSidebarAdmin(),
+  (isAdmin) => {
+    if (!isAdmin || hasUpgradedAdminLanding.value || route.name !== 'settings-common') {
+      return
+    }
+    hasUpgradedAdminLanding.value = true
+    void router.replace({ name: 'settings-overview' })
+  },
+  { immediate: true }
+)
 
 type SettingsNavigationItem = {
   name: string

@@ -1,5 +1,6 @@
 import type { AssistantMessageBlock } from '../../types'
 
+/** 收集待批准的工具调用。 */
 export function collectPendingApprovals(blocks: AssistantMessageBlock[]) {
   return blocks.filter(
     (block) =>
@@ -11,6 +12,7 @@ export function collectPendingApprovals(blocks: AssistantMessageBlock[]) {
   )
 }
 
+/** 找待回答的提问块。 */
 export function findPendingQuestion(blocks: AssistantMessageBlock[]) {
   return blocks.find(
     (block) =>

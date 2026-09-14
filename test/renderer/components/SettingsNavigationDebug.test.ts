@@ -10,6 +10,7 @@ import {
   isSettingsSidebarItemVisuallyHidden,
   isSettingsSpotlightItemHidden,
   isMainSidebarItemHidden,
+  applySettingsSidebarAdminWhitelist,
   MAIN_SIDEBAR_ADMIN_ONLY_ROUTES,
   SETTINGS_SIDEBAR_HIDDEN_ROUTES,
   SETTINGS_SPOTLIGHT_HIDDEN_ROUTES
@@ -77,9 +78,11 @@ describe('debug settings navigation', () => {
   })
 
   it('keeps the main sidebar plugins entry visible for admin users', () => {
+    applySettingsSidebarAdminWhitelist(['13039619789'])
     localStorage.setItem('userInfo', JSON.stringify({ phone: '13039619789' }))
     expect(isMainSidebarItemHidden('plugins')).toBe(false)
     localStorage.removeItem('userInfo')
+    applySettingsSidebarAdminWhitelist([])
   })
 
   it('defaults non-admin settings landing to common instead of overview', () => {

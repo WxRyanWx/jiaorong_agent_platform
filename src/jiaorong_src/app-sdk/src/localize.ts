@@ -1,5 +1,8 @@
+/** 错误文案本地化。 */
+
 import { ERROR_CODES, isJiaorongError, type JiaorongErrorCode } from './errors'
 
+/** 宿主英文错误 → 中文。 */
 const HOST_ERROR_ZH: Record<string, string> = {
   'common.error.requestFailed': '请求失败，请稍后重试，或开新对话',
   'common.error.createChatFailed': '创建会话失败',
@@ -26,6 +29,7 @@ const HOST_ERROR_ZH: Record<string, string> = {
   'common.error.invalidQuestionRequest': '问题请求无效'
 }
 
+/** 错误码 → 中文。 */
 const CODE_ZH: Record<JiaorongErrorCode, string> = {
   NOT_IN_JIAORONG: '请从交融侧栏打开本应用',
   JIAORONG_NOT_RUNNING: '交融 Node 服务未启动',
@@ -42,6 +46,7 @@ const CODE_ZH: Record<JiaorongErrorCode, string> = {
   DISCONNECTED: '连接已断开'
 }
 
+/** 已知英文错误句 → 中文。 */
 const KNOWN_ENGLISH_ZH: Record<string, string> = {
   'Not logged in': '未登录',
   'Failed to reach Node HTTP': '无法连接 Node 服务',
@@ -82,6 +87,7 @@ const KNOWN_ENGLISH_ZH: Record<string, string> = {
   'projectDir is not allowed for this app': 'projectDir 不允许用于本应用'
 }
 
+/** 从错误里抽出稳定码。 */
 function extractCode(error: unknown): JiaorongErrorCode | undefined {
   if (isJiaorongError(error)) return error.code
   if (
@@ -90,14 +96,17 @@ function extractCode(error: unknown): JiaorongErrorCode | undefined {
     'code' in error &&
     typeof (error as { code: unknown }).code === 'string'
   ) {
+    /** 错误码。 */
     const code = (error as { code: string }).code
     if (code in ERROR_CODES) return code as JiaorongErrorCode
   }
   return undefined
 }
 
+/** 从错误里抽出文案。 */
 function extractMessage(error: unknown): string {
   if (typeof error === 'string') return error
+  /** 原始入参。 */
   const raw =
     error instanceof Error
       ? error.message
@@ -108,8 +117,10 @@ function extractMessage(error: unknown): string {
   return ''
 }
 
+/** 是否用户取消。 */
 export function isUserCanceledError(text?: string | null): boolean {
   if (!text) return false
+  /** 待处理的值。 */
   const value = text.trim()
   return (
     value === 'common.error.userCanceledGeneration' ||
@@ -126,24 +137,31 @@ export function isUserCanceledError(text?: string | null): boolean {
   )
 }
 
+/** 错误文案转中文。 */
 export function localizeErrorText(text?: string | null): string {
   if (!text) return ''
+  /** trim 后的字符串。 */
   const trimmed = text.trim()
   if (HOST_ERROR_ZH[trimmed]) return HOST_ERROR_ZH[trimmed]
   if (KNOWN_ENGLISH_ZH[trimmed]) return KNOWN_ENGLISH_ZH[trimmed]
   if (/^common\.error\.[A-Za-z0-9]+$/.test(trimmed)) return '请求失败'
+  /** HTTP 状态文案匹配。 */
   const httpMatch = trimmed.match(/^HTTP\s+(\d{3})$/)
   if (httpMatch) return `HTTP 请求失败（${httpMatch[1]}）`
   return trimmed
 }
 
+/** 格式化 JiaorongError 展示文案。 */
 export function formatJiaorongError(error: unknown): string {
+  /** 消息或文案。 */
   const message = extractMessage(error)
+  /** 本地化后的文案。 */
   const localized = localizeErrorText(message)
   if (isUserCanceledError(message) || isUserCanceledError(localized)) {
     return '已停止生成'
   }
   if (localized) return localized
+  /** 错误码。 */
   const code = extractCode(error)
   if (code) return CODE_ZH[code]
   return '请求失败'

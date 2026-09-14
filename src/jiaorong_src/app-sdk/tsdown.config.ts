@@ -1,3 +1,4 @@
+/** SDK tsdown 打包配置。 */
 import { defineConfig } from 'tsdown'
 
 export default defineConfig({

@@ -1,3 +1,5 @@
+/** 组装 SDK `context.get` 的宿主上下文（含登录 token 与本应用 Node 端口）。 */
+
 import { resolveAuthApiBaseUrl, resolveAuthProductId } from '../../api/auth/config'
 import { readUserIdentityFromUserInfo } from '../auth'
 import type { JiaorongAppHostContext, JiaorongAppRuntime } from '../types'
@@ -5,7 +7,12 @@ import type { JiaorongAppHostDeps } from './deps'
 import { getAllocatedJiaorongAppNodePort, jiaorongAppNodeBase } from './guestNode'
 import { readAuthToken } from './userIdentity'
 
+/**
+ * 从鉴权会话里解析 userInfo JSON。
+ * @param session 主进程 `jiaorong_auth_session`
+ */
 function parseUserInfo(session: ReturnType<JiaorongAppHostDeps['getAuthSession']>): unknown {
+  /** 优先完整 userFullInfo。 */
   const raw = session?.userFullInfo || session?.userInfo
   if (!raw) return null
   try {
@@ -15,12 +22,20 @@ function parseUserInfo(session: ReturnType<JiaorongAppHostDeps['getAuthSession']
   }
 }
 
+/**
+ * 给当前打开的应用构造 `HostContext`。
+ * @param deps 宿主依赖
+ * @param runtime 已安装且当前可见的应用
+ */
 export function buildHostContext(
   deps: JiaorongAppHostDeps,
   runtime: JiaorongAppRuntime
 ): JiaorongAppHostContext {
+  /** 当前登录会话。 */
   const session = deps.getAuthSession()
+  /** 用户名与组织。 */
   const identity = readUserIdentityFromUserInfo(parseUserInfo(session))
+  /** 侧栏已拉起的 Node 端口；未启动为 null。 */
   const nodePort = getAllocatedJiaorongAppNodePort(runtime.id)
   return {
     userId: identity.userName || '',

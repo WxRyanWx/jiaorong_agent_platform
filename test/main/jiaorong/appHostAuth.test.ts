@@ -1,9 +1,15 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   isAppVisibleToUser,
   readUserIdentityFromUserInfo
 } from '../../../src/jiaorong_src/appHost/auth'
-import { mergeAppCatalogs, parseAppCatalogFile } from '../../../src/jiaorong_src/appHost/catalog'
+import {
+  ensureRemoteAppCatalog,
+  loadBuiltinAppCatalog,
+  mergeAppCatalogs,
+  parseAppCatalogFile,
+  resetRemoteAppCatalogForTests
+} from '../../../src/jiaorong_src/appHost/catalog'
 
 describe('jiaorong app catalog auth', () => {
   const user = {
@@ -90,5 +96,108 @@ describe('jiaorong app userinfo payload', () => {
     const { buildUserInfoPayload } =
       await import('../../../src/jiaorong_src/appHost/main/userIdentity')
     expect(buildUserInfoPayload(undefined)).toEqual({ token: null })
+  })
+})
+
+describe('jiaorong remote app catalog', () => {
+  afterEach(() => {
+    resetRemoteAppCatalogForTests()
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+  })
+
+  it('stays empty when the remote config cannot be read', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new Error('offline')
+      })
+    )
+
+    await ensureRemoteAppCatalog()
+    expect(loadBuiltinAppCatalog()).toEqual([])
+  })
+
+  it('loads remote apps after a successful fetch', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          schemaVersion: 1,
+          admins: ['L20184974'],
+          apps: [
+            {
+              id: 'demo-workbench',
+              name: '示例工作台',
+              version: '0.0.29-dev',
+              source: 'builtin',
+              package: { kind: 'dir', builtinDir: 'demo-workbench' }
+            }
+          ]
+        })
+      }))
+    )
+
+    await ensureRemoteAppCatalog()
+    expect(loadBuiltinAppCatalog()).toEqual([
+      expect.objectContaining({
+        id: 'demo-workbench',
+        version: '0.0.29-dev'
+      })
+    ])
+  })
+})
+
+describe('jiaorong local-debug scan gate', () => {
+  it('drops local-debug apps when the remote catalog is empty', async () => {
+    const { combineRemoteAndLocalDebugApps } =
+      await import('../../../src/jiaorong_src/appHost/main/scan')
+    expect(
+      combineRemoteAndLocalDebugApps(
+        [],
+        [
+          {
+            id: 'local-only',
+            name: 'Local',
+            version: '1.0.0',
+            slot: 'menu',
+            source: 'local-debug',
+            enabled: true,
+            auth: null,
+            package: { kind: 'dir', builtinDir: 'local-only' }
+          }
+        ]
+      )
+    ).toEqual([])
+  })
+
+  it('keeps local-debug extras when the remote catalog has apps', async () => {
+    const { combineRemoteAndLocalDebugApps } =
+      await import('../../../src/jiaorong_src/appHost/main/scan')
+    const remote = parseAppCatalogFile({
+      apps: [
+        {
+          id: 'demo-workbench',
+          name: '示例工作台',
+          version: '0.0.1-dev',
+          source: 'builtin',
+          package: { kind: 'dir', builtinDir: 'demo-workbench' }
+        }
+      ]
+    })
+    const localDebug = [
+      {
+        ...remote[0],
+        id: 'local-only',
+        name: 'Local',
+        source: 'local-debug' as const,
+        package: { kind: 'dir' as const, builtinDir: 'local-only' }
+      }
+    ]
+    expect(combineRemoteAndLocalDebugApps(remote, localDebug).map((item) => item.id)).toEqual([
+      'demo-workbench',
+      'local-only'
+    ])
   })
 })

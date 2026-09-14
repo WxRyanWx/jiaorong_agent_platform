@@ -32,8 +32,6 @@ export async function startMainProcess(
   let mainProcess: MainProcessControl | undefined
   let database: Awaited<ReturnType<typeof initializeMainDatabaseWithRecovery>> | undefined
 
-  await splashWindow.create()
-
   try {
     electronApp.setAppUserModelId('com.wefonk.jiaorong')
     const settingsStore = createSettingsStore()

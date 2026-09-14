@@ -25,8 +25,6 @@ import {
 import { activateAppOnMac } from '@/lib/activateApp'
 import { SPLASH_DEBUG_MODE_CHANNEL, type SplashDebugMode } from '@shared/contracts/splash'
 
-const SPLASH_SHOW_DELAY_MS = 200
-
 export class SplashWindow {
   private splashWindow: BrowserWindow | null = null
   private unlockRequest: {
@@ -79,10 +77,6 @@ export class SplashWindow {
     this.splashLoadCanceled = false
     this.splashLoadPromise = null
     this.clearSplashShowDelayTimer()
-    this.splashShowDelayTimer = setTimeout(() => {
-      this.splashShowDelayElapsed = true
-      this.maybeShowSplash()
-    }, SPLASH_SHOW_DELAY_MS)
 
     const iconFile = nativeImage.createFromPath(process.platform === 'win32' ? iconWin : icon)
 
@@ -152,12 +146,9 @@ export class SplashWindow {
 
   showDatabaseUnlockProgress(
     payload: DatabaseUnlockProgressPayload,
-    options: { skipDelay?: boolean } = {}
+    _options: { skipDelay?: boolean } = {}
   ): void {
     this.pendingUnlockProgress = payload
-    if (payload.active) {
-      this.forceShowSplash({ skipDelay: options.skipDelay })
-    }
     this.emitDatabaseUnlockState()
   }
 
@@ -174,11 +165,13 @@ export class SplashWindow {
       safeStorageAvailable: payload.safeStorageAvailable
     }
 
-    return await new Promise((resolve) => {
+    const result = new Promise<string | null>((resolve) => {
       this.unlockRequest = { requestId, payload: requestPayload, resolve }
-      this.forceShowSplash({ skipDelay: true })
-      this.emitDatabaseUnlockState()
     })
+    await this.ensureSplashWindow()
+    this.forceShowSplash({ skipDelay: true })
+    this.emitDatabaseUnlockState()
+    return result
   }
 
   async requestDatabaseRecovery(
@@ -195,18 +188,18 @@ export class SplashWindow {
       ...(payload.quarantineFailed ? { quarantineFailed: true } : {})
     }
 
-    return await new Promise((resolve) => {
+    const result = new Promise<DatabaseRecoveryChoice | null>((resolve) => {
       this.recoveryRequest = { requestId, payload: requestPayload, resolve }
-      this.forceShowSplash({ skipDelay: true })
-      this.emitDatabaseUnlockState()
     })
+    await this.ensureSplashWindow()
+    this.forceShowSplash({ skipDelay: true })
+    this.emitDatabaseUnlockState()
+    return result
   }
 
   async showDebugScenario(mode: SplashDebugMode): Promise<void> {
     this.debugMode = mode
-    if (!this.splashWindow || this.splashWindow.isDestroyed()) {
-      await this.create()
-    }
+    await this.ensureSplashWindow()
     this.forceShowSplash({ skipDelay: true })
     this.emitDebugMode()
   }
@@ -377,6 +370,12 @@ export class SplashWindow {
       return
     }
     this.splashWindow.webContents.send(SPLASH_DEBUG_MODE_CHANNEL, this.debugMode)
+  }
+
+  private async ensureSplashWindow(): Promise<void> {
+    if (!this.splashWindow || this.splashWindow.isDestroyed()) {
+      await this.create()
+    }
   }
 
   private maybeShowSplash(): void {

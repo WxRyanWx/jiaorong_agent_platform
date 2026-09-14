@@ -1,3 +1,4 @@
+/** 附件 helpers 再导出。 */
 export {
   browserFilesToPending,
   fileToMessageFile,

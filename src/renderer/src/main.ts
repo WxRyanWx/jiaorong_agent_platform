@@ -12,11 +12,13 @@ import App from './App.vue'
 import router from './router'
 import { bootstrapJiaorongRendererAuth } from '@jiaorong/auth/host'
 import { APP_DOCUMENT_TITLE } from '@jiaorong/brand'
+import { hydrateSettingsSidebarAdminWhitelist } from '@jiaorong/config/settingsSidebarAdmin'
 import { createRendererI18n } from './i18n/bootstrap'
 import { preloadIcons } from './lib/iconLoader'
 import { createConfigClient } from '@api/ConfigClient'
 
 async function bootstrap() {
+  hydrateSettingsSidebarAdminWhitelist()
   const configClient = createConfigClient()
   const { i18n, languageState } = await createRendererI18n({
     getLanguageState: () => configClient.getLanguageState()

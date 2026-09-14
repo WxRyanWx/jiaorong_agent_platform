@@ -1,4 +1,9 @@
 import type { SettingsNavigationItem } from '@shared/settingsNavigation'
+import { shallowRef } from 'vue'
+import {
+  startJiaorongRemoteRuntimeConfigSync,
+  subscribeJiaorongRemoteRuntimeConfig
+} from './remoteRuntimeConfig'
 
 /** 非管理员侧栏仍保留 DOM，仅视觉隐藏的路由 */
 export const SETTINGS_SIDEBAR_HIDDEN_ROUTES: SettingsNavigationItem['routeName'][] = [
@@ -21,17 +26,27 @@ export const SETTINGS_SIDEBAR_HIDDEN_ROUTES: SettingsNavigationItem['routeName']
 /** 非管理员 Spotlight 默认面板与侧栏使用同一隐藏名单；有搜索词时不隐藏（后门） */
 export const SETTINGS_SPOTLIGHT_HIDDEN_ROUTES = SETTINGS_SIDEBAR_HIDDEN_ROUTES
 
-/** 从 localStorage `userInfo` 读取的 userName / phone；命中白名单即管理员 */
-export const SETTINGS_SIDEBAR_ADMIN_WHITELIST: string[] = [
-  '13039619789',
-  'L20184974',
-  '2025004990',
-  '15225192364',
-  '17376565448',
-  '15738853677',
-  '18229040744',
-  '13636399384'
-]
+const adminWhitelistRef = shallowRef<string[]>([])
+
+/** 当前管理员白名单。默认空；OSS 拉到后才有人。 */
+export const getSettingsSidebarAdminWhitelist = (): readonly string[] => adminWhitelistRef.value
+
+export const applySettingsSidebarAdminWhitelist = (ids: readonly string[]): void => {
+  adminWhitelistRef.value = [...ids]
+}
+
+let adminWhitelistHydrated = false
+
+/** 后台拉管理员名单，不阻塞首屏。失败保持空名单，成功后通过 shallowRef 刷新 UI。 */
+export const hydrateSettingsSidebarAdminWhitelist = (): void => {
+  if (!adminWhitelistHydrated) {
+    adminWhitelistHydrated = true
+    subscribeJiaorongRemoteRuntimeConfig((config) => {
+      applySettingsSidebarAdminWhitelist(config.admins)
+    })
+  }
+  startJiaorongRemoteRuntimeConfigSync()
+}
 
 const SETTINGS_SIDEBAR_HIDDEN_ROUTE_SET = new Set(SETTINGS_SIDEBAR_HIDDEN_ROUTES)
 
@@ -61,7 +76,7 @@ const getStoredUserInfo = (): {
 export const isSettingsSidebarAdmin = (): boolean => {
   const { userName, phone } = getStoredUserInfo()
   return [userName, phone].some(
-    (value) => value !== null && SETTINGS_SIDEBAR_ADMIN_WHITELIST.includes(value)
+    (value) => value !== null && adminWhitelistRef.value.includes(value)
   )
 }
 

@@ -11,6 +11,7 @@ import {
 import { normalizeExternalUrl } from '@shared/externalUrl'
 import { createBridge } from './createBridge'
 import {
+  JIAORONG_APP_CATALOG_CHANGED_CHANNEL,
   JIAORONG_APP_LEAVE_CHANNEL,
   JIAORONG_APP_LIST_CHANNEL,
   JIAORONG_APP_OPEN_CHANNEL
@@ -115,7 +116,16 @@ const deepchatBridge = Object.freeze(createBridge(ipcRenderer))
 const jiaorongApps = Object.freeze({
   listVisible: () => ipcRenderer.invoke(JIAORONG_APP_LIST_CHANNEL),
   getOpenInfo: (appId: string) => ipcRenderer.invoke(JIAORONG_APP_OPEN_CHANNEL, { appId }),
-  leave: (appId: string) => ipcRenderer.invoke(JIAORONG_APP_LEAVE_CHANNEL, { appId })
+  leave: (appId: string) => ipcRenderer.invoke(JIAORONG_APP_LEAVE_CHANNEL, { appId }),
+  onCatalogChanged: (handler: () => void) => {
+    const listener = () => {
+      handler()
+    }
+    ipcRenderer.on(JIAORONG_APP_CATALOG_CHANGED_CHANNEL, listener)
+    return () => {
+      ipcRenderer.removeListener(JIAORONG_APP_CATALOG_CHANGED_CHANNEL, listener)
+    }
+  }
 })
 
 // Use `contextBridge` APIs to expose Electron APIs to

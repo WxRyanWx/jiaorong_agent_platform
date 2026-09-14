@@ -2,6 +2,8 @@
 
 交融客户端侧栏应用 SDK。在客户端里打开应用后，用它创建智能体、发对话、读当前用户环境。
 
+文件说明见 [INDEX.md](./INDEX.md)。桥约定见 [HOST_BRIDGE.md](./HOST_BRIDGE.md)。
+
 ```bash
 pnpm add https://c4ai.ccccltd.cn/xkprosdk/jiaorong-app-sdk-1.0.0.tgz
 ```

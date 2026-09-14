@@ -1,0 +1,7 @@
+web/node_modules
+node/node_modules
+node/run
+node/logs
+vendor/*.tgz
+!vendor/jiaorong-app-sdk-1.0.0.tgz
+*.zip

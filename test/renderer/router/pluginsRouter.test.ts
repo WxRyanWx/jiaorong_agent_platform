@@ -37,10 +37,14 @@ describe('plugins router', () => {
   })
 
   it('keeps the host plugins hub open for admin users', async () => {
-    localStorage.setItem('userInfo', JSON.stringify({ phone: '13039619789' }))
     const guard = await hostPluginsGuard()
+    const { applySettingsSidebarAdminWhitelist } =
+      await import('@jiaorong/config/settingsSidebarAdmin')
+    applySettingsSidebarAdminWhitelist(['13039619789'])
+    localStorage.setItem('userInfo', JSON.stringify({ phone: '13039619789' }))
 
     expect(guard({} as never, {} as never, (() => undefined) as never)).toBe(true)
     localStorage.removeItem('userInfo')
+    applySettingsSidebarAdminWhitelist([])
   })
 })

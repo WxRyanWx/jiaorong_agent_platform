@@ -1,3 +1,4 @@
+/** chat-kit 包入口：组件、功能开关、公开类型。 */
 import './super-agent.css'
 
 export { registerJiaorongChatIcons } from './lib/icons'

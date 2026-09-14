@@ -1,3 +1,5 @@
+/** 侧栏打开时 spawn 应用 Node，注入 globalThis.jiaorong。 */
+
 import { spawn, type ChildProcess } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -11,33 +13,49 @@ import { isPathInsideRoot } from './paths'
 import { findVisibleOpenableApp, scanJiaorongApps } from './scan'
 import { readUserIdentityFromAuthSession } from './userIdentity'
 
+/** guest Node → 宿主的 invoke 消息。 */
 type NodeInvokeMessage = {
+  /** 类型。 */
   type: 'invoke'
+  /** 记录 id。 */
   id: string
+  /** 桥方法名。 */
   method: string
+  /** invoke 参数。 */
   args?: unknown
 }
 
+/** 子进程已监听端口的通知。 */
 type NodeListeningMessage = {
+  /** 类型。 */
   type: 'listening'
+  /** 端口。 */
   port: number
 }
 
+/** 虚拟 guestId 起点，避开真实 webContents id。 */
 const NODE_GUEST_ID_BASE = 2_000_000
+/** appId → Node 子进程。 */
 const children = new Map<string, ChildProcess>()
+/** appId → 虚拟 guestId。 */
 const guestIds = new Map<string, number>()
+/** appId → 已监听端口。 */
 const allocatedPorts = new Map<string, number>()
+/** 下一个虚拟 guestId。 */
 let nextGuestId = NODE_GUEST_ID_BASE
 
+/** 本应用 Node HTTP 根地址。 */
 export function jiaorongAppNodeBase(port: number): string {
   return `http://127.0.0.1:${Math.floor(port)}`
 }
 
+/** 已分配的 Node 监听端口。 */
 export function getAllocatedJiaorongAppNodePort(appId: string): number | null {
   if (!isAlive(children.get(appId))) return null
   return allocatedPorts.get(appId) ?? null
 }
 
+/** 允许带进子进程的环境变量名。 */
 const GUEST_NODE_ENV_ALLOW = new Set([
   'PATH',
   'PATHEXT',
@@ -58,9 +76,13 @@ const GUEST_NODE_ENV_ALLOW = new Set([
   'SHELL'
 ])
 
+/** 构造 spawn Node 时的环境变量。 */
 export function buildGuestNodeEnv(input: { appId: string; entry: string }): NodeJS.ProcessEnv {
+  /** 子进程环境变量。 */
   const env: NodeJS.ProcessEnv = {}
+  /** Map 键。 */
   for (const key of GUEST_NODE_ENV_ALLOW) {
+    /** 待处理的值。 */
     const value = process.env[key]
     if (value) env[key] = value
   }
@@ -201,11 +223,14 @@ if (!entry) {
 await import(pathToFileURL(path.resolve(entry)).href)
 `
 
+/** 当前用户可见且可打开的该应用运行时。 */
 function currentVisibleRuntime(
   deps: JiaorongAppHostDeps,
   appId: string
 ): JiaorongAppRuntime | null {
+  /** 当前用户身份。 */
   const user = readUserIdentityFromAuthSession(deps.getAuthSession())
+  /** 应用列表。 */
   const apps = scanJiaorongApps(user).filter((item) => {
     if (!item.visible) return false
     if (item.source === 'store' && item.installStatus === 'not_installed') return false
@@ -214,9 +239,12 @@ function currentVisibleRuntime(
   return findVisibleOpenableApp(apps, appId)
 }
 
+/** 等到子进程 listening 或失败。 */
 function waitForChildListening(child: ChildProcess, timeoutMs = 15000): Promise<number | null> {
   return new Promise((resolve) => {
+    /** listening 是否已结束。 */
     let settled = false
+    /** 结束等待。 */
     const finish = (port: number | null) => {
       if (settled) return
       settled = true
@@ -225,52 +253,69 @@ function waitForChildListening(child: ChildProcess, timeoutMs = 15000): Promise<
       clearTimeout(timer)
       resolve(port)
     }
+    /** 收到一行消息时的回调。 */
     const onMessage = (raw: unknown) => {
+      /** 消息对象。 */
       const msg = raw as Partial<NodeListeningMessage>
       if (msg?.type !== 'listening') return
+      /** 端口。 */
       const port = typeof msg.port === 'number' ? Math.floor(msg.port) : 0
       if (port > 0 && port < 65536) finish(port)
     }
+    /** 子进程退出回调。 */
     const onExit = () => finish(null)
+    /** 定时器。 */
     const timer = setTimeout(() => finish(null), timeoutMs)
     child.on('message', onMessage)
     child.once('exit', onExit)
   })
 }
 
+/** 给该应用 Node 分配虚拟 guestId。 */
 export function guestIdForAppNode(appId: string): number {
+  /** 已有记录。 */
   const existing = guestIds.get(appId)
   if (existing) return existing
+  /** 记录 id。 */
   const id = nextGuestId++
   guestIds.set(appId, id)
   bindGuestAppId(id, appId)
   return id
 }
 
+/** guest Node bootstrap 脚本路径。 */
 function bootstrapPath(appId: string): string {
+  /** 目录。 */
   const dir = path.join(os.tmpdir(), 'jiaorong-app-node')
   fs.mkdirSync(dir, { recursive: true })
+  /** 单个文件。 */
   const file = path.join(dir, `${appId}.mjs`)
   fs.writeFileSync(file, guestNodeBootstrapSource)
   return file
 }
 
+/** 子进程是否还活着。 */
 function isAlive(child: ChildProcess | undefined): child is ChildProcess {
   return Boolean(child && !child.killed && child.exitCode === null)
 }
 
+/** 向该应用 Node 推桥事件。 */
 export function sendJiaorongAppNodeEvent(appId: string, event: string, payload: unknown): void {
+  /** 子进程。 */
   const child = children.get(appId)
   if (!isAlive(child) || typeof child.send !== 'function') return
   child.send({ type: 'event', event, payload })
 }
 
+/** 停掉该应用 Node 子进程。 */
 export function stopJiaorongAppNode(appId: string): Promise<void> {
+  /** 子进程。 */
   const child = children.get(appId)
   children.delete(appId)
   allocatedPorts.delete(appId)
   if (!child) return Promise.resolve()
   return new Promise((resolve) => {
+    /** 结束等待。 */
     const finish = () => {
       child.removeAllListeners()
       resolve()
@@ -279,6 +324,7 @@ export function stopJiaorongAppNode(appId: string): Promise<void> {
       finish()
       return
     }
+    /** 定时器。 */
     const timer = setTimeout(() => {
       try {
         child.kill('SIGKILL')
@@ -295,27 +341,35 @@ export function stopJiaorongAppNode(appId: string): Promise<void> {
   })
 }
 
+/** 停掉全部应用 Node。 */
 export async function stopAllJiaorongAppNodes(): Promise<void> {
   await Promise.all([...children.keys()].map((appId) => stopJiaorongAppNode(appId)))
 }
 
+/** 确保该应用 Node 已启动。 */
 export async function ensureJiaorongAppNode(
   deps: JiaorongAppHostDeps,
   runtime: JiaorongAppRuntime
 ): Promise<void> {
+  /** Node 入口。 */
   const node = runtime.node
+  /** 应用安装目录。 */
   const appDir = runtime.appDir
   if (!node || !appDir) return
+  /** 已有记录。 */
   const existing = children.get(runtime.id)
   if (isAlive(existing)) return
 
+  /** 目录或列表一项。 */
   const entry = path.resolve(appDir, node.entry)
   if (!isPathInsideRoot(path.resolve(appDir), entry) || !fs.existsSync(entry)) {
     console.warn('[jiaorong-app] node entry missing or outside app dir', entry)
     return
   }
 
+  /** guest id。 */
   const guestId = guestIdForAppNode(runtime.id)
+  /** 子进程。 */
   const child = spawn(process.execPath, [bootstrapPath(runtime.id)], {
     cwd: appDir,
     env: buildGuestNodeEnv({
@@ -324,6 +378,7 @@ export async function ensureJiaorongAppNode(
     }),
     stdio: ['ignore', 'pipe', 'pipe', 'ipc']
   })
+  /** 子进程 listening Promise。 */
   const listening = waitForChildListening(child)
 
   child.stdout?.on('data', (chunk: Buffer) => {
@@ -340,8 +395,10 @@ export async function ensureJiaorongAppNode(
     console.warn('[jiaorong-app] node exited', runtime.id, code, signal)
   })
   child.on('message', (raw: unknown) => {
+    /** 消息对象。 */
     const msg = raw as NodeInvokeMessage
     if (!msg || msg.type !== 'invoke' || typeof msg.id !== 'string') return
+    /** 当前可见应用。 */
     const visible = currentVisibleRuntime(deps, runtime.id)
     if (!visible) {
       void stopJiaorongAppNode(runtime.id)
@@ -361,6 +418,7 @@ export async function ensureJiaorongAppNode(
       })
       .catch((error) => {
         if (typeof child.send !== 'function') return
+        /** 事件或请求负载。 */
         const payload = isJiaorongBridgeFailure(error)
           ? error
           : { code: 'GENERATION_FAILED', message: '请求失败' }
@@ -369,6 +427,7 @@ export async function ensureJiaorongAppNode(
   })
 
   children.set(runtime.id, child)
+  /** 端口。 */
   const port = await listening
   if (!port) {
     console.warn('[jiaorong-app] node port not ready', runtime.id)

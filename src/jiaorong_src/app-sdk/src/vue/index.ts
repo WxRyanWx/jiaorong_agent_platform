@@ -1,3 +1,4 @@
+/** Vue 聊天组件入口。 */
 import './style.css'
 
 export { default as JiaorongAgentChat } from './JiaorongAgentChat.vue'

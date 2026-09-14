@@ -1,5 +1,6 @@
 import type { JiaorongChatFeatures } from './types'
 
+/** chat-kit 功能开关默认值。 */
 export const DEFAULT_JIAORONG_CHAT_FEATURES: Required<JiaorongChatFeatures> = {
   sessions: true,
   topBar: true,
@@ -16,6 +17,7 @@ export const DEFAULT_JIAORONG_CHAT_FEATURES: Required<JiaorongChatFeatures> = {
   slash: true
 }
 
+/** 合并 chat-kit 功能开关默认值。 */
 export function resolveJiaorongChatFeatures(
   features?: JiaorongChatFeatures | null
 ): Required<JiaorongChatFeatures> {
