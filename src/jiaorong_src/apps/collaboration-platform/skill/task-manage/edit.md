@@ -17,8 +17,8 @@
 ### 第三步：判断完成状态
 
 **情况 A — 所有字段已齐全：**
-1. 将完整的数据摘要展示给用户，并且在对话中以JSON格式展示`taskDetail`里的数据。
-2. 最终必须输出两个选项按钮给到用户使用`deepchat_question`，1是确认创建 + `taskDetail`的json数据，2是其它
+1. 将编辑后的数据摘要展示给用户，并且在对话中以JSON格式展示`taskDetail`。
+2. 数据更新完成，最终必须输出两个选项按钮给到用户使用`deepchat_question`，1是确认更新 + `taskDetail`的json数据，2是其它
 
 
 **情况 B — 存在缺失字段：**
@@ -28,3 +28,6 @@
 
 # 规则
 1、绝不改变修改`./assets/task-schema.json`，始终以`./assets/task-schema.json`为最终目标；!important;每次创建任务都应该重新按照task-schema.json的要求重新执行；
+
+# 判断
+数据更新完成，最终必须输出两个选项按钮给到用户使用`deepchat_question`，1是确认更新 + `taskDetail`的json数据，2是其它

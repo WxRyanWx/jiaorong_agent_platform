@@ -6,18 +6,24 @@ import {
   JIAORONG_APP_BRIDGE_INVOKE_CHANNEL
 } from '@jiaorong/appHost/channels'
 import { isJiaorongBridgeFailure } from '@jiaorong/appHost/bridgeErrors'
+import { logJiaorongSdkDebug } from '@jiaorong/appHost/sdkDebugLog'
 
 /** SDK `on(event)` 的回调。 */
 type Handler = (payload: unknown) => void
 
 /** 事件名 → 本页监听集合。 */
 const listeners = new Map<string, Set<Handler>>()
+/** 仅 `jiaorong.setDebug(true)` 打开；默认不打桥调用日志。 */
+let sdkDebugEnabled = false
 
 ipcRenderer.on(JIAORONG_APP_BRIDGE_EVENT_CHANNEL, (_event, envelope: unknown) => {
   if (!envelope || typeof envelope !== 'object') return
   /** 主进程推来的 `{ event, payload }`。 */
   const record = envelope as { event?: unknown; payload?: unknown }
   if (typeof record.event !== 'string') return
+  if (sdkDebugEnabled) {
+    logJiaorongSdkDebug('event', record.event, record.payload)
+  }
   /** 该事件已注册的回调。 */
   const handlers = listeners.get(record.event)
   if (!handlers) return
@@ -37,12 +43,29 @@ ipcRenderer.on(JIAORONG_APP_BRIDGE_EVENT_CHANNEL, (_event, envelope: unknown) =>
  * @param args 方法入参
  */
 function invoke(method: string, args?: unknown) {
-  return ipcRenderer.invoke(JIAORONG_APP_BRIDGE_INVOKE_CHANNEL, { method, args }).then((result) => {
-    if (isJiaorongBridgeFailure(result)) {
-      return Promise.reject(result)
+  if (sdkDebugEnabled) {
+    logJiaorongSdkDebug('invoke', method, args)
+  }
+  return ipcRenderer.invoke(JIAORONG_APP_BRIDGE_INVOKE_CHANNEL, { method, args }).then(
+    (result) => {
+      if (isJiaorongBridgeFailure(result)) {
+        if (sdkDebugEnabled) {
+          logJiaorongSdkDebug('invoke:err', method, result)
+        }
+        return Promise.reject(result)
+      }
+      if (sdkDebugEnabled) {
+        logJiaorongSdkDebug('invoke:ok', method, result)
+      }
+      return result
+    },
+    (error) => {
+      if (sdkDebugEnabled) {
+        logJiaorongSdkDebug('invoke:err', method, error)
+      }
+      return Promise.reject(error)
     }
-    return result
-  })
+  )
 }
 
 /**
@@ -57,10 +80,20 @@ function getPathForFile(file: File) {
   }
 }
 
+/**
+ * 打开或关掉本页 SDK 调用日志。
+ * @param enabled 是否打印
+ */
+function setDebug(enabled: boolean) {
+  sdkDebugEnabled = Boolean(enabled)
+  console.log('[jiaorong-sdk] debug', sdkDebugEnabled ? 'on' : 'off')
+}
+
 /** 注入页面的宿主桥，SDK 只认这几个方法。 */
 const jiaorong = Object.freeze({
   invoke,
   getPathForFile,
+  setDebug,
   /**
    * 订阅主进程事件。
    * @param event 事件名

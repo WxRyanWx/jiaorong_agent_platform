@@ -12,6 +12,8 @@ export type JiaorongHostBridge = {
   userinfo?(): Promise<JiaorongUserInfo>
   /** 可选：File → 本机路径。 */
   getPathForFile?(file: File): string
+  /** 可选：控制台执行 `jiaorong.setDebug(true)` 后打印 invoke / 桥事件。 */
+  setDebug?(enabled: boolean): void
 }
 
 declare global {
