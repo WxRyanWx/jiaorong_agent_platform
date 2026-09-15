@@ -56,7 +56,7 @@ export type JiaorongClient = {
   openDevTools(): Promise<{ ok: true }>
   /** 本应用智能体 CRUD。 */
   agent: {
-    /** 按 key 创建（已存在则宿主侧复用）。 */
+    /** 按 key 创建；已存在则覆盖配置，`created` 仍为 false。 */
     create(input: CreateAppAgentInput): Promise<AppAgent>
     /** 按 key 或 id 更新。 */
     update(input: UpdateAppAgentInput): Promise<AppAgent>
@@ -380,7 +380,7 @@ export function createClient(
       return invoke<{ ok: true }>('devtools.open', { appId })
     },
     agent: {
-      /** 按 key 创建本应用智能体。 */
+      /** 按 key 创建本应用智能体；已存在则覆盖配置。 */
       create(input) {
         /** 智能体 key。 */
         const key = input.key?.trim()

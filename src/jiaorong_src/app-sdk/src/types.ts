@@ -94,7 +94,7 @@ export type Agent = {
   config?: DeepChatAgentConfig | null
 }
 
-/** SDK 创建智能体入参。 */
+/** SDK 创建智能体入参。已存在同 key 时覆盖可写配置，`created` 仍为 false。 */
 export type CreateAppAgentInput = {
   /** 名称。 */
   name: string

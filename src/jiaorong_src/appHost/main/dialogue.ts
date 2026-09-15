@@ -314,6 +314,29 @@ export function sanitizeCreateConfig(
   return Object.keys(next).length > 0 ? next : undefined
 }
 
+/** agent.create 新建与覆盖共用的可写字段。 */
+function buildCreateAgentWrite(appId: string, key: string, record: InvokeRecord, name: string) {
+  /** 允许写入的 config（技能/提示词/模型/权限）。 */
+  const sanitized = sanitizeCreateConfig(
+    appId,
+    record.config && typeof record.config === 'object'
+      ? (record.config as Record<string, unknown>)
+      : null
+  )
+  return {
+    name,
+    enabled: record.enabled !== false,
+    description: readString(record, 'description') || undefined,
+    icon: readString(record, 'icon') || undefined,
+    avatar: record.avatar,
+    config: applySuperAgentDefaultModel({
+      ...(sanitized ?? {}),
+      jiaorongAppId: appId,
+      jiaorongAppKey: key
+    })
+  }
+}
+
 /** 是否绝对路径（委托 guestBind）。 */
 export function isAbsoluteFsPath(value: string): boolean {
   return isAbsoluteGuestPath(value)
@@ -552,35 +575,27 @@ export async function handleDialogueInvoke(
         throw bridgeError('VALIDATION_ERROR', '需要提供 key 和 name')
       }
       return runAppAgentMapExclusive(appId, key, async () => {
+        /** 与首次创建相同的可写字段；已存在时用来覆盖。 */
+        const write = buildCreateAgentWrite(appId, key, record, name)
         /** 已有绑定。 */
         const existing = getAppAgentBinding(appId, key)
         if (existing) {
           /** DeepChat 智能体记录。 */
           const agent = await dialogue.getAgent(existing.agentId)
-          if (agent) return toAppAgent(agent, existing, false)
+          if (agent) {
+            if (!agentNeedsWrite(agent, write)) {
+              return toAppAgent(agent, existing, false, false)
+            }
+            /** 覆盖后的 DeepChat 智能体。 */
+            const updated = await dialogue.updateDeepChatAgent(existing.agentId, write)
+            if (!updated) {
+              throw bridgeError('AGENT_NOT_FOUND', '未找到该智能体')
+            }
+            return toAppAgent(updated, existing, false, true)
+          }
         }
-        /** 允许写入的 config（技能/提示词/模型/权限）。 */
-        const sanitized = sanitizeCreateConfig(
-          appId,
-          record.config && typeof record.config === 'object'
-            ? (record.config as Record<string, unknown>)
-            : null
-        )
-        /** 智能体 config。 */
-        const config = applySuperAgentDefaultModel({
-          ...(sanitized ?? {}),
-          jiaorongAppId: appId,
-          jiaorongAppKey: key
-        })
         /** 新建的 DeepChat 智能体。 */
-        const created = await dialogue.createDeepChatAgent({
-          name,
-          enabled: record.enabled !== false,
-          description: readString(record, 'description') || undefined,
-          icon: readString(record, 'icon') || undefined,
-          avatar: record.avatar,
-          config
-        })
+        const created = await dialogue.createDeepChatAgent(write)
         /** 应用 key ↔ agentId 绑定。 */
         const binding = { appId, key, agentId: created.id }
         upsertAppAgentBinding(binding)

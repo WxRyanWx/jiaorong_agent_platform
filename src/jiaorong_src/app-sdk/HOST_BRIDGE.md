@@ -54,7 +54,7 @@ globalThis.jiaorong = { invoke, on, userinfo }
 
 入参都带 `appId`。`session.list` 必须带本应用 `agentId`。对话字段与现有 sessions/chat 一致，只增加文档里的应用字段。宿主以 **webview 绑定的 appId** 为准，忽略 guest 改 URL。`disconnect` 只释放 SDK 监听，不摘 webview 身份。
 
-`agent.create` 按 `key` 幂等：已绑定且智能体还在就原样返回，**不会**用这次没传的提示词 / 模型覆盖旧配置。改配置走 `agent.update`（部分字段）。update 入参和当前值相同则不写库、返回 `updated: false`。
+`agent.create` 按 `key` 幂等：没有绑定（或绑定的智能体已不在）就新建，`created: true`。已绑定且智能体还在则用本次入参覆盖可写配置（名称 / 启用 / 说明 / 图标 / 头像 / 技能 / 提示词 / 模型 / 权限），**不**新建第二条，`created: false`；内容和库里一样则不写库、`updated: false`，有变更则 `updated: true`。`agent.update` 仍是按传入字段做部分更新。update 入参和当前值相同则不写库、返回 `updated: false`。
 
 `agent.create` 若只传 `skills`，SDK 会补 `config.enabledSkillNames` 为 `app.<appId>.<skill>`。宿主只保留本应用 `app.<id>.*` 与非 `app.` 前缀的官方技能名，丢掉其它应用的技能；`systemPrompt` / `assistantModel` / `permissionMode` 会写入，其它 config 字段丢掉。未传 `assistantModel` 时写入超级智能体同一套默认：服务商 `jiaorong`、模型 `jiaorong-deepseek-v4-pro`。
 

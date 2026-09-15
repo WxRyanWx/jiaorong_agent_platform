@@ -217,21 +217,25 @@ describe('jiaorong app dialogue bridge', () => {
   })
 
   it('creates an app agent once and returns the same mapping on retry', async () => {
-    const createDeepChatAgent = vi.fn().mockResolvedValue({
+    const agentRecord = {
       id: 'deepchat-app1',
       name: '示例工作台助手',
-      enabled: true
-    })
-    const getAgent = vi.fn().mockResolvedValue({
-      id: 'deepchat-app1',
-      name: '示例工作台助手',
-      enabled: true
-    })
+      enabled: true,
+      config: {
+        assistantModel: { providerId: 'jiaorong', modelId: 'jiaorong-deepseek-v4-pro' },
+        defaultModelPreset: { providerId: 'jiaorong', modelId: 'jiaorong-deepseek-v4-pro' },
+        jiaorongAppId: 'demo-workbench',
+        jiaorongAppKey: 'unit-test-agent'
+      }
+    }
+    const createDeepChatAgent = vi.fn().mockResolvedValue(agentRecord)
+    const updateDeepChatAgent = vi.fn().mockResolvedValue(agentRecord)
+    const getAgent = vi.fn().mockResolvedValue(agentRecord)
     const loggedIn = deps({
       getAuthSession: () => ({ token: 'tok-1' }),
       dialogue: {
         createDeepChatAgent,
-        updateDeepChatAgent: vi.fn(),
+        updateDeepChatAgent,
         listAgents: vi.fn(),
         getAgent,
         createSession: vi.fn(),
@@ -263,13 +267,15 @@ describe('jiaorong app dialogue bridge', () => {
       'agent.create',
       { appId: 'demo-workbench', key: 'unit-test-agent', name: '示例工作台助手' },
       1
-    )) as { id: string; created: boolean }
+    )) as { id: string; created: boolean; updated?: boolean }
 
     expect(first.source).toBe('app')
     expect(first.created).toBe(true)
     expect(second.created).toBe(false)
+    expect(second.updated).toBe(false)
     expect(second.id).toBe(first.id)
     expect(createDeepChatAgent).toHaveBeenCalledTimes(1)
+    expect(updateDeepChatAgent).not.toHaveBeenCalled()
   })
 
   it('defaults a new app agent to the Super Agent jiaorong model', async () => {
@@ -323,7 +329,93 @@ describe('jiaorong app dialogue bridge', () => {
     )
   })
 
-  it('does not overwrite prompt on create retry, and skips update when unchanged', async () => {
+  it('overwrites config on create retry and keeps created false', async () => {
+    const existing = {
+      id: 'deepchat-app3',
+      name: '旧名称',
+      enabled: true,
+      config: {
+        systemPrompt: 'old prompt',
+        enabledSkillNames: ['web-search']
+      }
+    }
+    const overwritten = {
+      ...existing,
+      name: '新名称',
+      config: {
+        systemPrompt: 'new prompt',
+        enabledSkillNames: ['app.demo-workbench.contract-review'],
+        assistantModel: { providerId: 'jiaorong', modelId: 'jiaorong-deepseek-v4-pro' },
+        defaultModelPreset: { providerId: 'jiaorong', modelId: 'jiaorong-deepseek-v4-pro' },
+        jiaorongAppId: 'demo-workbench',
+        jiaorongAppKey: 'workbench'
+      }
+    }
+    const createDeepChatAgent = vi.fn()
+    const updateDeepChatAgent = vi.fn().mockResolvedValue(overwritten)
+    const getAgent = vi.fn().mockResolvedValue(existing)
+    store.set('demo-workbench::workbench', {
+      appId: 'demo-workbench',
+      key: 'workbench',
+      agentId: 'deepchat-app3'
+    })
+    const loggedIn = deps({
+      getAuthSession: () => ({ token: 'tok-1' }),
+      dialogue: {
+        createDeepChatAgent,
+        updateDeepChatAgent,
+        listAgents: vi.fn(),
+        getAgent,
+        createSession: vi.fn(),
+        getSession: vi.fn(),
+        listLightweight: vi.fn(),
+        listMessagesPage: vi.fn(),
+        getMessage: vi.fn(),
+        renameSession: vi.fn(),
+        deleteSession: vi.fn(),
+        searchHistory: vi.fn(),
+        sendMessage: vi.fn(),
+        steerActiveTurn: vi.fn(),
+        cancelGeneration: vi.fn(),
+        respondToolInteraction: vi.fn()
+      }
+    })
+
+    const reused = (await handleAppBridgeInvoke(
+      loggedIn,
+      runtime,
+      'agent.create',
+      {
+        appId: 'demo-workbench',
+        key: 'workbench',
+        name: '新名称',
+        config: {
+          systemPrompt: 'new prompt',
+          enabledSkillNames: ['app.demo-workbench.contract-review']
+        }
+      },
+      1
+    )) as { created: boolean; updated?: boolean; id: string }
+
+    expect(reused.created).toBe(false)
+    expect(reused.updated).toBe(true)
+    expect(reused.id).toBe('deepchat-app3')
+    expect(createDeepChatAgent).not.toHaveBeenCalled()
+    expect(updateDeepChatAgent).toHaveBeenCalledWith(
+      'deepchat-app3',
+      expect.objectContaining({
+        name: '新名称',
+        config: expect.objectContaining({
+          systemPrompt: 'new prompt',
+          enabledSkillNames: ['app.demo-workbench.contract-review'],
+          jiaorongAppId: 'demo-workbench',
+          jiaorongAppKey: 'workbench'
+        })
+      })
+    )
+  })
+
+  it('skips update when unchanged', async () => {
     const existing = {
       id: 'deepchat-app3',
       name: '示例工作台助手',
@@ -369,17 +461,6 @@ describe('jiaorong app dialogue bridge', () => {
         respondToolInteraction: vi.fn()
       }
     })
-
-    const reused = (await handleAppBridgeInvoke(
-      loggedIn,
-      runtime,
-      'agent.create',
-      { appId: 'demo-workbench', key: 'workbench', name: '示例工作台助手' },
-      1
-    )) as { created: boolean; config?: { systemPrompt?: string } }
-    expect(reused.created).toBe(false)
-    expect(reused.config?.systemPrompt).toBe('keep this prompt')
-    expect(createDeepChatAgent).not.toHaveBeenCalled()
 
     const marked = (await handleAppBridgeInvoke(
       loggedIn,

@@ -103,7 +103,7 @@ async function dispatch(client, method, args) {
       return client.getContext()
     case 'userinfo.get': // 登录用户名 / token
       return client.userinfo()
-    case 'agent.create': // 按 key 创建或复用；已存在则不改配置。技能 / 提示词由 Node 写入。
+    case 'agent.create': // 按 key 创建或覆盖配置；已存在不新建，created 仍为 false。技能 / 提示词由 Node 写入。
       return client.agent.create(await workbenchAgentInput(client, args))
     case 'agent.update': // 部分更新；内容和库里一样则不写库。同样补技能 / 提示词。
       return client.agent.update(await workbenchAgentInput(client, args))
