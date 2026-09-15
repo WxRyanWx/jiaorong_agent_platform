@@ -30,6 +30,8 @@
 | `paths.ts` | 用户安装目录、内置 `jiaorong-apps`、preload 路径、拷贝过滤 |
 | `protocol.ts` | 登记 `jiaorong-app://`，按 appId 把请求映射到安装目录文件 |
 | `guestIsolation.ts` | webview 分区、强制 preload、拦截跨应用导航 |
+| `devtoolsChord.ts` | 隐藏 DevTools 序列状态机（Ctrl/Cmd+I S N） |
+| `devtoolsShortcut.ts` | 把序列挂到所有 WebContents，含嵌入 webview |
 | `guestAppId.ts` | partition / URL hostname 解析 appId，校验 invoke 来源 |
 | `guestBind.ts` | webContents ↔ appId、选中目录白名单、会话归属 |
 | `guestAttachments.ts` | guest 附件路径落地；知识库 context 不当文件写盘 |

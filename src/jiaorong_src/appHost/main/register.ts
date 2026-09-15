@@ -26,6 +26,7 @@ import {
   resolveGuestInvokeAppId
 } from './guestAppId'
 import { ensureJiaorongAppNode, stopAllJiaorongAppNodes, stopJiaorongAppNode } from './guestNode'
+import { installJiaorongDevToolsShortcut } from './devtoolsShortcut'
 import { installJiaorongAppGuestIsolation } from './guestIsolation'
 import { startStandaloneNodeBridge, stopStandaloneNodeBridge } from './standaloneNodeBridge'
 import { registerJiaorongAppProtocolHandler } from './protocol'
@@ -179,6 +180,7 @@ async function broadcastContext(deps: JiaorongAppHostDeps): Promise<void> {
 export function startJiaorongAppHost(deps: JiaorongAppHostDeps): void {
   registerJiaorongAppProtocolHandler(deps)
   installJiaorongAppGuestIsolation()
+  installJiaorongDevToolsShortcut()
   startStandaloneNodeBridge(deps)
   if (started) return
   started = true

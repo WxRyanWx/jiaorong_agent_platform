@@ -166,6 +166,7 @@
 | H161 | `src/main/app/composition.ts` | `listEnabledModels` / `setSessionModel` 给应用 `catalog.models` 与 `session.setModel` | app chat | 中 | 只读已启用服务商模型；切模型走现有 assignment，不改 DeepChat route map |
 | H162 | `src/main/app/composition.ts` | `getGenerationSettings` / `updateGenerationSettings` 给应用会话高级设置 | app chat | 中 | 走现有 sessionAssignment，不改 DeepChat route map |
 | H163 | `src/main/app/composition.ts` | `getContextOccupancy` / `setToolMode` / disabledAgentTools / `listSystemPrompts` / `listConfigurableAgentTools` 给应用底栏高级配置与 token 占用 | app chat | 中 | occupancy 与 setToolMode 会 resolveSession；`catalog.agentTools` 带 sessionId 时须本应用会话，见 appHost bridge |
+| H164 | `src/main/desktop/window/index.ts` 主窗口/设置窗、`guestIsolation.ts`、`JiaorongAppFrameHost.vue` | 打包后允许主窗口与嵌入 webview 的 DevTools API；隐藏快捷键 Ctrl/Cmd 按住后依次 I、S、N | debug | 低 | 不自动弹出；安装包拦住 F12 / Ctrl+Shift+I；不改 Splash/浮窗/内置浏览器 |
 
 ## 下次合上游：值得抽到 `jiaorong_src` 的宿主文件
 

@@ -191,7 +191,7 @@ onUnmounted(() => {
       :partition="frame.partition"
       :preload="frame.preload"
       v-bind="guestSrc[frame.appId] ? { src: guestSrc[frame.appId] } : {}"
-      webpreferences="contextIsolation=yes, nodeIntegration=no, sandbox=no, webSecurity=yes, allowRunningInsecureContent=yes"
+      webpreferences="contextIsolation=yes, nodeIntegration=no, sandbox=no, webSecurity=yes, allowRunningInsecureContent=yes, devTools=yes"
     />
   </div>
 </template>

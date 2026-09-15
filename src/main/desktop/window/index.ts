@@ -724,7 +724,7 @@ export class WindowPresenter implements IWindowPresenter {
         sandbox: false, // 禁用沙箱，允许 preload 访问 Node.js API
         webviewTag: true, // 交融嵌入应用独立 guest；不改原有菜单逻辑
         webSecurity: false, // 暂关：技能 zip / 知识库列表等跨域；CORS helper 仍保留
-        devTools: is.dev // 开发模式下启用 DevTools
+        devTools: true // 安装包用隐藏快捷键打开；开发态仍自动弹出
       },
       roundedCorners: true // Windows 11 圆角
     })
@@ -1398,7 +1398,7 @@ export class WindowPresenter implements IWindowPresenter {
         preload: join(__dirname, '../preload/index.mjs'),
         sandbox: false,
         webSecurity: false, // 与主窗口一致；暂关隔离
-        devTools: is.dev
+        devTools: true
       },
       roundedCorners: true
     })

@@ -109,6 +109,7 @@ function attachHostWebviewGuard(contents: WebContents): void {
     webPreferences.webSecurity = true
     webPreferences.allowRunningInsecureContent = true
     webPreferences.webviewTag = false
+    webPreferences.devTools = true
   })
   contents.on('did-attach-webview', (_event, guest) => {
     /** 当前应用 id。 */
