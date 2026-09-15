@@ -4,7 +4,7 @@ import fs from 'node:fs'
 import { pathToFileURL } from 'node:url'
 import path from 'node:path'
 import { BrowserWindow, clipboard, dialog, nativeImage, webContents } from 'electron'
-import { isJiaorongBridgeFailure } from '../bridgeErrors'
+import { isJiaorongBridgeFailure, toJiaorongBridgeInvokeFailure } from '../bridgeErrors'
 import type { JiaorongAppOpenInfo, JiaorongAppRuntime, JiaorongMenuAppItem } from '../types'
 import { buildHostContext } from './context'
 import { handleDialogueInvoke } from './dialogue'
@@ -359,12 +359,9 @@ export async function handleAppBridgeInvoke(
     }
   } catch (error) {
     if (isJiaorongBridgeFailure(error)) return error
-    /** 消息或文案。 */
-    const message = error instanceof Error ? error.message : String(error)
-    console.warn('[jiaorong-app] bridge invoke failed', method, message)
-    if (/not found/i.test(message)) {
-      return { code: 'SESSION_NOT_FOUND', message: '未找到会话' }
-    }
-    return { code: 'GENERATION_FAILED', message: '请求失败' }
+    /** 桥失败对象。 */
+    const failure = toJiaorongBridgeInvokeFailure(error)
+    console.warn('[jiaorong-app] bridge invoke failed', method, failure.message)
+    return failure
   }
 }

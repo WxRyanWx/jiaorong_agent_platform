@@ -84,7 +84,14 @@ const KNOWN_ENGLISH_ZH: Record<string, string> = {
   'Session not found': '未找到会话',
   'Request failed': '请求失败',
   'projectDir must be an absolute path': 'projectDir 必须是绝对路径',
-  'projectDir is not allowed for this app': 'projectDir 不允许用于本应用'
+  'projectDir is not allowed for this app': 'projectDir 不允许用于本应用',
+  'Interaction queue out of order. Please handle the first pending item.':
+    '请先处理当前待回答的问题',
+  'No pending interaction found in target message.': '当前没有待回答的追问',
+  'Answer cannot be empty.': '回答不能为空',
+  'Invalid response kind for question interaction.': '当前追问不能这样回答',
+  'Invalid response kind for permission interaction.': '当前批准不能这样回答',
+  'Invalid action block without tool call id.': '追问数据无效'
 }
 
 /** 从错误里抽出稳定码。 */
@@ -144,7 +151,8 @@ export function localizeErrorText(text?: string | null): string {
   const trimmed = text.trim()
   if (HOST_ERROR_ZH[trimmed]) return HOST_ERROR_ZH[trimmed]
   if (KNOWN_ENGLISH_ZH[trimmed]) return KNOWN_ENGLISH_ZH[trimmed]
-  if (/^common\.error\.[A-Za-z0-9]+$/.test(trimmed)) return '请求失败'
+  if (trimmed.startsWith('Assistant message not found:')) return '未找到助手消息'
+  if (trimmed.startsWith('Session not found:')) return '未找到会话'
   /** HTTP 状态文案匹配。 */
   const httpMatch = trimmed.match(/^HTTP\s+(\d{3})$/)
   if (httpMatch) return `HTTP 请求失败（${httpMatch[1]}）`

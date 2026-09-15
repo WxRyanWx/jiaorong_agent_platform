@@ -59,3 +59,23 @@ export function isJiaorongBridgeFailure(value: unknown): value is JiaorongBridge
     record.hidden === undefined
   )
 }
+
+/**
+ * 把未知 throw 收成桥失败。保留原文，只有空文案才退回「请求失败」。
+ * `Session not found` 仍用 `SESSION_NOT_FOUND`，其它含 not found 的原文不要改写成「未找到会话」。
+ * @param error `handleAppBridgeInvoke` 捕获的值
+ */
+export function toJiaorongBridgeInvokeFailure(error: unknown): JiaorongBridgeError {
+  if (isJiaorongBridgeFailure(error)) return error
+  /** 原始说明。 */
+  const raw = error instanceof Error ? error.message : String(error)
+  /** trim 后的说明。 */
+  const message = raw.trim()
+  if (/^session not found\b/i.test(message)) {
+    return bridgeError('SESSION_NOT_FOUND', message)
+  }
+  if (message && message !== '[object Object]') {
+    return bridgeError('GENERATION_FAILED', message)
+  }
+  return bridgeError('GENERATION_FAILED', '请求失败')
+}

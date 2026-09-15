@@ -2339,4 +2339,69 @@ describe('jiaorong app dialogue bridge', () => {
       })
     })
   })
+
+  it('returns the real tool-interaction error instead of 请求失败', async () => {
+    bindGuestAppId(1, 'demo-workbench')
+    store.set('demo-workbench::workbench', {
+      appId: 'demo-workbench',
+      key: 'workbench',
+      agentId: 'ag-1'
+    })
+    const ownedSession = {
+      id: 's-1',
+      agentId: 'ag-1',
+      title: 'hello',
+      projectDir: '/tmp/work',
+      isPinned: false,
+      sessionKind: 'chat',
+      orchestrationPolicy: {},
+      createdAt: 1,
+      updatedAt: 1,
+      status: 'idle'
+    }
+    const result = await handleAppBridgeInvoke(
+      deps({
+        getAuthSession: () => ({ token: 'tok-1' }),
+        dialogue: {
+          createDeepChatAgent: vi.fn(),
+          updateDeepChatAgent: vi.fn(),
+          listAgents: vi.fn(),
+          getAgent: vi.fn(),
+          createSession: vi.fn(),
+          getSession: vi.fn().mockResolvedValue(ownedSession),
+          listLightweight: vi.fn(),
+          listMessagesPage: vi.fn(),
+          getMessage: vi.fn(),
+          renameSession: vi.fn(),
+          deleteSession: vi.fn(),
+          searchHistory: vi.fn(),
+          sendMessage: vi.fn(),
+          retryMessage: vi.fn(),
+          deleteMessage: vi.fn(),
+          editUserMessage: vi.fn(),
+          forkSession: vi.fn(),
+          steerActiveTurn: vi.fn(),
+          cancelGeneration: vi.fn(),
+          respondToolInteraction: vi
+            .fn()
+            .mockRejectedValue(new Error('No pending interaction found in target message.'))
+        }
+      }),
+      runtime,
+      'chat.respondToolInteraction',
+      {
+        appId: 'demo-workbench',
+        sessionId: 's-1',
+        messageId: 'm-1',
+        toolCallId: 'tc-1',
+        response: { kind: 'question_option', optionLabel: '曹利娜' }
+      },
+      1
+    )
+    expect(isJiaorongBridgeFailure(result)).toBe(true)
+    expect(result).toEqual({
+      code: 'GENERATION_FAILED',
+      message: 'No pending interaction found in target message.'
+    })
+  })
 })

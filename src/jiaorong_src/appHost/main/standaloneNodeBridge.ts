@@ -4,7 +4,7 @@ import { randomBytes } from 'node:crypto'
 import fs from 'node:fs'
 import net from 'node:net'
 import path from 'node:path'
-import { isJiaorongBridgeFailure } from '../bridgeErrors'
+import { isJiaorongBridgeFailure, toJiaorongBridgeInvokeFailure } from '../bridgeErrors'
 import type { JiaorongAppRuntime } from '../types'
 import { handleAppBridgeInvoke } from './bridge'
 import type { JiaorongAppHostDeps } from './deps'
@@ -145,13 +145,7 @@ export function startStandaloneNodeBridge(deps: JiaorongAppHostDeps): void {
       }
       /** 桥方法名。 */
       const method = typeof msg.method === 'string' ? msg.method : ''
-      void handleAppBridgeInvoke(
-        deps,
-        runtime,
-        method,
-        msg.args,
-        guestIdForAppNode(authed.appId)
-      )
+      void handleAppBridgeInvoke(deps, runtime, method, msg.args, guestIdForAppNode(authed.appId))
         .then((result) => {
           if (isJiaorongBridgeFailure(result)) {
             writeLine(socket, { type: 'invoke:err', id: msg.id, error: result })
@@ -163,7 +157,7 @@ export function startStandaloneNodeBridge(deps: JiaorongAppHostDeps): void {
           /** 事件或请求负载。 */
           const payload = isJiaorongBridgeFailure(error)
             ? error
-            : { code: 'GENERATION_FAILED', message: '请求失败' }
+            : toJiaorongBridgeInvokeFailure(error)
           writeLine(socket, { type: 'invoke:err', id: msg.id, error: payload })
         })
     }

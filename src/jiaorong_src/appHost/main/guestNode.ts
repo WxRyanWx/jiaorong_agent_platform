@@ -4,7 +4,7 @@ import { spawn, type ChildProcess } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { isJiaorongBridgeFailure } from '../bridgeErrors'
+import { isJiaorongBridgeFailure, toJiaorongBridgeInvokeFailure } from '../bridgeErrors'
 import type { JiaorongAppRuntime } from '../types'
 import { handleAppBridgeInvoke } from './bridge'
 import type { JiaorongAppHostDeps } from './deps'
@@ -421,7 +421,7 @@ export async function ensureJiaorongAppNode(
         /** 事件或请求负载。 */
         const payload = isJiaorongBridgeFailure(error)
           ? error
-          : { code: 'GENERATION_FAILED', message: '请求失败' }
+          : toJiaorongBridgeInvokeFailure(error)
         child.send({ type: 'invoke:err', id: msg.id, error: payload })
       })
   })
