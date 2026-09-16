@@ -92,12 +92,10 @@ const jiaorong = {
   getPathForFile, // File 转本机路径
   setDebug, // 打开桥调试日志
   disconnect: call('disconnect'), // 断开本页桥
-  context: {
-    get: call('context.get') // 应用目录与登录态
-  },
-  userinfo: {
-    get: call('userinfo.get') // 当前用户
-  },
+  getContext: call('context.get'), // 应用目录与登录态
+  userinfo: call('userinfo.get'), // 当前用户
+  respondToolInteraction: call('chat.respondToolInteraction'), // 回答工具审批
+  openDevTools: call('devtools.open'), // 打开应用 DevTools
   agent: {
     create: call('agent.create'), // 按 key 创建或覆盖
     update: call('agent.update'), // 按 key/id 覆盖
@@ -139,9 +137,6 @@ const jiaorong = {
     query: call('knowledgeBase.query'), // 查知识库
     queryDirectory: call('knowledgeBase.queryDirectory') // 下探目录
   },
-  chat: {
-    respondToolInteraction: call('chat.respondToolInteraction') // 回答工具审批
-  },
   dialog: {
     selectDirectory: call('dialog.selectDirectory'), // 选目录
     selectFiles: call('dialog.selectFiles'), // 选文件
@@ -154,9 +149,6 @@ const jiaorong = {
   },
   capture: {
     pageArea: call('capture.pageArea') // 截页面区域
-  },
-  devtools: {
-    open: call('devtools.open') // 打开应用 DevTools
   }
 }
 

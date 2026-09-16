@@ -1,7 +1,7 @@
 {
   "id": "app-scaffold",
   "name": "应用脚手架",
-  "version": "0.0.43-dev",
+  "version": "0.0.44-dev",
   "icon": "icon.png",
   "description": "外部团队脚手架：web-ui 经 WebSocket 连包内后端，后端经页面中继调超级智能体",
   "entry": "web-ui/index.html",

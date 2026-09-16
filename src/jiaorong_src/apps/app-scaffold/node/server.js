@@ -131,6 +131,14 @@ function request(method, payload = []) {
   })
 }
 
+function pageMethod(path) {
+  if (path === 'context.get') return 'jiaorong.getContext'
+  if (path === 'userinfo.get') return 'jiaorong.userinfo'
+  if (path === 'chat.respondToolInteraction') return 'jiaorong.respondToolInteraction'
+  if (path === 'devtools.open') return 'jiaorong.openDevTools'
+  return `jiaorong.${path}`
+}
+
 const sa = new Proxy(function () {}, {
   get(_t, key) {
     if (typeof key !== 'string' || key === 'then') return undefined
@@ -141,7 +149,7 @@ const sa = new Proxy(function () {}, {
           return nest(`${path}.${next}`)
         },
         apply(_i, _this, args) {
-          return request(`jiaorong.${path}`, [args[0] ?? {}])
+          return request(pageMethod(path), [args[0] ?? {}])
         }
       })
     return nest(key)

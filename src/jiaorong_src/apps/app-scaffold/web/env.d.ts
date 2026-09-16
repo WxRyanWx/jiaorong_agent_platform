@@ -36,16 +36,16 @@ interface Window {
     getPathForFile(file: File): string
     setDebug(enabled: boolean): void
     disconnect: JiaorongCall
-    context: { get: JiaorongCall }
-    userinfo: { get: JiaorongCall }
+    getContext: JiaorongCall
+    userinfo: JiaorongCall
+    respondToolInteraction: JiaorongCall
+    openDevTools: JiaorongCall
     agent: { create: JiaorongCall; update: JiaorongCall; get: JiaorongCall; list: JiaorongCall }
     session: Record<string, JiaorongCall>
     catalog: Record<string, JiaorongCall>
     knowledgeBase: { query: JiaorongCall; queryDirectory: JiaorongCall }
-    chat: { respondToolInteraction: JiaorongCall }
     dialog: Record<string, JiaorongCall>
     clipboard: { writeImage: JiaorongCall }
     capture: { pageArea: JiaorongCall }
-    devtools: { open: JiaorongCall }
   }
 }
