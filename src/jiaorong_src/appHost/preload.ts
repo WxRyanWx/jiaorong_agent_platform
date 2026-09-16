@@ -98,7 +98,6 @@ const jiaorong = {
   openDevTools: call('devtools.open'), // 打开应用 DevTools
   agent: {
     create: call('agent.create'), // 按 key 创建或覆盖
-    update: call('agent.update'), // 按 key/id 覆盖
     get: call('agent.get'), // 按 key/id 取一条
     list: call('agent.list') // 列出本应用智能体
   },

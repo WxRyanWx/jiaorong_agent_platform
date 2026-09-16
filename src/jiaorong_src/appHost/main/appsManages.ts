@@ -250,7 +250,13 @@ class appsManages {
    * @param state 结束后的状态
    * @param lastError 可选错误信息
    */
-  private markChildEnded(appId: string, state: AppState, lastError?: string): void {
+  private markChildEnded(
+    appId: string,
+    state: AppState,
+    lastError?: string,
+    child?: ChildProcess
+  ): void {
+    if (child && this.runningProcesses.get(appId) !== child) return
     this.runningProcesses.delete(appId)
     const runtime = this.appRuntimeCache.get(appId)
     if (!runtime) return
@@ -259,6 +265,68 @@ class appsManages {
     runtime.state = state
     if (lastError !== undefined) runtime.lastError = lastError
     this.saveRuntimeState()
+  }
+
+  /** shell:true 时真正听端口的是孙进程；只杀 shell 会留下旧 Node 占口。 */
+  private killChildTree(child: ChildProcess): void {
+    const pid = child.pid
+    if (!pid) return
+    if (process.platform === 'win32') {
+      try {
+        execSync(`taskkill /PID ${pid} /T /F`, { stdio: 'pipe' })
+      } catch {
+        /* already gone */
+      }
+      return
+    }
+    try {
+      process.kill(-pid, 'SIGKILL')
+    } catch {
+      try {
+        child.kill('SIGKILL')
+      } catch {
+        /* already gone */
+      }
+    }
+  }
+
+  /** Electron 重启后 Map 是空的，旧 Node 仍占 cwd。按工作目录清掉残留。 */
+  private killLeftoverInDir(appDir: string): void {
+    if (!appDir || process.platform === 'win32') return
+    let pids = ''
+    try {
+      pids = execSync('pgrep -f node', {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore']
+      }).trim()
+    } catch {
+      return
+    }
+    for (const raw of pids.split('\n')) {
+      const pid = Number(raw.trim())
+      if (!Number.isInteger(pid) || pid <= 0 || pid === process.pid) continue
+      let cwd = ''
+      try {
+        if (process.platform === 'linux') {
+          cwd = fs.readlinkSync(`/proc/${pid}/cwd`)
+        } else {
+          const lsof = execSync(`lsof -a -p ${pid} -d cwd -Fn`, {
+            encoding: 'utf8',
+            stdio: ['ignore', 'pipe', 'ignore']
+          })
+          const line = lsof.split('\n').find((row) => row.startsWith('n'))
+          cwd = line ? line.slice(1) : ''
+        }
+      } catch {
+        continue
+      }
+      if (cwd !== appDir && !cwd.startsWith(appDir + path.sep)) continue
+      try {
+        process.kill(pid, 'SIGKILL')
+      } catch {
+        /* already gone */
+      }
+    }
   }
 
   // ========== 磁盘存储辅助 ==========
@@ -1177,12 +1245,9 @@ class appsManages {
     }
 
     if (this.isRunning(appId)) {
-      return {
-        success: true,
-        message: `应用 "${appId}" 已在运行中`,
-        data: { command, cwd: appDir, pid: this.runningProcesses.get(appId)?.pid || 0 }
-      }
+      this.stopApp(appId)
     }
+    this.killLeftoverInDir(appDir)
 
     try {
       const token = randomBytes(32).toString('hex')
@@ -1194,7 +1259,8 @@ class appsManages {
           JIAORONG_BRIDGE_TOKEN: token
         },
         stdio: 'pipe',
-        shell: true
+        shell: true,
+        detached: process.platform !== 'win32'
       })
 
       child.stdout?.on('data', (data: Buffer) => {
@@ -1207,13 +1273,18 @@ class appsManages {
       // 子进程退出时自动更新状态
       child.on('exit', (code, signal) => {
         console.log(`[${appId}] 进程退出，code=${code}, signal=${signal}`)
-        this.markChildEnded(appId, app.enabled ? AppState.ENABLED : AppState.DISABLED)
+        this.markChildEnded(
+          appId,
+          app.enabled ? AppState.ENABLED : AppState.DISABLED,
+          undefined,
+          child
+        )
         this.emit('stopped', app, { exitCode: code, signal })
       })
 
       child.on('error', (err) => {
         console.error(`[${appId}] 进程异常:`, err.message)
-        this.markChildEnded(appId, AppState.ERROR, err.message)
+        this.markChildEnded(appId, AppState.ERROR, err.message, child)
         this.emit('error', app, { reason: err.message })
       })
 
@@ -1257,26 +1328,7 @@ class appsManages {
     const runtime = this.getOrCreateRuntime(appId)
 
     try {
-      // 优雅退出：发送 SIGTERM（Windows 上需要特殊处理）
-      if (process.platform === 'win32') {
-        // Windows: 使用 taskkill 发送终止信号
-        try {
-          execSync(`taskkill /PID ${child.pid} /T /F`, { stdio: 'pipe' })
-        } catch {
-          // taskkill 可能失败（进程已退出），忽略
-        }
-      } else {
-        child.kill('SIGTERM')
-        // 等待最多 5 秒
-        const killTimeout = setTimeout(() => {
-          if (child.exitCode === null) {
-            child.kill('SIGKILL')
-          }
-        }, 5000)
-
-        child.on('exit', () => clearTimeout(killTimeout))
-      }
-
+      this.killChildTree(child)
       this.runningProcesses.delete(appId)
       runtime.process = undefined
       runtime.pid = undefined
