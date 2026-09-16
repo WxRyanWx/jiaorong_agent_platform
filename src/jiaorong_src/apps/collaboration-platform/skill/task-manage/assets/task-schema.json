@@ -70,6 +70,17 @@
             "items": {
               "type": "object",
               "properties": {
+                "createDate":{
+                  "type": "string",
+                  "format": "date",
+                  "description": "子事项contentList的工作范围创建时间，默认值为当前时间",
+                  "default": "now()"
+                },
+                "creator":{
+                  "type": "string",
+                  "description": "创建人",
+                  "rule": "创建人，默认值为当前登录用户"
+                },
                 "content": {
                   "type": "string",
                   "description": "子事项contentList的工作范围内容",
@@ -84,6 +95,16 @@
               },
               "required": ["content", "attachments"]
             }
+          },
+          "isDeleted":{
+            "type": "boolean",
+            "default": false,
+            "description": "该子事项是否被删除的状态，默认值为false"
+          },
+          "id":{
+            "type": "string",
+            "description": "子事项的id",
+            "rule": "编辑时继续沿用原id。新创建的itemList item不需要在本任务数据JSON schema里生成该id字段"
           }
         },
         "required": ["name", "contentList"]
