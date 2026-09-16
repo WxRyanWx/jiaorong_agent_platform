@@ -320,7 +320,7 @@ class appsManages {
       } catch {
         continue
       }
-      if (cwd !== appDir && !cwd.startsWith(appDir + path.sep)) continue
+      if (path.resolve(cwd) !== path.resolve(appDir)) continue
       try {
         process.kill(pid, 'SIGKILL')
       } catch {
