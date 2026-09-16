@@ -82,7 +82,7 @@ function requireToken(deps: JiaorongAppHostDeps): void {
 }
 
 /**
- * DeepChat agent + 绑定信息转成 SDK AppAgent。
+ * DeepChat agent + 绑定信息转成应用侧智能体记录。
  * @param agent DeepChat 智能体记录
  * @param binding 本应用 key ↔ agentId
  * @param created 是否本次新建
@@ -176,8 +176,8 @@ function applySuperAgentDefaultModel(config: Record<string, unknown>): Record<st
   }
 }
 
-/** 会话记录转成 SDK 会话结构。 */
-function toSdkSession(session: JiaorongAppSessionRecord) {
+/** 会话记录转成应用侧会话结构。 */
+function toAppSession(session: JiaorongAppSessionRecord) {
   return {
     id: session.id,
     agentId: session.agentId,
@@ -731,7 +731,7 @@ export async function handleDialogueInvoke(
       /** initialTurn：首轮结果；session：去掉首轮后的会话记录。 */
       const { initialTurn, ...session } = created
       return {
-        session: toSdkSession(session),
+        session: toAppSession(session),
         accepted: !isBlockedAttachment(initialTurn?.attachmentPreparation),
         ...(initialTurn ? { initialTurn } : {})
       }
@@ -753,7 +753,7 @@ export async function handleDialogueInvoke(
       })
       rememberSessionDirs(webContentsId, page.items)
       return {
-        items: page.items.map(toSdkSession),
+        items: page.items.map(toAppSession),
         nextCursor: page.nextCursor,
         hasMore: page.hasMore
       }
@@ -799,7 +799,7 @@ export async function handleDialogueInvoke(
         cursor: readMessageCursor(record)
       })
       return {
-        session: toSdkSession({ ...session, permissionMode }),
+        session: toAppSession({ ...session, permissionMode }),
         messages: page.messages,
         nextCursor: page.nextCursor,
         hasMore: page.hasMore
@@ -816,7 +816,7 @@ export async function handleDialogueInvoke(
       await requireOwnedSession(dialogue, appId, sessionId)
       /** 会话记录。 */
       const session = await dialogue.renameSession(sessionId, title)
-      return { session: toSdkSession(session) }
+      return { session: toAppSession(session) }
     }
     case 'session.delete': {
       /** 会话 id。 */
@@ -954,7 +954,7 @@ export async function handleDialogueInvoke(
       /** 会话记录。 */
       const session = await deps.setSessionModel(sessionId, providerId, modelId)
       if (!session) throw bridgeError('SESSION_NOT_FOUND', '未找到会话')
-      return { session: toSdkSession(session) }
+      return { session: toAppSession(session) }
     }
     case 'session.setOrchestrationPolicy': {
       /** 会话 id。 */
@@ -1028,7 +1028,7 @@ export async function handleDialogueInvoke(
       /** 会话记录。 */
       const session = await dialogue.setToolMode(sessionId, override)
       if (!session) throw bridgeError('SESSION_NOT_FOUND', '未找到会话')
-      return { session: toSdkSession(session) }
+      return { session: toAppSession(session) }
     }
     case 'session.getDisabledAgentTools': {
       /** 会话 id。 */
@@ -1069,7 +1069,7 @@ export async function handleDialogueInvoke(
       await requireOwnedSession(dialogue, appId, sessionId)
       /** 会话记录。 */
       const session = await dialogue.toggleSessionPinned(sessionId, record.pinned)
-      return { session: toSdkSession(session) }
+      return { session: toAppSession(session) }
     }
     case 'session.retryMessage': {
       /** 会话 id。 */
@@ -1149,7 +1149,7 @@ export async function handleDialogueInvoke(
       } else if (source.projectDir) {
         rememberPickedDirectory(webContentsId, source.projectDir)
       }
-      return { session: toSdkSession(session) }
+      return { session: toAppSession(session) }
     }
     default:
       return undefined

@@ -1,4 +1,4 @@
-/** OSS 应用目录解析与合并。运行时不读本地 builtinCatalog.json。 */
+/** OSS 应用目录解析与合并。谁能看见只看这份配置表。 */
 
 import {
   resetJiaorongRemoteRuntimeConfigForTests,

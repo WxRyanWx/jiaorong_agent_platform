@@ -34,7 +34,7 @@ function toCount(value: unknown, fallback: number, max: number) {
 /**
  * 查知识库列表（个人/共享）。
  * @param deps 宿主依赖（读 token）
- * @param args SDK 入参
+ * @param args invoke 入参
  */
 export async function queryJiaorongKnowledgeBases(
   deps: JiaorongAppHostDeps,

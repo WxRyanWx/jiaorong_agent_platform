@@ -1,4 +1,4 @@
-/** 分发 SDK invoke：上下文、对话框、目录、知识库、对话。 */
+/** 分发 window.jiaorong invoke：上下文、对话框、目录、知识库、对话。 */
 
 import fs from 'node:fs'
 import { pathToFileURL } from 'node:url'
@@ -107,7 +107,7 @@ export function toOpenInfo(runtime: JiaorongAppRuntime): JiaorongAppOpenInfo | n
   }
 }
 
-/** 分发一条 SDK invoke。appId 必须与当前 guest 绑定一致。 */
+/** 分发一条 window.jiaorong invoke。appId 必须与当前 guest 绑定一致。 */
 export async function handleAppBridgeInvoke(
   deps: JiaorongAppHostDeps,
   runtime: JiaorongAppRuntime,

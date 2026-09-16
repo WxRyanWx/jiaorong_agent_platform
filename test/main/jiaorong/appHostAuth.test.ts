@@ -150,7 +150,7 @@ describe('jiaorong remote app catalog', () => {
 })
 
 describe('jiaorong local-debug scan gate', () => {
-  it('drops local-debug apps when the remote catalog is empty', async () => {
+  it('keeps local-debug apps when the remote catalog is empty', async () => {
     const { combineRemoteAndLocalDebugApps } =
       await import('../../../src/jiaorong_src/appHost/main/scan')
     expect(
@@ -168,8 +168,8 @@ describe('jiaorong local-debug scan gate', () => {
             package: { kind: 'dir', builtinDir: 'local-only' }
           }
         ]
-      )
-    ).toEqual([])
+      ).map((item) => item.id)
+    ).toEqual(['local-only'])
   })
 
   it('keeps local-debug extras when the remote catalog has apps', async () => {
@@ -199,5 +199,22 @@ describe('jiaorong local-debug scan gate', () => {
       'demo-workbench',
       'local-only'
     ])
+  })
+
+  it('does not invent catalog apps from the repo; store items stay installable', async () => {
+    const { catalogRecordHasInstallSource } =
+      await import('../../../src/jiaorong_src/appHost/main/scan')
+    expect(
+      catalogRecordHasInstallSource({
+        id: 'app-scaffold',
+        name: '应用脚手架',
+        version: '0.0.29-dev',
+        slot: 'menu',
+        source: 'store',
+        enabled: true,
+        auth: { orgs: ['101641966'], userIds: [] },
+        package: { kind: 'zip', downloadUrl: 'https://example.test/app.zip' }
+      })
+    ).toBe(true)
   })
 })

@@ -1,6 +1,6 @@
 /** 应用桥失败码。IPC 用 `{ code, message }` 表示失败，不要和成功 payload 混用同名字段。 */
 
-/** 宿主与 SDK 共用的失败码列表。 */
+/** 宿主与应用桥共用的失败码列表。 */
 export const JIAORONG_BRIDGE_ERROR_CODES = [
   'NOT_IN_JIAORONG',
   'JIAORONG_NOT_RUNNING',
@@ -21,7 +21,7 @@ export type JiaorongBridgeErrorCode = (typeof JIAORONG_BRIDGE_ERROR_CODES)[numbe
 
 /** IPC / Node 桥返回的失败对象。 */
 export type JiaorongBridgeError = {
-  /** 稳定错误码，SDK 会映射成 `JiaorongError.code`。 */
+  /** 稳定错误码，应用侧映射成失败 `code`。 */
   code: JiaorongBridgeErrorCode
   /** 给人看的说明。 */
   message: string

@@ -3,7 +3,7 @@ import { toJiaorongBridgeInvokeFailure } from '../../../src/jiaorong_src/appHost
 import {
   formatJiaorongError,
   localizeErrorText
-} from '../../../src/jiaorong_src/app-sdk/src/localize'
+} from '../../../src/jiaorong_src/apps/app-scaffold/web/src/lib/errorText'
 
 describe('toJiaorongBridgeInvokeFailure', () => {
   it('keeps the original error message', () => {

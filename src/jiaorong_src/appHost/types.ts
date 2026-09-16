@@ -3,7 +3,7 @@
 /** 主题。 */
 export type ThemeMode = 'light' | 'dark'
 
-/** SDK `context.get` 出参。 */
+/** `context.get` 出参。 */
 export type JiaorongAppHostContext = {
   /** 登录用户名。 */
   userId: string
@@ -23,10 +23,6 @@ export type JiaorongAppHostContext = {
   apiBaseUrl?: string
   /** 请求头 Product-Id。 */
   productId?: string
-  /** 本应用 Node HTTP 实际监听端口。未启动为 null。 */
-  nodePort?: number | null
-  /** `http://127.0.0.1:<nodePort>`。未启动则不传。 */
-  nodeBase?: string
 }
 
 /** 侧栏槽位；目前只有菜单。 */
@@ -105,15 +101,8 @@ export type JiaorongAppManifest = {
   entry: string
   /** 槽位。 */
   slot?: JiaorongAppSlot
-  /** 可选 Node。 */
-  node?: {
-    /** Node 入口文件。 */
-    entry: string
-    /** 启动命令。 */
-    startCommand: string
-    /** 不要写。实际口由内核 listen(0) 分配。 */
-    port?: number
-  }
+  /** 点开时管理类 spawn 一次的脚本，可用 && 拼接。 */
+  spawn?: string
 }
 
 /** 扫盘后的运行时项。 */
@@ -128,8 +117,6 @@ export type JiaorongAppRuntime = JiaorongAppCatalogRecord & {
   appDir?: string | null
   /** 实际入口。 */
   entry?: string | null
-  /** Node 清单。 */
-  node?: JiaorongAppManifest['node'] | null
 }
 
 /** 当前登录用户。 */

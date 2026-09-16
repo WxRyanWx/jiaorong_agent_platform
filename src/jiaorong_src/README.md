@@ -28,9 +28,8 @@ jiaorong_src/
   skills/            # 技能中心页面 + module（无 routes）
     pages/SkillListPage/ SkillDetailPage/
   utils/ runtime/
-  app-sdk/           # jiaorong-app-sdk（独立 npm 包，不进宿主 workspace）
-  appHost/           # 嵌入应用宿主：目录、扫描、权限、协议、preload
-  apps/demo-workbench/  # 外部应用脚手架（直连 Vue 组件 + Node HTTP，包内 app.json 无 auth）
+  appHost/           # 嵌入应用宿主：目录、扫描、权限、协议、preload、window.jiaorong
+  apps/app-scaffold/  # 外部应用脚手架（web-ui 经 WS 连包内后端）
 ```
 
 ## 约定

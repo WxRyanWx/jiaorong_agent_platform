@@ -1,0 +1,10 @@
+{
+  "name": "app-scaffold-node",
+  "private": true,
+  "egg": {
+    "framework": "egg"
+  },
+  "dependencies": {
+    "egg": "^3.30.0"
+  }
+}

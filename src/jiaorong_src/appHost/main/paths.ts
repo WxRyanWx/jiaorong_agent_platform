@@ -25,11 +25,15 @@ export function getUserAppDir(appId: string, homeDir = os.homedir()): string {
 }
 
 /**
- * 独立 Node 连宿主用的桥文件路径（`0600`）。
- * @param homeDir 用户 home
+ * 开发态内置应用根：electron-vite 的 `app.getAppPath()` 可能是 `out/main`，
+ * 不能只拼这一条。
+ * @param candidates 候选绝对路径，命中第一个存在的目录
  */
-export function getNodeBridgeFile(homeDir = os.homedir()): string {
-  return path.join(getAppHomeDir(homeDir), 'node-bridge.json')
+export function resolveUnpackagedBuiltinAppsRoot(candidates: string[]): string {
+  for (const dir of candidates) {
+    if (dir && fs.existsSync(dir)) return dir
+  }
+  return candidates[0] ?? ''
 }
 
 /** 内置应用源根：开发走仓库 `apps/`，安装包走 `resources/jiaorong-apps`。 */
@@ -37,7 +41,11 @@ export function getBuiltinAppsRoot(): string {
   if (app.isPackaged) {
     return path.join(process.resourcesPath, 'jiaorong-apps')
   }
-  return path.join(app.getAppPath(), 'src', 'jiaorong_src', 'apps')
+  return resolveUnpackagedBuiltinAppsRoot([
+    path.join(app.getAppPath(), 'src', 'jiaorong_src', 'apps'),
+    path.join(__dirname, '../../src/jiaorong_src/apps'),
+    path.join(process.cwd(), 'src/jiaorong_src/apps')
+  ])
 }
 
 /**

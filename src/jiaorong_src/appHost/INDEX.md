@@ -1,53 +1,39 @@
-# appHost 目录索引
+# appHost
 
-交融客户端里的**应用宿主**：扫目录、装包、打开侧栏 webview、给 guest 注入 `window.jiaorong`、把 SDK `invoke` 接到主进程会话能力。不包含二次开发用的 npm 包（那是 `app-sdk`）。
+交融侧栏用 `<webview>` 打开应用包里的 `web-ui`。磁盘装包、点开时 `spawn` 由 `appsManages` 负责。打开页时由 **webview preload** 注入 `window.jiaorong`（自定义能力 + 对话白名单）；**不**把宿主 `window.api` / `window.deepchat` 给应用，也 **不** 向 spawn 出的 Node 进程注入通信。
 
-下文「UI」指 `.vue` 与侧栏 composable，本文只索引，不要求给它们补变量注释。
+通信约定：客户端 → web-ui → 应用 Node（WebSocket）。web-ui 业务不直连 `window.jiaorong`；只有中继把 Node 的 invoke 转到注入对象。可见性 = OSS 配置表 `auth` ∪ 本机 `~/.jiaorongchat/apps` 已装。启停只认 `app.json.spawn`，不读旧的 `app.json.node`。
 
-## 根目录
-
-| 文件 | 作用 |
+| 路径 | 作用 |
 | --- | --- |
-| `INDEX.md` | 本目录索引 |
-| `types.ts` | 目录项、清单、运行时、打开信息等宿主类型 |
-| `channels.ts` | `jiaorong-app://` 协议名与 IPC 频道名 |
-| `bridgeErrors.ts` | 桥错误码；IPC 失败结果与成功 payload 的区分 |
-| `auth.ts` | 目录 `auth.orgs` / `userIds` 解析与当前用户是否可见 |
-| `catalog.ts` | 从 OSS 运行时配置解析应用列表；本地 json 不参与运行 |
-| `builtinCatalog.json` | 历史内置目录样例；运行时不读，以 OSS 为准 |
-| `preload.ts` | 应用 webview 专用 preload：暴露 `window.jiaorong` |
-
-## `main/`（Electron 主进程）
-
-| 文件 | 作用 |
-| --- | --- |
-| `register.ts` | 启动/销毁宿主：登记 IPC、协议、隔离、扫包、拉起 Node 桥 |
-| `bridge.ts` | 分发 SDK `invoke`（上下文、DevTools、对话框、目录、知识库、对话） |
-| `dialogue.ts` | 智能体/会话/发消息等对话方法，走 `JiaorongAppDialoguePort` |
-| `deps.ts` | 宿主依赖端口：对话、文件、斜杠目录、鉴权会话 |
-| `scan.ts` | 合并远程目录与 local-debug，拷贝内置目录到用户 `apps/` |
-| `manifest.ts` | 读应用包内 `app.json` |
-| `paths.ts` | 用户安装目录、内置 `jiaorong-apps`、preload 路径、拷贝过滤 |
-| `protocol.ts` | 登记 `jiaorong-app://`，按 appId 把请求映射到安装目录文件 |
-| `guestIsolation.ts` | webview 分区、强制 preload、拦截跨应用导航 |
-| `devtoolsChord.ts` | 隐藏 DevTools 序列状态机（Ctrl/Cmd+I S N） |
-| `devtoolsShortcut.ts` | 把序列挂到所有 WebContents，含嵌入 webview |
-| `guestAppId.ts` | partition / URL hostname 解析 appId，校验 invoke 来源 |
-| `guestBind.ts` | webContents ↔ appId、选中目录白名单、会话归属 |
-| `guestAttachments.ts` | guest 附件路径落地；知识库 context 不当文件写盘 |
-| `guestNode.ts` | 侧栏打开时 spawn 应用 Node，注入 `globalThis.jiaorong` |
-| `standaloneNodeBridge.ts` | 本机独立 `node server.js`：`node-bridge.json` JSON 行协议 |
-| `events.ts` | 把 DeepChat 事件转给应用 guest；官方窗口滤掉应用会话 |
-| `agentMap.ts` | 应用 `key` ↔ DeepChat `agentId`；官方列表隐藏这些 Agent |
-| `context.ts` | `context.get`：token、locale、theme、appDir、nodePort |
-| `userIdentity.ts` | 从 `jiaorong_auth_session` 读用户与 token |
-| `slashCatalog.ts` | `catalog.slash`：技能 + MCP 工具列表 |
-| `knowledgeBase.ts` | 知识库列表/目录，主进程代请求，guest 不直连云端 |
-
-## `renderer/`（宿主渲染进程，UI）
-
-| 文件 | 作用 |
-| --- | --- |
-| `JiaorongAppFrameHost.vue` | 常驻 webview 容器；切菜单不拆 guest |
-| `pages/AppHostPage.vue` | 路由占位，真正的 webview 不在本页 |
-| `useJiaorongMenuApps.ts` | 侧栏可见应用列表，登录变化时刷新 |
+| `preload.ts` | 应用 webview preload：注入 `window.jiaorong` |
+| `types.ts` | 目录、清单、运行时、打开信息 |
+| `channels.ts` | `jiaorong-app://` 与 IPC 频道名 |
+| `bridgeErrors.ts` | 桥失败 `{ code, message }` |
+| `auth.ts` | 目录 `auth` 是否对当前用户可见 |
+| `catalog.ts` | OSS 配置表解析 |
+| `sdkDebugLog.ts` | guest 控制台调试日志脱敏 |
+| `main/register.ts` | 启动宿主：协议、隔离、IPC；打开 `startApp`，离开 `stopApp` |
+| `main/bridge.ts` | 分发 `window.jiaorong.invoke` |
+| `main/dialogue.ts` | agent / session / 发消息 |
+| `main/deps.ts` | 宿主依赖端口（会话、智能体） |
+| `main/scan.ts` | OSS 目录 ∪ 本机已装 |
+| `main/manifest.ts` | 读 `app.json`（id/name/version/entry/spawn） |
+| `main/paths.ts` | 安装目录、内置包、preload 路径 |
+| `main/protocol.ts` | `jiaorong-app://` |
+| `main/guestIsolation.ts` | webview 分区与强制 preload |
+| `main/devtoolsChord.ts` | 隐藏 DevTools 序列 |
+| `main/devtoolsShortcut.ts` | 把序列挂到 WebContents |
+| `main/guestAppId.ts` | 从 partition / URL 解析 appId |
+| `main/guestBind.ts` | webContents ↔ appId |
+| `main/guestAttachments.ts` | guest 附件路径 |
+| `main/appsManages.ts` | 装/卸/更新/启用/`spawn`；不注入宿主通信 |
+| `main/events.ts` | 把会话/流式事件推给应用页面 |
+| `main/agentMap.ts` | 应用 agent key ↔ DeepChat agentId |
+| `main/context.ts` | `context.get` |
+| `main/userIdentity.ts` | 当前用户与 token |
+| `main/slashCatalog.ts` | `catalog.slash` |
+| `main/knowledgeBase.ts` | 知识库查询 |
+| `renderer/JiaorongAppFrameHost.vue` | 常驻 webview：`getOpenInfo` + preload |
+| `renderer/pages/AppHostPage.vue` | 路由占位 |
+| `renderer/useJiaorongMenuApps.ts` | 侧栏可见应用 |

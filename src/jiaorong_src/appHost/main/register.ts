@@ -1,4 +1,4 @@
-/** 启动/销毁应用宿主：IPC、协议、隔离、Node 桥。 */
+/** 启动/销毁应用宿主：IPC、协议、隔离。应用子进程由 appsManages spawn，不注入通信。 */
 
 import { ipcMain, webContents, type IpcMainInvokeEvent } from 'electron'
 import {
@@ -25,10 +25,10 @@ import {
   readSessionPartition,
   resolveGuestInvokeAppId
 } from './guestAppId'
-import { ensureJiaorongAppNode, stopAllJiaorongAppNodes, stopJiaorongAppNode } from './guestNode'
+import appsManages from './appsManages'
+import { getUserAppsRoot } from './paths'
 import { installJiaorongDevToolsShortcut } from './devtoolsShortcut'
 import { installJiaorongAppGuestIsolation } from './guestIsolation'
-import { startStandaloneNodeBridge, stopStandaloneNodeBridge } from './standaloneNodeBridge'
 import { registerJiaorongAppProtocolHandler } from './protocol'
 import { setRemoteAppCatalogChangedListener, startRemoteAppCatalogSync } from '../catalog'
 import { ensureJiaorongAppInstalled, findVisibleOpenableApp, scanJiaorongApps } from './scan'
@@ -38,6 +38,14 @@ import { readAuthUserKey, readUserIdentityFromAuthSession } from './userIdentity
 let started = false
 /** 上次广播用的用户键。 */
 let lastBroadcastUserKey: string | null = null
+/** 应用管理类单例。 */
+let appsManager: appsManages | null = null
+
+/** 本进程应用管理器。 */
+function appsManagerOf(): appsManages {
+  if (!appsManager) appsManager = new appsManages(getUserAppsRoot())
+  return appsManager
+}
 
 /** IPC sender 的 URL。 */
 function senderUrlOf(sender: IpcMainInvokeEvent['sender']): string {
@@ -138,8 +146,7 @@ function emptyGuestContext(
     theme: deps.getTheme(),
     appId,
     appDir: '',
-    token: null,
-    nodePort: null
+    token: null
   }
 }
 
@@ -150,7 +157,7 @@ async function broadcastContext(deps: JiaorongAppHostDeps): Promise<void> {
   /** 登录用户是否变化。 */
   const userChanged = lastBroadcastUserKey !== null && lastBroadcastUserKey !== currentUser
   lastBroadcastUserKey = currentUser
-  if (userChanged) await stopAllJiaorongAppNodes()
+  if (userChanged) appsManagerOf().stopAllRunningApps()
   /** 一个 webContents。 */
   for (const contents of webContents.getAllWebContents()) {
     if (contents.isDestroyed()) continue
@@ -168,7 +175,7 @@ async function broadcastContext(deps: JiaorongAppHostDeps): Promise<void> {
     /** 当前应用运行时。 */
     const runtime = findRuntimeById(deps, appId)
     if (!runtime?.visible) {
-      void stopJiaorongAppNode(appId)
+      appsManagerOf().stopApp(appId)
       sendJiaorongAppBridgeEvent('context', emptyGuestContext(deps, appId), appId)
       continue
     }
@@ -176,12 +183,11 @@ async function broadcastContext(deps: JiaorongAppHostDeps): Promise<void> {
   }
 }
 
-/** 启动应用宿主：协议、隔离、IPC、远程目录、独立 Node 桥。 */
+/** 启动应用宿主：协议、隔离、IPC、远程目录。不向应用子进程注入通信。 */
 export function startJiaorongAppHost(deps: JiaorongAppHostDeps): void {
   registerJiaorongAppProtocolHandler(deps)
   installJiaorongAppGuestIsolation()
   installJiaorongDevToolsShortcut()
-  startStandaloneNodeBridge(deps)
   if (started) return
   started = true
   lastBroadcastUserKey = readAuthUserKey(deps.getAuthSession())
@@ -217,7 +223,12 @@ export function startJiaorongAppHost(deps: JiaorongAppHostDeps): void {
     if (!runtime) return null
     /** 是否已安装守卫或协议。 */
     const installed = ensureJiaorongAppInstalled(runtime)
-    await ensureJiaorongAppNode(deps, installed)
+    const manager = appsManagerOf()
+    manager.refresh()
+    const startedSpawn = manager.startApp(installed.id)
+    if (!startedSpawn.success) {
+      console.warn('[jiaorong-app] spawn failed', installed.id, startedSpawn.message)
+    }
     void broadcastContext(deps)
     return toOpenInfo(installed)
   })
@@ -229,7 +240,7 @@ export function startJiaorongAppHost(deps: JiaorongAppHostDeps): void {
         ? (input as { appId: string }).appId.trim()
         : ''
     if (!appId) return { ok: false }
-    await stopJiaorongAppNode(appId)
+    appsManagerOf().stopApp(appId)
     void abortAppGenerations(deps, appId)
     return { ok: true }
   })
@@ -255,7 +266,7 @@ export function startJiaorongAppHost(deps: JiaorongAppHostDeps): void {
   })
 }
 
-/** 卸掉 IPC handler、停 Node、停独立桥。 */
+/** 卸掉 IPC handler、停正在跑的应用进程。 */
 export function stopJiaorongAppHost(): void {
   if (!started) return
   ipcMain.removeHandler(JIAORONG_APP_LIST_CHANNEL)
@@ -265,8 +276,8 @@ export function stopJiaorongAppHost(): void {
   setRemoteAppCatalogChangedListener(null)
   setJiaorongAppContextBroadcaster(null)
   setJiaorongAppSessionResolver(null)
-  void stopAllJiaorongAppNodes()
-  stopStandaloneNodeBridge()
+  appsManagerOf().stopAllRunningApps()
   lastBroadcastUserKey = null
   started = false
+  appsManager = null
 }

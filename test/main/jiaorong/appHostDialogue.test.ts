@@ -87,8 +87,7 @@ const runtime: JiaorongAppRuntime = {
   installStatus: 'installed',
   installedVersion: '0.0.2-dev',
   appDir: '/tmp/demo-workbench',
-  entry: 'web-ui/index.html',
-  node: null
+  entry: 'web-ui/index.html'
 }
 
 function deps(overrides?: Partial<JiaorongAppHostDeps>): JiaorongAppHostDeps {

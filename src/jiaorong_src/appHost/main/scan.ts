@@ -1,4 +1,4 @@
-/** 扫 OSS 目录与 local-debug，把内置应用拷到用户 apps 目录。 */
+/** 扫 OSS 目录与本机已装，把配置表允许的内置应用拷到用户 apps 目录。 */
 
 import fs from 'node:fs'
 import os from 'node:os'
@@ -135,13 +135,21 @@ function listLocalDebugApps(catalogIds: Set<string>): JiaorongAppCatalogRecord[]
   return extras
 }
 
-/** 远程目录为空时不合并本地调试应用。 */
+/** 本机 apps/ 里的应用始终并入列表（手丢的包也要能出现在侧栏）。 */
 export function combineRemoteAndLocalDebugApps(
   remote: JiaorongAppCatalogRecord[],
   localDebug: JiaorongAppCatalogRecord[]
 ): JiaorongAppCatalogRecord[] {
-  if (remote.length === 0) return []
   return [...remote, ...localDebug]
+}
+
+/** 这条目录是否还能装：用户目录已有，或仓库/extraResources 里有源。 */
+export function catalogRecordHasInstallSource(record: JiaorongAppCatalogRecord): boolean {
+  if (record.source === 'store') return true
+  const destDir = getUserAppDir(record.id)
+  if (readAppManifest(destDir)) return true
+  const builtinDir = record.package.builtinDir
+  return Boolean(builtinDir && fs.existsSync(getBuiltinAppDir(builtinDir)))
 }
 
 /** 扫描并解析一个应用运行时。 */
@@ -149,12 +157,14 @@ function resolveRuntime(
   record: JiaorongAppCatalogRecord,
   user: JiaorongAppUserIdentity
 ): JiaorongAppRuntime {
-  /** 当前可见应用。 */
-  const visible = record.enabled !== false && isAppVisibleToUser(record.auth, user)
   /** userDir 路径。 */
   const userDir = getUserAppDir(record.id)
   /** 用户目录里的清单。 */
   const userManifest = fs.existsSync(userDir) ? readAppManifest(userDir) : null
+  /** 配置表允许看见，或本机已经有安装目录（无配置权限但手丢了也能进侧栏）。 */
+  const onDisk = Boolean(userManifest)
+  const catalogVisible = record.enabled !== false && isAppVisibleToUser(record.auth, user)
+  const visible = catalogVisible || onDisk
 
   /** 应用安装目录。 */
   let appDir: string | null = null
@@ -181,20 +191,15 @@ function resolveRuntime(
     installStatus,
     installedVersion,
     appDir,
-    entry: manifest?.entry ?? null,
-    node: manifest?.node ?? null
+    entry: manifest?.entry ?? null
   }
 }
 
-/** 扫当前用户可见应用（OSS + 可选 local-debug）。 */
+/** 扫当前用户可见应用。谁能看见只看 OSS 配置表；本机已装的包另外并上。 */
 export function scanJiaorongApps(user: JiaorongAppUserIdentity): JiaorongAppRuntime[] {
-  /** 内置应用。 */
-  const builtin = loadBuiltinAppCatalog()
-  /** 合并后的结果。 */
-  const merged = mergeAppCatalogs(builtin, [])
-  /** 本地调试应用。 */
-  const localDebug =
-    merged.length === 0 ? [] : listLocalDebugApps(new Set(merged.map((item) => item.id)))
+  const remote = loadBuiltinAppCatalog()
+  const merged = mergeAppCatalogs(remote, []).filter(catalogRecordHasInstallSource)
+  const localDebug = listLocalDebugApps(new Set(merged.map((item) => item.id)))
   return combineRemoteAndLocalDebugApps(merged, localDebug).map((record) =>
     resolveRuntime(record, user)
   )
@@ -220,25 +225,15 @@ export function ensureJiaorongAppInstalled(
   /** 源目录清单。 */
   const sourceManifest =
     builtinDir && fs.existsSync(builtinDir) ? readAppManifest(builtinDir) : null
-  /** Node 端口是否变化。 */
-  const nodePortChanged =
-    Boolean(destManifest && sourceManifest) &&
-    destManifest?.node?.port !== sourceManifest?.node?.port
   /** 源版本。 */
   const sourceVersion = sourceManifest?.version ?? runtime.version
-  if (
-    destManifest &&
-    destManifest.version === sourceVersion &&
-    !refreshUnpackaged &&
-    !nodePortChanged
-  ) {
+  if (destManifest && destManifest.version === sourceVersion && !refreshUnpackaged) {
     return {
       ...runtime,
       appDir: destDir,
       installedVersion: destManifest.version,
       installStatus: 'installed',
-      entry: destManifest.entry,
-      node: destManifest.node ?? null
+      entry: destManifest.entry
     }
   }
 
@@ -249,8 +244,7 @@ export function ensureJiaorongAppInstalled(
         appDir: destDir,
         installedVersion: destManifest.version,
         installStatus: 'installed',
-        entry: destManifest.entry,
-        node: destManifest.node ?? null
+        entry: destManifest.entry
       }
     }
     return { ...runtime, installStatus: 'error' }
@@ -269,8 +263,7 @@ export function ensureJiaorongAppInstalled(
     appDir: destDir,
     installedVersion: manifest?.version ?? runtime.version,
     installStatus: 'installed',
-    entry: manifest?.entry ?? runtime.entry,
-    node: manifest?.node ?? runtime.node
+    entry: manifest?.entry ?? runtime.entry
   }
 }
 

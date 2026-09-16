@@ -1,10 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { materializeGuestFiles } from '../../../src/jiaorong_src/appHost/main/guestAttachments'
-import {
-  normalizeMessageFile,
-  parseUserMessage
-} from '../../../src/jiaorong_src/app-sdk/src/helpers'
-import { pendingToMessageFile } from '../../../src/jiaorong_src/app-sdk/src/messageFiles'
+import { normalizeMessageFile, parseUserMessage } from '../../../src/jiaorong_src/apps/app-scaffold/web/src/components/jiaorongagentchat/lib/hostParse'
+import { pendingToMessageFile } from '../../../src/jiaorong_src/apps/app-scaffold/web/src/components/jiaorongagentchat/lib/messageFiles'
 
 describe('jiaorong guest attachments', () => {
   it('writes temp files and prepareFile like the official chat pipeline', async () => {

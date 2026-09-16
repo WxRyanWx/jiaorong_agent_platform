@@ -20,7 +20,6 @@
     "src/jiaorong_src/appHost/channels.ts",
     "src/jiaorong_src/appHost/bridgeErrors.ts",
     "src/jiaorong_src/appHost/types.ts",
-    "src/jiaorong_src/appHost/builtinCatalog.json",
     "src/jiaorong_src/appHost/preload.ts",
     "src/jiaorong_src/appHost/main/**/*.ts",
     "src/jiaorong_src/tools/slashMenuDisplayText.ts",

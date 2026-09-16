@@ -1,4 +1,7 @@
-/** 应用 webview 专用 preload。注入 `window.jiaorong`，不走官方窗口那份 preload。 */
+/**
+ * 应用 webview 专用 preload。写法同 src/preload：方法直接挂对象上走 IPC。
+ * 自定义能力在前，后面是对话白名单。给 Node 经页面中继代调，页面业务不直接用。
+ */
 
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import {
@@ -8,26 +11,20 @@ import {
 import { isJiaorongBridgeFailure } from '@jiaorong/appHost/bridgeErrors'
 import { logJiaorongSdkDebug } from '@jiaorong/appHost/sdkDebugLog'
 
-/** SDK `on(event)` 的回调。 */
 type Handler = (payload: unknown) => void
 
-/** 事件名 → 本页监听集合。 */
 const listeners = new Map<string, Set<Handler>>()
-/** 仅 `jiaorong.setDebug(true)` 打开；默认不打桥调用日志。 */
-let sdkDebugEnabled = false
+let debugEnabled = false
 
 ipcRenderer.on(JIAORONG_APP_BRIDGE_EVENT_CHANNEL, (_event, envelope: unknown) => {
   if (!envelope || typeof envelope !== 'object') return
-  /** 主进程推来的 `{ event, payload }`。 */
   const record = envelope as { event?: unknown; payload?: unknown }
   if (typeof record.event !== 'string') return
-  if (sdkDebugEnabled) {
+  if (debugEnabled) {
     logJiaorongSdkDebug('event', record.event, record.payload)
   }
-  /** 该事件已注册的回调。 */
   const handlers = listeners.get(record.event)
   if (!handlers) return
-  /** 一条回调。 */
   for (const handler of handlers) {
     try {
       handler(record.payload)
@@ -37,41 +34,30 @@ ipcRenderer.on(JIAORONG_APP_BRIDGE_EVENT_CHANNEL, (_event, envelope: unknown) =>
   }
 })
 
-/**
- * 调主进程桥。失败对象转成 Promise reject，供 SDK 变成 `JiaorongError`。
- * @param method 如 `session.send`
- * @param args 方法入参
- */
 function invoke(method: string, args?: unknown) {
-  if (sdkDebugEnabled) {
+  if (debugEnabled) {
     logJiaorongSdkDebug('invoke', method, args)
   }
   return ipcRenderer.invoke(JIAORONG_APP_BRIDGE_INVOKE_CHANNEL, { method, args }).then(
     (result) => {
       if (isJiaorongBridgeFailure(result)) {
-        if (sdkDebugEnabled) {
-          logJiaorongSdkDebug('invoke:err', method, result)
-        }
+        if (debugEnabled) logJiaorongSdkDebug('invoke:err', method, result)
         return Promise.reject(result)
       }
-      if (sdkDebugEnabled) {
-        logJiaorongSdkDebug('invoke:ok', method, result)
-      }
+      if (debugEnabled) logJiaorongSdkDebug('invoke:ok', method, result)
       return result
     },
     (error) => {
-      if (sdkDebugEnabled) {
-        logJiaorongSdkDebug('invoke:err', method, error)
-      }
+      if (debugEnabled) logJiaorongSdkDebug('invoke:err', method, error)
       return Promise.reject(error)
     }
   )
 }
 
-/**
- * 把拖入的 File 转成本机路径（仅 Electron）。
- * @param file 浏览器 File
- */
+function call(method: string) {
+  return (args?: unknown) => invoke(method, args)
+}
+
 function getPathForFile(file: File) {
   try {
     return webUtils.getPathForFile(file) || ''
@@ -80,43 +66,86 @@ function getPathForFile(file: File) {
   }
 }
 
-/**
- * 打开或关掉本页 SDK 调用日志。
- * @param enabled 是否打印
- */
 function setDebug(enabled: boolean) {
-  sdkDebugEnabled = Boolean(enabled)
-  console.log('[jiaorong-sdk] debug', sdkDebugEnabled ? 'on' : 'off')
+  debugEnabled = Boolean(enabled)
+  console.log('[jiaorong-app] debug', debugEnabled ? 'on' : 'off')
 }
 
-/** 注入页面的宿主桥，SDK 只认这几个方法。 */
-const jiaorong = Object.freeze({
-  invoke,
-  getPathForFile,
-  setDebug,
-  /**
-   * 订阅主进程事件。
-   * @param event 事件名
-   * @param handler 回调
-   * @returns 取消订阅
-   */
-  on(event: string, handler: Handler) {
-    /** 该事件的监听集合。 */
-    const set = listeners.get(event) ?? new Set<Handler>()
-    set.add(handler)
-    listeners.set(event, set)
-    return () => {
-      /** 取消时的集合。 */
-      const current = listeners.get(event)
-      if (!current) return
-      current.delete(handler)
-      if (current.size === 0) listeners.delete(event)
-    }
-  },
-  /** 当前登录 userInfo + token。 */
-  userinfo() {
-    return invoke('userinfo.get', {})
+function on(event: string, handler: Handler) {
+  const set = listeners.get(event) ?? new Set<Handler>()
+  set.add(handler)
+  listeners.set(event, set)
+  return () => {
+    const current = listeners.get(event)
+    if (!current) return
+    current.delete(handler)
+    if (current.size === 0) listeners.delete(event)
   }
+}
+
+const jiaorong = Object.freeze({
+  invoke, // 按方法名走 IPC
+  on, // 订阅宿主推送
+  getPathForFile, // File 转本机路径
+  setDebug, // 打开桥调试日志
+  getContext: call('context.get'), // 应用目录与登录态
+  userinfo: call('userinfo.get'), // 当前用户
+  openDevTools: call('devtools.open'), // 打开应用 DevTools
+  disconnect: call('disconnect'), // 断开本页桥
+  respondToolInteraction: call('chat.respondToolInteraction'), // 回答工具审批
+  agent: Object.freeze({
+    create: call('agent.create'), // 按 key 创建或覆盖
+    get: call('agent.get'), // 按 key/id 取一条
+    list: call('agent.list') // 列出本应用智能体
+  }),
+  session: Object.freeze({
+    create: call('session.create'), // 新建会话
+    list: call('session.list'), // 会话列表
+    search: call('session.search'), // 搜历史
+    get: call('session.get'), // 会话详情
+    rename: call('session.rename'), // 改标题
+    delete: call('session.delete'), // 删会话
+    send: call('session.send'), // 发消息
+    stop: call('session.stop'), // 停生成
+    steer: call('session.steer'), // 中途改指令
+    pin: call('session.pin'), // 置顶
+    setModel: call('session.setModel'), // 换模型
+    setPermissionMode: call('session.setPermissionMode'), // 权限模式
+    setOrchestrationPolicy: call('session.setOrchestrationPolicy'), // 编排策略
+    getGenerationSettings: call('session.getGenerationSettings'), // 读生成设置
+    updateGenerationSettings: call('session.updateGenerationSettings'), // 写生成设置
+    getContextOccupancy: call('session.getContextOccupancy'), // 上下文占用
+    setToolMode: call('session.setToolMode'), // 工具模式
+    getDisabledAgentTools: call('session.getDisabledAgentTools'), // 已禁用工具
+    updateDisabledAgentTools: call('session.updateDisabledAgentTools'), // 改禁用工具
+    retryMessage: call('session.retryMessage'), // 重试消息
+    deleteMessage: call('session.deleteMessage'), // 删消息
+    editUserMessage: call('session.editUserMessage'), // 改用户消息
+    fork: call('session.fork') // 从某条分叉
+  }),
+  catalog: Object.freeze({
+    slash: call('catalog.slash'), // 斜杠命令
+    models: call('catalog.models'), // 可用模型
+    systemPrompts: call('catalog.systemPrompts'), // 系统提示词
+    agentTools: call('catalog.agentTools') // 智能体工具
+  }),
+  knowledgeBase: Object.freeze({
+    query: call('knowledgeBase.query'), // 查知识库
+    queryDirectory: call('knowledgeBase.queryDirectory') // 下探目录
+  }),
+  dialog: Object.freeze({
+    selectDirectory: call('dialog.selectDirectory'), // 选目录
+    selectFiles: call('dialog.selectFiles'), // 选文件
+    readFilePreview: call('dialog.readFilePreview'), // 读预览
+    rememberDroppedFiles: call('dialog.rememberDroppedFiles'), // 记住拖入文件
+    allowProjectDir: call('dialog.allowProjectDir') // 授权项目目录
+  }),
+  clipboard: Object.freeze({
+    writeImage: call('clipboard.writeImage') // 写图片到剪贴板
+  }),
+  capture: Object.freeze({
+    pageArea: call('capture.pageArea') // 截页面区域
+  })
 })
 
 if (process.contextIsolated) {

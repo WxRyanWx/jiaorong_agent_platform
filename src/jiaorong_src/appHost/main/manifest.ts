@@ -32,25 +32,8 @@ export function parseAppManifest(raw: unknown): JiaorongAppManifest | null {
   const icon = readString(record.icon)
   /** 侧栏描述。 */
   const description = readString(record.description)
-  /** 可选 Node 段。 */
-  const nodeRaw = record.node
-  /** 规范化后的 Node 启动信息。 */
-  let node: JiaorongAppManifest['node']
-  if (nodeRaw && typeof nodeRaw === 'object' && !Array.isArray(nodeRaw)) {
-    /** node 对象字段。 */
-    const nodeRecord = nodeRaw as Record<string, unknown>
-    /** Node 入口文件，相对应用根。 */
-    const nodeEntry = readString(nodeRecord.entry)
-    /** 启动命令，如 `node server.js`。 */
-    const startCommand = readString(nodeRecord.startCommand)
-    /** 配置里的端口；实际监听由宿主 listen(0) 分配，此项仅兼容旧清单。 */
-    const portRaw = typeof nodeRecord.port === 'number' ? nodeRecord.port : Number(nodeRecord.port)
-    /** 合法端口或 undefined。 */
-    const port = Number.isInteger(portRaw) && portRaw > 0 && portRaw < 65536 ? portRaw : undefined
-    if (nodeEntry && startCommand) {
-      node = port ? { entry: nodeEntry, startCommand, port } : { entry: nodeEntry, startCommand }
-    }
-  }
+  /** 点开时 spawn 的脚本。 */
+  const spawn = readString(record.spawn)
   return {
     id,
     name,
@@ -59,7 +42,7 @@ export function parseAppManifest(raw: unknown): JiaorongAppManifest | null {
     slot: 'menu',
     ...(icon ? { icon } : {}),
     ...(description ? { description } : {}),
-    ...(node ? { node } : {})
+    ...(spawn ? { spawn } : {})
   }
 }
 

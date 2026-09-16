@@ -1,0 +1,6 @@
+web/node_modules
+node/node_modules
+node/run
+node/logs
+vendor/*.tgz
+*.zip

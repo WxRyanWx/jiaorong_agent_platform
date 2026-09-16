@@ -1,10 +1,9 @@
-/** 组装 SDK `context.get` 的宿主上下文（含登录 token 与本应用 Node 端口）。 */
+/** 组装 `context.get` 的宿主上下文（含登录 token）。应用 Node 端口由应用自己探，宿主不注入。 */
 
 import { resolveAuthApiBaseUrl, resolveAuthProductId } from '../../api/auth/config'
 import { readUserIdentityFromUserInfo } from '../auth'
 import type { JiaorongAppHostContext, JiaorongAppRuntime } from '../types'
 import type { JiaorongAppHostDeps } from './deps'
-import { getAllocatedJiaorongAppNodePort, jiaorongAppNodeBase } from './guestNode'
 import { readAuthToken } from './userIdentity'
 
 /**
@@ -35,8 +34,6 @@ export function buildHostContext(
   const session = deps.getAuthSession()
   /** 用户名与组织。 */
   const identity = readUserIdentityFromUserInfo(parseUserInfo(session))
-  /** 侧栏已拉起的 Node 端口；未启动为 null。 */
-  const nodePort = getAllocatedJiaorongAppNodePort(runtime.id)
   return {
     userId: identity.userName || '',
     orgId: identity.orgNos[0] ?? null,
@@ -46,8 +43,6 @@ export function buildHostContext(
     appDir: runtime.appDir || '',
     token: readAuthToken(session),
     apiBaseUrl: resolveAuthApiBaseUrl(),
-    productId: resolveAuthProductId(),
-    nodePort,
-    nodeBase: nodePort ? jiaorongAppNodeBase(nodePort) : undefined
+    productId: resolveAuthProductId()
   }
 }

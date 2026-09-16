@@ -1,4 +1,4 @@
-/** 从主进程 `jiaorong_auth_session` 读用户身份、token，以及 SDK `userinfo.get` 载荷。 */
+/** 从主进程 `jiaorong_auth_session` 读用户身份、token，以及 `userinfo.get` 载荷。 */
 
 import { readUserIdentityFromUserInfo } from '../auth'
 import type { JiaorongAppUserIdentity } from '../types'

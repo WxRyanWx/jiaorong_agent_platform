@@ -2,12 +2,12 @@ import { describe, expect, it } from 'vitest'
 import {
   displaySkillLabel,
   normalizeSlashCommands
-} from '../../../src/jiaorong_src/app-sdk/src/vue/lib/slashCommands'
-import { buildTranscript } from '../../../src/jiaorong_src/app-sdk/src/vue/lib/transcript'
+} from '../../../src/jiaorong_src/apps/app-scaffold/web/src/components/jiaorongagentchat/lib/slashCommands'
+import { buildTranscript } from '../../../src/jiaorong_src/apps/app-scaffold/web/src/components/jiaorongagentchat/lib/transcript'
 import {
   getFileTypeIcon,
   isImageAttachment
-} from '../../../src/jiaorong_src/app-sdk/src/fileTypeIcon'
+} from '../../../src/jiaorong_src/apps/app-scaffold/web/src/components/jiaorongagentchat/lib/fileTypeIcon'
 
 describe('normalizeSlashCommands', () => {
   it('turns skillDir into app-scoped skill names and ignores empty input', () => {
@@ -67,13 +67,11 @@ describe('normalizeSlashCommands', () => {
 
 describe('displaySkillLabel', () => {
   it('prefers slash item labels and maps doubled app-prefixed names', () => {
-    const items = [
-      { skillName: 'app.demo-workbench.weekly-report', label: '周报整理' }
-    ]
+    const items = [{ skillName: 'app.demo-workbench.weekly-report', label: '周报整理' }]
     expect(displaySkillLabel('app.demo-workbench.weekly-report', items)).toBe('周报整理')
-    expect(
-      displaySkillLabel('app.demo-workbench.app.demo-workbench.weekly-report', items)
-    ).toBe('周报整理')
+    expect(displaySkillLabel('app.demo-workbench.app.demo-workbench.weekly-report', items)).toBe(
+      '周报整理'
+    )
     expect(displaySkillLabel('app.demo-workbench.weekly-report', [])).toBe('weekly-report')
   })
 })
@@ -124,7 +122,6 @@ describe('getFileTypeIcon', () => {
     expect(getFileTypeIcon('unknown.bin')).toBe('vscode-icons:default-file')
   })
 })
-
 
 describe('normalizeSlashCommands', () => {
   it('turns skillDir into app-scoped skill names and ignores empty input', () => {

@@ -7,9 +7,9 @@ export const JIAORONG_APP_PROTOCOL = 'jiaorong-app'
 export const JIAORONG_APP_LIST_CHANNEL = 'jiaorong-app:list-visible'
 /** 取打开 webview 所需 src / partition / preload。 */
 export const JIAORONG_APP_OPEN_CHANNEL = 'jiaorong-app:get-open-info'
-/** 离开应用：停生成、可选停 Node。 */
+/** 离开应用：停 spawn。 */
 export const JIAORONG_APP_LEAVE_CHANNEL = 'jiaorong-app:leave'
-/** guest SDK `invoke` 的唯一主进程入口。 */
+/** guest `window.jiaorong.invoke` 的唯一主进程入口。 */
 export const JIAORONG_APP_BRIDGE_INVOKE_CHANNEL = 'jiaorong-app:bridge-invoke'
 /** 主进程把会话/流式事件推给本应用 guest。 */
 export const JIAORONG_APP_BRIDGE_EVENT_CHANNEL = 'jiaorong-app:bridge-event'

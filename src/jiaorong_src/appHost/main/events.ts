@@ -6,8 +6,6 @@ import { findAppIdByAgentId } from './agentMap'
 import type { JiaorongAppHostDeps } from './deps'
 import { getBoundGuestAppId, getSessionOwner } from './guestBind'
 import { readJiaorongAppHostname } from './guestAppId'
-import { sendJiaorongAppNodeEvent } from './guestNode'
-import { sendStandaloneNodeEvent } from './standaloneNodeBridge'
 
 /** 会推给 guest 的桥事件名。 */
 const APP_BRIDGE_EVENTS = new Set([
@@ -72,8 +70,6 @@ function guestAppIdForContents(contents: Electron.WebContents): string | null {
 /** 向指定 guest 推一条桥事件。 */
 export function sendJiaorongAppBridgeEvent(event: string, payload: unknown, appId?: string): void {
   if (!appId) return
-  sendJiaorongAppNodeEvent(appId, event, payload)
-  sendStandaloneNodeEvent(appId, event, payload)
   /** 一个 webContents。 */
   for (const contents of webContents.getAllWebContents()) {
     if (contents.isDestroyed()) continue
