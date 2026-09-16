@@ -201,16 +201,10 @@
     "attachment": {
       "type": "object",
       "properties": {
-        "id": {
-          "type": "string",
-          "rule": "编辑时继续沿用原id。创建的不需要在本任务数据JSON schema里生成该id字段"
-        },
+        "id": { "type": "string", "rule": "编辑时继续沿用原id。创建的不需要在本任务数据JSON schema里生成该id字段"},
         "name": { "type": "string" },
         "extension": { "type": "string" },
-        "docId": {
-          "type": "string",
-          "rule": "编辑时继续沿用原id。创建的不需要在本任务数据JSON schema里生成docId字段"
-        }
+        "docId": { "type": "string", "rule": "编辑时继续沿用原id。创建的不需要在本任务数据JSON schema里生成docId字段" }
       },
       "required": ["name", "extension"]
     }
