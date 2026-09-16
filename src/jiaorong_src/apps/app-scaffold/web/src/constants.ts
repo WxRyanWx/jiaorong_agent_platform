@@ -6,13 +6,16 @@
 /** 应用 id，必须与 app.json 的 id 一致。 */
 export const APP_ID = 'app-scaffold'
 
+/** 包内 Node / 页面 WS 端口，前后端约定死；客户端不探口。 */
+export const NODE_PORT = 8787
+
 /** 应用内智能体的稳定 key，重复 create 会复用同一条。 */
 export const CHAT_AGENT_KEY = 'workbench'
 /** 侧栏和对话顶栏展示的智能体名称。 */
 export const CHAT_AGENT_NAME = '应用脚手架助手'
 /**
  * 应用自带技能目录名，对应 `skill/<name>/SKILL.md`。
- * SDK 会写成 `app.app-scaffold.<name>` 再交给宿主。
+ * 超级智能体会写成 `app.app-scaffold.<name>`。
  */
 export const CHAT_SKILLS = [
   'weekly-report',
@@ -52,7 +55,7 @@ export const DEFAULT_SKILL = 'weekly-report'
 /** 传给 JiaorongAgentChat 的输入框占位文案。不传则组件用默认「向 xxx 发送消息…」。 */
 export const CHAT_PLACEHOLDER = '请输入你的问题…例如「帮我写一份周报」'
 
-/** `appDir/skill/<目录>/SKILL.md`。宿主拷到 ~/.jiaorongchat/apps/<id>/ 后的绝对路径。 */
+/** `appDir/skill/<目录>/SKILL.md`。超级智能体拷到 ~/.jiaorongchat/apps/<id>/ 后的绝对路径。 */
 export function appSkillFile(appDir: string, skillDir: string): string {
   const root = appDir
     .trim()

@@ -74,7 +74,7 @@ async function ensurePreviewSrc() {
   if (!filePath || loadingPreview.value) return previewSrc.value
   loadingPreview.value = true
   try {
-    /** 宿主返回的缩略图。 */
+    /** 超级智能体返回的缩略图。 */
     const preview = await readHostFilePreview(filePath, props.appId || undefined)
     // 只有拿到缩略图才写入，避免空串盖掉
     if (preview?.thumbnail) previewSrc.value = preview.thumbnail

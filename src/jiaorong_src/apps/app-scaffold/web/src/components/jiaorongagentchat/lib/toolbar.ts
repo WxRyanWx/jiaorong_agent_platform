@@ -34,7 +34,7 @@ const ASSISTANT_ACTIONS: readonly JiaorongToolbarAction[] = [
 const USER_ACTIONS: readonly JiaorongToolbarAction[] = ['retry', 'copy', 'edit', 'delete']
 
 /**
- * 把宿主传入的 toolbar 配置收成动作数组。
+ * 把超级智能体传入的 toolbar 配置收成动作数组。
  * @param toolbar true / 未传：默认全开；false / 非数组：空数组关掉工具栏；数组：按传入顺序保留
  * @returns 实际要渲染的动作列表
  */
@@ -50,7 +50,7 @@ export function resolveToolbarActions(
 
 /**
  * 判断当前角色下是否还有至少一个可见动作。
- * @param actions 宿主解析后的动作列表
+ * @param actions 超级智能体解析后的动作列表
  * @param role 气泡角色，决定允许集
  * @returns 有可见动作则为 true，调用方可决定是否挂工具栏
  */

@@ -9,7 +9,7 @@ import type { AgentToolItem, ToolMode } from '../model/host'
  * 高级设置里的一组工具。
  */
 export type AgentToolGroup = {
-  /** 宿主分组名，如 `agent-core`。 */
+  /** 超级智能体分组名，如 `agent-core`。 */
   name: string
   /** 面板上的中文标题。 */
   label: string
@@ -26,7 +26,7 @@ const GROUP_ORDER = [
   'yobrowser'
 ]
 
-/** 宿主分组名到面板中文标题的对照。 */
+/** 超级智能体分组名到面板中文标题的对照。 */
 const GROUP_LABELS: Record<string, string> = {
   'agent-filesystem': '文件系统',
   'agent-core': '核心',
@@ -73,7 +73,7 @@ export function toolModeDescription(mode: ToolMode): string {
 
 /**
  * 分组名转中文标题；未知组原样返回。
- * @param groupName 宿主 group 字段
+ * @param groupName 超级智能体 group 字段
  * @returns 面板标题
  */
 export function groupLabel(groupName: string): string {
@@ -91,7 +91,7 @@ export function groupAgentTools(tools: readonly AgentToolItem[]): AgentToolGroup
   for (const tool of tools) {
     /** 去掉首尾空白后的工具名。 */
     const name = tool.name.trim()
-    /** 宿主分组；空串回落到核心组。 */
+    /** 超级智能体分组；空串回落到核心组。 */
     const group = tool.group.trim() || 'agent-core'
     // 没有工具名无法开关，跳过
     if (!name) continue

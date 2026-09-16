@@ -1,8 +1,8 @@
 /**
  * 待发送附件预览：浏览器读 Data URL，或走 Host `dialog.readFilePreview` 补缩略图。
  */
-import { hostArgs, isAbsoluteFsPath } from './hostDialog'
-import { invokeViaNode } from '../../../../lib/hostRelay'
+import { isAbsoluteFsPath } from './hostDialog'
+import { readFilePreview } from '../../../../api'
 import type { PendingAttachment } from '../../lib/messageFiles'
 import { isImageAttachment, mimeFromFileName } from '../../lib/fileTypeIcon'
 
@@ -28,20 +28,17 @@ export async function readHostFilePreview(
 ): Promise<{ mimeType: string; thumbnail?: string } | null> {
   if (!isAbsoluteFsPath(filePath)) return null
   try {
-    /** 宿主预览 invoke 原始结果。 */
-    const result = await invokeViaNode('dialog.readFilePreview', {
-      ...hostArgs(appId),
-      path: filePath
-    })
+    /** 超级智能体预览 invoke 原始结果。 */
+    const result = await readFilePreview(filePath, appId)
     // 非对象结果没有预览字段
     if (!result || typeof result !== 'object') return null
-    /** 宿主预览结果。 */
+    /** 超级智能体预览结果。 */
     const row = result as { mimeType?: unknown; thumbnail?: unknown; code?: unknown }
     // Host 用 code 字段表示失败，不当成预览
     if (typeof row.code === 'string') return null
-    /** 宿主返回的 MIME。 */
+    /** 超级智能体返回的 MIME。 */
     const mimeType = typeof row.mimeType === 'string' ? row.mimeType : ''
-    /** 宿主返回的缩略图 Data URL。 */
+    /** 超级智能体返回的缩略图 Data URL。 */
     const thumbnail = typeof row.thumbnail === 'string' ? row.thumbnail : ''
     return {
       mimeType: mimeType || mimeFromFileName(filePath),
@@ -66,7 +63,7 @@ export async function hydratePendingAttachment(
   const next: PendingAttachment = { ...item, mimeType }
   // 调用方已给缩略图，不再读盘
   if (next.thumbnail) return next
-  // 浏览器 File 且是图片：本地读 Data URL，不必走宿主
+  // 浏览器 File 且是图片：本地读 Data URL，不必走超级智能体
   if (next.file && isImageAttachment(next.name, mimeType)) {
     try {
       next.thumbnail = await readAsDataUrl(next.file)
@@ -77,9 +74,9 @@ export async function hydratePendingAttachment(
   }
   // 仅有绝对路径的图片：向 Host 要预览
   if (next.path && isAbsoluteFsPath(next.path) && isImageAttachment(next.name, mimeType)) {
-    /** 宿主返回的 MIME 与缩略图。 */
+    /** 超级智能体返回的 MIME 与缩略图。 */
     const preview = await readHostFilePreview(next.path, appId)
-    // 宿主认出了更准的 MIME
+    // 超级智能体认出了更准的 MIME
     if (preview?.mimeType) next.mimeType = preview.mimeType
     // 有缩略图才写入，避免用空串盖掉
     if (preview?.thumbnail) next.thumbnail = preview.thumbnail

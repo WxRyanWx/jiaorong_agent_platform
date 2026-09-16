@@ -1,5 +1,6 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
+import { randomBytes } from 'node:crypto'
 import { spawn, execSync, ChildProcess } from 'node:child_process'
 
 // ==================== 枚举 ====================
@@ -58,7 +59,7 @@ interface AppManifest {
   slot: 'menu' | 'sidebar' | 'standalone'
   /**
    * 点开应用时由管理类 spawn 一次的脚本（npm scripts 风格，可用 && 拼接）。
-   * 管理类不注入宿主通信。
+   * 管理类不注入超级智能体通信。
    */
   spawn?: string
   /** 权限配置（可选） */
@@ -241,6 +242,23 @@ class appsManages {
     // 加载运行时状态
     this.loadRuntimeState()
     console.log(`[appsManages] 已初始化，根路径: ${this.appsRootPath}`)
+  }
+
+  /**
+   * 子进程结束后清握手、PID，并写运行时状态。
+   * @param appId 应用 id
+   * @param state 结束后的状态
+   * @param lastError 可选错误信息
+   */
+  private markChildEnded(appId: string, state: AppState, lastError?: string): void {
+    this.runningProcesses.delete(appId)
+    const runtime = this.appRuntimeCache.get(appId)
+    if (!runtime) return
+    runtime.process = undefined
+    runtime.pid = undefined
+    runtime.state = state
+    if (lastError !== undefined) runtime.lastError = lastError
+    this.saveRuntimeState()
   }
 
   // ========== 磁盘存储辅助 ==========
@@ -1139,7 +1157,7 @@ class appsManages {
 
   /**
    * 点开应用时执行 app.json.spawn（整串交给 shell，支持 &&）。
-   * 无 spawn 则跳过。不向子进程注入宿主通信。
+   * 无 spawn 则跳过。不向子进程注入超级智能体 IPC。端口由子应用自己听，客户端不探口、不管冲突。
    */
   startApp(appId: string): AppManageResult<{ command: string; cwd: string; pid: number }> {
     const app = this.appCache.get(appId)
@@ -1167,14 +1185,18 @@ class appsManages {
     }
 
     try {
+      const token = randomBytes(32).toString('hex')
       const child = spawn(command, {
         cwd: appDir,
-        env: process.env,
+        env: {
+          ...process.env,
+          JIAORONG_APP_ID: appId,
+          JIAORONG_BRIDGE_TOKEN: token
+        },
         stdio: 'pipe',
         shell: true
       })
 
-      // 监听子进程输出（可选日志）
       child.stdout?.on('data', (data: Buffer) => {
         console.log(`[${appId}] ${data.toString().trimEnd()}`)
       })
@@ -1185,29 +1207,14 @@ class appsManages {
       // 子进程退出时自动更新状态
       child.on('exit', (code, signal) => {
         console.log(`[${appId}] 进程退出，code=${code}, signal=${signal}`)
-        this.runningProcesses.delete(appId)
-        const runtime = this.appRuntimeCache.get(appId)
-        if (runtime) {
-          runtime.process = undefined
-          runtime.pid = undefined
-          runtime.state = app.enabled ? AppState.ENABLED : AppState.DISABLED
-          this.saveRuntimeState()
-          this.emit('stopped', app, { exitCode: code, signal })
-        }
+        this.markChildEnded(appId, app.enabled ? AppState.ENABLED : AppState.DISABLED)
+        this.emit('stopped', app, { exitCode: code, signal })
       })
 
       child.on('error', (err) => {
         console.error(`[${appId}] 进程异常:`, err.message)
-        this.runningProcesses.delete(appId)
-        const runtime = this.appRuntimeCache.get(appId)
-        if (runtime) {
-          runtime.process = undefined
-          runtime.pid = undefined
-          runtime.state = AppState.ERROR
-          runtime.lastError = err.message
-          this.saveRuntimeState()
-          this.emit('error', app, { reason: err.message })
-        }
+        this.markChildEnded(appId, AppState.ERROR, err.message)
+        this.emit('error', app, { reason: err.message })
       })
 
       // 记录进程引用
@@ -1242,13 +1249,7 @@ class appsManages {
 
     if (!this.isRunning(appId)) {
       // 清理残留状态
-      const runtime = this.appRuntimeCache.get(appId)
-      if (runtime) {
-        runtime.process = undefined
-        runtime.pid = undefined
-        runtime.state = app.enabled ? AppState.ENABLED : AppState.DISABLED
-        this.saveRuntimeState()
-      }
+      this.markChildEnded(appId, app.enabled ? AppState.ENABLED : AppState.DISABLED)
       return { success: true, message: `应用 "${appId}" 未在运行，无需停止` }
     }
 

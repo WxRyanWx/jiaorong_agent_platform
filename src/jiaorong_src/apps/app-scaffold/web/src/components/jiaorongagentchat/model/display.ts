@@ -5,7 +5,7 @@
 
 import type { AssistantMessageBlock } from './host'
 
-/** 展示层使用的助手块，与 SDK 记录同形。 */
+/** 展示层使用的助手块，与会话记录同形。 */
 export type DisplayAssistantMessageBlock = AssistantMessageBlock
 
 /** 用户对工具调用的最终许可结论。 */

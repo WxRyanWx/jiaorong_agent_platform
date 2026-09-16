@@ -1,5 +1,5 @@
 /**
- * 对话运行时：连接宿主、管会话 / 消息 / 流式事件、发消息与高级设置。
+ * 对话运行时：连接超级智能体、管会话 / 消息 / 流式事件、发消息与高级设置。
  * 给 JiaorongAgentChat 与会话列表页共用，页面只负责 UI 绑定。
  */
 
@@ -9,7 +9,7 @@ import {
   isUserCanceledError,
   localizeErrorText
 } from '../../../lib/errorText'
-import type { NodeClient } from '../../../lib/hostRelay'
+import type { NodeClient } from '../../../api'
 import type {
   AgentPlanItem,
   AssistantMessageBlock,
@@ -52,11 +52,11 @@ import {
   OLDER_SESSION_PAGE_SIZE
 } from '../lib/windowPolicy'
 
-/** 宿主拒绝本轮附件时的固定中文提示，不暴露底层错误串。 */
+/** 超级智能体拒绝本轮附件时的固定中文提示，不暴露底层错误串。 */
 const ATTACHMENT_BLOCKED_ZH = '附件无法按当前模型发送，请调整后重试'
 
 /**
- * 把 patch 里的 undefined 改成 null，方便宿主持久化「清空该字段」。
+ * 把 patch 里的 undefined 改成 null，方便超级智能体持久化「清空该字段」。
  * @param settings 生成参数补丁
  * @returns 可写入会话的补丁
  */
@@ -77,7 +77,7 @@ type SessionPageCursor = { updatedAt: number; id: string }
 
 /**
  * 按 orderSeq、再按 createdAt 排消息，保证历史和流式合并后顺序稳定。
- * @param records 宿主返回或本地缓存的消息
+ * @param records 超级智能体返回或本地缓存的消息
  */
 function sortMessages(records: ChatMessageRecord[]) {
   return [...records].sort(
@@ -96,20 +96,20 @@ function upsertMessages(current: ChatMessageRecord[], incoming: ChatMessageRecor
   return sortMessages([...byId.values()])
 }
 
-/** 把任意抛出值收成 SDK 错误串，写到 errorText。 */
+/** 把任意抛出值收成错误串，写到 errorText。 */
 function formatError(error: unknown) {
   return formatJiaorongError(error)
 }
 
 /**
- * 创建对话运行时：boot 客户端、订阅流式事件、暴露发消息与会话操作。
+ * 创建对话运行时：用页面注入的 Node 客户端、订阅流式事件、暴露发消息与会话操作。
  * @param options.appId 应用 id
  * @param options.agentId 智能体 id，列会话、建会话时用
  * @param options.sessionId 当前会话；空表示新对话
- * @param options.client 外部注入的 Node WebSocket 客户端；传 null 表示暂不 boot
+ * @param options.client 外部注入的 Node 客户端；传 null 表示暂不 boot
  * @param options.surface `list` 时不订阅消息流，只刷会话列表
  * @param options.onSessionId 新建 / 删除 / 分叉后回写页面上的 sessionId
- * @param options.onEvent 把 SDK 事件转给页面
+ * @param options.onEvent 把桥事件转给页面
  * @returns 只读状态 + 发送 / 停止 / 设置等操作；draft / files 可写
  */
 export function useJiaorongAgentRuntime(options: {
@@ -161,7 +161,7 @@ export function useJiaorongAgentRuntime(options: {
   const pendingPermissionMode = shallowRef<PermissionMode | null>(null)
   /** 新会话尚未 create 时记下的编排策略。 */
   const pendingOrchestration = shallowRef<'explicit' | 'proactive' | null>(null)
-  /** 宿主 context：token、apiBaseUrl 等。 */
+  /** 超级智能体 context：token、apiBaseUrl 等。 */
   const hostContext = shallowRef<HostContext | null>(null)
   /** 当前会话生成参数。 */
   const generationSettings = shallowRef<SessionGenerationSettings | null>(null)
@@ -182,11 +182,9 @@ export function useJiaorongAgentRuntime(options: {
   /** 新会话禁用工具列表。 */
   const pendingDisabledTools = shallowRef<string[] | null>(null)
 
-  /** 当前使用的 SDK 客户端。 */
+  /** 当前使用的 Node 客户端。 */
   let client: NodeClient | null = null
-  /** true 表示本 composable 自己 connect 的，卸载时要 disconnect。 */
-  let ownsClient = false
-  /** boot 已开始，防止重复 connect。 */
+  /** boot 已开始，防止重复启动。 */
   let bootStarted = false
   /** 已挂上的 jr.on 取消函数。 */
   const unsubscribers: Array<() => void> = []
@@ -220,7 +218,7 @@ export function useJiaorongAgentRuntime(options: {
     errorText.value = formatError(error)
   }
 
-  /** 把 SDK 事件原样转给页面 onEvent。 */
+  /** 把桥事件原样转给页面 onEvent。 */
   function emitEvent<E extends JiaorongEventName>(event: E, payload: JiaorongEventMap[E]) {
     options.onEvent?.(event, payload)
   }
@@ -380,7 +378,7 @@ export function useJiaorongAgentRuntime(options: {
    * @param input.extraFiles 额外附件，例如知识库上下文文件
    * @param input.activeSkills 本轮启用的技能名
    * @param input.steer true 强制当插话；false 生成中拒绝再发
-   * @returns 是否真正交给宿主（附件被拒或空内容为 false）
+   * @returns 是否真正交给超级智能体（附件被拒或空内容为 false）
    */
   async function sendDraft(input?: {
     extraFiles?: MessageFile[]
@@ -508,7 +506,7 @@ export function useJiaorongAgentRuntime(options: {
 
   /** 停止当前会话正在进行的生成。 */
   async function stopTurn() {
-    // 新会话还没 id：宿主侧没有可停的 turn
+    // 新会话还没 id：超级智能体侧没有可停的 turn
     if (!client || !activeSessionId.value) return
     try {
       await client.session.stop({ sessionId: activeSessionId.value })
@@ -527,7 +525,7 @@ export function useJiaorongAgentRuntime(options: {
     const messageId =
       liveMessageId.value ||
       [...messages.value].reverse().find((record) => record.role === 'assistant')?.id
-    // 对不上 tool_call：宿主无法写入许可结论
+    // 对不上 tool_call：超级智能体无法写入许可结论
     if (!client || !activeSessionId.value || !messageId || !block.tool_call?.id) return
     try {
       await client.respondToolInteraction({
@@ -636,7 +634,7 @@ export function useJiaorongAgentRuntime(options: {
     }
   }
 
-  /** 删除一条消息并重新还原会话，避免本地列表和宿主不一致。 */
+  /** 删除一条消息并重新还原会话，避免本地列表和超级智能体不一致。 */
   async function deleteMessage(messageId: string) {
     const sessionId = activeSessionId.value
     // 另一条消息正在删 / 重试：等它结束再动列表
@@ -854,7 +852,7 @@ export function useJiaorongAgentRuntime(options: {
     }
   }
 
-  /** 把禁用工具列表写到宿主或 pending。 */
+  /** 把禁用工具列表写到超级智能体或 pending。 */
   async function persistDisabledTools(toolNames: string[]) {
     disabledToolNames.value = toolNames
     const sessionId = activeSessionId.value
@@ -949,24 +947,20 @@ export function useJiaorongAgentRuntime(options: {
     }
   }
 
-  /** 连接客户端、订阅事件、拉会话列表；只应成功启动一次。 */
+  /** 订阅事件、拉会话列表；只应成功启动一次。 */
   async function boot() {
-    if (closed || bootStarted) return // 卸载后或已在连：不要二次 connect
+    if (closed || bootStarted) return
     const injected = options.client ? toValue(options.client) : undefined
-    // 页面显式传入 client=null：等外部客户端就绪再 boot，避免误连宿主
     if (injected === null) return
     bootStarted = true
     errorText.value = ''
     try {
       if (injected) {
         client = injected
-        ownsClient = false
       } else {
         throw new JiaorongError('NOT_IN_JIAORONG', '请从交融侧栏打开本应用')
       }
-      // connect 期间组件已卸载：立刻断开，避免泄漏订阅
       if (closed) {
-        if (ownsClient) await client.disconnect()
         client = null
         return
       }
@@ -1078,7 +1072,6 @@ export function useJiaorongAgentRuntime(options: {
     surfaceActive.value = false
     for (const off of unsubscribers) off()
     unsubscribers.length = 0
-    if (ownsClient) void client?.disconnect()
     client = null
   })
 

@@ -1,5 +1,5 @@
 /**
- * 斜杠命令配置规范化：把宿主传入的 skill / tool 收成输入框菜单项。
+ * 斜杠命令配置规范化：把超级智能体传入的 skill / tool 收成输入框菜单项。
  * 给 JiaorongAgentChat 与 ChatInputBox 渲染 `/` 菜单、展示技能标签使用。
  */
 
@@ -7,13 +7,13 @@ import { appSkillName } from './hostParse'
 import type { JiaorongSlashItem } from '../chat-kit/types'
 
 /**
- * 宿主传入的一条斜杠命令。
+ * 超级智能体传入的一条斜杠命令。
  */
 export type JiaorongSlashCommand = {
   /** skill 写入 activeSkills；tool 插入输入框文本 */
   category?: 'skill' | 'tool'
   /**
-   * 宿主识别名。技能是 `app.{appId}.{目录名}` 或平台技能名，不是文件系统路径。
+   * 超级智能体识别名。技能是 `app.{appId}.{目录名}` 或平台技能名，不是文件系统路径。
    * 工具是工具名。
    */
   name?: string
@@ -51,7 +51,7 @@ function skillDirName(value: string, appId: string) {
 
 /**
  * 用技能全名对照菜单项，得到展示标签。
- * @param skillName 宿主技能名，如 `app.demo.foo`
+ * @param skillName 超级智能体技能名，如 `app.demo.foo`
  * @param items 当前斜杠菜单项；可空
  * @returns 优先精确匹配 label，其次按末段目录匹配，再退回目录名本身
  */
@@ -81,7 +81,7 @@ export function displaySkillLabel(
 }
 
 /**
- * 把宿主斜杠配置收成输入框可用的 JiaorongSlashItem 列表。
+ * 把超级智能体斜杠配置收成输入框可用的 JiaorongSlashItem 列表。
  * @param items 原始配置；空则返回 []
  * @param appId 当前应用 id，用来把 skillDir 拼成 `app.{appId}.{dir}`
  * @returns 已去重、已补默认 insertText 的菜单项
@@ -105,7 +105,7 @@ export function normalizeSlashCommands(
     const category = item.category === 'tool' ? 'tool' : 'skill'
     /** 从 skillDir 解析出的合法目录名。 */
     const dir = item.skillDir ? skillDirName(item.skillDir, scopedAppId) : ''
-    /** 宿主直接给出的识别名。 */
+    /** 超级智能体直接给出的识别名。 */
     const rawName = item.name?.trim() || ''
     /** 最终识别名：优先 name，技能可拼 app.{appId}.{dir}。 */
     const name =

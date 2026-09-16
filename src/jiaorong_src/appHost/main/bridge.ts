@@ -10,13 +10,14 @@ import { buildHostContext } from './context'
 import { handleDialogueInvoke } from './dialogue'
 import type { JiaorongAppHostDeps } from './deps'
 import {
+  buildJiaorongAppEntryUrl,
   getBoundGuestAppId,
   hasPickedDirectory,
   isAbsoluteGuestPath,
   isGuestPathAllowed,
+  isLoopbackHttpEntry,
   rememberPickedDirectory
-} from './guestBind'
-import { buildJiaorongAppEntryUrl, isLoopbackHttpEntry } from './guestAppId'
+} from './guest'
 import { appAgentIds } from './agentMap'
 import { queryJiaorongKnowledgeBaseDirectory, queryJiaorongKnowledgeBases } from './knowledgeBase'
 import { getAppPreloadFileUrl, isPathInsideRoot } from './paths'

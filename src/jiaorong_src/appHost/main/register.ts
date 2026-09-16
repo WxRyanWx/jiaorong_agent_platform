@@ -1,4 +1,4 @@
-/** 启动/销毁应用宿主：IPC、协议、隔离。应用子进程由 appsManages spawn，不注入通信。 */
+/** 启动/销毁应用平台：IPC、协议、隔离。应用子进程由 appsManages spawn，不注入超级智能体 IPC。 */
 
 import { ipcMain, webContents, type IpcMainInvokeEvent } from 'electron'
 import {
@@ -19,16 +19,17 @@ import {
   setJiaorongAppSessionResolver
 } from './events'
 import { appAgentIds } from './agentMap'
-import { bindGuestAppId, getBoundGuestAppId } from './guestBind'
 import {
+  bindGuestAppId,
+  getBoundGuestAppId,
+  installJiaorongAppGuestIsolation,
   readJiaorongAppHostname,
   readSessionPartition,
   resolveGuestInvokeAppId
-} from './guestAppId'
+} from './guest'
 import appsManages from './appsManages'
 import { getUserAppsRoot } from './paths'
 import { installJiaorongDevToolsShortcut } from './devtoolsShortcut'
-import { installJiaorongAppGuestIsolation } from './guestIsolation'
 import { registerJiaorongAppProtocolHandler } from './protocol'
 import { setRemoteAppCatalogChangedListener, startRemoteAppCatalogSync } from '../catalog'
 import { ensureJiaorongAppInstalled, findVisibleOpenableApp, scanJiaorongApps } from './scan'
@@ -183,7 +184,7 @@ async function broadcastContext(deps: JiaorongAppHostDeps): Promise<void> {
   }
 }
 
-/** 启动应用宿主：协议、隔离、IPC、远程目录。不向应用子进程注入通信。 */
+/** 启动应用平台：协议、隔离、IPC、远程目录。不向应用子进程注入通信。 */
 export function startJiaorongAppHost(deps: JiaorongAppHostDeps): void {
   registerJiaorongAppProtocolHandler(deps)
   installJiaorongAppGuestIsolation()

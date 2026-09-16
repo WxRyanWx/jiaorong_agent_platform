@@ -27,7 +27,7 @@ body {
   color: #111827;
 }
 
-/* 覆盖已安装 SDK：长路径工具调用不能把文档撑宽，否则 webview 合成层会卡死宿主。 */
+/* 覆盖已安装 SDK：长路径工具调用不能把文档撑宽，否则 webview 合成层会卡死。 */
 .tool-call-pill {
   max-width: 100% !important;
 }

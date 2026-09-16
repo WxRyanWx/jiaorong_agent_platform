@@ -182,7 +182,7 @@ export function isJiaorongAppHiddenAgentId(agentId: string): boolean {
   return Object.values(loadAppAgentMap().byKey).some((item) => item.agentId === id)
 }
 
-/** 收集需要在宿主侧隐藏的 agentId。 */
+/** 收集需要在超级智能体侧隐藏的 agentId。 */
 export function collectJiaorongAppHiddenAgentIds(
   agents: Array<{ id: string; config?: unknown }>
 ): Set<string> {
@@ -229,7 +229,7 @@ export function agentHasJiaorongAppMark(agent: { config?: unknown }): boolean {
   return typeof appId === 'string' && appId.trim().length > 0
 }
 
-/** 该智能体是否应对宿主隐藏。 */
+/** 该智能体是否应对超级智能体隐藏。 */
 export function isJiaorongAppHiddenAgent(agent: { id: string; config?: unknown }): boolean {
   return isJiaorongAppHiddenAgentId(agent.id) || agentHasJiaorongAppMark(agent)
 }

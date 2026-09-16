@@ -1,4 +1,4 @@
-/** 应用自定义协议与宿主 IPC 频道名。guest 与侧栏都走这些字符串，不要改拼写。 */
+/** 应用自定义协议与超级智能体 IPC 频道名。guest 与侧栏都走这些字符串，不要改拼写。 */
 
 /** 应用页面协议 scheme，guest 只允许 `jiaorong-app://<appId>/...`。 */
 export const JIAORONG_APP_PROTOCOL = 'jiaorong-app'

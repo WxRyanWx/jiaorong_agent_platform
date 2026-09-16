@@ -1,9 +1,9 @@
 /**
- * 复制气泡文本，或把 DOM 截成 PNG 写入宿主剪贴板。
- * 给消息工具栏「复制」「复制为图片」使用；截图经 Node 调宿主。
+ * 复制气泡文本，或把 DOM 截成 PNG 写入超级智能体剪贴板。
+ * 给消息工具栏「复制」「复制为图片」使用；截图经 Node 调超级智能体。
  */
 
-import { invokeViaNode } from '../../../lib/hostRelay'
+import { capturePageArea as capturePageAreaApi, writeClipboardImage } from '../../../api'
 
 /** 等一帧布局稳定后再截图，避免滚完立刻 capture 裁到旧位置。 */
 function delay(ms: number) {
@@ -46,11 +46,11 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary)
 }
 
-/** 从宿主 capture 结果里取出 pngBase64；结构不对返回空串。 */
+/** 从超级智能体 capture 结果里取出 pngBase64；结构不对返回空串。 */
 function readPngBase64(result: unknown) {
   // 非对象结果没有 pngBase64 字段
   if (!result || typeof result !== 'object') return ''
-  /** 宿主返回的 PNG base64 原文。 */
+  /** 超级智能体返回的 PNG base64 原文。 */
   const value = (result as { pngBase64?: unknown }).pngBase64
   return typeof value === 'string' ? value.trim() : ''
 }
@@ -106,18 +106,18 @@ async function stitchBase64Pngs(parts: string[]): Promise<Blob> {
   }
 }
 
-/** 让宿主按视口矩形截一帧，返回 PNG base64。 */
+/** 让超级智能体按视口矩形截一帧，返回 PNG base64。 */
 async function capturePageArea(rect: { x: number; y: number; width: number; height: number }) {
   /** 本帧截到的 PNG base64。 */
   const pngBase64 = readPngBase64(
-    await invokeViaNode('capture.pageArea', {
+    await capturePageAreaApi({
       x: Math.round(rect.x),
       y: Math.round(rect.y),
       width: Math.round(rect.width),
       height: Math.round(rect.height)
     })
   )
-  // 宿主没给出有效 base64：当截图失败
+  // 超级智能体没给出有效 base64：当截图失败
   if (!pngBase64) throw new Error('截图失败')
   return pngBase64
 }
@@ -231,15 +231,15 @@ export async function copyTextToClipboard(text: string) {
   textarea.remove()
 }
 
-/** 把 PNG Blob 经宿主写入系统剪贴板。 */
+/** 把 PNG Blob 经超级智能体写入系统剪贴板。 */
 async function writePngToHost(blob: Blob) {
   /** 交给 clipboard.writeImage 的 PNG base64。 */
   const pngBase64 = bytesToBase64(new Uint8Array(await blob.arrayBuffer()))
-  await invokeViaNode('clipboard.writeImage', { pngBase64 })
+  await writeClipboardImage(pngBase64)
 }
 
 /**
- * 把指定 DOM 截成一张 PNG 并写入宿主剪贴板。
+ * 把指定 DOM 截成一张 PNG 并写入超级智能体剪贴板。
  * @param el 气泡根节点；会沿消息列表分段滚动截取
  */
 export async function copyElementAsPng(el: HTMLElement) {

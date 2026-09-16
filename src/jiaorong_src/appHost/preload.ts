@@ -1,6 +1,6 @@
 /**
- * 应用 webview 专用 preload。写法同 src/preload：方法直接挂对象上走 IPC。
- * 自定义能力在前，后面是对话白名单。给 Node 经页面中继代调，页面业务不直接用。
+ * 应用 webview 专用 preload。注入 window.jiaorong + initRendererBridge。
+ * 页面业务不直接调这些方法；Node 经 WS 按路径调（如 jiaorong.agent.create）。
  */
 
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
@@ -10,6 +10,7 @@ import {
 } from '@jiaorong/appHost/channels'
 import { isJiaorongBridgeFailure } from '@jiaorong/appHost/bridgeErrors'
 import { logJiaorongSdkDebug } from '@jiaorong/appHost/sdkDebugLog'
+import { initRendererBridge } from './main/bir'
 
 type Handler = (payload: unknown) => void
 
@@ -42,14 +43,16 @@ function invoke(method: string, args?: unknown) {
     (result) => {
       if (isJiaorongBridgeFailure(result)) {
         if (debugEnabled) logJiaorongSdkDebug('invoke:err', method, result)
-        return Promise.reject(result)
+        const error = new Error(result.message || method)
+        ;(error as Error & { code: string }).code = result.code
+        return Promise.reject(error)
       }
       if (debugEnabled) logJiaorongSdkDebug('invoke:ok', method, result)
       return result
     },
     (error) => {
       if (debugEnabled) logJiaorongSdkDebug('invoke:err', method, error)
-      return Promise.reject(error)
+      return Promise.reject(error instanceof Error ? error : new Error(String(error)))
     }
   )
 }
@@ -83,22 +86,25 @@ function on(event: string, handler: Handler) {
   }
 }
 
-const jiaorong = Object.freeze({
+const jiaorong = {
   invoke, // 按方法名走 IPC
-  on, // 订阅宿主推送
+  on, // 订阅超级智能体推送
   getPathForFile, // File 转本机路径
   setDebug, // 打开桥调试日志
-  getContext: call('context.get'), // 应用目录与登录态
-  userinfo: call('userinfo.get'), // 当前用户
-  openDevTools: call('devtools.open'), // 打开应用 DevTools
   disconnect: call('disconnect'), // 断开本页桥
-  respondToolInteraction: call('chat.respondToolInteraction'), // 回答工具审批
-  agent: Object.freeze({
+  context: {
+    get: call('context.get') // 应用目录与登录态
+  },
+  userinfo: {
+    get: call('userinfo.get') // 当前用户
+  },
+  agent: {
     create: call('agent.create'), // 按 key 创建或覆盖
+    update: call('agent.update'), // 按 key/id 覆盖
     get: call('agent.get'), // 按 key/id 取一条
     list: call('agent.list') // 列出本应用智能体
-  }),
-  session: Object.freeze({
+  },
+  session: {
     create: call('session.create'), // 新建会话
     list: call('session.list'), // 会话列表
     search: call('session.search'), // 搜历史
@@ -122,38 +128,70 @@ const jiaorong = Object.freeze({
     deleteMessage: call('session.deleteMessage'), // 删消息
     editUserMessage: call('session.editUserMessage'), // 改用户消息
     fork: call('session.fork') // 从某条分叉
-  }),
-  catalog: Object.freeze({
+  },
+  catalog: {
     slash: call('catalog.slash'), // 斜杠命令
     models: call('catalog.models'), // 可用模型
     systemPrompts: call('catalog.systemPrompts'), // 系统提示词
     agentTools: call('catalog.agentTools') // 智能体工具
-  }),
-  knowledgeBase: Object.freeze({
+  },
+  knowledgeBase: {
     query: call('knowledgeBase.query'), // 查知识库
     queryDirectory: call('knowledgeBase.queryDirectory') // 下探目录
-  }),
-  dialog: Object.freeze({
+  },
+  chat: {
+    respondToolInteraction: call('chat.respondToolInteraction') // 回答工具审批
+  },
+  dialog: {
     selectDirectory: call('dialog.selectDirectory'), // 选目录
     selectFiles: call('dialog.selectFiles'), // 选文件
     readFilePreview: call('dialog.readFilePreview'), // 读预览
     rememberDroppedFiles: call('dialog.rememberDroppedFiles'), // 记住拖入文件
     allowProjectDir: call('dialog.allowProjectDir') // 授权项目目录
-  }),
-  clipboard: Object.freeze({
+  },
+  clipboard: {
     writeImage: call('clipboard.writeImage') // 写图片到剪贴板
-  }),
-  capture: Object.freeze({
+  },
+  capture: {
     pageArea: call('capture.pageArea') // 截页面区域
-  })
-})
+  },
+  devtools: {
+    open: call('devtools.open') // 打开应用 DevTools
+  }
+}
+
+function pinJiaorong() {
+  try {
+    Object.defineProperty(window, 'jiaorong', {
+      configurable: true,
+      enumerable: true,
+      writable: true,
+      value: jiaorong
+    })
+  } catch {
+    ;(window as unknown as { jiaorong: typeof jiaorong }).jiaorong = jiaorong
+  }
+}
+
+pinJiaorong()
 
 if (process.contextIsolated) {
   try {
     contextBridge.exposeInMainWorld('jiaorong', jiaorong)
+    pinJiaorong()
+    contextBridge.exposeInMainWorld(
+      'initRendererBridge',
+      async (port: number, apisCustom?: unknown) => {
+        pinJiaorong()
+        const bridge = await initRendererBridge(port, apisCustom)
+        return { stop: () => bridge.stop() }
+      }
+    )
   } catch (error) {
     console.warn('[jiaorong-app] preload already exposed', error)
   }
 } else {
-  ;(window as unknown as Window & { jiaorong: typeof jiaorong }).jiaorong = jiaorong
+  pinJiaorong()
+  ;(window as unknown as { initRendererBridge: typeof initRendererBridge }).initRendererBridge =
+    initRendererBridge
 }

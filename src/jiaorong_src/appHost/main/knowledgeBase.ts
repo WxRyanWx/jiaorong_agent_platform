@@ -33,7 +33,7 @@ function toCount(value: unknown, fallback: number, max: number) {
 
 /**
  * 查知识库列表（个人/共享）。
- * @param deps 宿主依赖（读 token）
+ * @param deps 超级智能体依赖（读 token）
  * @param args invoke 入参
  */
 export async function queryJiaorongKnowledgeBases(
@@ -50,7 +50,7 @@ export async function queryJiaorongKnowledgeBases(
 
 /**
  * 知识库目录下探。
- * @param deps 宿主依赖
+ * @param deps 超级智能体依赖
  * @param args 必须带 directoryId
  */
 export async function queryJiaorongKnowledgeBaseDirectory(

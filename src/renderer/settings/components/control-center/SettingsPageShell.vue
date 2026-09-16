@@ -13,7 +13,10 @@
         ]"
       >
         <div class="min-w-0">
-          <div v-if="eyebrow" class="settings-page-eyebrow text-xs font-medium text-muted-foreground">
+          <div
+            v-if="eyebrow"
+            class="settings-page-eyebrow text-xs font-medium text-muted-foreground"
+          >
             {{ eyebrow }}
           </div>
           <h1 class="truncate text-xl font-semibold text-foreground">

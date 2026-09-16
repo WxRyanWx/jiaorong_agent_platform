@@ -1,4 +1,4 @@
-/** 组装 `context.get` 的宿主上下文（含登录 token）。应用 Node 端口由应用自己探，宿主不注入。 */
+/** 组装 `context.get` 的超级智能体上下文（含登录 token）。 */
 
 import { resolveAuthApiBaseUrl, resolveAuthProductId } from '../../api/auth/config'
 import { readUserIdentityFromUserInfo } from '../auth'
@@ -23,7 +23,7 @@ function parseUserInfo(session: ReturnType<JiaorongAppHostDeps['getAuthSession']
 
 /**
  * 给当前打开的应用构造 `HostContext`。
- * @param deps 宿主依赖
+ * @param deps 超级智能体依赖
  * @param runtime 已安装且当前可见的应用
  */
 export function buildHostContext(

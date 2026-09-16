@@ -1,81 +1,253 @@
-'use strict'
-
 /**
- * Egg 单进程入口。从 8787 起找第一个能 listen 的端口。
- * web-ui 从同一起点探测连接。宿主不注入通信。
+ * 包内 Node：普通 Elysia HTTP + 同一端口 WS。
+ * 页面连上后，本进程发 {msgType:'request'} 调页面 jiaorong。
  */
-
-process.env.EGG_SERVER_ENV = process.env.EGG_SERVER_ENV || 'prod'
-
-const egg = require('egg')
-const { installPageHost } = require('./app/lib/pageHost')
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { Elysia } from 'elysia'
+import { node } from '@elysiajs/node'
 
 const HOST = process.env.JIAORONG_NODE_HOST || '127.0.0.1'
-const PORT_START = 8787
-const PORT_TRIES = 32
+const ROOT = dirname(fileURLToPath(import.meta.url))
+const PORT = Number(process.env.JIAORONG_NODE_PORT || 8787)
 
-/**
- * 尝试绑定一个端口。
- * @param {import('egg').Application} app Egg 应用
- * @param {number} port 端口
- * @param {string} host 地址
- * @returns {Promise<import('node:http').Server>}
- */
-function listenPort(app, port, host) {
+const KNOWN = new Set([
+  'context.get',
+  'userinfo.get',
+  'agent.create',
+  'agent.update',
+  'agent.get',
+  'agent.list',
+  'catalog.slash',
+  'catalog.models',
+  'catalog.systemPrompts',
+  'catalog.agentTools',
+  'knowledgeBase.query',
+  'knowledgeBase.queryDirectory',
+  'session.create',
+  'session.list',
+  'session.search',
+  'session.get',
+  'session.rename',
+  'session.pin',
+  'session.setModel',
+  'session.setPermissionMode',
+  'session.setOrchestrationPolicy',
+  'session.getGenerationSettings',
+  'session.updateGenerationSettings',
+  'session.getContextOccupancy',
+  'session.setToolMode',
+  'session.getDisabledAgentTools',
+  'session.updateDisabledAgentTools',
+  'session.delete',
+  'session.send',
+  'session.retryMessage',
+  'session.deleteMessage',
+  'session.editUserMessage',
+  'session.fork',
+  'session.stop',
+  'session.steer',
+  'chat.respondToolInteraction',
+  'dialog.selectDirectory',
+  'dialog.selectFiles',
+  'dialog.readFilePreview',
+  'dialog.rememberDroppedFiles',
+  'dialog.allowProjectDir',
+  'clipboard.writeImage',
+  'capture.pageArea',
+  'devtools.open',
+  'disconnect'
+])
+
+const SKILLS = ['weekly-report', 'meeting-minutes', 'contract-review', 'data-query']
+
+function skillFile(appDir, skillDir) {
+  const root = String(appDir || '')
+    .trim()
+    .replace(/[/\\]+$/, '')
+    .replaceAll('\\', '/')
+  if (!root) return `skill/${skillDir}/SKILL.md`
+  return `${root}/skill/${skillDir}/SKILL.md`
+}
+
+function buildPrompt(appDir) {
+  const def = skillFile(appDir, 'weekly-report')
+  const others = SKILLS.filter((name) => name !== 'weekly-report')
+    .map((name) => `- ${skillFile(appDir, name)}`)
+    .join('\n')
+  return [
+    '你是应用脚手架助手，用中文简洁回答。',
+    '',
+    '默认必须先用文件读取工具打开并严格遵循这份技能，再回答用户：',
+    def,
+    '',
+    '仅当用户明确要求会议纪要、合同审核或数据查询时，再改读对应技能文件：',
+    others
+  ].join('\n')
+}
+
+function appId() {
+  if (process.env.JIAORONG_APP_ID) return process.env.JIAORONG_APP_ID.trim()
+  try {
+    const parsed = JSON.parse(readFileSync(join(ROOT, '../app.json'), 'utf8'))
+    if (typeof parsed.id === 'string' && parsed.id.trim()) return parsed.id.trim()
+  } catch {
+    /* ignore */
+  }
+  return 'app-scaffold'
+}
+
+let page = null
+const pending = new Map()
+const waiters = []
+
+function send(ws, obj) {
+  ws.send(JSON.stringify(obj))
+}
+
+function request(method, payload = []) {
   return new Promise((resolve, reject) => {
-    const server = app.listen(port, host)
-    const fail = (error) => {
-      server.removeListener('listening', ok)
-      try {
-        server.close()
-      } catch {
-        // ignore
-      }
-      reject(error)
+    const reqId = `${Date.now()}-${Math.random().toString(16).slice(2)}`
+    const timer = setTimeout(() => {
+      pending.delete(reqId)
+      reject(Object.assign(new Error('页面未连接超级智能体桥'), { code: 'JIAORONG_NOT_RUNNING' }))
+    }, 120_000)
+    const run = (ws) => {
+      pending.set(reqId, {
+        resolve: (v) => {
+          clearTimeout(timer)
+          resolve(v)
+        },
+        reject: (e) => {
+          clearTimeout(timer)
+          reject(e)
+        }
+      })
+      send(ws, { msgType: 'request', reqId, method, payload })
     }
-    const ok = () => {
-      server.removeListener('error', fail)
-      resolve(server)
-    }
-    server.once('error', fail)
-    server.once('listening', ok)
+    if (page) run(page)
+    else waiters.push(run)
   })
 }
 
-/**
- * 从 8787 起逐个尝试。
- * @param {import('egg').Application} app Egg 应用
- * @param {string} host 地址
- * @returns {Promise<import('node:http').Server>}
- */
-async function listenFirstFree(app, host) {
-  let lastError
-  for (let port = PORT_START; port < PORT_START + PORT_TRIES; port += 1) {
-    try {
-      return await listenPort(app, port, host)
-    } catch (error) {
-      lastError = error
+const sa = new Proxy(function () {}, {
+  get(_t, key) {
+    if (typeof key !== 'string' || key === 'then') return undefined
+    const nest = (path) =>
+      new Proxy(function () {}, {
+        get(_i, next) {
+          if (typeof next !== 'string' || next === 'then') return undefined
+          return nest(`${path}.${next}`)
+        },
+        apply(_i, _this, args) {
+          return request(`jiaorong.${path}`, [args[0] ?? {}])
+        }
+      })
+    return nest(key)
+  }
+})
+
+function onPageMessage(raw) {
+  let msg
+  try {
+    msg = typeof raw === 'string' || raw instanceof Uint8Array ? JSON.parse(String(raw)) : raw
+    if (typeof msg === 'string') msg = JSON.parse(msg)
+  } catch {
+    return
+  }
+  if (!msg || (msg.msgType !== 'response' && msg.msgType !== 'error')) return
+  const waiter = pending.get(msg.reqId)
+  pending.delete(msg.reqId)
+  if (!waiter) return
+  if (msg.msgType === 'response') waiter.resolve(msg.data !== undefined ? msg.data : msg.payload)
+  else waiter.reject({ code: msg.code || 'CALL_ERROR', message: msg.message || '请求失败' })
+}
+
+function callSa(target, method, payload) {
+  let cur = target
+  for (const part of method.split('.')) cur = cur[part]
+  return cur(payload)
+}
+
+async function invokeSuperAgent(method, args) {
+  if (!KNOWN.has(method)) {
+    const error = new Error(`Unknown method: ${method}`)
+    error.code = 'VALIDATION_ERROR'
+    throw error
+  }
+  if (method === 'disconnect') return { ok: true }
+  let payload = args ?? {}
+  if (method === 'agent.create' || method === 'agent.update') {
+    const ctx = await sa.context.get({})
+    const input = payload && typeof payload === 'object' ? payload : {}
+    payload = {
+      ...input,
+      key: typeof input.key === 'string' && input.key.trim() ? input.key.trim() : 'workbench',
+      name:
+        typeof input.name === 'string' && input.name.trim() ? input.name.trim() : '应用脚手架助手',
+      skills: SKILLS,
+      config: {
+        ...(input.config && typeof input.config === 'object' ? input.config : {}),
+        systemPrompt: buildPrompt(ctx?.appDir || '')
+      }
     }
   }
-  throw lastError || new Error('没有可用端口')
+  return callSa(sa, method, payload)
 }
 
-/**
- * 启动 Egg 并挂 WebSocket 中继。
- */
-async function main() {
-  const app = await egg.start({
-    baseDir: __dirname
+const app = new Elysia({ adapter: node() })
+  .onRequest(({ set }) => {
+    set.headers['Access-Control-Allow-Origin'] = '*'
+    set.headers['Access-Control-Allow-Headers'] = 'content-type'
+    set.headers['Access-Control-Allow-Methods'] = 'POST,OPTIONS,GET'
   })
-  const httpServer = await listenFirstFree(app, HOST)
-  const addr = typeof httpServer.address === 'function' ? httpServer.address() : null
-  const port = addr && typeof addr === 'object' ? addr.port : PORT_START
-  app.config.jiaorong.port = port
-  installPageHost(httpServer, app)
-  console.log(`[app-scaffold] listening ${HOST}:${port}`)
-}
+  .options('/rpc', () => '')
+  .get('/api/health', () => ({
+    ok: true,
+    service: 'app-scaffold',
+    appId: appId()
+  }))
+  .post('/rpc', async ({ body, set }) => {
+    const method = body && typeof body === 'object' ? String(body.method || '') : ''
+    const args = body && typeof body === 'object' ? body.args : {}
+    try {
+      const data = await invokeSuperAgent(method, args ?? {})
+      if (data === undefined) {
+        throw Object.assign(new Error(`${method} 无返回`), { code: 'GENERATION_FAILED' })
+      }
+      return { ok: true, data }
+    } catch (error) {
+      set.status = 400
+      const rec = error && typeof error === 'object' ? error : {}
+      const message =
+        error instanceof Error
+          ? error.message
+          : typeof rec.message === 'string' && rec.message.trim()
+            ? rec.message
+            : String(error)
+      return {
+        ok: false,
+        error: {
+          code: typeof rec.code === 'string' ? rec.code : 'GENERATION_FAILED',
+          message
+        }
+      }
+    }
+  })
+  .ws('/', {
+    open(ws) {
+      page = ws
+      waiters.splice(0).forEach((run) => run(ws))
+    },
+    message(_ws, message) {
+      onPageMessage(message)
+    },
+    close(ws) {
+      if (page === ws) page = null
+    }
+  })
 
-main().catch((error) => {
-  console.error('[app-scaffold] egg start failed', error)
-  process.exit(1)
+app.listen({ hostname: HOST, port: PORT }, () => {
+  console.log(`[app-scaffold] listening ${HOST}:${PORT}`)
 })

@@ -6,7 +6,7 @@
 import { resolveToolbarActions, type JiaorongToolbarAction } from './toolbar'
 
 /**
- * 宿主可传入的功能开关（未写的项走默认全开）。
+ * 超级智能体可传入的功能开关（未写的项走默认全开）。
  */
 export type JiaorongAgentChatFeatures = {
   /** 是否允许附件。 */

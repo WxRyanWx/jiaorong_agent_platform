@@ -2,7 +2,7 @@
 <script setup lang="ts">
 import { computed, shallowRef } from 'vue'
 import { Icon } from '@iconify/vue'
-import type { NodeClient } from '../../lib/hostRelay'
+import type { NodeClient } from '../../api'
 import { registerJiaorongAgentIcons } from '../jiaorongagentchat/lib/icons'
 import { SESSION_LIST_LOAD_MORE_PX } from '../jiaorongagentchat/lib/windowPolicy'
 import { useJiaorongAgentRuntime } from '../jiaorongagentchat/composables/useJiaorongAgentRuntime'
@@ -76,7 +76,7 @@ function onListScroll(event: Event) {
   void runtime.loadMoreSessions()
 }
 
-/** 清空当前会话并通知宿主打开新对话。 */
+/** 清空当前会话并通知超级智能体打开新对话。 */
 function onNewSession() {
   sessionId.value = null
   emit('new')

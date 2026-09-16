@@ -1,6 +1,6 @@
 /** 应用桥失败码。IPC 用 `{ code, message }` 表示失败，不要和成功 payload 混用同名字段。 */
 
-/** 宿主与应用桥共用的失败码列表。 */
+/** 超级智能体与应用桥共用的失败码列表。 */
 export const JIAORONG_BRIDGE_ERROR_CODES = [
   'NOT_IN_JIAORONG',
   'JIAORONG_NOT_RUNNING',

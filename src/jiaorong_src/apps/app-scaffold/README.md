@@ -12,14 +12,11 @@ app-scaffold/
   skill/
 ```
 
-`app.json.spawn` 在点开时由宿主执行一次（可用 `&&`）。宿主不向子进程注入通信。
+`app.json.spawn` 在点开时由应用平台执行一次（可用 `&&`）。不向子进程注入超级智能体 IPC，只带握手环境变量 `JIAORONG_APP_ID` / `JIAORONG_BRIDGE_TOKEN`。
 
-只有一种模式：**客户端 → web-ui → 服务端**。页面经 WebSocket 连包内 Node（从 8787 起探口，握手带 `appId`）。对话请求发给 Node；Node 需要宿主能力时，经同一条 WS 让页面代调 `window.jiaorong`。服务端不和客户端直接通信。
-
-改页面后重建：
+页面启动时调用注入的 `window.initRendererBridge(约定端口)`。端口写在前后端常量里（默认 8787），客户端不探口、不管冲突。业务请求走 `POST /rpc`。
 
 ```bash
-cd web
-pnpm install
-pnpm build
+cd src/jiaorong_src/apps/app-scaffold/web && pnpm install --ignore-workspace && pnpm build
+cd ../node && pnpm install --ignore-workspace
 ```

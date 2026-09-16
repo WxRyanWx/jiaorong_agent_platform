@@ -68,7 +68,7 @@ import {
   getSessionOwner,
   isGuestPathAllowed,
   rememberSessionOwner
-} from '../../../src/jiaorong_src/appHost/main/guestBind'
+} from '../../../src/jiaorong_src/appHost/main/guest'
 import type { JiaorongAppHostDeps } from '../../../src/jiaorong_src/appHost/main/deps'
 import type { JiaorongAppRuntime } from '../../../src/jiaorong_src/appHost/types'
 

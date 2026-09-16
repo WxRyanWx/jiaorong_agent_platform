@@ -1,8 +1,7 @@
 /**
- * 知识库查询：经 Node 调宿主 `knowledgeBase.*`。
+ * 知识库查询：经 Node 调超级智能体 `knowledgeBase.*`。
  */
-import { resolveHostAppId } from './hostDialog'
-import { invokeViaNode } from '../../../../lib/hostRelay'
+import { queryKnowledgeBase, resolveHostAppId } from '../../../../api'
 import type {
   JiaorongChatKnowledgeBaseAuth,
   KnowledgeBaseDirectoryItem,
@@ -50,7 +49,9 @@ function toFiniteNumber(value: unknown): number | null {
 }
 
 /** 目录接口走 queryDirectory，其余走 query。 */
-function hostMethodForPath(path: string) {
+function hostMethodForPath(
+  path: string
+): 'knowledgeBase.query' | 'knowledgeBase.queryDirectory' {
   if (path.replace(/^\//, '') === 'knowledge-base/queryDirectory') {
     return 'knowledgeBase.queryDirectory'
   }
@@ -59,20 +60,20 @@ function hostMethodForPath(path: string) {
 
 /** Host 结果若包了 `data` 则拆开，否则整包返回。 */
 function unwrapHostData(result: unknown) {
-  /** 宿主结果对象；非对象则整包返回。 */
+  /** 超级智能体结果对象；非对象则整包返回。 */
   const record = asRecord(result)
   if (record && 'data' in record) return record.data
   return result
 }
 
 /**
- * 经 Node 调宿主知识库。
+ * 经 Node 调超级智能体知识库。
  */
 async function postJson(_auth: JiaorongChatKnowledgeBaseAuth, path: string, body: unknown) {
   try {
     const payload = asRecord(body) ?? {}
     const appId = resolveHostAppId()
-    const result = await invokeViaNode(hostMethodForPath(path), {
+    const result = await queryKnowledgeBase(hostMethodForPath(path), {
       ...(appId ? { appId } : {}),
       ...payload
     })

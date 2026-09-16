@@ -1,4 +1,4 @@
-/** 宿主会话 / 消息 DTO，给对话 UI 用。 */
+/** 超级智能体会话 / 消息 DTO，给对话 UI 用。 */
 
 /** 工具权限模式。 */
 export type PermissionMode = 'default' | 'auto_approve' | 'full_access'
@@ -16,7 +16,7 @@ export type JiaorongUserInfo = {
   [key: string]: unknown
 }
 
-/** SDK context.get 出参。 */
+/** `context.get` 出参。 */
 export type HostContext = {
   /** 用户名。 */
   userId: string
@@ -94,7 +94,7 @@ export type Agent = {
   config?: DeepChatAgentConfig | null
 }
 
-/** SDK 创建智能体入参。已存在同 key 时覆盖可写配置，`created` 仍为 false。 */
+/** 创建智能体入参。已存在同 key 时覆盖可写配置，`created` 仍为 false。 */
 export type CreateAppAgentInput = {
   /** 名称。 */
   name: string
@@ -114,7 +114,7 @@ export type CreateAppAgentInput = {
   skills?: string[]
 }
 
-/** SDK 更新智能体入参。 */
+/** 更新智能体入参。 */
 export type UpdateAppAgentInput = {
   /** 键或智能体 key。 */
   key?: string
@@ -142,7 +142,7 @@ export type AppAgent = Agent & {
   key: string
   /** 当前应用 id。 */
   appId: string
-  /** 是否对宿主隐藏。 */
+  /** 是否对超级智能体隐藏。 */
   hidden: true
   /** 来源。 */
   source: 'app'
@@ -170,7 +170,7 @@ export type MessageFile = {
   token?: number
   /** 缩略图。 */
   thumbnail?: string
-  /** @deprecated 用 content。宿主会转成 content。 */
+  /** @deprecated 用 content。超级智能体会转成 content。 */
   dataBase64?: string
   /** 元数据。 */
   metadata?: {
@@ -690,7 +690,7 @@ export type ChatPlanUpdatedEvent = {
   terminalReason?: 'aborted' | 'max_steps' | 'error'
 }
 
-/** 宿主事件名 → payload。 */
+/** 超级智能体事件名 → payload。 */
 export type JiaorongEventMap = {
   'chat.stream.updated': ChatStreamUpdatedEvent
   'chat.stream.completed': ChatStreamCompletedEvent
@@ -701,5 +701,5 @@ export type JiaorongEventMap = {
   context: HostContext
 }
 
-/** 可订阅的宿主事件名。 */
+/** 可订阅的超级智能体事件名。 */
 export type JiaorongEventName = keyof JiaorongEventMap

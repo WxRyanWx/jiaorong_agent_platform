@@ -36,7 +36,7 @@ import type {
   PermissionMode,
   SessionMessagesChangedEvent
 } from './model/host'
-import type { NodeClient } from '../../lib/hostRelay'
+import type { NodeClient } from '../../api'
 import type { JiaorongToolbarAction } from './lib/toolbar'
 
 registerJiaorongAgentIcons()
@@ -76,7 +76,7 @@ const props = withDefaults(
 )
 
 const emit = defineEmits<{
-  /** 流式块更新，给宿主同步预览。 */
+  /** 流式块更新，给超级智能体同步预览。 */
   'stream-updated': [payload: ChatStreamUpdatedEvent]
   /** 本轮生成结束。 */
   'stream-completed': [payload: ChatStreamCompletedEvent]
@@ -84,9 +84,9 @@ const emit = defineEmits<{
   'stream-failed': [payload: ChatStreamFailedEvent]
   /** 计划面板内容变化。 */
   'plan-updated': [payload: ChatPlanUpdatedEvent]
-  /** 会话消息列表被宿主改写。 */
+  /** 会话消息列表被超级智能体改写。 */
   'messages-changed': [payload: SessionMessagesChangedEvent]
-  /** 宿主上下文（token / apiBaseUrl 等）。 */
+  /** 超级智能体上下文（token / apiBaseUrl 等）。 */
   context: [payload: HostContext]
   /** 出现待回答追问，给页面自定义面板。 */
   question: [
@@ -124,7 +124,7 @@ const emit = defineEmits<{
       granted: boolean
     }
   ]
-  /** 点击发送或入队；queued 为 true 表示只进队列没立刻发给宿主。 */
+  /** 点击发送或入队；queued 为 true 表示只进队列没立刻发给超级智能体。 */
   send: [payload: { sessionId: string | null; text: string; queued?: boolean }]
   /** 客户端已连上且首次 ready。 */
   'runtime-ready': []
@@ -204,7 +204,7 @@ watch(ready, (value) => {
 onDeactivated(() => {
   kbOpen.value = false
 })
-/** 本轮正在交给宿主发送（create / send / steer 飞行中）。 */
+/** 本轮正在交给超级智能体发送（create / send / steer 飞行中）。 */
 const sending = computed(() => runtime.sending.value)
 /** 助手仍在流式输出。 */
 const generating = computed(() => runtime.generating.value)
@@ -288,13 +288,13 @@ const selectedSystemPromptId = computed(() => {
 const selectedToolMode = computed(() => runtime.toolModeOverride.value ?? 'agent')
 /** 有追问或审批时藏输入框，避免和浮层抢焦点。 */
 const hideComposer = computed(() => Boolean(pendingQuestion.value || pendingApproval.value))
-/** 知识库弹层鉴权；关了开关或宿主没下发 token 则为 null。 */
+/** 知识库弹层鉴权；关了开关或超级智能体没下发 token 则为 null。 */
 const kbAuth = computed(() => {
   if (!flags.value.knowledgeBase) return null // 关了知识库：选择器不请求
   const ctx = runtime.hostContext.value
   const token = ctx?.token?.trim()
   const apiBaseUrl = ctx?.apiBaseUrl?.trim()
-  if (!token || !apiBaseUrl) return null // 宿主还没下发鉴权，弹层无法列库
+  if (!token || !apiBaseUrl) return null // 超级智能体还没下发鉴权，弹层无法列库
   return { token, apiBaseUrl, productId: ctx?.productId }
 })
 /** 队列条只展示 id 和正文预览，不把附件再渲染一遍。 */
@@ -388,7 +388,7 @@ function extraSendFiles() {
   return file ? [file] : []
 }
 
-/** 当前技能芯片对应的宿主技能名，发给 session.send 的 activeSkills。 */
+/** 当前技能芯片对应的超级智能体技能名，发给 session.send 的 activeSkills。 */
 function skillNames() {
   return activeSkills.value
     .map((item) => item.skillName)
@@ -441,7 +441,7 @@ function enqueueDraft() {
 
 /**
  * 统一处理发送 / 插话 / 入队。
- * @param mode send 立刻发给宿主；steer 生成中插话；queue 只进队列
+ * @param mode send 立刻发给超级智能体；steer 生成中插话；queue 只进队列
  */
 async function submitTurn(mode: 'send' | 'steer' | 'queue') {
   // 显式入队，或生成中点发送且开了 queue：先进队列等本轮结束
@@ -505,7 +505,7 @@ watch(generating, (now, was) => {
 })
 
 /**
- * 用户批准或拒绝工具调用，并回写给宿主。
+ * 用户批准或拒绝工具调用，并回写给超级智能体。
  * @param granted true 批准，false 拒绝
  */
 function onRespondApproval(granted: boolean) {
@@ -717,7 +717,7 @@ defineExpose({
         </div>
       </div>
     </div>
-    <!-- 知识库选择弹层：需要宿主 token 与 apiBaseUrl -->
+    <!-- 知识库选择弹层：需要超级智能体 token 与 apiBaseUrl -->
     <KnowledgeBasePicker
       v-if="flags.knowledgeBase"
       :open="kbOpen"

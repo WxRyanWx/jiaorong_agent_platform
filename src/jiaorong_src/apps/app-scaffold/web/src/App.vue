@@ -4,21 +4,17 @@
 <script setup lang="ts">
 import { RouterView } from 'vue-router'
 import { shallowRef } from 'vue'
-import { formatError } from './lib/formatError'
-import { getActiveNodeClient } from './lib/hostRelay'
+import { formatError } from './lib/errorText'
+import { openDevtools } from './api'
 
 /** 打开调试台失败时的短文案；成功则清空。 */
 const debugError = shallowRef('')
 
-/** 经 Node 让宿主弹出本应用页面的独立 DevTools。 */
+/** 经 Node 让超级智能体弹出本应用页面的独立 DevTools。 */
 async function openDebug() {
   debugError.value = ''
   try {
-    const client = getActiveNodeClient()
-    if (!client) {
-      throw new Error('正在连接应用后端…')
-    }
-    await client.invoke('devtools.open')
+    await openDevtools()
   } catch (error) {
     debugError.value = formatError(error)
   }

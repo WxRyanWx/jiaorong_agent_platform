@@ -1,9 +1,9 @@
-/** 宿主依赖端口类型：对话、文件、斜杠目录、鉴权。 */
+/** 超级智能体依赖端口类型：对话、文件、斜杠目录、鉴权。 */
 
 import type { JiaorongAuthSession } from './userIdentity'
 import type { ThemeMode } from '../types'
 
-/** 宿主侧智能体记录。 */
+/** 超级智能体侧智能体记录。 */
 export type JiaorongAppAgentRecord = {
   /** 记录 id。 */
   id: string
@@ -25,7 +25,7 @@ export type JiaorongAppAgentRecord = {
   config?: Record<string, unknown> | null
 }
 
-/** 宿主侧会话记录。 */
+/** 超级智能体侧会话记录。 */
 export type JiaorongAppSessionRecord = {
   /** 记录 id。 */
   id: string
@@ -57,7 +57,7 @@ export type JiaorongAppSessionRecord = {
   modelId?: string
 }
 
-/** 宿主侧消息记录。 */
+/** 超级智能体侧消息记录。 */
 export type JiaorongAppMessageRecord = {
   /** 记录 id。 */
   id: string
@@ -81,7 +81,7 @@ export type JiaorongAppMessageRecord = {
   updatedAt: number
 }
 
-/** 宿主创建智能体入参。 */
+/** 超级智能体创建智能体入参。 */
 export type JiaorongAppCreateAgentInput = {
   /** 名称。 */
   name: string
@@ -97,7 +97,7 @@ export type JiaorongAppCreateAgentInput = {
   config?: Record<string, unknown> | null
 }
 
-/** 宿主更新智能体入参。 */
+/** 超级智能体更新智能体入参。 */
 export type JiaorongAppUpdateAgentInput = {
   /** 名称。 */
   name?: string
@@ -113,7 +113,7 @@ export type JiaorongAppUpdateAgentInput = {
   config?: Record<string, unknown> | null
 }
 
-/** 宿主创建会话入参。 */
+/** 超级智能体创建会话入参。 */
 export type JiaorongAppCreateSessionInput = {
   /** 智能体 id。 */
   agentId: string
@@ -144,7 +144,7 @@ export type JiaorongAppCreateSessionInput = {
 /** 发送内容：纯文本或对象。 */
 export type JiaorongAppSendContent = string | Record<string, unknown>
 
-/** 宿主对话端口，由 DeepChat presenter 实现。 */
+/** 超级智能体对话端口，由 DeepChat presenter 实现。 */
 export type JiaorongAppDialoguePort = {
   /** 创建 DeepChat 智能体。 */
   createDeepChatAgent(input: JiaorongAppCreateAgentInput): Promise<JiaorongAppAgentRecord>
@@ -353,17 +353,17 @@ export type JiaorongAppSlashSources = {
   }>
 }
 
-/** 宿主文件端口。 */
+/** 超级智能体文件端口。 */
 export type JiaorongAppFilePort = {
   /** 写临时文件，返回路径。 */
   writeTemp(file: { name: string; content: Buffer | string }): Promise<string>
   /** 写图片 base64，返回路径。 */
   writeImageBase64(file: { name: string; content: string }): Promise<string>
-  /** 准备宿主可读附件元数据。 */
+  /** 准备超级智能体可读附件元数据。 */
   prepareFile(path: string, mimeType?: string): Promise<Record<string, unknown>>
 }
 
-/** 应用宿主注入的依赖。 */
+/** 应用平台注入的依赖。 */
 export type JiaorongAppHostDeps = {
   /** 当前鉴权会话。 */
   getAuthSession(): JiaorongAuthSession | undefined

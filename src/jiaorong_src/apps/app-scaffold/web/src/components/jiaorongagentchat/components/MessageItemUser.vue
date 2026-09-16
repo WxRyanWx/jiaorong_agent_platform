@@ -111,7 +111,7 @@ const props = withDefaults(
     skills: string[]
     /** 斜杠命令目录，用于把技能名显示成标签 */
     slashItems?: readonly JiaorongSlashItem[]
-    /** 宿主应用 id，附件预览用 */
+    /** 超级智能体应用 id，附件预览用 */
     appId?: string
     /** 禁用重试 / 编辑 / 删除 */
     disabled?: boolean

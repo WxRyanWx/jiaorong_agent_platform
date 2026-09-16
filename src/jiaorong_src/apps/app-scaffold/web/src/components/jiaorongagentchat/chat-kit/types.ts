@@ -4,7 +4,7 @@
 import type { AssistantMessageBlock, MessageFile } from '../model/host'
 
 /**
- * 聊天界面功能开关。未传的项由宿主按默认策略处理。
+ * 聊天界面功能开关。未传的项由超级智能体按默认策略处理。
  */
 export type JiaorongChatFeatures = {
   /** 会话列表 */
@@ -51,7 +51,7 @@ export type JiaorongChatSession = {
   pinned?: boolean
   /** 绑定的项目目录 */
   projectDir?: string | null
-  /** 编排策略：显式 / 主动，或宿主自定义对象 */
+  /** 编排策略：显式 / 主动，或超级智能体自定义对象 */
   orchestrationPolicy?: 'explicit' | 'proactive' | Record<string, unknown>
   /** 权限模式 */
   permissionMode?: JiaorongChatPermissionMode
@@ -121,10 +121,10 @@ export type JiaorongKbSelection = JiaorongKbChip & {
 }
 
 /**
- * 待发送 / 已发送附件，可带宿主元数据。
+ * 待发送 / 已发送附件，可带超级智能体元数据。
  */
 export type JiaorongChatMessageFile = MessageFile & {
-  /** 宿主或知识库上下文元数据 */
+  /** 超级智能体或知识库上下文元数据 */
   metadata?: Record<string, unknown>
 }
 
@@ -244,4 +244,3 @@ export type KnowledgeBaseDirectoryResult = {
   /** 总条数 */
   total: number
 }
-

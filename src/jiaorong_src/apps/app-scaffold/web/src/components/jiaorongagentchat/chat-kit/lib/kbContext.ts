@@ -20,7 +20,7 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 function parseMeta(raw: unknown): { selections: JiaorongKbChip[] } | null {
   /** 可能仍是 JSON 字符串，解开后再当对象用。 */
   let value: unknown = raw
-  // 宿主有时把 metadata 序列化成字符串
+  // 超级智能体有时把 metadata 序列化成字符串
   if (typeof value === 'string') {
     try {
       value = JSON.parse(value)

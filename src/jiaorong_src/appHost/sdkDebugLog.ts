@@ -1,7 +1,7 @@
-/** 把 SDK 桥调用打到 guest 控制台时的脱敏与截断。 */
+/** 把桥调用打到 guest 控制台时的脱敏与截断。 */
 
 /** 控制台前缀，方便 Filter。 */
-export const JIAORONG_SDK_DEBUG_PREFIX = '[jiaorong-sdk]'
+export const JIAORONG_SDK_DEBUG_PREFIX = '[jiaorong-app]'
 
 /** 不当原文打出的字段名。 */
 const SENSITIVE_KEY =
@@ -70,7 +70,7 @@ export function redactJiaorongSdkDebugValue(
 }
 
 /**
- * 打一条 SDK 调试日志。
+ * 打一条桥调试日志。
  * @param kind `invoke` / `invoke:ok` / `invoke:err` / `event`
  * @param label 方法名或事件名
  * @param payload 入参、出参或事件体

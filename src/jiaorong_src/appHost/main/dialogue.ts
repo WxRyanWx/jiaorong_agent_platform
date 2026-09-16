@@ -20,20 +20,18 @@ import type {
   JiaorongAppUpdateAgentInput
 } from './deps'
 import {
-  isJiaorongGuestKnowledgeBaseContextFile,
-  materializeGuestFiles,
-  normalizeGuestKnowledgeBaseContextFile
-} from './guestAttachments'
-import {
   canonicalizeGuestPath,
   forgetSessionOwner,
   hasPickedDirectory,
   isAbsoluteGuestPath,
   isGuestPathAllowed,
   isGuestPathInsideDir,
+  isJiaorongGuestKnowledgeBaseContextFile,
+  materializeGuestFiles,
+  normalizeGuestKnowledgeBaseContextFile,
   rememberPickedDirectory,
   rememberSessionOwner
-} from './guestBind'
+} from './guest'
 import { readAuthToken } from './userIdentity'
 
 /** 与超级智能体 `messageWindowPolicy` 对齐：首屏 10，单次最多 50。 */
@@ -337,7 +335,7 @@ function buildCreateAgentWrite(appId: string, key: string, record: InvokeRecord,
   }
 }
 
-/** 是否绝对路径（委托 guestBind）。 */
+/** 是否绝对路径。 */
 export function isAbsoluteFsPath(value: string): boolean {
   return isAbsoluteGuestPath(value)
 }
@@ -433,7 +431,7 @@ function sanitizeSendContent(
   }
 }
 
-/** sanitize 后再把附件落地到宿主可读路径。 */
+/** sanitize 后再把附件落地到超级智能体可读路径。 */
 async function prepareGuestSendContent(
   deps: JiaorongAppHostDeps,
   appId: string,
@@ -546,7 +544,7 @@ async function resolveAllowedProjectDir(
 
 /** 对话类 invoke：agent / session / chat。 */
 export async function handleDialogueInvoke(
-  /** 宿主对话/鉴权依赖。 */
+  /** 超级智能体对话/鉴权依赖。 */
   deps: JiaorongAppHostDeps,
   /** 当前应用运行时。 */
   runtime: JiaorongAppRuntime,

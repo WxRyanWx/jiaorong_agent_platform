@@ -5,9 +5,7 @@ import {
   readAppIdFromGuestPartition,
   readJiaorongAppHostname,
   readSessionPartition,
-  resolveGuestInvokeAppId
-} from '../../../src/jiaorong_src/appHost/main/guestAppId'
-import {
+  resolveGuestInvokeAppId,
   bindGuestAppId,
   forgetSessionOwner,
   getBoundGuestAppId,
@@ -16,7 +14,7 @@ import {
   rememberPickedDirectory,
   rememberSessionOwner,
   unbindGuest
-} from '../../../src/jiaorong_src/appHost/main/guestBind'
+} from '../../../src/jiaorong_src/appHost/main/guest'
 import {
   filterOfficialDeepchatPayload,
   sendJiaorongAppBridgeEvent

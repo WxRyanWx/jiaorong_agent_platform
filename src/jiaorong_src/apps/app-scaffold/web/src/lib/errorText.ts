@@ -1,4 +1,4 @@
-/** 桥错误码与 `JiaorongError`。宿主失败会转成这个类。 */
+/** 桥错误码与 `JiaorongError`。超级智能体失败会转成这个类。 */
 
 /** 稳定错误码。 */
 export const ERROR_CODES = {
@@ -33,7 +33,7 @@ export const ERROR_CODES = {
 /** 错误码字面量。 */
 export type JiaorongErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES]
 
-/** SDK 抛出的错误，带 `code`。 */
+/** 桥抛出的错误，带 `code`。 */
 export class JiaorongError extends Error {
   /** 稳定码。 */
   readonly code: JiaorongErrorCode
@@ -56,7 +56,7 @@ export class JiaorongError extends Error {
 }
 
 /**
- * 是否为 SDK 错误（含跨 realm 的同名 Error）。
+ * 是否为桥错误（含跨 realm 的同名 Error）。
  * @param error 未知值
  */
 export function isJiaorongError(error: unknown): error is JiaorongError {
@@ -259,5 +259,39 @@ export function formatJiaorongError(error: unknown): string {
   /** 错误码。 */
   const code = extractCode(error)
   if (code) return CODE_ZH[code]
+  return '请求失败'
+}
+
+const NETWORK_ZH = '无法连接 Node 服务'
+
+function looksLikeNetworkFailure(text: string): boolean {
+  const value = text.trim().toLowerCase()
+  return (
+    value === 'failed to fetch' ||
+    value.endsWith('failed to fetch') ||
+    value === 'load failed' ||
+    value === 'fetch failed' ||
+    value.includes('networkerror when attempting to fetch')
+  )
+}
+
+/** 用户可见中文；网络失败统一成「无法连接 Node 服务」。 */
+export function formatError(error: unknown): string {
+  const text = formatJiaorongError(error)
+  if (looksLikeNetworkFailure(text)) return NETWORK_ZH
+  if (text && text !== '[object Object]') return text
+  if (error && typeof error === 'object') {
+    const record = error as { code?: unknown; message?: unknown }
+    if (typeof record.message === 'string' && record.message.trim()) {
+      return looksLikeNetworkFailure(record.message) ? NETWORK_ZH : record.message
+    }
+    if (typeof record.code === 'string' && record.code.trim()) {
+      if (record.code === 'JIAORONG_NOT_RUNNING') return NETWORK_ZH
+      return record.code
+    }
+  }
+  if (error instanceof Error && error.message) {
+    return looksLikeNetworkFailure(error.message) ? NETWORK_ZH : error.message
+  }
   return '请求失败'
 }

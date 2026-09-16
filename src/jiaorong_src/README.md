@@ -28,8 +28,8 @@ jiaorong_src/
   skills/            # 技能中心页面 + module（无 routes）
     pages/SkillListPage/ SkillDetailPage/
   utils/ runtime/
-  appHost/           # 嵌入应用宿主：目录、扫描、权限、协议、preload、window.jiaorong
-  apps/app-scaffold/  # 外部应用脚手架（web-ui 经 WS 连包内后端）
+  appHost/           # 嵌入应用平台：目录、扫描、权限、协议、preload、window.jiaorong
+  apps/app-scaffold/  # 外部应用脚手架（Elysia）
 ```
 
 ## 约定

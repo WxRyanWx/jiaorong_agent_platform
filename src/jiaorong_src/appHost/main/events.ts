@@ -4,8 +4,7 @@ import { webContents } from 'electron'
 import { JIAORONG_APP_BRIDGE_EVENT_CHANNEL } from '../channels'
 import { findAppIdByAgentId } from './agentMap'
 import type { JiaorongAppHostDeps } from './deps'
-import { getBoundGuestAppId, getSessionOwner } from './guestBind'
-import { readJiaorongAppHostname } from './guestAppId'
+import { getBoundGuestAppId, getSessionOwner, readJiaorongAppHostname } from './guest'
 
 /** 会推给 guest 的桥事件名。 */
 const APP_BRIDGE_EVENTS = new Set([

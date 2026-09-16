@@ -25,6 +25,7 @@
     "src/jiaorong_src/tools/slashMenuDisplayText.ts",
     "src/jiaorong_src/tools/toolDisplayNames.ts"
   ],
+  "exclude": ["src/jiaorong_src/appHost/main/bir.ts"],
   "compilerOptions": {
     "composite": true,
     "resolveJsonModule": true,

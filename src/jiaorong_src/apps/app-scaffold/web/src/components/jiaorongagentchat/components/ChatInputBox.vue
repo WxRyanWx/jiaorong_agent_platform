@@ -244,7 +244,7 @@ const props = withDefaults(
     slashItems?: readonly JiaorongSlashItem[]
     /** 已选知识库 / 文件夹 */
     knowledgeBaseSelections?: JiaorongKbSelection[]
-    /** 宿主应用 id，选文件与预览用 */
+    /** 超级智能体应用 id，选文件与预览用 */
     appId?: string
   }>(),
   {
@@ -277,7 +277,7 @@ const emit = defineEmits<{
   'remove-kb': [key: string]
 }>()
 
-/** 隐藏的 file input，宿主选文件失败时退回这里。 */
+/** 隐藏的 file input，超级智能体选文件失败时退回这里。 */
 const fileInput = useTemplateRef<HTMLInputElement>('fileInput')
 /** 输入框 DOM，用来读光标和算斜杠菜单位置。 */
 const textarea = useTemplateRef<HTMLTextAreaElement>('textarea')
@@ -396,7 +396,7 @@ function onKeydown(event: KeyboardEvent) {
   if (canSend.value && !props.generating) emit('send')
 }
 
-/** 优先走宿主选文件；失败再退回隐藏的 input */
+/** 优先走超级智能体选文件；失败再退回隐藏的 input */
 async function onPickFiles() {
   const picked = await pickHostFiles(props.appId)
   if (picked) {
@@ -424,7 +424,7 @@ const fileDropListeners = computed(() => {
   }
 })
 
-/** 浏览器 File 转宿主待发送附件并补预览 */
+/** 浏览器 File 转超级智能体待发送附件并补预览 */
 async function attachBrowserFiles(list: File[]) {
   if (!canAcceptFiles() || !list.length) return
   const next = browserFilesToHostPending(list)

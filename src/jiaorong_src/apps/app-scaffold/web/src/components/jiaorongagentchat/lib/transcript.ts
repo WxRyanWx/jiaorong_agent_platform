@@ -16,7 +16,7 @@ export type TranscriptFile = {
   name: string
   /** MIME，用来选图标或判断图片。 */
   mimeType?: string
-  /** 本地或宿主可打开的路径。 */
+  /** 本地或超级智能体可打开的路径。 */
   path?: string
   /** 预览缩略图 data URL / 地址。 */
   thumbnail?: string
@@ -26,7 +26,7 @@ export type TranscriptFile = {
  * 消息列表里的一条气泡数据。
  */
 export type TranscriptItem = {
-  /** 消息 id，与宿主记录或流式占位一致。 */
+  /** 消息 id，与超级智能体记录或流式占位一致。 */
   id: string
   /** 用户气泡或助手气泡。 */
   role: 'user' | 'assistant'
@@ -44,7 +44,7 @@ export type TranscriptItem = {
   skills: string[]
   /** 助手内容块；用户气泡为空数组。 */
   blocks: AssistantMessageBlock[]
-  /** 宿主消息状态。 */
+  /** 超级智能体消息状态。 */
   status: ChatMessageRecord['status']
 }
 
@@ -81,7 +81,7 @@ export function buildTranscript(
             const name = file.name?.trim()
             // 没有文件名无法画芯片，丢掉
             if (!name) return []
-            /** 本地或宿主可打开的路径。 */
+            /** 本地或超级智能体可打开的路径。 */
             const path = file.path?.trim()
             /** 预览缩略图地址。 */
             const thumbnail = file.thumbnail?.trim()

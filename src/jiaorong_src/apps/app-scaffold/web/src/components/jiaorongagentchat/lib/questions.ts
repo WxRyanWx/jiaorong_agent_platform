@@ -22,7 +22,7 @@ export type QuestionOption = {
 function parseOptions(raw: unknown): QuestionOption[] {
   /** 可能仍是 JSON 字符串，解开后再当数组用。 */
   let value: unknown = raw
-  // 宿主有时把选项序列化成 JSON 字符串，先解开
+  // 超级智能体有时把选项序列化成 JSON 字符串，先解开
   if (typeof value === 'string' && value.trim()) {
     try {
       value = JSON.parse(value)

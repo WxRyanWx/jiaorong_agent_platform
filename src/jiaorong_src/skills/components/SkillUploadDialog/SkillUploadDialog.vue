@@ -357,8 +357,7 @@ function handleInstallResult(
       conflictDialogOpen.value = false
       toast({
         title: '覆盖失败',
-        description:
-          '覆盖安装失败：原技能目录可能仍被占用或无法替换，请关闭相关程序后重试',
+        description: '覆盖安装失败：原技能目录可能仍被占用或无法替换，请关闭相关程序后重试',
         variant: 'destructive'
       })
       return
@@ -484,11 +483,7 @@ const handleConflictOverwrite = async () => {
           @dragleave.prevent="dragActive = false"
           @drop.prevent="handleDrop"
         >
-          <Icon
-            v-if="installing"
-            icon="lucide:loader-2"
-            class="skill-upload-dialog__spinner"
-          />
+          <Icon v-if="installing" icon="lucide:loader-2" class="skill-upload-dialog__spinner" />
           <template v-else-if="pickMenuOpen && splitFileFolderPicker">
             <div class="skill-upload-dialog__pick-menu" @click.stop>
               <p class="skill-upload-dialog__pick-title">请选择上传类型</p>
@@ -557,11 +552,7 @@ const handleConflictOverwrite = async () => {
           :disabled="!pending || installing"
           @click="runInstall(false)"
         >
-          <Icon
-            v-if="installing"
-            icon="lucide:loader-2"
-            class="skill-upload-dialog__btn-spinner"
-          />
+          <Icon v-if="installing" icon="lucide:loader-2" class="skill-upload-dialog__btn-spinner" />
           确认上传
         </Button>
       </div>

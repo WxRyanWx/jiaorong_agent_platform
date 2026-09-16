@@ -23,9 +23,10 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(chunks.join(''))
 }
 
-function encodeWriteTempContent(
-  content: string | ArrayBuffer | Uint8Array | number[]
-): { content: string; encoding: 'utf8' | 'base64' } {
+function encodeWriteTempContent(content: string | ArrayBuffer | Uint8Array | number[]): {
+  content: string
+  encoding: 'utf8' | 'base64'
+} {
   if (typeof content === 'string') {
     return { content, encoding: 'utf8' }
   }

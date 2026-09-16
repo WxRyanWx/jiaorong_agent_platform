@@ -2,12 +2,9 @@ import { describe, expect, it } from 'vitest'
 import {
   createDevToolsChordTracker,
   type DevToolsChordInput
-} from '../../../src/jiaorong_src/appHost/main/devtoolsChord'
+} from '../../../src/jiaorong_src/appHost/main/devtoolsShortcut'
 
-function keyDown(
-  key: string,
-  mods: Partial<DevToolsChordInput> = {}
-): DevToolsChordInput {
+function keyDown(key: string, mods: Partial<DevToolsChordInput> = {}): DevToolsChordInput {
   return {
     type: 'keyDown',
     key,
