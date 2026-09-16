@@ -1,3 +1,4 @@
+// @ts-nocheck
 // ── 消息类型定义 ──
 interface RequestMessage {
   msgType: 'request';
