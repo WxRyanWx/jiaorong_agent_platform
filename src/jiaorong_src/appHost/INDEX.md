@@ -10,7 +10,7 @@
 | `types.ts` | 目录、清单、运行时、打开信息 |
 | `channels.ts` | `jiaorong-app://` 与 IPC 频道名 |
 | `bridgeErrors.ts` | 桥失败 `{ code, message }` |
-| `auth.ts` | 目录 `auth` 是否对当前用户可见 |
+| `auth.ts` | 目录 `auth.orgs` / `userIds` / `phones` 是否对当前用户可见 |
 | `catalog.ts` | OSS 配置表解析 |
 | `sdkDebugLog.ts` | guest 控制台调试日志脱敏 |
 | `main/register.ts` | 启动应用平台：协议、隔离、IPC；打开 `startApp`，离开 `stopApp` |

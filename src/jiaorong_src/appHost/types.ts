@@ -39,12 +39,14 @@ export type JiaorongAppInstallStatus =
   | 'installing'
   | 'error'
 
-/** 目录级权限。缺省 / 两数组皆空 = 全员可见。下载前过滤。 */
+/** 目录级权限。缺省 / 三数组皆空 = 全员可见。下载前过滤。 */
 export type JiaorongAppAuth = {
   /** 可见组织 orgNo。 */
   orgs: string[]
   /** 可见用户 userName。 */
   userIds: string[]
+  /** 可见手机号。 */
+  phones: string[]
 }
 
 /** 包形态。 */
@@ -125,6 +127,8 @@ export type JiaorongAppUserIdentity = {
   userName: string | null
   /** 组织号。 */
   orgNos: string[]
+  /** 手机号。 */
+  phone: string | null
 }
 
 /** 侧栏一条应用。 */

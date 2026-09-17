@@ -14,29 +14,43 @@ import {
 describe('jiaorong app catalog auth', () => {
   const user = {
     userName: 'L20184974',
-    orgNos: ['101641966', '101231266']
+    orgNos: ['101641966', '101231266'],
+    phone: '13800138000'
   }
 
   it('shows everyone when auth is missing or empty', () => {
-    expect(isAppVisibleToUser(null, { userName: null, orgNos: [] })).toBe(true)
-    expect(isAppVisibleToUser({ orgs: [], userIds: [] }, user)).toBe(true)
+    expect(isAppVisibleToUser(null, { userName: null, orgNos: [], phone: null })).toBe(true)
+    expect(isAppVisibleToUser({ orgs: [], userIds: [], phones: [] }, user)).toBe(true)
   })
 
   it('matches userName as userid or any orgNo', () => {
-    expect(isAppVisibleToUser({ orgs: ['101641966'], userIds: [] }, user)).toBe(true)
-    expect(isAppVisibleToUser({ orgs: ['nope'], userIds: ['L20184974'] }, user)).toBe(true)
-    expect(isAppVisibleToUser({ orgs: ['nope'], userIds: ['other'] }, user)).toBe(false)
+    expect(isAppVisibleToUser({ orgs: ['101641966'], userIds: [], phones: [] }, user)).toBe(true)
+    expect(isAppVisibleToUser({ orgs: ['nope'], userIds: ['L20184974'], phones: [] }, user)).toBe(
+      true
+    )
+    expect(isAppVisibleToUser({ orgs: ['nope'], userIds: ['other'], phones: [] }, user)).toBe(false)
+  })
+
+  it('matches phone when userId and org miss', () => {
+    expect(
+      isAppVisibleToUser({ orgs: ['nope'], userIds: ['other'], phones: ['13800138000'] }, user)
+    ).toBe(true)
+    expect(
+      isAppVisibleToUser({ orgs: ['nope'], userIds: ['other'], phones: ['13900000000'] }, user)
+    ).toBe(false)
   })
 
   it('reads userName and orgList.orgNo from userInfo', () => {
     expect(
       readUserIdentityFromUserInfo({
         userName: 'L20184974',
+        phone: '13800138000',
         orgList: [{ orgNo: '101641966', name: 'AI中心业务组' }]
       })
     ).toEqual({
       userName: 'L20184974',
-      orgNos: ['101641966']
+      orgNos: ['101641966'],
+      phone: '13800138000'
     })
   })
 
