@@ -12,7 +12,7 @@
 | `types.ts` | 目录项、清单、运行时、打开信息等宿主类型 |
 | `channels.ts` | `jiaorong-app://` 协议名与 IPC 频道名 |
 | `bridgeErrors.ts` | 桥错误码；IPC 失败结果与成功 payload 的区分 |
-| `auth.ts` | 目录 `auth.orgs` / `userIds` 解析与当前用户是否可见 |
+| `auth.ts` | 目录 `auth.orgs` / `userIds` / `phones` 解析与当前用户是否可见 |
 | `catalog.ts` | 从 OSS 运行时配置解析应用列表；本地 json 不参与运行 |
 | `builtinCatalog.json` | 历史内置目录样例；运行时不读，以 OSS 为准 |
 | `preload.ts` | 应用 webview 专用 preload：暴露 `window.jiaorong` |
