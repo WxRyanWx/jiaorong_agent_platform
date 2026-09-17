@@ -2,6 +2,8 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { randomBytes } from 'node:crypto'
 import { spawn, execSync, ChildProcess } from 'node:child_process'
+import { COLLABORATION_PLATFORM_APP_ID, isSystemBundledApp } from '../systemApps'
+import { getBuiltinAppDir } from './paths'
 
 // ==================== 枚举 ====================
 
@@ -360,23 +362,41 @@ class appsManages {
    * 支持三种加载方式：
    * 1. 直接子文件夹内的 app.json
    * 2. .app-link.json 链接文件
+   * 3. 随客户端内置的系统应用（不在用户 apps 目录）
    */
   private scanApps(): void {
     this.appCache.clear()
     this.appFolderMap.clear()
     this.appLinkMap.clear()
 
-    if (!fs.existsSync(this.appsRootPath)) return
-
-    const entries = fs.readdirSync(this.appsRootPath, { withFileTypes: true })
-    for (const entry of entries) {
-      if (entry.isDirectory()) {
-        this.tryLoadFromDirectory(entry.name)
-      } else if (entry.isFile() && entry.name.endsWith('.app-link.json')) {
-        this.tryLoadFromLink(entry.name)
+    if (fs.existsSync(this.appsRootPath)) {
+      const entries = fs.readdirSync(this.appsRootPath, { withFileTypes: true })
+      for (const entry of entries) {
+        if (entry.isDirectory()) {
+          if (isSystemBundledApp(entry.name)) continue
+          this.tryLoadFromDirectory(entry.name)
+        } else if (entry.isFile() && entry.name.endsWith('.app-link.json')) {
+          this.tryLoadFromLink(entry.name)
+        }
       }
     }
+    this.loadSystemBundledApps()
     console.log(`[appsManages] 扫描完成，共加载 ${this.appCache.size} 个应用`)
+  }
+
+  /** 把随包系统应用登记为引用，cwd / spawn 走内置目录。 */
+  private loadSystemBundledApps(): void {
+    const sourcePath = getBuiltinAppDir(COLLABORATION_PLATFORM_APP_ID)
+    const configPath = path.join(sourcePath, this.configFileName)
+    if (!fs.existsSync(configPath)) return
+    const manifest = this.readJSON<AppManifest>(configPath)
+    if (!manifest || !isSystemBundledApp(manifest.id)) return
+    const config = this.buildFullConfig(manifest, {
+      installType: AppInstallType.DEVELOPMENT,
+      installSource: sourcePath
+    })
+    this.appCache.set(config.id, config)
+    this.appLinkMap.set(config.id, sourcePath)
   }
 
   /** 尝试从子文件夹加载 app.json */
@@ -385,7 +405,7 @@ class appsManages {
     if (!fs.existsSync(configPath)) return false
 
     const manifest = this.readJSON<AppManifest>(configPath)
-    if (!manifest) return false
+    if (!manifest || isSystemBundledApp(manifest.id)) return false
 
     const runtimePath = path.join(this.appsRootPath, folderName, '.app-runtime.json')
     const runtimeMeta = this.readJSON<Partial<AppConfig>>(runtimePath)
@@ -415,7 +435,7 @@ class appsManages {
     }
 
     const manifest = this.readJSON<AppManifest>(manifestPath)
-    if (!manifest) return false
+    if (!manifest || isSystemBundledApp(manifest.id)) return false
 
     const config = this.buildFullConfig(manifest, {
       installType: AppInstallType.DEVELOPMENT,

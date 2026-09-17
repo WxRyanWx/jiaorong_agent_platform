@@ -1,4 +1,5 @@
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -55,6 +56,17 @@ describe('appsManages', () => {
     expect(manager.isRunning('hello-app')).toBe(false)
   })
 
+  it('registers bundled collaboration-platform from builtin dir, not apps root', async () => {
+    const appsRoot = await makeRoot()
+    const manager = new appsManages(path.join(appsRoot, 'apps'))
+    const dir = manager.getAppDir('collaboration-platform')
+    expect(dir).toBeTruthy()
+    expect(dir && existsSync(path.join(dir, 'app.json'))).toBe(true)
+    expect(dir?.includes(path.join(appsRoot, 'apps'))).toBe(false)
+    const started = manager.startApp('collaboration-platform')
+    expect(started.success, started.message).toBe(true)
+  })
+
   it('skips start when spawn is absent', async () => {
     const appsRoot = await makeRoot()
     const source = path.join(appsRoot, 'plain')
@@ -65,13 +77,13 @@ describe('appsManages', () => {
         id: 'plain-app',
         name: 'Plain',
         version: '1.0.0',
-        entry: 'web-ui/index.html',
+        entry: 'web-ui/plain.html',
         slot: 'menu'
       }),
       'utf8'
     )
     const manager = new appsManages(path.join(appsRoot, 'apps'))
-    expect(manager.installAppFromPath(source, { mode: 'copy' }).success).toBe(true)
+    expect(manager.installAppFromPath(source, { mode: 'copy', overwrite: true }).success).toBe(true)
     const started = manager.startApp('plain-app')
     expect(started.success).toBe(true)
     expect(started.data?.pid).toBe(0)

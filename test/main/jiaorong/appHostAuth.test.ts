@@ -10,6 +10,7 @@ import {
   parseAppCatalogFile,
   resetRemoteAppCatalogForTests
 } from '../../../src/jiaorong_src/appHost/catalog'
+import { mergeSystemBundledCatalog } from '../../../src/jiaorong_src/appHost/systemApps'
 
 describe('jiaorong app catalog auth', () => {
   const user = {
@@ -84,6 +85,38 @@ describe('jiaorong app catalog auth', () => {
     expect(merged[0]?.source).toBe('store')
     expect(merged[0]?.auth?.orgs).toEqual(['101641966'])
     expect(merged[0]?.package.downloadUrl).toBe('https://example.test/demo.zip')
+  })
+
+  it('keeps collaboration-platform on the bundled package and only takes OSS auth', () => {
+    const system = parseAppCatalogFile({
+      apps: [
+        {
+          id: 'collaboration-platform',
+          name: '协同平台',
+          version: '1.0.1',
+          source: 'builtin',
+          package: { kind: 'dir', builtinDir: 'collaboration-platform' }
+        }
+      ]
+    })
+    const merged = mergeSystemBundledCatalog(system, [
+      {
+        ...system[0],
+        source: 'store',
+        version: '9.9.9',
+        auth: { orgs: [], userIds: [], phones: ['13800138000'] },
+        package: {
+          kind: 'zip',
+          builtinDir: 'collaboration-platform',
+          downloadUrl: 'https://example.test/collab.zip'
+        }
+      }
+    ])
+    expect(merged).toHaveLength(1)
+    expect(merged[0]?.version).toBe('1.0.1')
+    expect(merged[0]?.source).toBe('builtin')
+    expect(merged[0]?.package.downloadUrl).toBeUndefined()
+    expect(merged[0]?.auth?.phones).toEqual(['13800138000'])
   })
 })
 

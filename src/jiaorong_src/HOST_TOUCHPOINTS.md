@@ -153,7 +153,7 @@
 | H148 | `src/main/desktop/window/index.ts` | 主窗口 `webviewTag: true` | app embed | 中 | 仅宿主页用 webview 加载应用；应用 guest 走独立 partition |
 | H149 | `src/preload/index.ts` `index.d.ts` | 暴露 `window.jiaorongApps` | app embed | 低 | listVisible / getOpenInfo / leave / onCatalogChanged |
 | H150 | `src/renderer/src/components/WindowSideBar.vue` `useJiaorongMenuApps.ts` | 嵌入应用独立 v-for；`jiaorong_auth_session` 变化刷新 listVisible | app embed | 中 | **不**并入 `listJiaorongSidebarItems('after-deepchat')` |
-| H151 | `electron-builder.yml` | extraResources `jiaorong-apps/demo-workbench`、`jiaorong-apps/collaboration-platform` | app embed | 低 | 排除 `web/` 源码；有 Node 的应用带上 `node/node_modules` |
+| H151 | `electron-builder.yml` | extraResources `jiaorong-apps/app-scaffold`、`jiaorong-apps/collaboration-platform` | app embed | 低 | 协同平台随包内置，运行时不拷到用户 apps；排除 `web/` 源码；有 Node 的应用带上 `node/node_modules` |
 | H152 | `src/renderer/src/i18n/*/routes.json` | embeddedApp* 文案 | app embed | 低 | |
 | H153 | `tsconfig.node.json` / `tsconfig.app.json` | include appHost main / bridgeErrors；renderer 排除 main/preload | app embed | 低 | |
 | H154 | `src/main/app/composition.ts` | dialogue 端口含权限/编排写入 + `publishDeepchatEvent` 转应用 guest；已归属应用的 session 事件不再 `renderer-all` | app embed | 高 | 不改 DeepChat route map；事件另发 `jiaorong-app:bridge-event`，必须带目标 appId |

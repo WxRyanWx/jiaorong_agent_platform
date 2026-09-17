@@ -1,4 +1,4 @@
-/** 扫 OSS 目录与本机已装，把配置表允许的内置应用拷到用户 apps 目录。 */
+/** 扫 OSS 目录与本机已装；协同平台随客户端内置，不拷到用户 apps。 */
 
 import fs from 'node:fs'
 import os from 'node:os'
@@ -6,6 +6,11 @@ import path from 'node:path'
 import { app } from 'electron'
 import { isAppVisibleToUser } from '../auth'
 import { loadBuiltinAppCatalog, mergeAppCatalogs } from '../catalog'
+import {
+  COLLABORATION_PLATFORM_APP_ID,
+  isSystemBundledApp,
+  mergeSystemBundledCatalog
+} from '../systemApps'
 import type {
   JiaorongAppCatalogRecord,
   JiaorongAppInstallStatus,
@@ -113,7 +118,7 @@ function listLocalDebugApps(catalogIds: Set<string>): JiaorongAppCatalogRecord[]
   /** 目录下一档。 */
   for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
     if (!entry.isDirectory()) continue
-    if (catalogIds.has(entry.name)) continue
+    if (catalogIds.has(entry.name) || isSystemBundledApp(entry.name)) continue
     /** 应用安装目录。 */
     const appDir = path.join(root, entry.name)
     /** 应用清单。 */
@@ -145,6 +150,10 @@ export function combineRemoteAndLocalDebugApps(
 
 /** 这条目录是否还能装：用户目录已有，或仓库/extraResources 里有源。 */
 export function catalogRecordHasInstallSource(record: JiaorongAppCatalogRecord): boolean {
+  if (isSystemBundledApp(record.id)) {
+    const builtinDir = record.package.builtinDir
+    return Boolean(builtinDir && fs.existsSync(getBuiltinAppDir(builtinDir)))
+  }
   if (record.source === 'store') return true
   const destDir = getUserAppDir(record.id)
   if (readAppManifest(destDir)) return true
@@ -152,18 +161,75 @@ export function catalogRecordHasInstallSource(record: JiaorongAppCatalogRecord):
   return Boolean(builtinDir && fs.existsSync(getBuiltinAppDir(builtinDir)))
 }
 
-/** 扫描并解析一个应用运行时。 */
+/**
+ * 指向 extraResources / 仓库内的系统应用目录，不拷贝。
+ * @param runtime 目录项
+ */
+function bindSystemBundledDir(runtime: JiaorongAppRuntime): JiaorongAppRuntime {
+  /** 内置目录名。 */
+  const builtinName = runtime.package.builtinDir || runtime.id
+  /** 随包目录。 */
+  const appDir = getBuiltinAppDir(builtinName)
+  /** 包内清单。 */
+  const manifest = readAppManifest(appDir)
+  return {
+    ...runtime,
+    appDir: manifest ? appDir : null,
+    installedVersion: manifest?.version ?? null,
+    installStatus: manifest ? 'installed' : 'error',
+    entry: manifest?.entry ?? null
+  }
+}
+
+/**
+ * 从 extraResources / 仓库 apps 读系统应用清单。
+ */
+function loadSystemBundledCatalog(): JiaorongAppCatalogRecord[] {
+  /** 协同平台源目录。 */
+  const appDir = getBuiltinAppDir(COLLABORATION_PLATFORM_APP_ID)
+  /** 包内 app.json。 */
+  const manifest = readAppManifest(appDir)
+  if (!manifest) return []
+  return [
+    {
+      id: manifest.id,
+      name: manifest.name,
+      version: manifest.version,
+      description: manifest.description,
+      icon: manifest.icon,
+      slot: 'menu',
+      source: 'builtin',
+      enabled: true,
+      auth: null,
+      package: { kind: 'dir', builtinDir: COLLABORATION_PLATFORM_APP_ID }
+    }
+  ]
+}
+
+/**
+ * 系统应用固定用内置目录，不把 extraResources 当成「用户已装」。
+ */
 function resolveRuntime(
   record: JiaorongAppCatalogRecord,
   user: JiaorongAppUserIdentity
 ): JiaorongAppRuntime {
+  const catalogVisible = record.enabled !== false && isAppVisibleToUser(record.auth, user)
+  if (isSystemBundledApp(record.id)) {
+    return bindSystemBundledDir({
+      ...record,
+      visible: catalogVisible,
+      installStatus: 'not_installed',
+      installedVersion: null,
+      appDir: null,
+      entry: null
+    })
+  }
   /** userDir 路径。 */
   const userDir = getUserAppDir(record.id)
   /** 用户目录里的清单。 */
   const userManifest = fs.existsSync(userDir) ? readAppManifest(userDir) : null
   /** 配置表允许看见，或本机已经有安装目录（无配置权限但手丢了也能进侧栏）。 */
   const onDisk = Boolean(userManifest)
-  const catalogVisible = record.enabled !== false && isAppVisibleToUser(record.auth, user)
   const visible = catalogVisible || onDisk
 
   /** 应用安装目录。 */
@@ -198,7 +264,10 @@ function resolveRuntime(
 /** 扫当前用户可见应用。谁能看见只看 OSS 配置表；本机已装的包另外并上。 */
 export function scanJiaorongApps(user: JiaorongAppUserIdentity): JiaorongAppRuntime[] {
   const remote = loadBuiltinAppCatalog()
-  const merged = mergeAppCatalogs(remote, []).filter(catalogRecordHasInstallSource)
+  const system = loadSystemBundledCatalog()
+  const merged = mergeAppCatalogs(mergeSystemBundledCatalog(system, remote), []).filter(
+    catalogRecordHasInstallSource
+  )
   const localDebug = listLocalDebugApps(new Set(merged.map((item) => item.id)))
   return combineRemoteAndLocalDebugApps(merged, localDebug).map((record) =>
     resolveRuntime(record, user)
@@ -210,6 +279,7 @@ export function ensureJiaorongAppInstalled(
   runtime: JiaorongAppRuntime,
   options?: { refresh?: boolean }
 ): JiaorongAppRuntime {
+  if (isSystemBundledApp(runtime.id)) return bindSystemBundledDir(runtime)
   if (runtime.source === 'local-debug') return runtime
 
   /** 用户安装目录。 */
