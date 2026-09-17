@@ -1,3 +1,9 @@
+/**
+ * 应用安装管理器：装 / 卸 / 更新 / 启停应用包。
+ * 磁盘根目录是用户 apps 目录；点开应用时按 `app.json.spawn` 起子进程，
+ * 只带握手用的 `JIAORONG_BRIDGE_TOKEN`，不注入超级智能体 IPC。
+ */
+
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { randomBytes } from 'node:crypto'
@@ -133,8 +139,11 @@ type UpdateAppOptions = Partial<
 
 /** 操作结果 */
 interface AppManageResult<T = void> {
+  /** 操作是否成功 */
   success: boolean
+  /** 面向日志/调用方的说明 */
   message: string
+  /** 成功时携带的数据 */
   data?: T
 }
 
@@ -142,13 +151,21 @@ interface AppManageResult<T = void> {
 
 /** 应用事件类型 */
 type AppEventName =
+  /** 安装完成 */
   | 'installed'
+  /** 卸载完成 */
   | 'uninstalled'
+  /** 已启用 */
   | 'enabled'
+  /** 已禁用 */
   | 'disabled'
+  /** 配置已更新 */
   | 'updated'
+  /** 出错（健康检查或子进程异常） */
   | 'error'
+  /** 子进程已启动 */
   | 'running'
+  /** 子进程已停止 */
   | 'stopped'
 
 /** 事件回调 */
@@ -172,7 +189,9 @@ interface AppEvent {
 
 /** 运行时状态缓存（不写入 app.json，仅内存维护，可选持久化到 .app-runtime.json） */
 interface AppRuntimeRecord {
+  /** 应用 ID */
   appId: string
+  /** 当前运行时状态 */
   state: AppState
   /** Node 服务进程 PID（运行时） */
   pid?: number
@@ -200,17 +219,24 @@ interface AppLinkFile {
 
 /** .app-runtime.json — 运行时状态持久化文件 */
 interface AppRuntimeFile {
+  /** 键为 appId，值为该应用的运行时快照 */
   [appId: string]: {
+    /** 运行时状态 */
     state: AppState
+    /** Node 服务进程 PID */
     pid?: number
+    /** 健康检查是否通过 */
     healthy: boolean
+    /** 上次健康检查时间 */
     lastHealthCheck?: string
+    /** 最后错误信息 */
     lastError?: string
   }
 }
 
 // ==================== 主类 ====================
 
+/** 应用安装管理器；一个客户端进程持有一个实例。 */
 class appsManages {
   /** APPS 根目录路径 */
   private appsRootPath: string
@@ -235,6 +261,7 @@ class appsManages {
    * @param configFileName - 清单配置文件名，默认 `app.json`
    */
   constructor(appsFolderPath: string, configFileName: string = 'app.json') {
+    // 统一成绝对路径，后续拼接不受进程 cwd 影响
     this.appsRootPath = path.resolve(appsFolderPath)
     this.configFileName = configFileName
     // 确保根目录存在
@@ -258,21 +285,32 @@ class appsManages {
     lastError?: string,
     child?: ChildProcess
   ): void {
+    // 传了 child 但已不是当前登记的进程（说明又被重启过），不要覆盖新进程状态
     if (child && this.runningProcesses.get(appId) !== child) return
     this.runningProcesses.delete(appId)
+    /** 该应用的运行时记录。 */
     const runtime = this.appRuntimeCache.get(appId)
+    // 没有运行时记录就不用回写
     if (!runtime) return
+    // 清掉进程引用与 PID，避免误判为「仍在运行」
     runtime.process = undefined
     runtime.pid = undefined
     runtime.state = state
+    // 只在调用方明确给了错误信息时写
     if (lastError !== undefined) runtime.lastError = lastError
     this.saveRuntimeState()
   }
 
-  /** shell:true 时真正听端口的是孙进程；只杀 shell 会留下旧 Node 占口。 */
+  /**
+   * shell:true 时真正听端口的是孙进程；只杀 shell 会留下旧 Node 占口。
+   * @param child 要终止的子进程
+   */
   private killChildTree(child: ChildProcess): void {
+    /** 子进程 PID。 */
     const pid = child.pid
+    // spawn 失败时可能没有 pid
     if (!pid) return
+    // Windows：taskkill /T 递归杀整棵进程树
     if (process.platform === 'win32') {
       try {
         execSync(`taskkill /PID ${pid} /T /F`, { stdio: 'pipe' })
@@ -282,9 +320,11 @@ class appsManages {
       return
     }
     try {
+      // POSIX：负 PID 表示整个进程组（spawn 时用了 detached）
       process.kill(-pid, 'SIGKILL')
     } catch {
       try {
+        // 进程组不存在，退化成只杀 shell 本身
         child.kill('SIGKILL')
       } catch {
         /* already gone */
@@ -292,9 +332,14 @@ class appsManages {
     }
   }
 
-  /** Electron 重启后 Map 是空的，旧 Node 仍占 cwd。按工作目录清掉残留。 */
+  /**
+   * Electron 重启后 Map 是空的，旧 Node 仍占 cwd。按工作目录清掉残留。
+   * @param appDir 应用工作目录
+   */
   private killLeftoverInDir(appDir: string): void {
+    // 目录为空或 Windows（没有 pgrep / procfs）时跳过
     if (!appDir || process.platform === 'win32') return
+    /** pgrep 输出的 PID 列表。 */
     let pids = ''
     try {
       pids = execSync('pgrep -f node', {
@@ -302,26 +347,35 @@ class appsManages {
         stdio: ['ignore', 'pipe', 'ignore']
       }).trim()
     } catch {
+      // 没有任何 node 进程，pgrep 会以非 0 退出
       return
     }
     for (const raw of pids.split('\n')) {
+      /** 单个 PID。 */
       const pid = Number(raw.trim())
+      // 非法 PID 或客户端自己
       if (!Number.isInteger(pid) || pid <= 0 || pid === process.pid) continue
+      /** 该进程的工作目录。 */
       let cwd = ''
       try {
+        // Linux 直接读 procfs
         if (process.platform === 'linux') {
           cwd = fs.readlinkSync(`/proc/${pid}/cwd`)
         } else {
+          // macOS 用 lsof 取 cwd
           const lsof = execSync(`lsof -a -p ${pid} -d cwd -Fn`, {
             encoding: 'utf8',
             stdio: ['ignore', 'pipe', 'ignore']
           })
+          /** lsof 输出里以 n 开头的那行。 */
           const line = lsof.split('\n').find((row) => row.startsWith('n'))
           cwd = line ? line.slice(1) : ''
         }
       } catch {
+        // 读不到 cwd（权限或进程已退出）就跳过
         continue
       }
+      // 只杀工作目录正好是该应用目录的进程
       if (path.resolve(cwd) !== path.resolve(appDir)) continue
       try {
         process.kill(pid, 'SIGKILL')
@@ -333,25 +387,39 @@ class appsManages {
 
   // ========== 磁盘存储辅助 ==========
 
-  /** 确保目录存在 */
+  /**
+   * 确保目录存在
+   * @param dir 目录路径
+   */
   private ensureDir(dir: string): void {
+    // 已存在就不动，避免多余的 mkdir
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true })
     }
   }
 
-  /** 读取 JSON 文件 */
+  /**
+   * 读取 JSON 文件
+   * @param filePath 文件路径
+   */
   private readJSON<T>(filePath: string): T | null {
+    // 文件不存在
     if (!fs.existsSync(filePath)) return null
     try {
       return JSON.parse(fs.readFileSync(filePath, 'utf-8')) as T
     } catch {
+      // JSON 损坏按「没有」处理，由调用方决定后续动作
       return null
     }
   }
 
-  /** 写入 JSON 文件 */
+  /**
+   * 写入 JSON 文件
+   * @param filePath 文件路径
+   * @param data 待序列化数据
+   */
   private writeJSON<T>(filePath: string, data: T): void {
+    // 两空格缩进，方便人工排查
     fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8')
   }
 
@@ -365,95 +433,138 @@ class appsManages {
    * 3. 随客户端内置的系统应用（不在用户 apps 目录）
    */
   private scanApps(): void {
+    // 全量重扫，先清三份缓存
     this.appCache.clear()
     this.appFolderMap.clear()
     this.appLinkMap.clear()
 
+    // 用户 apps 目录可能还没建
     if (fs.existsSync(this.appsRootPath)) {
+      /** 根目录下的一档条目。 */
       const entries = fs.readdirSync(this.appsRootPath, { withFileTypes: true })
       for (const entry of entries) {
+        // 子文件夹：普通安装的应用
         if (entry.isDirectory()) {
+          // 系统应用不拷到用户目录，跳过以免重复登记
           if (isSystemBundledApp(entry.name)) continue
           this.tryLoadFromDirectory(entry.name)
         } else if (entry.isFile() && entry.name.endsWith('.app-link.json')) {
+          // 链接文件：link 模式安装的应用
           this.tryLoadFromLink(entry.name)
         }
       }
     }
+    // 随客户端内置的系统应用单独登记
     this.loadSystemBundledApps()
     console.log(`[appsManages] 扫描完成，共加载 ${this.appCache.size} 个应用`)
   }
 
   /** 把随包系统应用登记为引用，cwd / spawn 走内置目录。 */
   private loadSystemBundledApps(): void {
+    /** 内置源目录。 */
     const sourcePath = getBuiltinAppDir(COLLABORATION_PLATFORM_APP_ID)
+    /** 内置 app.json 路径。 */
     const configPath = path.join(sourcePath, this.configFileName)
+    // 本次发布没带该应用
     if (!fs.existsSync(configPath)) return
+    /** 内置清单。 */
     const manifest = this.readJSON<AppManifest>(configPath)
+    // 清单缺失，或 id 不是系统应用（防止误改内置包）
     if (!manifest || !isSystemBundledApp(manifest.id)) return
+    /** 完整配置。 */
     const config = this.buildFullConfig(manifest, {
+      // 按开发模式登记：不复制、直接指向内置目录
       installType: AppInstallType.DEVELOPMENT,
       installSource: sourcePath
     })
     this.appCache.set(config.id, config)
+    // 记进 link 表，getAppDir 会返回内置目录
     this.appLinkMap.set(config.id, sourcePath)
   }
 
-  /** 尝试从子文件夹加载 app.json */
+  /**
+   * 尝试从子文件夹加载 app.json
+   * @param folderName 用户 apps 目录下的子文件夹名
+   */
   private tryLoadFromDirectory(folderName: string): boolean {
+    /** 清单路径。 */
     const configPath = path.join(this.appsRootPath, folderName, this.configFileName)
+    // 不是应用目录（没有 app.json）
     if (!fs.existsSync(configPath)) return false
 
+    /** 清单内容。 */
     const manifest = this.readJSON<AppManifest>(configPath)
+    // 清单无效，或目录名撞了系统应用
     if (!manifest || isSystemBundledApp(manifest.id)) return false
 
+    /** 运行时元数据路径。 */
     const runtimePath = path.join(this.appsRootPath, folderName, '.app-runtime.json')
+    /** 已持久化的运行时字段（enabled / installSource 等）。 */
     const runtimeMeta = this.readJSON<Partial<AppConfig>>(runtimePath)
 
+    /** 完整配置。 */
     const config = this.buildFullConfig(manifest, {
       installType: AppInstallType.NORMAL,
       installSource: path.join(this.appsRootPath, folderName),
+      // 运行时元数据覆盖默认值，保留上次的启用状态
       ...runtimeMeta
     })
 
     this.appCache.set(config.id, config)
+    // 记下 id → 文件夹名，后续按 O(1) 找目录
     this.appFolderMap.set(config.id, folderName)
     return true
   }
 
-  /** 尝试从 .app-link.json 加载链接应用 */
+  /**
+   * 尝试从 .app-link.json 加载链接应用
+   * @param linkFileName 链接文件名
+   */
   private tryLoadFromLink(linkFileName: string): boolean {
+    /** 链接文件路径。 */
     const linkPath = path.join(this.appsRootPath, linkFileName)
+    /** 链接文件内容。 */
     const linkData = this.readJSON<AppLinkFile>(linkPath)
+    // 链接文件损坏
     if (!linkData) return false
 
     const { sourcePath } = linkData
+    /** 源目录下的清单路径。 */
     const manifestPath = path.join(sourcePath, this.configFileName)
+    // 源目录被删或移动
     if (!fs.existsSync(manifestPath)) {
       console.warn(`[appsManages] 链接源已失效: ${sourcePath}`)
       return false
     }
 
+    /** 源清单。 */
     const manifest = this.readJSON<AppManifest>(manifestPath)
+    // 清单无效，或指向了系统应用
     if (!manifest || isSystemBundledApp(manifest.id)) return false
 
+    /** 完整配置。 */
     const config = this.buildFullConfig(manifest, {
       installType: AppInstallType.DEVELOPMENT,
       installSource: sourcePath
     })
 
     this.appCache.set(config.id, config)
+    // 记进 link 表，读写配置都走源目录
     this.appLinkMap.set(config.id, sourcePath)
     return true
   }
 
   /**
    * 从 manifest 构建完整的 AppConfig（补全元数据字段）
+   * @param manifest 包内清单
+   * @param overrides 需要覆盖的元数据字段
    */
   private buildFullConfig(manifest: AppManifest, overrides: Partial<AppConfig>): AppConfig {
+    /** 统一的本次时间戳。 */
     const now = new Date().toISOString()
     return {
       ...manifest,
+      // 下面几项是缺省值，overrides 里给了就以 overrides 为准
       enabled: true,
       installType: AppInstallType.SIDELOAD,
       installSource: this.appsRootPath,
@@ -468,7 +579,9 @@ class appsManages {
    * 重新扫描所有应用（刷新缓存）
    */
   refresh(): void {
+    // 重新扫盘，磁盘上手动增删的包也能被感知
     this.scanApps()
+    // 重扫后缓存被清空，需要重新贴回运行时状态
     this.loadRuntimeState()
   }
 
@@ -476,17 +589,24 @@ class appsManages {
 
   /** 从 .app-runtime.json 加载运行时状态 */
   private loadRuntimeState(): void {
+    /** 运行时状态文件路径。 */
     const runtimePath = path.join(this.appsRootPath, '.app-runtime.json')
+    /** 文件内容。 */
     const data = this.readJSON<AppRuntimeFile>(runtimePath)
+    // 文件不存在或损坏
     if (!data) return
 
     for (const [appId, record] of Object.entries(data)) {
+      // 只恢复当前确实存在的应用，避免残留脏数据
       if (this.appCache.has(appId)) {
+        /** 内存里已有的记录，用于保留进程引用。 */
         const previous = this.appRuntimeCache.get(appId)
         this.appRuntimeCache.set(appId, {
           appId,
+          // 字段缺失时给安全默认值
           state: record.state ?? AppState.INSTALLED,
           pid: record.pid,
+          // 进程引用不可持久化，沿用内存里的
           process: previous?.process,
           healthy: record.healthy ?? false,
           lastHealthCheck: record.lastHealthCheck,
@@ -498,9 +618,12 @@ class appsManages {
 
   /** 持久化运行时状态到 .app-runtime.json */
   private saveRuntimeState(): void {
+    /** 运行时状态文件路径。 */
     const runtimePath = path.join(this.appsRootPath, '.app-runtime.json')
+    /** 待写入的数据。 */
     const data: AppRuntimeFile = {}
     for (const [appId, record] of this.appRuntimeCache) {
+      // 只落可序列化的字段，process 引用不写盘
       data[appId] = {
         state: record.state,
         pid: record.pid,
@@ -512,9 +635,14 @@ class appsManages {
     this.writeJSON(runtimePath, data)
   }
 
-  /** 获取或创建运行时记录 */
+  /**
+   * 获取或创建运行时记录
+   * @param appId 应用 ID
+   */
   private getOrCreateRuntime(appId: string): AppRuntimeRecord {
+    /** 已有记录。 */
     let record = this.appRuntimeCache.get(appId)
+    // 首次访问，建一条初始记录
     if (!record) {
       record = {
         appId,
@@ -526,8 +654,12 @@ class appsManages {
     return record
   }
 
-  /** 获取应用运行时状态 */
+  /**
+   * 获取应用运行时状态
+   * @param appId 应用 ID
+   */
   getAppState(appId: string): AppRuntimeRecord | null {
+    // 没有记录返回 null，调用方据此判断应用是否存在
     return this.appRuntimeCache.get(appId) ?? null
   }
 
@@ -541,25 +673,34 @@ class appsManages {
    * @param options - 注册选项
    */
   registerApp(manifest: AppManifest, options: RegisterAppOptions = {}): AppManageResult<AppConfig> {
+    /** 目标文件夹名、是否覆盖、是否立即启用。 */
     const { folderName = manifest.id, overwrite = false, enable = true } = options
 
     // 冲突检测
+    /** 冲突检测结果。 */
     const conflictCheck = this.checkConflicts(manifest)
+    // 有冲突且调用方没允许覆盖
     if (!conflictCheck.success && !overwrite) {
       return { success: false, message: conflictCheck.message }
     }
 
     // 校验必填字段
+    /** 清单校验结果。 */
     const validation = this.validateManifest(manifest)
+    // 校验不过直接回失败
     if (!validation.success) return validation as AppManageResult<AppConfig>
 
+    /** 目标应用目录。 */
     const appDir = path.join(this.appsRootPath, folderName)
+    /** 目标 app.json 路径。 */
     const configPath = path.join(appDir, this.configFileName)
 
     try {
       this.ensureDir(appDir)
 
+      /** 统一的本次时间戳。 */
       const now = new Date().toISOString()
+      /** 完整配置。 */
       const config = this.buildFullConfig(manifest, {
         enabled: enable,
         installType: AppInstallType.SIDELOAD,
@@ -574,8 +715,10 @@ class appsManages {
       // 将运行时字段单独写入 .app-runtime.json
       this.saveAppRuntimeMeta(folderName, config)
 
+      // 更新三份内存索引
       this.appCache.set(config.id, config)
       this.appFolderMap.set(config.id, folderName)
+      // 按 enable 落运行时状态并持久化
       this.getOrCreateRuntime(config.id).state = enable ? AppState.ENABLED : AppState.DISABLED
       this.saveRuntimeState()
 
@@ -583,6 +726,7 @@ class appsManages {
 
       return { success: true, message: `应用 "${config.id}" 注册成功`, data: config }
     } catch (err) {
+      // 写盘失败：不回滚已建目录，交由调用方重试或覆盖安装
       return { success: false, message: `注册应用失败: ${(err as Error).message}` }
     }
   }
@@ -604,51 +748,71 @@ class appsManages {
     sourceFolderPath: string,
     options: InstallFromPathOptions = {}
   ): AppManageResult<AppConfig> {
+    /** 安装模式、目标文件夹名、是否覆盖、是否立即启用。 */
     const { mode = 'copy', folderName, overwrite = false, enable = true } = options
 
     // 规范化源路径
+    /** 源目录绝对路径。 */
     const sourcePath = path.resolve(sourceFolderPath)
 
     // 校验源文件夹
+    // 源目录不存在
     if (!fs.existsSync(sourcePath)) {
       return { success: false, message: `源文件夹不存在: ${sourcePath}` }
     }
+    // 源路径是文件而不是目录
     if (!fs.statSync(sourcePath).isDirectory()) {
       return { success: false, message: `源路径不是文件夹: ${sourcePath}` }
     }
 
     // 读取并校验 app.json
+    /** 源清单路径。 */
     const manifestPath = path.join(sourcePath, this.configFileName)
+    // 源目录不是应用包
     if (!fs.existsSync(manifestPath)) {
       return { success: false, message: `在 ${sourcePath} 中未找到 ${this.configFileName}` }
     }
 
+    /** 源清单内容。 */
     const manifest = this.readJSON<AppManifest>(manifestPath)
+    // JSON 损坏
     if (!manifest) {
       return { success: false, message: `${this.configFileName} 格式无效` }
     }
 
+    /** 清单校验结果。 */
     const validation = this.validateManifest(manifest)
+    // 必填字段或版本号不合规
     if (!validation.success) return validation as AppManageResult<AppConfig>
 
     // 冲突检测
+    /** 冲突检测结果。 */
     const conflictCheck = this.checkConflicts(manifest)
+    // 有冲突且没允许覆盖
     if (!conflictCheck.success && !overwrite) {
       return { success: false, message: conflictCheck.message }
     }
 
     // 依赖检查
+    /** 依赖解析结果。 */
     const depCheck = this.resolveDependencies(manifest)
+    // 依赖缺失或被禁用
     if (!depCheck.success) return { success: false, message: depCheck.message }
 
+    /** 统一的本次时间戳。 */
     const now = new Date().toISOString()
 
     try {
+      /** 安装成功后的完整配置。 */
       let config: AppConfig
 
+      // 三种模式对文件系统的处理不同，配置字段的构造是一致的
       switch (mode) {
+        // 复制：把源目录整份拷进 apps 根目录
         case 'copy': {
+          /** 目标文件夹名，默认用应用 id。 */
           const targetName = folderName ?? manifest.id
+          /** 目标目录。 */
           const targetDir = path.join(this.appsRootPath, targetName)
 
           // 如果已存在且允许覆盖，先删除旧文件夹
@@ -667,16 +831,21 @@ class appsManages {
             createdAt: now,
             updatedAt: now
           })
+          // 运行时元数据写进目标目录
           this.saveAppRuntimeMeta(targetName, config)
           this.appFolderMap.set(config.id, targetName)
           break
         }
 
+        // 链接：只在 apps 根目录写一个指向源目录的引用文件
         case 'link': {
           // 创建 .app-link.json
+          /** 链接文件名。 */
           const linkFileName = `${manifest.id}.app-link.json`
+          /** 链接文件路径。 */
           const linkPath = path.join(this.appsRootPath, linkFileName)
 
+          /** 链接文件内容。 */
           const linkFile: AppLinkFile = {
             sourcePath,
             linkedAt: now,
@@ -692,10 +861,12 @@ class appsManages {
             createdAt: now,
             updatedAt: now
           })
+          // link 模式下 getAppDir 要靠这张表拿源目录
           this.appLinkMap.set(config.id, sourcePath)
           break
         }
 
+        // 引用：完全不碰文件系统，只登记到内存缓存
         case 'reference': {
           config = this.buildFullConfig(manifest, {
             enabled: enable,
@@ -708,10 +879,12 @@ class appsManages {
           break
         }
 
+        // 传了不支持的 mode
         default:
           return { success: false, message: `不支持的安装模式: ${mode}` }
       }
 
+      // 登记缓存并落运行时状态
       this.appCache.set(config.id, config)
       this.getOrCreateRuntime(config.id).state = enable ? AppState.ENABLED : AppState.DISABLED
       this.saveRuntimeState()
@@ -724,6 +897,7 @@ class appsManages {
         data: config
       }
     } catch (err) {
+      // 复制/写链接失败，已建的目标目录留给下次覆盖安装处理
       return { success: false, message: `从路径安装失败: ${(err as Error).message}` }
     }
   }
@@ -740,47 +914,62 @@ class appsManages {
     packagePath: string,
     options: InstallFromPackageOptions = {}
   ): AppManageResult<AppConfig> {
+    /** 安装包绝对路径。 */
     const absPackagePath = path.resolve(packagePath)
 
+    // 包文件不存在
     if (!fs.existsSync(absPackagePath)) {
       return { success: false, message: `安装包不存在: ${absPackagePath}` }
     }
 
+    /** 小写扩展名。 */
     const ext = path.extname(absPackagePath).toLowerCase()
+    // 只支持 zip 与 app 两种包
     if (ext !== '.zip' && ext !== '.app') {
       return { success: false, message: `不支持的包格式 "${ext}"，仅支持 .zip 和 .app` }
     }
 
     // 尝试解压
+    /** 临时解压目录，带时间戳避免并发互相覆盖。 */
     const tempDir = path.join(this.appsRootPath, '.temp_extract_' + Date.now())
     try {
       this.ensureDir(tempDir)
       this.extractZip(absPackagePath, tempDir)
 
       // 在解压目录中查找 app.json
+      /** 解压出来的清单路径。 */
       const manifestPath = this.findManifestInDir(tempDir)
+      // 包里根本没有 app.json
       if (!manifestPath) {
         fs.rmSync(tempDir, { recursive: true, force: true })
         return { success: false, message: `安装包中未找到 ${this.configFileName}` }
       }
 
+      /** 清单内容。 */
       const manifest = this.readJSON<AppManifest>(manifestPath)
+      // JSON 损坏
       if (!manifest) {
         fs.rmSync(tempDir, { recursive: true, force: true })
         return { success: false, message: `${this.configFileName} 格式无效` }
       }
 
+      /** 清单校验结果。 */
       const validation = this.validateManifest(manifest)
+      // 必填字段或版本号不合规
       if (!validation.success) {
         fs.rmSync(tempDir, { recursive: true, force: true })
         return validation as AppManageResult<AppConfig>
       }
 
       // 移到 APPS 目录
+      /** 目标文件夹名、是否覆盖、是否立即启用。 */
       const { folderName = manifest.id, overwrite = false, enable = true } = options
+      /** 目标目录。 */
       const targetDir = path.join(this.appsRootPath, folderName)
 
+      // 目标已存在（旧版本或同名应用）
       if (fs.existsSync(targetDir)) {
+        // 不允许覆盖就原样报错
         if (!overwrite) {
           fs.rmSync(tempDir, { recursive: true, force: true })
           return {
@@ -788,11 +977,14 @@ class appsManages {
             message: `应用 "${manifest.id}" 已存在，如需覆盖请设置 overwrite: true`
           }
         }
+        // 允许覆盖：先删旧目录
         fs.rmSync(targetDir, { recursive: true, force: true })
       }
 
       // 移动解压内容到目标目录
+      /** 清单所在目录，即真正的包根。 */
       const extractRoot = path.dirname(manifestPath)
+      // 清单就在解压根目录
       if (extractRoot === tempDir) {
         // app.json 在根目录，直接重命名 tempDir
         fs.renameSync(tempDir, targetDir)
@@ -802,7 +994,9 @@ class appsManages {
         fs.rmSync(tempDir, { recursive: true, force: true })
       }
 
+      /** 统一的本次时间戳。 */
       const now = new Date().toISOString()
+      /** 完整配置。 */
       const config = this.buildFullConfig(manifest, {
         enabled: enable,
         installType: AppInstallType.NORMAL,
@@ -813,6 +1007,7 @@ class appsManages {
       })
       this.saveAppRuntimeMeta(folderName, config)
 
+      // 登记缓存与运行时状态
       this.appCache.set(config.id, config)
       this.appFolderMap.set(config.id, folderName)
       this.getOrCreateRuntime(config.id).state = enable ? AppState.ENABLED : AppState.DISABLED
@@ -846,7 +1041,9 @@ class appsManages {
    * @param keepSource - 是否保留源文件（默认 false，全部删除）
    */
   uninstallApp(appId: string, keepSource: boolean = false): AppManageResult {
+    /** 待卸载的应用配置。 */
     const app = this.appCache.get(appId)
+    // 应用不存在
     if (!app) {
       return { success: false, message: `应用 "${appId}" 不存在` }
     }
@@ -861,15 +1058,21 @@ class appsManages {
       this.setEnabled(appId, false)
 
       // 根据安装类型清理
+      // link 模式：只删引用文件，源目录是开发者的工作区，不能动
       if (app.installType === AppInstallType.DEVELOPMENT && this.appLinkMap.has(appId)) {
         // link 模式：删除 .app-link.json
+        /** 链接文件路径。 */
         const linkPath = path.join(this.appsRootPath, `${appId}.app-link.json`)
+        // 文件可能已被手工删掉
         if (fs.existsSync(linkPath)) fs.unlinkSync(linkPath)
         this.appLinkMap.delete(appId)
       } else if (!keepSource) {
         // copy/normal 模式：删除文件夹
+        /** 应用文件夹名，缓存没有就回磁盘找。 */
         const folderName = this.appFolderMap.get(appId) ?? this.findAppFolderOnDisk(appId)
+        // 找到目录才删
         if (folderName) {
+          /** 应用目录绝对路径。 */
           const appDir = path.join(this.appsRootPath, folderName)
           if (fs.existsSync(appDir)) {
             fs.rmSync(appDir, { recursive: true, force: true })
@@ -877,6 +1080,7 @@ class appsManages {
         }
       }
 
+      // 清三份缓存并持久化运行时状态
       this.appCache.delete(appId)
       this.appFolderMap.delete(appId)
       this.appRuntimeCache.delete(appId)
@@ -886,12 +1090,18 @@ class appsManages {
 
       return { success: true, message: `应用 "${appId}" 已卸载` }
     } catch (err) {
+      // 删文件失败时缓存保持原状，避免出现「缓存没有但磁盘还在」
       return { success: false, message: `卸载应用失败: ${(err as Error).message}` }
     }
   }
 
-  /** 兼容旧接口 */
+  /**
+   * 兼容旧接口
+   * @param appId 应用 ID
+   * @param deleteFolder 是否连文件夹一起删；语义与 keepSource 相反
+   */
   deleteApp(appId: string, deleteFolder: boolean = false): AppManageResult {
+    // deleteFolder=true 等价于 keepSource=false
     return this.uninstallApp(appId, !deleteFolder)
   }
 
@@ -903,24 +1113,31 @@ class appsManages {
    * @param updates - 要更新的字段
    */
   updateApp(appId: string, updates: UpdateAppOptions): AppManageResult<AppConfig> {
+    /** 现有配置。 */
     const existing = this.appCache.get(appId)
+    // 应用不存在
     if (!existing) {
       return { success: false, message: `应用 "${appId}" 不存在` }
     }
 
+    /** 配置文件路径。 */
     const configPath = this.getAppConfigPath(appId)
+    // 找不到 app.json（源目录被删等）
     if (!configPath) {
       return { success: false, message: `找不到应用 "${appId}" 的配置文件` }
     }
 
     try {
+      /** 合并后的配置。 */
       const updated: AppConfig = {
         ...existing,
         ...updates,
+        // 下面几项不可变，强制沿用旧值
         id: existing.id,
         installType: existing.installType,
         installSource: existing.installSource,
         installedAt: existing.installedAt,
+        // 更新时间取当前时刻
         updatedAt: new Date().toISOString()
       }
 
@@ -928,36 +1145,48 @@ class appsManages {
       this.writeJSON(configPath, this.extractManifest(updated))
 
       // 运行时字段写入 .app-runtime.json
+      /** 应用文件夹名。 */
       const folderName = this.appFolderMap.get(appId)
+      // link / reference 模式没有文件夹，跳过运行时元数据
       if (folderName) {
         this.saveAppRuntimeMeta(folderName, updated)
       }
 
       this.appCache.set(appId, updated)
 
+      // 带上旧版本号，方便上层判断是否升级
       this.emit('updated', updated, { previousVersion: existing.version })
 
       return { success: true, message: `应用 "${appId}" 更新成功`, data: updated }
     } catch (err) {
+      // 写盘失败时不改缓存，保持与磁盘一致
       return { success: false, message: `更新应用失败: ${(err as Error).message}` }
     }
   }
 
   /**
    * 从源文件夹更新开发模式应用（link 模式）
+   * @param appId 应用 ID
    */
   updateAppFromSource(appId: string): AppManageResult<AppConfig> {
+    /** 现有配置。 */
     const app = this.appCache.get(appId)
+    // 应用不存在
     if (!app) return { success: false, message: `应用 "${appId}" 不存在` }
 
+    /** 源目录（link 模式下即开发者工作区）。 */
     const sourcePath = app.installSource
+    // 源目录里的清单已不在
     if (!fs.existsSync(path.join(sourcePath, this.configFileName))) {
       return { success: false, message: `源文件夹已失效: ${sourcePath}` }
     }
 
+    /** 源清单内容。 */
     const manifest = this.readJSON<AppManifest>(path.join(sourcePath, this.configFileName))
+    // 清单损坏
     if (!manifest) return { success: false, message: '源清单文件无效' }
 
+    // 只同步清单字段，运行时元数据保持不动
     return this.updateApp(appId, {
       name: manifest.name,
       version: manifest.version,
@@ -972,39 +1201,64 @@ class appsManages {
 
   // ========== 查询 ==========
 
+  /**
+   * 按 id 取应用配置
+   * @param appId 应用 ID
+   */
   getApp(appId: string): AppConfig | null {
     return this.appCache.get(appId) ?? null
   }
 
+  /**
+   * 列出应用，可按启用状态 / 安装类型 / 槽位过滤
+   * @param filter 过滤条件，缺省列全部
+   */
   listApps(filter?: {
+    /** 只看启用或只看禁用。 */
     enabled?: boolean
+    /** 按安装类型过滤。 */
     installType?: AppInstallType
+    /** 按挂载位置过滤。 */
     slot?: AppConfig['slot']
   }): AppConfig[] {
+    /** 过滤中的应用列表。 */
     let apps = Array.from(this.appCache.values())
+    // enabled 允许传 false，所以用 undefined 判断有没有给
     if (filter?.enabled !== undefined) {
       apps = apps.filter((a) => a.enabled === filter.enabled)
     }
+    // 按安装类型过滤
     if (filter?.installType) {
       apps = apps.filter((a) => a.installType === filter.installType)
     }
+    // 按槽位过滤
     if (filter?.slot) {
       apps = apps.filter((a) => a.slot === filter.slot)
     }
     return apps
   }
 
+  /**
+   * 按挂载位置列出应用
+   * @param slot 槽位
+   */
   listAppsBySlot(slot: AppConfig['slot']): AppConfig[] {
     return this.listApps({ slot })
   }
 
+  /** 已登记的应用总数。 */
   getAppCount(): number {
     return this.appCache.size
   }
 
-  /** 获取应用的磁盘文件夹路径 */
+  /**
+   * 获取应用的磁盘文件夹路径
+   * @param appId 应用 ID
+   */
   getAppDir(appId: string): string | null {
+    /** 应用配置。 */
     const app = this.appCache.get(appId)
+    // 应用不存在
     if (!app) return null
 
     // link 模式返回源路径
@@ -1012,7 +1266,9 @@ class appsManages {
       return this.appLinkMap.get(appId)!
     }
 
+    /** 应用文件夹名，缓存没有就回磁盘找。 */
     const folderName = this.appFolderMap.get(appId) ?? this.findAppFolderOnDisk(appId)
+    // reference 模式或目录已被删
     if (!folderName) return null
 
     return path.join(this.appsRootPath, folderName)
@@ -1022,66 +1278,100 @@ class appsManages {
 
   /**
    * 检查用户是否有权访问某个应用
+   * @param appId 应用 ID
+   * @param user 当前用户，含 userId / roles / isAdmin
    */
   checkAccess(
     appId: string,
     user: { userId: string; roles: string[]; isAdmin?: boolean }
   ): AppManageResult<boolean> {
+    /** 应用配置。 */
     const app = this.appCache.get(appId)
+    // 应用不存在
     if (!app) {
       return { success: false, message: `应用 "${appId}" 不存在`, data: false }
     }
 
+    // 已禁用的应用对所有人不可见
     if (app.enabled === false) {
       return { success: true, message: '应用已被禁用', data: false }
     }
 
+    /** 应用权限配置。 */
     const perms = app.permissions
+    // 没配权限就是全员可用
     if (!perms) {
       return { success: true, message: '无需权限校验', data: true }
     }
 
+    // 要求管理员但当前用户不是
     if (perms.requireAdmin && !user.isAdmin) {
       return { success: true, message: '需要管理员权限', data: false }
     }
 
+    // 配了用户白名单
     if (perms.userIds && perms.userIds.length > 0) {
+      // 当前用户不在名单里
       if (!perms.userIds.includes(user.userId)) {
         return { success: true, message: '用户不在白名单中', data: false }
       }
     }
 
+    // 配了角色白名单
     if (perms.roles && perms.roles.length > 0) {
+      /** 是否命中任一角色。 */
       const hasRole = user.roles.some((role) => perms.roles!.includes(role))
+      // 一个角色都没命中
       if (!hasRole) {
         return { success: true, message: '用户角色无权限', data: false }
       }
     }
 
+    // 上面所有关卡都过了
     return { success: true, message: '权限校验通过', data: true }
   }
 
+  /**
+   * 覆盖应用权限配置
+   * @param appId 应用 ID
+   * @param permissions 新的权限配置
+   */
   setPermissions(appId: string, permissions: AppPermissions): AppManageResult<AppConfig> {
     return this.updateApp(appId, { permissions })
   }
 
+  /**
+   * 启用 / 禁用应用，并同步运行时状态与事件
+   * @param appId 应用 ID
+   * @param enabled 是否启用
+   */
   setEnabled(appId: string, enabled: boolean): AppManageResult<AppConfig> {
+    /** 更新结果。 */
     const result = this.updateApp(appId, { enabled })
 
+    // 写盘成功才动运行时状态，避免内存与磁盘不一致
     if (result.success && result.data) {
+      /** 运行时记录。 */
       const runtime = this.getOrCreateRuntime(appId)
       runtime.state = enabled ? AppState.ENABLED : AppState.DISABLED
       this.saveRuntimeState()
 
+      // 按方向发不同事件
       this.emit(enabled ? 'enabled' : 'disabled', result.data)
     }
 
     return result
   }
 
+  /**
+   * 列出该用户能访问的启用应用
+   * @param user 当前用户，含 userId / roles / isAdmin
+   */
   listAccessibleApps(user: { userId: string; roles: string[]; isAdmin?: boolean }): AppConfig[] {
     return this.listApps({ enabled: true }).filter((app) => {
+      /** 单个应用的权限校验结果。 */
       const result = this.checkAccess(app.id, user)
+      // 校验本身失败（应用已消失）也算不可访问
       return result.success && result.data === true
     })
   }
@@ -1090,34 +1380,48 @@ class appsManages {
 
   /**
    * 检测新应用与已安装应用的冲突
+   * @param manifest 待安装清单
+   * @param excludeAppId 更新场景下要排除自身的应用 ID
    */
   checkConflicts(manifest: AppManifest, excludeAppId?: string): AppManageResult {
     // ID 冲突
+    // 更新自己时不算 ID 冲突
     if (!excludeAppId || manifest.id !== excludeAppId) {
+      // 已有同 id 应用
       if (this.appCache.has(manifest.id)) {
         return { success: false, message: `应用 ID "${manifest.id}" 已存在` }
       }
     }
 
     // 入口 URL 冲突
+    // 有 entry 才需要比对
     if (manifest.entry) {
+      /** 入口冲突说明，null 表示无冲突。 */
       const entryConflict = this.checkEntryConflict(manifest.entry, excludeAppId)
       if (entryConflict) {
         return { success: false, message: entryConflict }
       }
     }
 
+    // 两项都没冲突
     return { success: true, message: '无冲突' }
   }
 
-  /** 检测入口冲突 */
+  /**
+   * 检测入口冲突
+   * @param entry 待检查入口
+   * @param excludeAppId 要排除的应用 ID
+   */
   private checkEntryConflict(entry: string, excludeAppId?: string): string | null {
     for (const [id, app] of this.appCache) {
+      // 跳过自己
       if (excludeAppId && id === excludeAppId) continue
+      // 入口完全相同即冲突
       if (app.entry === entry) {
         return `入口地址 "${entry}" 已被应用 "${id}" (${app.name}) 占用`
       }
     }
+    // 没有冲突
     return null
   }
 
@@ -1125,29 +1429,39 @@ class appsManages {
 
   /**
    * 解析应用依赖，检查所有依赖是否已安装并启用
+   * @param manifest 待安装清单
    */
   resolveDependencies(manifest: AppManifest): AppManageResult<string[]> {
+    /** 依赖 id 列表，缺省视为无依赖。 */
     const deps = manifest.dependencies ?? []
+    // 没声明依赖
     if (deps.length === 0) {
       return { success: true, message: '无依赖', data: [] }
     }
 
+    /** 未安装的依赖。 */
     const missing: string[] = []
+    /** 已安装但被禁用的依赖。 */
     const disabled: string[] = []
 
     for (const depId of deps) {
+      /** 依赖应用配置。 */
       const dep = this.appCache.get(depId)
+      // 依赖没装
       if (!dep) {
         missing.push(depId)
       } else if (dep.enabled === false) {
+        // 依赖装了但被禁用
         disabled.push(depId)
       }
     }
 
+    // 缺依赖优先报，data 里带回缺失清单
     if (missing.length > 0) {
       return { success: false, message: `缺少依赖: ${missing.join(', ')}`, data: missing }
     }
 
+    // 依赖被禁用
     if (disabled.length > 0) {
       return { success: false, message: `依赖被禁用: ${disabled.join(', ')}`, data: disabled }
     }
@@ -1157,19 +1471,28 @@ class appsManages {
 
   /**
    * 获取应用的依赖树（递归）
+   * @param appId 应用 ID
+   * @param visited 已访问集合，用于断开循环依赖
    */
   getDependencyTree(appId: string, visited: Set<string> = new Set()): AppConfig[] {
+    // 已经访问过，说明成环或重复引用
     if (visited.has(appId)) return []
     visited.add(appId)
 
+    /** 应用配置。 */
     const app = this.appCache.get(appId)
+    // 应用不存在或没声明依赖
     if (!app || !app.dependencies) return []
 
+    /** 收集到的依赖配置。 */
     const result: AppConfig[] = []
     for (const depId of app.dependencies) {
+      /** 依赖应用配置。 */
       const dep = this.appCache.get(depId)
+      // 依赖已安装才计入，未安装的交给 resolveDependencies 报错
       if (dep) {
         result.push(dep)
+        // 继续往下展开依赖的依赖
         result.push(...this.getDependencyTree(depId, visited))
       }
     }
@@ -1180,36 +1503,48 @@ class appsManages {
 
   /**
    * 检查应用是否健康（入口文件/URL 是否可访问）
+   * @param appId 应用 ID
    */
   checkHealth(appId: string): AppManageResult<boolean> {
+    /** 应用配置。 */
     const app = this.appCache.get(appId)
+    // 应用不存在
     if (!app) {
       return { success: false, message: `应用 "${appId}" 不存在`, data: false }
     }
 
+    /** 运行时记录。 */
     const runtime = this.getOrCreateRuntime(appId)
 
     try {
+      /** 本次健康检查结论。 */
       let isHealthy = false
 
       // 根据 entry 类型做不同检查
+      // HTTP(S) 入口：主进程无法同步探活
       if (app.entry.startsWith('http://') || app.entry.startsWith('https://')) {
         // URL 入口 — 文件系统检查不适用，标记为需要网络验证
         isHealthy = true // 无法在此同步检查 HTTP，标记为健康
       } else {
         // 本地入口 — 检查文件是否存在
+        /** 应用磁盘目录。 */
         const appDir = this.getAppDir(appId)
+        // 目录都找不到就无从检查，保持不健康
         if (appDir) {
+          /** 入口文件绝对路径。 */
           const fullEntry = path.resolve(appDir, app.entry)
           isHealthy = fs.existsSync(fullEntry)
+          // 入口文件缺失，记下原因供界面展示
           if (!isHealthy) {
             runtime.lastError = `入口文件不存在: ${fullEntry}`
           }
         }
       }
 
+      // 回写检查结论与时间
       runtime.healthy = isHealthy
       runtime.lastHealthCheck = new Date().toISOString()
+      // 不健康则置为 ERROR 并发事件
       if (!isHealthy) {
         runtime.state = AppState.ERROR
         this.emit('error', app, { reason: runtime.lastError })
@@ -1222,6 +1557,7 @@ class appsManages {
         data: isHealthy
       }
     } catch (err) {
+      // 检查过程本身抛错（如权限问题），按不健康处理
       runtime.healthy = false
       runtime.state = AppState.ERROR
       runtime.lastError = (err as Error).message
@@ -1234,6 +1570,7 @@ class appsManages {
    * 对所有应用执行批量健康检查
    */
   checkAllHealth(): Map<string, AppManageResult<boolean>> {
+    /** appId → 检查结果。 */
     const results = new Map<string, AppManageResult<boolean>>()
     for (const appId of this.appCache.keys()) {
       results.set(appId, this.checkHealth(appId))
@@ -1246,16 +1583,24 @@ class appsManages {
   /**
    * 点开应用时执行 app.json.spawn（整串交给 shell，支持 &&）。
    * 无 spawn 则跳过。不向子进程注入超级智能体 IPC。端口由子应用自己听，客户端不探口、不管冲突。
+   * @param appId 应用 ID
    */
   startApp(appId: string): AppManageResult<{ command: string; cwd: string; pid: number }> {
+    /** 应用配置。 */
     const app = this.appCache.get(appId)
+    // 应用不存在
     if (!app) return { success: false, message: `应用 "${appId}" 不存在` }
+    // 已禁用的应用不允许启动
     if (!app.enabled) return { success: false, message: `应用 "${appId}" 已被禁用，无法启动` }
 
+    /** 应用工作目录。 */
     const appDir = this.getAppDir(appId)
+    // 找不到目录就没法定 cwd
     if (!appDir) return { success: false, message: `找不到应用 "${appId}" 的工作目录` }
 
+    /** 去空白后的 spawn 命令。 */
     const command = (app.spawn || '').trim()
+    // 应用没声明 spawn：不算失败，只是没有子进程要起
     if (!command) {
       return {
         success: true,
@@ -1264,28 +1609,40 @@ class appsManages {
       }
     }
 
+    // 已有进程在跑：先停掉，保证一个应用只有一个子进程
     if (this.isRunning(appId)) {
       this.stopApp(appId)
     }
+    // 清掉上次客户端崩溃后仍占着该目录的残留 Node
     this.killLeftoverInDir(appDir)
 
     try {
+      /** 本次握手 token，子进程用它校验桥请求来源。 */
       const token = randomBytes(32).toString('hex')
+      /** spawn 出的子进程。 */
       const child = spawn(command, {
+        // 以应用目录为 cwd，spawn 脚本里的相对路径才成立
         cwd: appDir,
         env: {
           ...process.env,
+          // 告诉子进程自己是哪个应用
           JIAORONG_APP_ID: appId,
+          // 只给握手 token，不给超级智能体 IPC
           JIAORONG_BRIDGE_TOKEN: token
         },
+        // 收集输出转发到客户端控制台
         stdio: 'pipe',
+        // 整串命令交给 shell，支持 && 拼接
         shell: true,
+        // POSIX 下独立进程组，方便整树 kill
         detached: process.platform !== 'win32'
       })
 
+      // 子进程 stdout 转到客户端日志
       child.stdout?.on('data', (data: Buffer) => {
         console.log(`[${appId}] ${data.toString().trimEnd()}`)
       })
+      // 子进程 stderr 转到客户端错误日志
       child.stderr?.on('data', (data: Buffer) => {
         console.error(`[${appId}] ${data.toString().trimEnd()}`)
       })
@@ -1293,6 +1650,7 @@ class appsManages {
       // 子进程退出时自动更新状态
       child.on('exit', (code, signal) => {
         console.log(`[${appId}] 进程退出，code=${code}, signal=${signal}`)
+        // 退回启用/禁用态，而不是留在 RUNNING
         this.markChildEnded(
           appId,
           app.enabled ? AppState.ENABLED : AppState.DISABLED,
@@ -1302,6 +1660,7 @@ class appsManages {
         this.emit('stopped', app, { exitCode: code, signal })
       })
 
+      // spawn 本身失败（命令不存在等）
       child.on('error', (err) => {
         console.error(`[${appId}] 进程异常:`, err.message)
         this.markChildEnded(appId, AppState.ERROR, err.message, child)
@@ -1311,10 +1670,13 @@ class appsManages {
       // 记录进程引用
       this.runningProcesses.set(appId, child)
 
+      /** 运行时记录。 */
       const runtime = this.getOrCreateRuntime(appId)
       runtime.process = child
+      // spawn 刚返回时 pid 一定存在
       runtime.pid = child.pid!
       runtime.state = AppState.RUNNING
+      // 启动成功清掉上次的错误
       runtime.lastError = undefined
       this.saveRuntimeState()
 
@@ -1326,6 +1688,7 @@ class appsManages {
         data: { command, cwd: appDir, pid: child.pid! }
       }
     } catch (err) {
+      // spawn 抛错，不留下半截状态
       return { success: false, message: `启动应用失败: ${(err as Error).message}` }
     }
   }
@@ -1333,23 +1696,31 @@ class appsManages {
   /**
    * 停止应用的 Node 服务
    * 先尝试优雅退出（SIGTERM），超时后强制终止（SIGKILL）
+   * @param appId 应用 ID
    */
   stopApp(appId: string): AppManageResult {
+    /** 应用配置。 */
     const app = this.appCache.get(appId)
+    // 应用不存在
     if (!app) return { success: false, message: `应用 "${appId}" 不存在` }
 
+    // 本来就没在跑，视为成功（幂等）
     if (!this.isRunning(appId)) {
       // 清理残留状态
       this.markChildEnded(appId, app.enabled ? AppState.ENABLED : AppState.DISABLED)
       return { success: true, message: `应用 "${appId}" 未在运行，无需停止` }
     }
 
+    /** 正在运行的子进程。 */
     const child = this.runningProcesses.get(appId)!
+    /** 运行时记录。 */
     const runtime = this.getOrCreateRuntime(appId)
 
     try {
+      // 整棵进程树一起杀，避免孙进程继续占端口
       this.killChildTree(child)
       this.runningProcesses.delete(appId)
+      // 退回启用/禁用态并清进程引用
       runtime.process = undefined
       runtime.pid = undefined
       runtime.state = app.enabled ? AppState.ENABLED : AppState.DISABLED
@@ -1359,12 +1730,14 @@ class appsManages {
 
       return { success: true, message: `应用 "${appId}" 已停止` }
     } catch (err) {
+      // kill 失败时保留登记，下次 stop 会再试
       return { success: false, message: `停止应用失败: ${(err as Error).message}` }
     }
   }
 
   /** 停掉所有已 spawn 的子进程。 */
   stopAllRunningApps(): void {
+    // 先拷贝键集合：stopApp 会在遍历中改动 runningProcesses
     for (const appId of [...this.runningProcesses.keys()]) {
       this.stopApp(appId)
     }
@@ -1372,16 +1745,21 @@ class appsManages {
 
   /**
    * 检查应用是否正在运行
+   * @param appId 应用 ID
    */
   isRunning(appId: string): boolean {
+    /** 登记的子进程。 */
     const child = this.runningProcesses.get(appId)
+    // 从没启动过，或已被清理
     if (!child) return false
     // 检查进程是否还活着
+    // exitCode / signalCode 任一有值都说明已退出
     return child.exitCode === null && child.signalCode === null
   }
 
   /**
    * 获取应用运行中的子进程引用（供上层监听/操作）
+   * @param appId 应用 ID
    */
   getProcess(appId: string): ChildProcess | null {
     return this.runningProcesses.get(appId) ?? null
@@ -1398,30 +1776,43 @@ class appsManages {
    * });
    */
   on(eventName: AppEventName, callback: AppEventCallback): void {
+    /** 该事件已有的监听器集合。 */
     let listeners = this.eventListeners.get(eventName)
+    // 首次订阅该事件，建一个集合
     if (!listeners) {
       listeners = new Set()
       this.eventListeners.set(eventName, listeners)
     }
+    // Set 天然去重，同一个回调不会被调两次
     listeners.add(callback)
   }
 
   /**
    * 移除事件监听器
+   * @param eventName 事件名
+   * @param callback 之前注册的回调
    */
   off(eventName: AppEventName, callback: AppEventCallback): void {
+    /** 该事件的监听器集合。 */
     const listeners = this.eventListeners.get(eventName)
+    // 从没订阅过就不用删
     if (listeners) {
       listeners.delete(callback)
     }
   }
 
-  /** 触发事件 */
+  /**
+   * 触发事件
+   * @param eventName 事件名
+   * @param appConfig 相关应用配置
+   * @param extra 附加数据
+   */
   private emit(
     eventName: AppEventName,
     appConfig: AppConfig,
     extra?: Record<string, unknown>
   ): void {
+    /** 组装出的事件对象。 */
     const event: AppEvent = {
       eventName,
       appId: appConfig.id,
@@ -1430,12 +1821,15 @@ class appsManages {
       extra
     }
 
+    /** 该事件的监听器集合。 */
     const listeners = this.eventListeners.get(eventName)
+    // 没人订阅就不必构造遍历
     if (listeners) {
       for (const callback of listeners) {
         try {
           callback(event)
         } catch (err) {
+          // 单个监听器抛错不能影响其它监听器
           console.error(`[appsManages] 事件处理异常 (${eventName}):`, err)
         }
       }
@@ -1444,44 +1838,71 @@ class appsManages {
 
   // ========== 工具箱方法 ==========
 
-  /** 获取 APP 配置文件路径 */
+  /**
+   * 获取 APP 配置文件路径
+   * @param appId 应用 ID
+   */
   private getAppConfigPath(appId: string): string | null {
     // link 模式：源文件夹下的 app.json
     if (this.appLinkMap.has(appId)) {
+      /** link 指向的源目录。 */
       const sourcePath = this.appLinkMap.get(appId)!
+      /** 源目录下的清单路径。 */
       const p = path.join(sourcePath, this.configFileName)
+      // 文件不存在说明源已失效
       return fs.existsSync(p) ? p : null
     }
 
     // copy/normal 模式：appsRootPath 子文件夹下
+    /** 应用文件夹名，缓存没有就回磁盘找。 */
     const folderName = this.appFolderMap.get(appId) ?? this.findAppFolderOnDisk(appId)
+    // reference 模式或目录已删
     if (!folderName) return null
 
+    /** 目标清单路径。 */
     const p = path.join(this.appsRootPath, folderName, this.configFileName)
+    // 只有文件确实存在才返回，避免写入时凭空建文件
     return fs.existsSync(p) ? p : null
   }
 
-  /** 磁盘查找 appId 对应的文件夹名（后备方案） */
+  /**
+   * 磁盘查找 appId 对应的文件夹名（后备方案）
+   * @param appId 应用 ID
+   */
   private findAppFolderOnDisk(appId: string): string | null {
+    // 根目录都还没建
     if (!fs.existsSync(this.appsRootPath)) return null
+    /** 根目录下的一档条目。 */
     const entries = fs.readdirSync(this.appsRootPath, { withFileTypes: true })
     for (const entry of entries) {
+      // 只看目录
       if (!entry.isDirectory()) continue
+      /** 该目录下的清单路径。 */
       const configPath = path.join(this.appsRootPath, entry.name, this.configFileName)
+      // 不是应用目录
       if (!fs.existsSync(configPath)) continue
       try {
+        /** 清单内容。 */
         const manifest = this.readJSON<AppManifest>(configPath)
+        // 目录名可能与 appId 不同，按清单里的 id 比对
         if (manifest?.id === appId) return entry.name
       } catch {
         /* skip */
       }
     }
+    // 整个根目录都没找到
     return null
   }
 
-  /** 保存应用运行时元数据到 .app-runtime.json */
+  /**
+   * 保存应用运行时元数据到 .app-runtime.json
+   * @param folderName 应用文件夹名
+   * @param config 完整配置
+   */
   private saveAppRuntimeMeta(folderName: string, config: AppConfig): void {
+    /** 运行时元数据路径。 */
     const runtimePath = path.join(this.appsRootPath, folderName, '.app-runtime.json')
+    // 只写运行时字段，清单字段留在 app.json 由应用方维护
     this.writeJSON(runtimePath, {
       enabled: config.enabled,
       installType: config.installType,
@@ -1492,28 +1913,47 @@ class appsManages {
     })
   }
 
-  /** 在目录中递归查找 app.json */
+  /**
+   * 在目录中递归查找 app.json
+   * @param dir 起始目录
+   */
   private findManifestInDir(dir: string): string | null {
+    /** 当前目录下的清单路径。 */
     const configPath = path.join(dir, this.configFileName)
+    // 优先取最外层，符合常见打包习惯
     if (fs.existsSync(configPath)) return configPath
 
+    /** 当前目录下的一档条目。 */
     const entries = fs.readdirSync(dir, { withFileTypes: true })
     for (const entry of entries) {
+      // 只往子目录里找
       if (entry.isDirectory()) {
+        /** 子目录里的查找结果。 */
         const found = this.findManifestInDir(path.join(dir, entry.name))
+        // 找到就立即返回，不再继续找
         if (found) return found
       }
     }
+    // 整棵树都没有清单
     return null
   }
 
-  /** 递归复制目录 */
+  /**
+   * 递归复制目录
+   * @param src 源目录
+   * @param dest 目标目录
+   */
   private copyDirectory(src: string, dest: string): void {
+    // 目标目录可能还不存在
     this.ensureDir(dest)
+    /** 源目录下的一档条目。 */
     const entries = fs.readdirSync(src, { withFileTypes: true })
     for (const entry of entries) {
+      /** 源条目路径。 */
       const srcPath = path.join(src, entry.name)
+      /** 目标条目路径。 */
       const destPath = path.join(dest, entry.name)
+      // 目录递归，文件直接拷
       if (entry.isDirectory()) {
         this.copyDirectory(srcPath, destPath)
       } else {
@@ -1522,10 +1962,15 @@ class appsManages {
     }
   }
 
-  /** 解压 zip 文件（使用 Node 内置模块） */
+  /**
+   * 解压 zip 文件（使用系统命令）
+   * @param zipPath 包文件路径
+   * @param destDir 解压目标目录
+   */
   private extractZip(zipPath: string, destDir: string): void {
     // 使用系统命令解压
     try {
+      // Windows 与类 Unix 用不同的系统工具
       if (process.platform === 'win32') {
         // Windows: 使用 PowerShell Expand-Archive
         execSync(
@@ -1537,11 +1982,15 @@ class appsManages {
         execSync(`unzip -o "${zipPath}" -d "${destDir}"`, { stdio: 'pipe' })
       }
     } catch {
+      // 统一成可读错误，隐藏平台命令细节
       throw new Error('解压失败，请确保系统已安装 unzip（Linux/Mac）或 PowerShell（Windows）')
     }
   }
 
-  /** 从完整配置中提取清单字段 */
+  /**
+   * 从完整配置中提取清单字段，运行时字段不写进 app.json
+   * @param config 完整配置
+   */
   private extractManifest(config: AppConfig): AppManifest {
     return {
       id: config.id,
@@ -1549,6 +1998,7 @@ class appsManages {
       version: config.version,
       entry: config.entry,
       slot: config.slot,
+      // 可选字段为空就不写，保持 app.json 干净
       ...(config.icon ? { icon: config.icon } : {}),
       ...(config.description ? { description: config.description } : {}),
       ...(config.spawn ? { spawn: config.spawn } : {}),
@@ -1557,18 +2007,25 @@ class appsManages {
     }
   }
 
-  /** 校验清单必填字段 */
+  /**
+   * 校验清单必填字段
+   * @param manifest 待校验清单
+   */
   private validateManifest(manifest: AppManifest): AppManageResult {
+    // 四个必填字段逐个校验，缺哪个报哪个
     if (!manifest.id?.trim()) return { success: false, message: '应用 id 不能为空' }
     if (!manifest.name?.trim()) return { success: false, message: '应用 name 不能为空' }
     if (!manifest.version?.trim()) return { success: false, message: '应用 version 不能为空' }
     if (!manifest.entry?.trim()) return { success: false, message: '应用 entry 不能为空' }
+    // slot 只认三种挂载位置
     if (!['menu', 'sidebar', 'standalone'].includes(manifest.slot)) {
       return { success: false, message: '应用 slot 必须为 menu | sidebar | standalone 之一' }
     }
 
     // 版本号格式校验（semver 宽松检查）
+    /** 宽松 semver 正则：允许预发布与构建元数据。 */
     const semverRegex = /^\d+\.\d+\.\d+(-[\w.]+)?(\+[\w.]+)?$/
+    // 版本号不合规
     if (!semverRegex.test(manifest.version)) {
       return { success: false, message: '版本号格式不符合 semver 规范（例如 1.0.0）' }
     }
@@ -1580,14 +2037,22 @@ class appsManages {
 
   /** 获取统计信息 */
   getStats(): {
+    /** 应用总数。 */
     total: number
+    /** 已启用数。 */
     enabled: number
+    /** 已禁用数。 */
     disabled: number
+    /** 运行中数。 */
     running: number
+    /** 异常数。 */
     error: number
+    /** 按安装类型计数。 */
     byInstallType: Record<string, number>
+    /** 按槽位计数。 */
     bySlot: Record<string, number>
   } {
+    /** 基础计数。 */
     const stats: Record<string, number> = {
       total: 0,
       enabled: 0,
@@ -1595,22 +2060,29 @@ class appsManages {
       running: 0,
       error: 0
     }
+    /** 安装类型计数表。 */
     const byInstallType: Record<string, number> = {}
+    /** 槽位计数表。 */
     const bySlot: Record<string, number> = {}
 
     for (const app of this.appCache.values()) {
       stats.total++
+      // 启用与禁用互斥，二选一累加
       if (app.enabled) stats.enabled++
       else stats.disabled++
 
+      /** 运行时记录，可能还没有。 */
       const runtime = this.appRuntimeCache.get(app.id)
+      // 运行中与异常按状态分别计数
       if (runtime?.state === AppState.RUNNING) stats.running++
       if (runtime?.state === AppState.ERROR) stats.error++
 
+      // 分组计数，键不存在时从 0 起
       byInstallType[app.installType] = (byInstallType[app.installType] ?? 0) + 1
       bySlot[app.slot] = (bySlot[app.slot] ?? 0) + 1
     }
 
+    // 收成固定形状，避免把内部计数键透出
     return {
       total: stats.total,
       enabled: stats.enabled,
@@ -1625,6 +2097,7 @@ class appsManages {
   /** 导出全部应用清单快照（用于备份/迁移） */
   exportSnapshot(): { apps: AppConfig[]; stats: ReturnType<appsManages['getStats']> } {
     return {
+      // 拷贝一份数组，避免调用方改动内部缓存
       apps: Array.from(this.appCache.values()),
       stats: this.getStats()
     }
@@ -1643,8 +2116,11 @@ class appsManages {
 
 // ==================== 导出 ====================
 
+/** 默认导出管理器类。 */
 export default appsManages
+/** 导出枚举，供上层判断安装状态与类型。 */
 export { AppState, AppInstallType }
+/** 导出配套类型，供 IPC 层与测试引用。 */
 export type {
   AppManifest,
   AppConfig,

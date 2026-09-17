@@ -27,7 +27,9 @@ const DIRECTORY_SIZE_MAX = 20
 function toCount(value: unknown, fallback: number, max: number) {
   /** 转成数字。 */
   const n = typeof value === 'number' ? value : Number(value)
+  // 非有限数或小于 1，用缺省值
   if (!Number.isFinite(n) || n < 1) return fallback
+  // 向下取整并夹到上限
   return Math.min(Math.floor(n), max)
 }
 
@@ -40,6 +42,7 @@ export async function queryJiaorongKnowledgeBases(
   deps: JiaorongAppHostDeps,
   args: Record<string, unknown>
 ) {
+  // 组装查询条件：type 2 为共享库，其余按个人库；name 只在字符串时透传
   return postKnowledgeBase(deps, QUERY_PATH, {
     page: toCount(args.page, 1, Number.MAX_SAFE_INTEGER),
     size: toCount(args.size, 200, QUERY_SIZE_MAX),
@@ -59,6 +62,7 @@ export async function queryJiaorongKnowledgeBaseDirectory(
 ) {
   /** 目录 id。 */
   const directoryId = typeof args.directoryId === 'string' ? args.directoryId.trim() : ''
+  // 目录下探必须带 directoryId
   if (!directoryId) {
     return bridgeError('VALIDATION_ERROR', '需要提供 directoryId')
   }
@@ -68,6 +72,7 @@ export async function queryJiaorongKnowledgeBaseDirectory(
     size: toCount(args.size, 20, DIRECTORY_SIZE_MAX),
     directoryId
   }
+  // 可选按名称过滤，空白串不下发该字段
   if (typeof args.fileName === 'string' && args.fileName.trim()) {
     body.fileName = args.fileName.trim()
   }
@@ -87,6 +92,7 @@ async function postKnowledgeBase(
 ) {
   /** 登录 token。 */
   const token = readAuthToken(deps.getAuthSession())
+  // 未登录不允许查知识库
   if (!token) return bridgeError('UNAUTHORIZED', '未登录')
   /** 完整 URL。 */
   const url = `${resolveAuthApiBaseUrl().replace(/\/$/, '')}/${path}`
@@ -104,9 +110,11 @@ async function postKnowledgeBase(
       method: 'POST',
       headers,
       body: JSON.stringify(body),
+      // 超时自动 abort，避免请求挂死
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
     })
   } catch {
+    // 网络错误、超时或 abort
     return bridgeError('GENERATION_FAILED', '无法连接知识库服务')
   }
   /** 解析后的 JSON。 */
@@ -114,13 +122,17 @@ async function postKnowledgeBase(
   try {
     json = (await res.json()) as { code?: number; message?: string; data?: unknown }
   } catch {
+    // 响应不是合法 JSON，置空后交给下面的分支判断
     json = null
   }
+  // HTTP 层失败：优先用后端 message
   if (!res.ok) {
     return bridgeError('GENERATION_FAILED', json?.message || `知识库请求失败 HTTP ${res.status}`)
   }
+  // 业务码不在成功码集合里
   if (json?.code != null && !SUCCESS_CODES.has(Number(json.code))) {
     return bridgeError('GENERATION_FAILED', json.message || `知识库请求失败 code ${json.code}`)
   }
+  // 成功：只透出 data，不带网关字段
   return { data: json?.data ?? null }
 }

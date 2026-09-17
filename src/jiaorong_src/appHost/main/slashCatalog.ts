@@ -43,10 +43,14 @@ export type JiaorongAppSlashToolSource = {
   description?: string
 }
 
-/** 读 SKILL.md YAML frontmatter。 */
+/**
+ * 读 SKILL.md YAML frontmatter，取 name / description。
+ * @param text SKILL.md 原文
+ */
 function readFrontmatter(text: string) {
   /** 正则匹配结果。 */
   const match = text.match(/^---\r?\n([\s\S]*?)\r?\n---/)
+  // 没有 frontmatter 块
   if (!match) return { name: '', description: '' }
   /** 响应/请求体。 */
   const body = match[1]
@@ -57,19 +61,27 @@ function readFrontmatter(text: string) {
   return { name, description }
 }
 
-/** 扫描应用 skill 目录。 */
+/**
+ * 扫描应用包内 `skill/` 目录，每个子目录一个技能。
+ * @param appId 应用 id，用于拼技能全名
+ * @param appDir 应用根目录，缺省则不扫
+ */
 function readAppSkills(appId: string, appDir: string | null): JiaorongAppSlashItem[] {
+  // 没装到磁盘就没有本地技能
   if (!appDir) return []
   /** 根目录。 */
   const root = path.join(appDir, 'skill')
+  // 应用没带 skill 目录
   if (!fs.existsSync(root)) return []
   /** 列表项。 */
   const items: JiaorongAppSlashItem[] = []
   /** 目录下一档。 */
   for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
+    // 只认目录，散落的文件不算技能
     if (!entry.isDirectory()) continue
     /** SKILL.md 路径。 */
     const skillFile = path.join(root, entry.name, 'SKILL.md')
+    // 缺 SKILL.md 的目录跳过
     if (!fs.existsSync(skillFile)) continue
     /** 解析结果。 */
     const parsed = readFrontmatter(fs.readFileSync(skillFile, 'utf8'))
@@ -79,6 +91,7 @@ function readAppSkills(appId: string, appDir: string | null): JiaorongAppSlashIt
     const skillName = `app.${appId}.${dirName}`
     /** 展示文案。 */
     const label = parsed.name || dirName
+    // 收成一条斜杠项
     items.push({
       id: `skill:${skillName}`,
       category: 'skill',
@@ -90,11 +103,18 @@ function readAppSkills(appId: string, appDir: string | null): JiaorongAppSlashIt
   return items
 }
 
-/** 拼本应用斜杠命令目录。 */
+/**
+ * 拼本应用斜杠命令目录：应用自带技能 + 平台技能 + MCP 工具。
+ * @param input 应用信息与平台侧技能 / 工具来源
+ */
 export function buildJiaorongSlashCatalog(input: {
+  /** 应用 id。 */
   appId: string
+  /** 应用根目录，未安装时为 null。 */
   appDir: string | null
+  /** 平台技能列表。 */
   skills: JiaorongAppSlashSkillSource[]
+  /** MCP 工具列表。 */
   tools: JiaorongAppSlashToolSource[]
 }): { items: JiaorongAppSlashItem[] } {
   /** 本应用技能。 */
@@ -105,6 +125,7 @@ export function buildJiaorongSlashCatalog(input: {
   const platformSkills = input.skills.flatMap((skill) => {
     /** 名称。 */
     const name = skill.name?.trim()
+    // 名称为空，或与应用自带技能重名（应用优先）
     if (!name || seenSkills.has(name)) return []
     seenSkills.add(name)
     /** 展示用数据。 */
@@ -113,6 +134,7 @@ export function buildJiaorongSlashCatalog(input: {
       description: skill.description || '',
       metadata: skill.metadata
     })
+    // 技能项：只给名称与说明，不带插入文本
     return [
       {
         id: `skill:${name}`,
@@ -127,6 +149,7 @@ export function buildJiaorongSlashCatalog(input: {
   const tools = input.tools.flatMap((tool) => {
     /** 名称。 */
     const name = tool.name?.trim()
+    // 名称为空的工具跳过
     if (!name) return []
     /** 展示用数据。 */
     const display = resolveToolDisplay({
@@ -134,6 +157,7 @@ export function buildJiaorongSlashCatalog(input: {
       displayName: tool.displayName,
       description: tool.description
     })
+    // 工具项：插入 `@显示名 ` 到输入框
     return [
       {
         id: `tool:${name}`,
@@ -144,5 +168,6 @@ export function buildJiaorongSlashCatalog(input: {
       }
     ]
   })
+  // 应用技能排最前，其次平台技能，最后工具
   return { items: [...appSkills, ...platformSkills, ...tools] }
 }

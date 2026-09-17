@@ -44,9 +44,11 @@ export function bridgeError(code: JiaorongBridgeErrorCode, message: string): Jia
  * @param value `invoke` 的原始返回
  */
 export function isJiaorongBridgeFailure(value: unknown): value is JiaorongBridgeError {
+  // null / 字符串等非对象不可能是失败体
   if (!value || typeof value !== 'object') return false
   /** 候选失败对象。 */
   const record = value as Record<string, unknown>
+  // 码在码表内且带 message，同时不含任何成功 payload 的特征字段，才判定为失败
   return (
     typeof record.code === 'string' &&
     ERROR_CODE_SET.has(record.code) &&
@@ -66,16 +68,20 @@ export function isJiaorongBridgeFailure(value: unknown): value is JiaorongBridge
  * @param error `handleAppBridgeInvoke` 捕获的值
  */
 export function toJiaorongBridgeInvokeFailure(error: unknown): JiaorongBridgeError {
+  // 已是标准失败体，原样透传
   if (isJiaorongBridgeFailure(error)) return error
   /** 原始说明。 */
   const raw = error instanceof Error ? error.message : String(error)
   /** trim 后的说明。 */
   const message = raw.trim()
+  // 会话不存在有稳定码，保留原文不改写
   if (/^session not found\b/i.test(message)) {
     return bridgeError('SESSION_NOT_FOUND', message)
   }
+  // 其余有可读原文的，统一归到生成失败
   if (message && message !== '[object Object]') {
     return bridgeError('GENERATION_FAILED', message)
   }
+  // 空文案或对象序列化残留，退回兜底文案
   return bridgeError('GENERATION_FAILED', '请求失败')
 }

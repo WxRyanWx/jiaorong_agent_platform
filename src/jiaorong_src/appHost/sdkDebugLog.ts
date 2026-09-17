@@ -25,27 +25,36 @@ export function redactJiaorongSdkDebugValue(
   seen: WeakSet<object> = new WeakSet(),
   depth = 0
 ): unknown {
+  // null / undefined 原样返回
   if (value == null) return value
+  // 字符串：超长则截断并标注被截掉的长度
   if (typeof value === 'string') {
+    // 未超长，直接返回
     if (value.length <= MAX_STRING) return value
     return `${value.slice(0, MAX_STRING)}…(+${value.length - MAX_STRING})`
   }
+  // 数字 / 布尔 / 函数等非对象，原样返回
   if (typeof value !== 'object') return value
+  // Error 只留 name / message，不把堆栈打进控制台
   if (value instanceof Error) {
     return {
       name: value.name,
       message: value.message
     }
   }
+  // 循环引用
   if (seen.has(value)) return '[Circular]'
+  // 超出展开深度
   if (depth >= MAX_DEPTH) return '[…]'
   seen.add(value)
   try {
+    // 数组：截断到 MAX_ARRAY 项，并逐项递归脱敏
     if (Array.isArray(value)) {
       /** 截断后的数组。 */
       const items = value
         .slice(0, MAX_ARRAY)
         .map((item) => redactJiaorongSdkDebugValue(item, seen, depth + 1))
+      // 被截掉的项数补一条提示
       if (value.length > MAX_ARRAY) items.push(`…(+${value.length - MAX_ARRAY})`)
       return items
     }
@@ -56,15 +65,18 @@ export function redactJiaorongSdkDebugValue(
       try {
         /** 当前字段值。 */
         const nested = (value as Record<string, unknown>)[key]
+        // 敏感字段打码，其余递归脱敏
         record[key] = SENSITIVE_KEY.test(key)
           ? '[redacted]'
           : redactJiaorongSdkDebugValue(nested, seen, depth + 1)
       } catch {
+        // getter 抛错等：标记该字段不可读，不影响其它字段
         record[key] = '[unreadable]'
       }
     }
     return record
   } catch {
+    // 整体序列化失败的兜底
     return '[unserializable]'
   }
 }
@@ -77,10 +89,12 @@ export function redactJiaorongSdkDebugValue(
  */
 export function logJiaorongSdkDebug(kind: string, label: string, payload?: unknown): void {
   try {
+    // 无 payload 时只打 kind / label
     if (payload === undefined) {
       console.log(JIAORONG_SDK_DEBUG_PREFIX, kind, label)
       return
     }
+    // 有 payload：脱敏后再打
     console.log(JIAORONG_SDK_DEBUG_PREFIX, kind, label, redactJiaorongSdkDebugValue(payload))
   } catch {
     // 调试日志不能让 invoke / 事件回调失败

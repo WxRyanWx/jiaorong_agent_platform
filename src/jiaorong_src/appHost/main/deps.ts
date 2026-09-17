@@ -157,7 +157,10 @@ export type JiaorongAppDialoguePort = {
   ): Promise<JiaorongAppAgentRecord | null>
   /** 列出全部智能体。 */
   listAgents(): Promise<JiaorongAppAgentRecord[]>
-  /** 按 id 读智能体。 */
+  /**
+   * 按 id 读智能体。
+   * @param agentId 智能体 id
+   */
   getAgent(agentId: string): Promise<JiaorongAppAgentRecord | null>
   /** 创建会话，可选首轮。 */
   createSession(
@@ -178,7 +181,10 @@ export type JiaorongAppDialoguePort = {
       }
     }
   >
-  /** 按 id 读会话。 */
+  /**
+   * 按 id 读会话。
+   * @param sessionId 会话 id
+   */
   getSession(sessionId: string): Promise<JiaorongAppSessionRecord | null>
   /** 轻量分页列会话。 */
   listLightweight(input: {
@@ -212,11 +218,21 @@ export type JiaorongAppDialoguePort = {
     /** 是否还有下一页。 */
     hasMore: boolean
   }>
-  /** 按 id 读消息。 */
+  /**
+   * 按 id 读消息。
+   * @param messageId 消息 id
+   */
   getMessage(messageId: string): Promise<JiaorongAppMessageRecord | null>
-  /** 改会话标题。 */
+  /**
+   * 改会话标题。
+   * @param sessionId 会话 id
+   * @param title 新标题
+   */
   renameSession(sessionId: string, title: string): Promise<JiaorongAppSessionRecord>
-  /** 删会话。 */
+  /**
+   * 删会话。
+   * @param sessionId 会话 id
+   */
   deleteSession(sessionId: string): Promise<void>
   /** 搜历史。 */
   searchHistory(
@@ -253,7 +269,11 @@ export type JiaorongAppDialoguePort = {
     /** 附件准备状态。 */
     attachmentPreparation?: unknown
   }>
-  /** 删一条消息。 */
+  /**
+   * 删一条消息。
+   * @param sessionId 会话 id
+   * @param messageId 消息 id
+   */
   deleteMessage(sessionId: string, messageId: string): Promise<void>
   /** 改用户消息正文。 */
   editUserMessage(
@@ -264,7 +284,11 @@ export type JiaorongAppDialoguePort = {
     /** 新正文。 */
     text: string
   ): Promise<JiaorongAppMessageRecord>
-  /** 从某条消息分叉会话。 */
+  /**
+   * 从某条消息分叉会话。
+   * @param sourceSessionId 源会话 id
+   * @param targetMessageId 分叉点消息 id
+   */
   forkSession(sourceSessionId: string, targetMessageId: string): Promise<JiaorongAppSessionRecord>
   /** 生成中插入追问。 */
   steerActiveTurn(
@@ -282,11 +306,21 @@ export type JiaorongAppDialoguePort = {
     /** 附件准备状态。 */
     attachmentPreparation?: unknown
   }>
-  /** 停当前生成。 */
+  /**
+   * 停当前生成。
+   * @param sessionId 会话 id
+   */
   cancelGeneration(sessionId: string): Promise<void>
-  /** 写权限模式。 */
+  /**
+   * 写权限模式。
+   * @param sessionId 会话 id
+   * @param mode 权限模式
+   */
   setPermissionMode(sessionId: string, mode: string): Promise<void>
-  /** 读权限模式。 */
+  /**
+   * 读权限模式。
+   * @param sessionId 会话 id
+   */
   getPermissionMode?(sessionId: string): Promise<string>
   /** 写编排策略。 */
   updateOrchestrationPolicy(
@@ -295,7 +329,10 @@ export type JiaorongAppDialoguePort = {
     /** explicit / proactive。 */
     policy: 'explicit' | 'proactive'
   ): Promise<'explicit' | 'proactive'>
-  /** 读模型高级设置。 */
+  /**
+   * 读模型高级设置。
+   * @param sessionId 会话 id
+   */
   getGenerationSettings?(sessionId: string): Promise<Record<string, unknown> | null>
   /** 写模型高级设置。 */
   updateGenerationSettings?(
@@ -304,7 +341,10 @@ export type JiaorongAppDialoguePort = {
     /** 生成参数。 */
     settings: Record<string, unknown>
   ): Promise<Record<string, unknown>>
-  /** 读上下文占用。 */
+  /**
+   * 读上下文占用。
+   * @param sessionId 会话 id
+   */
   getContextOccupancy?(sessionId: string): Promise<Record<string, unknown>>
   /** 覆盖工具模式。 */
   setToolMode?(
@@ -313,13 +353,28 @@ export type JiaorongAppDialoguePort = {
     /** agent / code / minimal，或 null 取消。 */
     override: 'agent' | 'code' | 'minimal' | null
   ): Promise<JiaorongAppSessionRecord | null>
-  /** 读已关闭的内置工具。 */
+  /**
+   * 读已关闭的内置工具。
+   * @param sessionId 会话 id
+   */
   getDisabledAgentTools?(sessionId: string): Promise<string[]>
-  /** 写已关闭的内置工具。 */
+  /**
+   * 写已关闭的内置工具。
+   * @param sessionId 会话 id
+   * @param toolNames 要关闭的工具名列表
+   */
   updateDisabledAgentTools?(sessionId: string, toolNames: string[]): Promise<string[]>
-  /** 置顶/取消置顶。 */
+  /**
+   * 置顶/取消置顶。
+   * @param sessionId 会话 id
+   * @param pinned 是否置顶
+   */
   toggleSessionPinned?(sessionId: string, pinned: boolean): Promise<JiaorongAppSessionRecord>
-  /** 回答工具批准/提问。 */
+  /**
+   * 回答工具批准/提问。
+   * 返回 `resumed`（是否已恢复生成）、`waitingForUserMessage`（是否还在等用户补消息）、
+   * `handledInline`（是否已就地处理）。
+   */
   respondToolInteraction(input: {
     /** 会话 id。 */
     sessionId: string
@@ -355,11 +410,21 @@ export type JiaorongAppSlashSources = {
 
 /** 超级智能体文件端口。 */
 export type JiaorongAppFilePort = {
-  /** 写临时文件，返回路径。 */
+  /**
+   * 写临时文件，返回路径。
+   * @param file `name` 文件名，`content` 文本或二进制内容
+   */
   writeTemp(file: { name: string; content: Buffer | string }): Promise<string>
-  /** 写图片 base64，返回路径。 */
+  /**
+   * 写图片 base64，返回路径。
+   * @param file `name` 文件名，`content` base64 正文
+   */
   writeImageBase64(file: { name: string; content: string }): Promise<string>
-  /** 准备超级智能体可读附件元数据。 */
+  /**
+   * 准备超级智能体可读附件元数据。
+   * @param path 本机绝对路径
+   * @param mimeType 可选 MIME，缺省按扩展名推断
+   */
   prepareFile(path: string, mimeType?: string): Promise<Record<string, unknown>>
 }
 
@@ -395,9 +460,15 @@ export type JiaorongAppHostDeps = {
     /** 模型 id。 */
     modelId: string
   ) => Promise<JiaorongAppSessionRecord | null>
-  /** 列出系统提示词。 */
+  /**
+   * 列出系统提示词。
+   * 返回项字段：`id` 提示词 id、`name` 显示名、`content` 提示词正文。
+   */
   listSystemPrompts?: () => Promise<Array<{ id: string; name: string; content: string }>>
-  /** 列出可配置的智能体工具。 */
+  /**
+   * 列出可配置的智能体工具。
+   * 返回项字段：`name` 工具名、`group` 工具分组。
+   */
   listConfigurableAgentTools?: (input: {
     /** 会话 id。 */
     sessionId?: string

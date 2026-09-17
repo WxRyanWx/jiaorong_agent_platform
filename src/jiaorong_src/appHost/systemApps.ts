@@ -10,6 +10,7 @@ export const COLLABORATION_PLATFORM_APP_ID = 'collaboration-platform'
  * @param appId 应用 id
  */
 export function isSystemBundledApp(appId: string): boolean {
+  // 目前只有协同平台一个系统应用
   return appId === COLLABORATION_PLATFORM_APP_ID
 }
 
@@ -30,12 +31,15 @@ export function mergeSystemBundledCatalog(
   const mergedSystem = system.map((item) => {
     /** OSS 同 id。 */
     const oss = remoteById.get(item.id)
+    // OSS 没配这个应用，保持内置默认（启用、全员可见）
     if (!oss) return item
+    // 只取 OSS 的 enabled / auth，其余字段仍以本地包为准
     return {
       ...item,
       enabled: oss.enabled !== false,
       auth: oss.auth
     }
   })
+  // 系统应用排前面，OSS 里同 id 的已被合并掉不再重复出现
   return [...mergedSystem, ...remote.filter((item) => !systemIds.has(item.id))]
 }

@@ -28,10 +28,10 @@ export type JiaorongAppHostContext = {
 /** 侧栏槽位；目前只有菜单。 */
 export type JiaorongAppSlot = 'menu'
 
-/** 应用来源。 */
+/** 应用来源：`builtin` 随客户端内置、`local-debug` 本地调试目录、`store` 后管下发。 */
 export type JiaorongAppSource = 'builtin' | 'local-debug' | 'store'
 
-/** 安装状态。 */
+/** 安装状态：未安装 / 已安装 / 有可用更新 / 安装中 / 安装失败。 */
 export type JiaorongAppInstallStatus =
   | 'not_installed'
   | 'installed'

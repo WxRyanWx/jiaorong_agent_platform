@@ -18,10 +18,12 @@ export type JiaorongAuthSession = {
  * @param raw userInfo / userFullInfo
  */
 function parseJsonObject(raw: string | undefined): unknown {
+  // 没有值或只有空白
   if (!raw?.trim()) return null
   try {
     return JSON.parse(raw) as unknown
   } catch {
+    // 存的不是合法 JSON，按没有处理
     return null
   }
 }
@@ -45,6 +47,7 @@ export function readUserIdentityFromAuthSession(
 export function readAuthToken(session: JiaorongAuthSession | undefined): string | null {
   /** trim 后的 token。 */
   const token = session?.token?.trim()
+  // 空串统一收成 null，方便应用侧判空
   return token || null
 }
 
@@ -67,8 +70,10 @@ export function buildUserInfoPayload(
   const token = readAuthToken(session)
   /** 解析后的用户对象。 */
   const parsed = parseJsonObject(session?.userFullInfo) ?? parseJsonObject(session?.userInfo)
+  // 能解析出对象就展开用户字段，token 覆盖同名字段
   if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
     return { ...(parsed as Record<string, unknown>), token }
   }
+  // 解析不出用户资料，至少给 token 字段保持结构稳定
   return { token }
 }

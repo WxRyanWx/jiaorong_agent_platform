@@ -8,6 +8,7 @@ import type { JiaorongAppManifest } from '../types'
  * @param value JSON 字段
  */
 function readString(value: unknown): string {
+  // 只认字符串，其它类型收成空串由调用方判必填
   return typeof value === 'string' ? value.trim() : ''
 }
 
@@ -16,6 +17,7 @@ function readString(value: unknown): string {
  * @param raw `app.json` 解析结果
  */
 export function parseAppManifest(raw: unknown): JiaorongAppManifest | null {
+  // 非对象或数组都不是合法清单
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
   /** 清单原始字段。 */
   const record = raw as Record<string, unknown>
@@ -27,6 +29,7 @@ export function parseAppManifest(raw: unknown): JiaorongAppManifest | null {
   const version = readString(record.version)
   /** webview 入口，相对应用根，如 `web-ui/index.html`。 */
   const entry = readString(record.entry)
+  // 四个必填字段缺一不可
   if (!id || !name || !version || !entry) return null
   /** 侧栏图标，相对应用根。 */
   const icon = readString(record.icon)
@@ -34,6 +37,7 @@ export function parseAppManifest(raw: unknown): JiaorongAppManifest | null {
   const description = readString(record.description)
   /** 点开时 spawn 的脚本。 */
   const spawn = readString(record.spawn)
+  // slot 固定为侧栏菜单；可选字段为空就不写
   return {
     id,
     name,
@@ -58,6 +62,7 @@ export function readAppManifest(appDir: string): JiaorongAppManifest | null {
     const raw = fs.readFileSync(manifestPath, 'utf8')
     return parseAppManifest(JSON.parse(raw) as unknown)
   } catch {
+    // 文件不存在或 JSON 损坏，都视为「没有清单」
     return null
   }
 }

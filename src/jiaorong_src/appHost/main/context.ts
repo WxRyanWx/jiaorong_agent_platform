@@ -13,10 +13,12 @@ import { readAuthToken } from './userIdentity'
 function parseUserInfo(session: ReturnType<JiaorongAppHostDeps['getAuthSession']>): unknown {
   /** 优先完整 userFullInfo。 */
   const raw = session?.userFullInfo || session?.userInfo
+  // 两份资料都没有
   if (!raw) return null
   try {
     return JSON.parse(raw) as unknown
   } catch {
+    // JSON 损坏按未登录处理
     return null
   }
 }
@@ -35,12 +37,16 @@ export function buildHostContext(
   /** 用户名与组织。 */
   const identity = readUserIdentityFromUserInfo(parseUserInfo(session))
   return {
+    // 用户名缺失时给空串，应用侧按未登录处理
     userId: identity.userName || '',
+    // 只取第一个组织号作为当前组织
     orgId: identity.orgNos[0] ?? null,
     locale: deps.getLocale(),
     theme: deps.getTheme(),
     appId: runtime.id,
+    // 系统应用没有用户安装目录时给空串
     appDir: runtime.appDir || '',
+    // 未登录为 null，应用据此决定是否跳登录
     token: readAuthToken(session),
     apiBaseUrl: resolveAuthApiBaseUrl(),
     productId: resolveAuthProductId()

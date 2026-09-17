@@ -31,16 +31,20 @@ export function getUserAppDir(appId: string, homeDir = os.homedir()): string {
  */
 export function resolveUnpackagedBuiltinAppsRoot(candidates: string[]): string {
   for (const dir of candidates) {
+    // 命中第一个真实存在的目录就用它
     if (dir && fs.existsSync(dir)) return dir
   }
+  // 一个都不存在：退回第一个候选，让上层报「应用未找到」而不是崩在这里
   return candidates[0] ?? ''
 }
 
 /** 内置应用源根：开发走仓库 `apps/`，安装包走 `resources/jiaorong-apps`。 */
 export function getBuiltinAppsRoot(): string {
+  // 打包后固定放在 extraResources 里
   if (app.isPackaged) {
     return path.join(process.resourcesPath, 'jiaorong-apps')
   }
+  // 开发态 `app.getAppPath()` 可能指向 out/main，逐个候选试
   return resolveUnpackagedBuiltinAppsRoot([
     path.join(app.getAppPath(), 'src', 'jiaorong_src', 'apps'),
     path.join(__dirname, '../../src/jiaorong_src/apps'),
@@ -74,6 +78,7 @@ export function getAppPreloadFileUrl(): string {
 export function isPathInsideRoot(rootPath: string, targetPath: string): boolean {
   /** 相对根的路径；逃逸会以 `..` 开头。 */
   const relativePath = path.relative(rootPath, targetPath)
+  // 空串表示就是根本身；否则要求不以 `..` 开头且不是绝对路径（跨盘）
   return (
     relativePath === '' ||
     (!!relativePath && !relativePath.startsWith('..') && !path.isAbsolute(relativePath))
@@ -96,10 +101,13 @@ export function ensureDir(dirPath: string): void {
 export function shouldCopyAppPath(sourceRoot: string, filePath: string): boolean {
   /** 相对应用根的路径。 */
   const relative = path.relative(sourceRoot, filePath)
+  // 根自身不拷；相对路径以 `..` 开头说明在源目录之外
   if (!relative || relative.startsWith('..')) return false
   /** 路径分段，用于判断 `web` / `node_modules`。 */
   const parts = relative.split(path.sep)
+  // 依赖与 git 目录不进用户安装目录
   if (parts.includes('node_modules') || parts.includes('.git')) return false
+  // `web/` 是前端源码，运行只需要构建产物
   if (parts[0] === 'web') return false
   return true
 }
