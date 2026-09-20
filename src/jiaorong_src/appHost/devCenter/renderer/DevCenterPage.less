@@ -1,0 +1,135 @@
+/* 开发者中心页样式：卡片复用应用中心，发布弹窗横向表单 + 底部按钮固定 */
+
+@import '../../appCenter/renderer/AppCenterPage.less';
+
+.dev-center-page {
+  &__create-icon {
+    width: 14px;
+    height: 14px;
+  }
+
+  &__dir {
+    margin: 10px 0 0;
+    font-size: 11px;
+    line-height: 16px;
+    color: var(--muted-foreground);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__dialog {
+    max-width: 560px;
+    width: min(560px, calc(100vw - 2rem));
+    max-height: 82vh;
+    overflow: hidden;
+  }
+
+  &__dialog-body {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    max-height: calc(82vh - 3rem);
+    overflow: hidden;
+    gap: 16px;
+  }
+
+  &__form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow: auto;
+    padding-right: 4px;
+  }
+
+  &__field {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  &__field-label {
+    flex: 0 0 108px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 36px;
+    font-size: 13px;
+    line-height: 18px;
+    color: var(--foreground);
+  }
+
+  &__required {
+    color: var(--destructive);
+    margin-left: 2px;
+  }
+
+  &__hint {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--muted-foreground);
+    cursor: help;
+
+    svg {
+      width: 12px;
+      height: 12px;
+    }
+  }
+
+  &__hint-pop {
+    max-width: 260px;
+  }
+
+  &__select,
+  &__desc,
+  &__zip-row {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  &__select {
+    height: 36px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--background);
+    padding: 0 10px;
+    font-size: 14px;
+  }
+
+  &__desc {
+    min-height: 72px;
+    font-size: 13px;
+  }
+
+  &__error {
+    margin: 0 0 0 120px;
+    font-size: 12px;
+    line-height: 18px;
+    color: var(--destructive);
+  }
+
+  &__zip-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &__zip-input {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  &__dialog-header,
+  &__dialog-footer {
+    flex-shrink: 0;
+  }
+}

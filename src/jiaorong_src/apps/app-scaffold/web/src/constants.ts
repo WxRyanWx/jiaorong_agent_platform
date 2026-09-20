@@ -12,7 +12,7 @@ export const NODE_PORT = 8787
 /** 应用内智能体的稳定 key，重复 create 会复用同一条。 */
 export const CHAT_AGENT_KEY = 'workbench'
 /** 侧栏和对话顶栏展示的智能体名称。 */
-export const CHAT_AGENT_NAME = '应用脚手架助手'
+export const CHAT_AGENT_NAME = '示例应用助手'
 /**
  * 应用自带技能目录名，对应 `skill/<name>/SKILL.md`。
  * 超级智能体会写成 `app.app-scaffold.<name>`。
@@ -73,7 +73,7 @@ export function buildChatAgentPrompt(appDir: string): string {
     .map((name) => `- ${appSkillFile(appDir, name)}`)
     .join('\n')
   return [
-    '你是应用脚手架助手，用中文简洁回答。',
+    '你是示例应用助手，用中文简洁回答。',
     '',
     '默认必须先用文件读取工具打开并严格遵循这份技能，再回答用户：',
     defaultFile,

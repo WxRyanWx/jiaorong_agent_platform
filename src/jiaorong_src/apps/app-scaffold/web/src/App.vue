@@ -24,7 +24,7 @@ async function openDebug() {
 <template>
   <div class="shell">
     <header class="bar">
-      <strong>应用脚手架</strong>
+      <strong>示例应用</strong>
       <nav>
         <button type="button" class="debug" @click="openDebug">打开调试台</button>
         <span v-if="debugError" class="debug-err">{{ debugError }}</span>

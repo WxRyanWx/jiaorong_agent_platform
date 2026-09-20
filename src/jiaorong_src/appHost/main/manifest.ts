@@ -1,7 +1,8 @@
 /** 读应用包内 `app.json`（应用方维护）。目录级 auth 不写在这里。 */
 
 import fs from 'node:fs'
-import type { JiaorongAppManifest } from '../types'
+import { APP_MANIFEST_SLOTS } from '../manifestRules'
+import type { JiaorongAppManifest, JiaorongAppSlot } from '../types'
 
 /**
  * 把未知值收成 trim 后的字符串。
@@ -21,7 +22,7 @@ export function parseAppManifest(raw: unknown): JiaorongAppManifest | null {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
   /** 清单原始字段。 */
   const record = raw as Record<string, unknown>
-  /** 应用 id，须与目录 id 一致。 */
+  /** 应用 id，不要求与文件夹名相同。 */
   const id = readString(record.id)
   /** 侧栏显示名。 */
   const name = readString(record.name)
@@ -37,13 +38,18 @@ export function parseAppManifest(raw: unknown): JiaorongAppManifest | null {
   const description = readString(record.description)
   /** 点开时 spawn 的脚本。 */
   const spawn = readString(record.spawn)
-  // slot 固定为侧栏菜单；可选字段为空就不写
+  /** 挂载位置；只认 menu / app-center，非法或未填则不下发。 */
+  const slot = readString(record.slot)
+  /** 合法的包内 slot。 */
+  const parsedSlot = (APP_MANIFEST_SLOTS as readonly string[]).includes(slot)
+    ? (slot as JiaorongAppSlot)
+    : undefined
   return {
     id,
     name,
     version,
     entry,
-    slot: 'menu',
+    ...(parsedSlot ? { slot: parsedSlot } : {}),
     ...(icon ? { icon } : {}),
     ...(description ? { description } : {}),
     ...(spawn ? { spawn } : {})

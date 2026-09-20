@@ -31,4 +31,10 @@ export {
   type KnowledgeBaseRouteName
 } from './knowledgeBase.meta'
 
-export { APP_ROUTE_DEFS, APP_ROUTE_NAMES, isAppRouteLocation, type AppRouteName } from './apps.meta'
+export {
+  APP_ROUTE_DEFS,
+  APP_ROUTE_NAMES,
+  isAppRouteLocation,
+  isEmbeddedAppRouteLocation,
+  type AppRouteName
+} from './apps.meta'

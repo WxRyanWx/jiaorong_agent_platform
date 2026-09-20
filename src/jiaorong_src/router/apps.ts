@@ -2,7 +2,9 @@ import type { RouteRecordRaw } from 'vue-router'
 import { APP_ROUTE_DEFS, type AppRouteName } from './apps.meta'
 
 const appPageLoaders: Record<AppRouteName, () => Promise<unknown>> = {
-  'jiaorong-app': () => import('../appHost/renderer/pages/AppHostPage.vue')
+  'jiaorong-app': () => import('../appHost/renderer/pages/AppHostPage.vue'),
+  'jiaorong-app-center': () => import('../appHost/appCenter/renderer/AppCenterPage.vue'),
+  'jiaorong-dev-center': () => import('../appHost/devCenter/renderer/DevCenterPage.vue')
 }
 
 export function createAppRoutes(): RouteRecordRaw[] {
@@ -23,4 +25,10 @@ export function createAppRoutes(): RouteRecordRaw[] {
   })
 }
 
-export { APP_ROUTE_DEFS, APP_ROUTE_NAMES, isAppRouteLocation, type AppRouteName } from './apps.meta'
+export {
+  APP_ROUTE_DEFS,
+  APP_ROUTE_NAMES,
+  isAppRouteLocation,
+  isEmbeddedAppRouteLocation,
+  type AppRouteName
+} from './apps.meta'

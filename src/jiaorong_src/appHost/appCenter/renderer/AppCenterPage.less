@@ -1,0 +1,200 @@
+/* 应用中心页样式：卡片网格 + 状态行
+ * Less 会把 rgb(... / alpha) 里的 / 当成运算，带透明度时请写成 ~'...' 转义字符串
+ */
+
+.app-center-page {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: 32px;
+  overflow-y: auto;
+  color: var(--foreground);
+
+  /* Tailwind v4 preflight 把 button 光标设成 default，这里恢复成小手 */
+  button {
+    cursor: pointer;
+  }
+
+  &__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  &__title {
+    font-size: 20px;
+    font-weight: 600;
+  }
+
+  &__subtitle {
+    margin-top: 4px;
+    font-size: 13px;
+    color: var(--muted-foreground);
+  }
+
+  &__refresh-icon {
+    width: 14px;
+    height: 14px;
+
+    &.is-spinning {
+      animation: app-center-spin 0.8s linear infinite;
+    }
+  }
+
+  &__empty {
+    margin-top: 96px;
+    text-align: center;
+    font-size: 13px;
+    color: var(--muted-foreground);
+  }
+
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: 16px;
+    margin-top: 24px;
+
+    @media (min-width: 640px) {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    /* 与技能市场一致：常见视口 3 列，超宽 4 列 */
+    @media (min-width: 1100px) {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    @media (min-width: 1440px) {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+}
+
+.app-center-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 168px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+  box-shadow: 0 1px 2px ~'color-mix(in srgb, var(--shadow-card) 30%, transparent)';
+  transition:
+    box-shadow 0.15s ease,
+    border-color 0.15s ease;
+
+  &:hover {
+    border-color: var(--input);
+    box-shadow: 0 4px 12px ~'color-mix(in srgb, var(--shadow-card) 60%, transparent)';
+  }
+
+  &__head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  &__icon {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    border-radius: 8px;
+    object-fit: cover;
+  }
+
+  &__icon-fallback {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    color: var(--muted-foreground);
+  }
+
+  &__meta {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  &__name {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 22px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__version {
+    font-size: 12px;
+    line-height: 20px;
+    color: var(--muted-foreground);
+  }
+
+  &__dev-badge {
+    flex: none;
+    padding: 1px 6px;
+    border-radius: 9999px;
+    font-size: 11px;
+    color: var(--muted-foreground);
+    border: 1px solid var(--border);
+  }
+
+  &__desc {
+    margin: 0 0 14px;
+    font-size: 12px;
+    line-height: 20px;
+    color: var(--muted-foreground);
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  &__foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: auto;
+  }
+
+  &__provider {
+    font-size: 12px;
+    color: var(--muted-foreground);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    &.is-error {
+      color: var(--destructive);
+    }
+  }
+
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  &__action-btn {
+    min-width: 52px !important;
+    height: 28px !important;
+    padding: 0 14px !important;
+    border-radius: 6px !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    line-height: 28px !important;
+    cursor: pointer;
+  }
+}
+
+@keyframes app-center-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

@@ -56,15 +56,55 @@ describe('appsManages', () => {
     expect(manager.isRunning('hello-app')).toBe(false)
   })
 
-  it('registers bundled collaboration-platform from builtin dir, not apps root', async () => {
+  it('does not register collaboration-platform from the user apps root', async () => {
     const appsRoot = await makeRoot()
     const manager = new appsManages(path.join(appsRoot, 'apps'))
-    const dir = manager.getAppDir('collaboration-platform')
-    expect(dir).toBeTruthy()
-    expect(dir && existsSync(path.join(dir, 'app.json'))).toBe(true)
-    expect(dir?.includes(path.join(appsRoot, 'apps'))).toBe(false)
-    const started = manager.startApp('collaboration-platform')
+    expect(manager.getAppDir('collaboration-platform')).toBeNull()
+  })
+
+  it('starts spawn by app.json id even when the folder name is different', async () => {
+    const appsRoot = await makeRoot()
+    const source = path.join(appsRoot, 'src-app')
+    await mkdir(path.join(source, 'web-ui'), { recursive: true })
+    await writeFile(
+      path.join(source, 'app.json'),
+      JSON.stringify({
+        id: 'app-scaffold123',
+        name: '应用脚手架123',
+        version: '0.0.1',
+        entry: 'web-ui/index.html',
+        slot: 'menu',
+        spawn: 'node -e "setTimeout(()=>{}, 30000)"'
+      }),
+      'utf8'
+    )
+    await writeFile(path.join(source, 'web-ui', 'index.html'), '<html></html>', 'utf8')
+
+    const manager = new appsManages(path.join(appsRoot, 'apps'))
+    const folderName = 'any-install-folder'
+    const installed = manager.installAppFromPath(source, {
+      mode: 'copy',
+      folderName,
+      overwrite: true
+    })
+    expect(installed.success, installed.message).toBe(true)
+    expect(manager.getApp(folderName)).toBeNull()
+    expect(manager.getApp('app-scaffold123')?.id).toBe('app-scaffold123')
+
+    const appDir = path.join(appsRoot, 'apps', folderName)
+    const started = manager.startApp('app-scaffold123', { cwd: appDir })
     expect(started.success, started.message).toBe(true)
+    expect(started.data?.cwd).toBe(appDir)
+    expect(started.data?.pid).toBeGreaterThan(0)
+    expect(manager.isRunning('app-scaffold123')).toBe(true)
+
+    manager.stopApp('app-scaffold123')
+    expect(manager.isRunning('app-scaffold123')).toBe(false)
+
+    const uninstalled = manager.uninstallApp('app-scaffold123')
+    expect(uninstalled.success, uninstalled.message).toBe(true)
+    expect(existsSync(appDir)).toBe(false)
+    expect(manager.getApp('app-scaffold123')).toBeNull()
   })
 
   it('skips start when spawn is absent', async () => {

@@ -76,26 +76,32 @@ function findGuestPageWebContents(appId: string, preferredWebContentsId: number)
  * 运行时转成侧栏菜单项；图标必须落在应用目录内才给 file:// URL。
  * @param runtime 应用运行时项
  */
-export function toMenuAppItem(runtime: JiaorongAppRuntime): JiaorongMenuAppItem {
+/**
+ * 解析应用图标为 file:// URL；越界或文件缺失返回 null。
+ * @param runtime 运行时项
+ */
+export function resolveAppIconSrc(runtime: JiaorongAppRuntime): string | null {
   /** 应用安装目录。 */
   const appDir = runtime.appDir
   /** 图标文件绝对路径。 */
   const iconFile = runtime.icon && appDir ? path.resolve(appDir, runtime.icon) : null
-  /** 校验通过后的 file:// 图标 URL；否则 null。 */
-  const iconSafe =
-    iconFile &&
+  // 校验通过后的 file:// 图标 URL；否则 null
+  return iconFile &&
     appDir &&
     isPathInsideRoot(path.resolve(appDir), iconFile) &&
     fs.existsSync(iconFile)
-      ? pathToFileURL(iconFile).href
-      : null
+    ? pathToFileURL(iconFile).href
+    : null
+}
+
+export function toMenuAppItem(runtime: JiaorongAppRuntime): JiaorongMenuAppItem {
   // 只透出侧栏需要的字段
   return {
     id: runtime.id,
     name: runtime.name,
     version: runtime.version,
     installStatus: runtime.installStatus,
-    iconSrc: iconSafe
+    iconSrc: resolveAppIconSrc(runtime)
   }
 }
 

@@ -1,9 +1,0 @@
-{
-  "id": "collaboration-platform",
-  "name": "协同平台",
-  "version": "1.0.1",
-  "icon": "icon.png",
-  "description": "协同平台",
-  "entry": "web-ui/index.html",
-  "slot": "menu"
-}

@@ -1,40 +1,101 @@
-/** 扫 OSS 目录与本机已装；协同平台随客户端内置，不拷到用户 apps。 */
+/** 扫 OSS 目录与本机已装；协同平台只走 OSS zip，装到 Electron userData。 */
 
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { app } from 'electron'
 import { isAppVisibleToUser } from '../auth'
-import { loadBuiltinAppCatalog, mergeAppCatalogs } from '../catalog'
-import {
-  COLLABORATION_PLATFORM_APP_ID,
-  isSystemBundledApp,
-  mergeSystemBundledCatalog
-} from '../systemApps'
+import { loadBuiltinAppCatalog } from '../catalog'
+import { isSystemBundledApp, mergeSystemBundledCatalog } from '../systemApps'
 import type {
   JiaorongAppCatalogRecord,
   JiaorongAppInstallStatus,
   JiaorongAppRuntime,
+  JiaorongAppSlot,
   JiaorongAppUserIdentity
 } from '../types'
+import { devAppCatalogRecords, isDevCenterAppId } from '../devCenter/main/devApps'
 import { readAppManifest } from './manifest'
+import { sharedAppsManager } from './appManagerInstance'
 import {
   ensureDir,
   getBuiltinAppDir,
+  getSystemAppDir,
+  getSystemAppsRoot,
   getUserAppDir,
   getUserAppsRoot,
+  isPathInsideRoot,
   shouldCopyAppPath
 } from './paths'
+
+/**
+ * 拆宽松 semver 为数字段与预发布标识；构建元数据（+xxx）忽略。
+ * @param version 版本号字符串
+ * @returns 解析结果；无法解析返回 null
+ */
+function parseVersionParts(version: string): { core: number[]; pre: string[] } | null {
+  /** 宽松 semver 匹配：三段数字 + 可选预发布 + 可选构建元数据。 */
+  const matched = /^(\d+)\.(\d+)\.(\d+)(?:-([\w.]+))?(?:\+[\w.]+)?$/.exec(version.trim())
+  // 非 semver 格式不做语义比较
+  if (!matched) return null
+  return {
+    core: [Number(matched[1]), Number(matched[2]), Number(matched[3])],
+    pre: matched[4] ? matched[4].split('.') : []
+  }
+}
+
+/**
+ * 比较两个宽松 semver 的新旧。
+ * @param a 左侧版本
+ * @param b 右侧版本
+ * @returns 1 表示 a 更新，-1 表示 a 更旧，0 表示同级；无法解析则视为同级
+ */
+function compareVersion(a: string, b: string): number {
+  /** 左侧解析结果。 */
+  const left = parseVersionParts(a)
+  /** 右侧解析结果。 */
+  const right = parseVersionParts(b)
+  if (!left || !right) return 0
+  // 先比三段数字
+  for (let i = 0; i < 3; i += 1) {
+    if (left.core[i] !== right.core[i]) return left.core[i] > right.core[i] ? 1 : -1
+  }
+  // 数字段同级：无预发布比有预发布更新
+  if (left.pre.length === 0 && right.pre.length === 0) return 0
+  if (left.pre.length === 0) return 1
+  if (right.pre.length === 0) return -1
+  // 预发布标识逐段比较
+  const preLength = Math.max(left.pre.length, right.pre.length)
+  for (let i = 0; i < preLength; i += 1) {
+    /** 左侧标识，缺省算更旧。 */
+    const leftId = left.pre[i]
+    /** 右侧标识，缺省算更旧。 */
+    const rightId = right.pre[i]
+    if (leftId === undefined) return -1
+    if (rightId === undefined) return 1
+    if (leftId === rightId) continue
+    /** 左侧是否纯数字标识。 */
+    const leftNum = /^\d+$/.test(leftId) ? Number(leftId) : null
+    /** 右侧是否纯数字标识。 */
+    const rightNum = /^\d+$/.test(rightId) ? Number(rightId) : null
+    // 数字标识按数值比，且比非数字标识旧
+    if (leftNum !== null && rightNum !== null) return leftNum > rightNum ? 1 : -1
+    if (leftNum !== null) return -1
+    if (rightNum !== null) return 1
+    return leftId > rightId ? 1 : -1
+  }
+  return 0
+}
 
 /**
  * 比较已装版本与目录版本。
  * @param installed 磁盘上的版本
  * @param catalog 目录里的版本
- * @returns true 表示版本不一致，有可用更新
+ * @returns true 表示目录版本比已装版本新，有可用更新
  */
-function compareAppVersion(installed: string | null | undefined, catalog: string): boolean {
+export function compareAppVersion(installed: string | null | undefined, catalog: string): boolean {
   // 没装过就不算「有更新」
-  return Boolean(installed && installed !== catalog)
+  if (!installed) return false
+  return compareVersion(catalog, installed) > 0
 }
 
 /**
@@ -148,18 +209,22 @@ function listLocalDebugApps(catalogIds: Set<string>): JiaorongAppCatalogRecord[]
   if (!fs.existsSync(root)) return []
   /** 额外字段。 */
   const extras: JiaorongAppCatalogRecord[] = []
+  /** 已收进本地调试的 app.json.id。 */
+  const seen = new Set<string>()
   /** 目录下一档。 */
   for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
     // 只认目录
     if (!entry.isDirectory()) continue
-    // 目录已收录，或是随客户端内置的系统应用，都不算本地调试
-    if (catalogIds.has(entry.name) || isSystemBundledApp(entry.name)) continue
     /** 应用安装目录。 */
     const appDir = path.join(root, entry.name)
     /** 应用清单。 */
     const manifest = readAppManifest(appDir)
-    // 没有合法清单，或清单 id 与目录名不一致
-    if (!manifest || manifest.id !== entry.name) continue
+    // 没有合法清单就不收
+    if (!manifest) continue
+    // 已按 app.json.id 收录，或是系统应用，都不算本地调试；文件夹名不参与判断
+    if (catalogIds.has(manifest.id) || isSystemBundledApp(manifest.id)) continue
+    if (seen.has(manifest.id)) continue
+    seen.add(manifest.id)
     // 收成一条本地调试记录：始终启用、不限可见性
     extras.push({
       id: manifest.id,
@@ -167,10 +232,11 @@ function listLocalDebugApps(catalogIds: Set<string>): JiaorongAppCatalogRecord[]
       version: manifest.version,
       description: manifest.description,
       icon: manifest.icon,
-      slot: 'menu',
+      slot: pickRuntimeSlot('app-center', manifest.slot),
       source: 'local-debug',
       enabled: true,
       auth: null,
+      provider: '本地',
       package: { kind: 'dir', builtinDir: manifest.id }
     })
   }
@@ -178,7 +244,7 @@ function listLocalDebugApps(catalogIds: Set<string>): JiaorongAppCatalogRecord[]
 }
 
 /**
- * 本机 apps/ 里的应用始终并入列表（手丢的包也要能出现在侧栏）。
+ * 合并 OSS 目录与用户 apps 下手丢的本地包，供打开路径识别；侧栏和应用中心会再各自过滤。
  * @param remote OSS 目录
  * @param localDebug 本地调试目录
  */
@@ -190,79 +256,44 @@ export function combineRemoteAndLocalDebugApps(
 }
 
 /**
- * 这条目录是否还能装：用户目录已有，或仓库/extraResources 里有源。
+ * 这条目录是否还能装：系统应用要本机已装或有 zip；商店应用走下载；其余看已装目录或仓库源。
  * @param record 目录记录
  */
 export function catalogRecordHasInstallSource(record: JiaorongAppCatalogRecord): boolean {
-  // 系统应用只看内置目录在不在
-  if (isSystemBundledApp(record.id)) {
-    /** 内置目录名。 */
-    const builtinDir = record.package.builtinDir
-    return Boolean(builtinDir && fs.existsSync(getBuiltinAppDir(builtinDir)))
+  if (record.source === 'builtin') {
+    if (readAppManifest(getSystemAppDir(record.id))) return true
+    return Boolean(record.package.kind === 'zip' && record.package.downloadUrl?.trim())
   }
-  // 后管应用由下载流程负责，恒认为有源
   if (record.source === 'store') return true
-  /** 用户安装目录。 */
-  const destDir = getUserAppDir(record.id)
-  // 本机已经装过
-  if (readAppManifest(destDir)) return true
-  /** 内置目录名。 */
+  if (sharedAppsManager().getAppDir(record.id)) return true
   const builtinDir = record.package.builtinDir
-  // 仓库 / extraResources 里有源
   return Boolean(builtinDir && fs.existsSync(getBuiltinAppDir(builtinDir)))
 }
 
 /**
- * 指向 extraResources / 仓库内的系统应用目录，不拷贝。
+ * 系统应用指向 Electron userData 下的安装目录，不拷到用户 apps。
  * @param runtime 目录项
  */
 function bindSystemBundledDir(runtime: JiaorongAppRuntime): JiaorongAppRuntime {
-  /** 内置目录名。 */
-  const builtinName = runtime.package.builtinDir || runtime.id
-  /** 随包目录。 */
-  const appDir = getBuiltinAppDir(builtinName)
-  /** 包内清单。 */
-  const manifest = readAppManifest(appDir)
-  // 清单缺失时标记为 error，但仍保留 appDir 为 null 防止误用
+  /** OSS 解压后的目录。 */
+  const installedDir = getSystemAppDir(runtime.id)
+  /** 已装清单。 */
+  const manifest = readAppManifest(installedDir)
+  const installStatus = !manifest
+    ? 'not_installed'
+    : compareAppVersion(manifest.version, runtime.version)
+      ? 'update_available'
+      : 'installed'
   return {
     ...runtime,
-    appDir: manifest ? appDir : null,
+    appDir: manifest ? installedDir : null,
     installedVersion: manifest?.version ?? null,
-    installStatus: manifest ? 'installed' : 'error',
+    installStatus,
     entry: manifest?.entry ?? null
   }
 }
 
-/**
- * 从 extraResources / 仓库 apps 读系统应用清单。
- */
-function loadSystemBundledCatalog(): JiaorongAppCatalogRecord[] {
-  /** 协同平台源目录。 */
-  const appDir = getBuiltinAppDir(COLLABORATION_PLATFORM_APP_ID)
-  /** 包内 app.json。 */
-  const manifest = readAppManifest(appDir)
-  // 没随包发布（如仓库未放该目录）
-  if (!manifest) return []
-  // 固定按内置来源登记，可见性交给 OSS 覆盖
-  return [
-    {
-      id: manifest.id,
-      name: manifest.name,
-      version: manifest.version,
-      description: manifest.description,
-      icon: manifest.icon,
-      slot: 'menu',
-      source: 'builtin',
-      enabled: true,
-      auth: null,
-      package: { kind: 'dir', builtinDir: COLLABORATION_PLATFORM_APP_ID }
-    }
-  ]
-}
-
-/**
- * 系统应用固定用内置目录，不把 extraResources 当成「用户已装」。
- */
+/** 系统应用走 userData；商店应用忽略误留在 system-apps 里的目录。 */
 function resolveRuntime(
   record: JiaorongAppCatalogRecord,
   user: JiaorongAppUserIdentity
@@ -270,7 +301,7 @@ function resolveRuntime(
   /** 目录侧是否可见：启用且通过 auth。 */
   const catalogVisible = record.enabled !== false && isAppVisibleToUser(record.auth, user)
   // 系统应用：直接指向内置目录，不拷到用户 apps
-  if (isSystemBundledApp(record.id)) {
+  if (record.source === 'builtin') {
     return bindSystemBundledDir({
       ...record,
       visible: catalogVisible,
@@ -280,10 +311,13 @@ function resolveRuntime(
       entry: null
     })
   }
-  /** userDir 路径。 */
-  const userDir = getUserAppDir(record.id)
+  /** 已按 app.json.id 登记的安装目录，文件夹名可以不同。 */
+  const linkedDir = sharedAppsManager().getAppDir(record.id)
+  // 改回 store 后，jiaorong-system-apps 里的旧包不算商店已装，侧栏不再展示
+  const userDir =
+    linkedDir && isPathInsideRoot(getSystemAppsRoot(), linkedDir) ? null : linkedDir
   /** 用户目录里的清单。 */
-  const userManifest = fs.existsSync(userDir) ? readAppManifest(userDir) : null
+  const userManifest = userDir ? readAppManifest(userDir) : null
   /** 配置表允许看见，或本机已经有安装目录（无配置权限但手丢了也能进侧栏）。 */
   const onDisk = Boolean(userManifest)
   const visible = catalogVisible || onDisk
@@ -307,17 +341,29 @@ function resolveRuntime(
     installStatus = 'error'
   }
 
-  /** 应用清单。 */
-  const manifest = appDir ? readAppManifest(appDir) : null
-  // 合成运行时项
+  // 合成运行时项：已装时以包内 slot 为准，未装才用目录 slot
   return {
     ...record,
+    slot: pickRuntimeSlot(record.slot, userManifest?.slot),
     visible,
     installStatus,
     installedVersion,
     appDir,
-    entry: manifest?.entry ?? null
+    entry: userManifest?.entry ?? null
   }
+}
+
+/**
+ * 已装包的 slot 优先于目录配置。包内没写或非法时退回目录 slot。
+ * @param catalogSlot OSS / 目录 slot
+ * @param manifestSlot 磁盘 app.json.slot
+ */
+export function pickRuntimeSlot(
+  catalogSlot: JiaorongAppSlot,
+  manifestSlot?: JiaorongAppSlot | null
+): JiaorongAppSlot {
+  if (manifestSlot === 'menu' || manifestSlot === 'app-center') return manifestSlot
+  return catalogSlot
 }
 
 /**
@@ -325,42 +371,65 @@ function resolveRuntime(
  * @param user 当前登录用户身份
  */
 export function scanJiaorongApps(user: JiaorongAppUserIdentity): JiaorongAppRuntime[] {
+  // 先按 app.json.id 重扫安装缓存，已装状态不看文件夹名
+  sharedAppsManager().refresh()
   /** OSS 目录。 */
   const remote = loadBuiltinAppCatalog()
-  /** 随客户端内置的系统应用。 */
-  const system = loadSystemBundledCatalog()
-  /** 系统应用叠上 OSS 可见性，并滤掉没有安装源的记录。 */
-  const merged = mergeAppCatalogs(mergeSystemBundledCatalog(system, remote), []).filter(
-    catalogRecordHasInstallSource
-  )
+  const merged = mergeSystemBundledCatalog(remote).filter(catalogRecordHasInstallSource)
   /** 用户 apps 目录里手丢的本地调试包。 */
   const localDebug = listLocalDebugApps(new Set(merged.map((item) => item.id)))
-  // 合并后逐条算出运行时状态
-  return combineRemoteAndLocalDebugApps(merged, localDebug).map((record) =>
-    resolveRuntime(record, user)
+  /** 已收录 id：开发者本地包不覆盖 OSS 与用户目录包。 */
+  const knownIds = new Set([...merged.map((item) => item.id), ...localDebug.map((item) => item.id)])
+  /** 开发者中心登记的本地包。 */
+  const devRuntimes = devAppCatalogRecords(knownIds).map(({ record, dir }) =>
+    resolveDevRuntime(record, dir)
   )
+  // 合并后逐条算出运行时状态
+  return [
+    ...combineRemoteAndLocalDebugApps(merged, localDebug).map((record) =>
+      resolveRuntime(record, user)
+    ),
+    ...devRuntimes
+  ]
 }
 
 /**
- * 把内置应用拷到用户目录；版本一致则跳过。
- * @param runtime 目录扫出的运行时项
- * @param options refresh 为 true 时开发态强制重拷
+ * 开发者本地登记包的运行时：目录即安装目录，清单读不到视为坏包。
+ * @param record 合成目录记录
+ * @param appDir 插件文件夹
  */
-export function ensureJiaorongAppInstalled(
-  runtime: JiaorongAppRuntime,
-  options?: { refresh?: boolean }
-): JiaorongAppRuntime {
+function resolveDevRuntime(record: JiaorongAppCatalogRecord, appDir: string): JiaorongAppRuntime {
+  /** 插件文件夹清单。 */
+  const manifest = fs.existsSync(appDir) ? readAppManifest(appDir) : null
+  return {
+    ...record,
+    slot: pickRuntimeSlot(record.slot, manifest?.slot),
+    visible: true,
+    installStatus: manifest ? 'installed' : 'error',
+    installedVersion: manifest?.version ?? null,
+    appDir,
+    entry: manifest?.entry ?? null
+  }
+}
+
+/**
+ * 商店应用：已装则复用目录；有 extraResources / 仓库源则按需拷到用户 apps。
+ * 系统应用只绑定 userData，不拷贝。
+ * @param runtime 目录扫出的运行时项
+ */
+export function ensureJiaorongAppInstalled(runtime: JiaorongAppRuntime): JiaorongAppRuntime {
   // 系统应用始终指向内置目录，不拷贝
-  if (isSystemBundledApp(runtime.id)) return bindSystemBundledDir(runtime)
+  if (runtime.source === 'builtin') return bindSystemBundledDir(runtime)
   // 本地调试包本来就在用户目录里
   if (runtime.source === 'local-debug') return runtime
 
-  /** 用户安装目录。 */
-  const destDir = getUserAppDir(runtime.id)
+  /** 已按 app.json.id 找到的安装目录，文件夹名可以不同。 */
+  const installedDir =
+    runtime.appDir && fs.existsSync(path.join(runtime.appDir, 'app.json'))
+      ? runtime.appDir
+      : sharedAppsManager().getAppDir(runtime.id)
   /** 目标目录清单。 */
-  const destManifest = fs.existsSync(destDir) ? readAppManifest(destDir) : null
-  /** 开发态是否刷新未打包应用。 */
-  const refreshUnpackaged = options?.refresh === true && !app.isPackaged
+  const destManifest = installedDir ? readAppManifest(installedDir) : null
   /** 内置目录名。 */
   const builtinDir = runtime.package.builtinDir
     ? getBuiltinAppDir(runtime.package.builtinDir)
@@ -370,11 +439,11 @@ export function ensureJiaorongAppInstalled(
     builtinDir && fs.existsSync(builtinDir) ? readAppManifest(builtinDir) : null
   /** 源版本。 */
   const sourceVersion = sourceManifest?.version ?? runtime.version
-  // 已装且版本一致，且不需要开发态刷新：直接复用
-  if (destManifest && destManifest.version === sourceVersion && !refreshUnpackaged) {
+  // 已装且版本一致：直接复用
+  if (installedDir && destManifest && destManifest.version === sourceVersion) {
     return {
       ...runtime,
-      appDir: destDir,
+      appDir: installedDir,
       installedVersion: destManifest.version,
       installStatus: 'installed',
       entry: destManifest.entry
@@ -384,10 +453,10 @@ export function ensureJiaorongAppInstalled(
   // 没有内置源可拷
   if (!builtinDir || !fs.existsSync(builtinDir)) {
     // 但用户目录已经装过，就继续用旧的
-    if (destManifest) {
+    if (installedDir && destManifest) {
       return {
         ...runtime,
-        appDir: destDir,
+        appDir: installedDir,
         installedVersion: destManifest.version,
         installStatus: 'installed',
         entry: destManifest.entry
@@ -397,6 +466,8 @@ export function ensureJiaorongAppInstalled(
     return { ...runtime, installStatus: 'error' }
   }
 
+  /** 内置拷贝落盘目录：已装用原目录，全新安装才按 id 建默认文件夹名。 */
+  const destDir = installedDir ?? getUserAppDir(runtime.id)
   try {
     // 拷贝或升级到目标目录
     copyBuiltinApp(builtinDir, destDir)
@@ -418,6 +489,21 @@ export function ensureJiaorongAppInstalled(
 }
 
 /**
+ * 侧栏菜单：slot=menu 的系统应用 / 商店应用，以及用户 apps 下手丢的 menu 包。
+ * 开发者中心登记包只在开发者中心打开。
+ * @param item 运行时项
+ */
+export function isJiaorongSidebarMenuApp(item: {
+  id: string
+  source: JiaorongAppRuntime['source']
+  slot: JiaorongAppRuntime['slot']
+}): boolean {
+  if (item.slot !== 'menu') return false
+  if (item.source === 'local-debug') return !isDevCenterAppId(item.id)
+  return true
+}
+
+/**
  * 找当前用户可见且可打开的应用。
  * @param apps 运行时列表
  * @param appId 应用 id
@@ -430,7 +516,8 @@ export function findVisibleOpenableApp(
   const runtime = apps.find((item) => item.id === appId)
   // 不存在或当前用户不可见
   if (!runtime?.visible) return null
-  // 后管应用还没下载完，不能打开
-  if (runtime.source === 'store' && runtime.installStatus === 'not_installed') return null
+  // 没落盘或坏包不能打开；更新中若目录还在则可以继续看
+  if (runtime.installStatus === 'not_installed' || runtime.installStatus === 'error') return null
+  if (!runtime.appDir) return null
   return runtime
 }

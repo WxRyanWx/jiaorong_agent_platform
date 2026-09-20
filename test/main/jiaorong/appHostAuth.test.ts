@@ -8,6 +8,7 @@ import {
   loadBuiltinAppCatalog,
   mergeAppCatalogs,
   parseAppCatalogFile,
+  parseAppCatalogRecord,
   resetRemoteAppCatalogForTests
 } from '../../../src/jiaorong_src/appHost/catalog'
 import { mergeSystemBundledCatalog } from '../../../src/jiaorong_src/appHost/systemApps'
@@ -87,35 +88,51 @@ describe('jiaorong app catalog auth', () => {
     expect(merged[0]?.package.downloadUrl).toBe('https://example.test/demo.zip')
   })
 
-  it('keeps collaboration-platform on the bundled package and only takes OSS auth', () => {
-    const system = parseAppCatalogFile({
-      apps: [
-        {
-          id: 'collaboration-platform',
-          name: '协同平台',
-          version: '1.0.1',
-          source: 'builtin',
-          package: { kind: 'dir', builtinDir: 'collaboration-platform' }
-        }
-      ]
+  it('treats http builtinDir as zip downloadUrl for collaboration-platform', () => {
+    const parsed = parseAppCatalogRecord({
+      id: 'collaboration-platform',
+      name: '协同平台',
+      version: '1.0.1',
+      source: 'builtin',
+      package: {
+        kind: 'dir',
+        builtinDir: 'https://c4ai.ccccltd.cn/xkprosdk/apps/collaboration-platform.zip'
+      }
     })
-    const merged = mergeSystemBundledCatalog(system, [
+    expect(parsed?.package).toEqual({
+      kind: 'zip',
+      downloadUrl: 'https://c4ai.ccccltd.cn/xkprosdk/apps/collaboration-platform.zip'
+    })
+  })
+
+  it('keeps collaboration-platform as a system app and overlays OSS zip', () => {
+    const merged = mergeSystemBundledCatalog([
       {
-        ...system[0],
+        id: 'demo-app',
+        name: 'Demo',
+        version: '1.0.0',
+        slot: 'app-center',
         source: 'store',
+        package: { kind: 'zip', downloadUrl: 'https://example.test/demo.zip' }
+      },
+      {
+        id: 'collaboration-platform',
+        name: '协同平台',
         version: '9.9.9',
+        slot: 'app-center',
+        source: 'builtin',
         auth: { orgs: [], userIds: [], phones: ['13800138000'] },
         package: {
           kind: 'zip',
-          builtinDir: 'collaboration-platform',
           downloadUrl: 'https://example.test/collab.zip'
         }
       }
     ])
-    expect(merged).toHaveLength(1)
-    expect(merged[0]?.version).toBe('1.0.1')
+    expect(merged.map((item) => item.id)).toEqual(['collaboration-platform', 'demo-app'])
+    expect(merged[0]?.version).toBe('9.9.9')
     expect(merged[0]?.source).toBe('builtin')
-    expect(merged[0]?.package.downloadUrl).toBeUndefined()
+    expect(merged[0]?.slot).toBe('menu')
+    expect(merged[0]?.package.downloadUrl).toBe('https://example.test/collab.zip')
     expect(merged[0]?.auth?.phones).toEqual(['13800138000'])
   })
 })

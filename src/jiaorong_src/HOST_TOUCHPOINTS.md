@@ -153,7 +153,7 @@
 | H148 | `src/main/desktop/window/index.ts` | 主窗口 `webviewTag: true` | app embed | 中 | 仅宿主页用 webview 加载应用；应用 guest 走独立 partition |
 | H149 | `src/preload/index.ts` `index.d.ts` | 暴露 `window.jiaorongApps` | app embed | 低 | listVisible / getOpenInfo / leave / onCatalogChanged |
 | H150 | `src/renderer/src/components/WindowSideBar.vue` `useJiaorongMenuApps.ts` | 嵌入应用独立 v-for；`jiaorong_auth_session` 变化刷新 listVisible | app embed | 中 | **不**并入 `listJiaorongSidebarItems('after-deepchat')` |
-| H151 | `electron-builder.yml` | extraResources `jiaorong-apps/app-scaffold`、`jiaorong-apps/collaboration-platform` | app embed | 低 | 协同平台随包内置，运行时不拷到用户 apps；排除 `web/` 源码；有 Node 的应用带上 `node/node_modules` |
+| H151 | `electron-builder.yml` | extraResources `jiaorong-apps/app-scaffold` | app embed | 低 | 协同平台不再随包；OSS zip 装到 Electron userData，不进 `~/.jiaorongchat` |
 | H152 | `src/renderer/src/i18n/*/routes.json` | embeddedApp* 文案 | app embed | 低 | |
 | H153 | `tsconfig.node.json` / `tsconfig.app.json` | include appHost main / bridgeErrors；renderer 排除 main/preload | app embed | 低 | |
 | H154 | `src/main/app/composition.ts` | dialogue 端口含权限/编排写入 + `publishDeepchatEvent` 转应用 guest；已归属应用的 session 事件不再 `renderer-all` | app embed | 高 | 不改 DeepChat route map；事件另发 `jiaorong-app:bridge-event`，必须带目标 appId |
@@ -167,6 +167,9 @@
 | H162 | `src/main/app/composition.ts` | `getGenerationSettings` / `updateGenerationSettings` 给应用会话高级设置 | app chat | 中 | 走现有 sessionAssignment，不改 DeepChat route map |
 | H163 | `src/main/app/composition.ts` | `getContextOccupancy` / `setToolMode` / disabledAgentTools / `listSystemPrompts` / `listConfigurableAgentTools` 给应用底栏高级配置与 token 占用 | app chat | 中 | occupancy 与 setToolMode 会 resolveSession；`catalog.agentTools` 带 sessionId 时须本应用会话，见 appHost bridge |
 | H164 | `src/main/desktop/window/index.ts` 主窗口/设置窗、`guestIsolation.ts`、`JiaorongAppFrameHost.vue` | 打包后允许主窗口与嵌入 webview 的 DevTools API；隐藏快捷键 Ctrl/Cmd 按住后依次 I、S、N | debug | 低 | 不自动弹出；安装包拦住 F12 / Ctrl+Shift+I；不改 Splash/浮窗/内置浏览器 |
+| H165 | `config/appCenterAccess.ts` `config/identityWhitelist.ts` `appHost/appCenter/main/appCenter.ts` `appHost/appCenter/renderer/AppCenterPage.vue` `WindowSideBar.vue` | 侧栏「应用中心」入口（协同平台下方）+ `/app-center` 页；可见性 / 开发者名单走 OSS `appCenterVisiblePhones` / `developerPhones`（匹配同 admins）；非系统应用只进应用中心，zip 走 `downloadUrl` 下载 + 可选 sha256 + `installAppFromPackage`；侧栏 `list-visible` 仅系统应用；`list` / `install` IPC 先主动重拉 OSS 配置（变化才广播，防自激） | app center | 中 | 开发者可见 auth 未过应用并可卸载；协同平台内置逻辑不变；配置缺失按空名单隐藏入口 |
+| H166 | `appHost/devCenter/main/devApps.ts` `appHost/devCenter/main/devCenter.ts` `appHost/devCenter/renderer/DevCenterPage.vue` `WindowSideBar.vue` `main/scan.ts` | 侧栏「开发者中心」入口（仅 developerPhones）+ `/dev-center` 页；创建=选目录+app.json 必填校验（id/name/version/entry），名单存渲染 localStorage 并 sync 主进程；scan 并入本地 runtime 供打开；发布=最终版 app.json + zip 包表单校验后占位提交；示例应用走配置 devApp 对象，下载选目录落 zip；入口在侧栏搜索正上方 | dev center | 中 | 非开发者入口隐藏；名单为空时 scan 与现状一致；发布接口待接入 |
+| H167 | `src/renderer/src/apps/chat-main/ChatMainApp.vue` `preload/index.ts|d.ts` `appHost/main/register.ts` `appHost/devCenter/main/devCenterWindow.ts` | 开发者中心独立窗口：主渲染入口 `#/dev-center?standalone=1` 只渲染页面（macOS 拖拽条 + NotificationHost），跳过通知 / 深链 / 会话引导副作用；独立窗口点打开就地跳应用页并带 `standalone=1`；返回列表时 leave 停 Node。sync 时把开发者目录以 link 模式登记进应用管理器（spawn / getAppDir 走源目录），移除按 `isLinkedApp` 清 link；创建校验补 slot / 版本号 | dev center window | 中 | 独立窗口 `webSecurity:false` 与主窗口一致（图标 file://）；脚手架 web-ui 固定 8787，同时只开一个 |
 
 ## 下次合上游：值得抽到 `jiaorong_src` 的宿主文件
 

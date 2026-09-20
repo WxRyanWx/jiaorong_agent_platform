@@ -116,18 +116,23 @@ function setDebug(enabled: boolean) {
  * @returns 取消订阅函数
  */
 function on(event: string, handler: Handler) {
+  const name = typeof event === 'string' ? event.trim() : ''
+  // Node 经 WS 调过来时回调会被 JSON 丢掉，绝不能把非函数塞进表
+  if (!name || typeof handler !== 'function') {
+    return () => {}
+  }
   /** 该事件的回调集合，没有就新建。 */
-  const set = listeners.get(event) ?? new Set<Handler>()
+  const set = listeners.get(name) ?? new Set<Handler>()
   set.add(handler)
-  listeners.set(event, set)
+  listeners.set(name, set)
   return () => {
     /** 取消时该事件的回调集合。 */
-    const current = listeners.get(event)
+    const current = listeners.get(name)
     // 已经被清空，无需处理
     if (!current) return
     current.delete(handler)
     // 最后一个回调退订后删掉键，避免 Map 无限增长
-    if (current.size === 0) listeners.delete(event)
+    if (current.size === 0) listeners.delete(name)
   }
 }
 

@@ -25,6 +25,53 @@ export function getUserAppDir(appId: string, homeDir = os.homedir()): string {
 }
 
 /**
+ * 系统应用安装根：Electron `userData` 下，不进 `~/.jiaorongchat`。
+ * macOS 约 `~/Library/Application Support/<产品名>/jiaorong-system-apps`。
+ */
+export function getSystemAppsRoot(): string {
+  return path.join(app.getPath('userData'), 'jiaorong-system-apps')
+}
+
+/**
+ * 单个系统应用的安装目录。
+ * @param appId 应用 id
+ */
+export function getSystemAppDir(appId: string): string {
+  return path.join(getSystemAppsRoot(), appId)
+}
+
+/** 目标根下是否已有任意系统应用清单。 */
+function systemAppsRootHasManifest(root: string): boolean {
+  try {
+    return fs.readdirSync(root, { withFileTypes: true }).some(
+      (entry) => entry.isDirectory() && fs.existsSync(path.join(root, entry.name, 'app.json'))
+    )
+  } catch {
+    return false
+  }
+}
+
+/** 曾误装到 `~/.jiaorongchat/system-apps` 的目录迁走后删掉。仅宿主启动时调用，避免测试误伤本机目录。 */
+export function migrateLegacySystemAppsIfNeeded(): void {
+  if (process.env.VITEST) return
+  const legacyRoot = path.join(getAppHomeDir(os.homedir()), 'system-apps')
+  if (!fs.existsSync(legacyRoot)) return
+  const nextRoot = getSystemAppsRoot()
+  try {
+    if (!fs.existsSync(nextRoot)) {
+      fs.mkdirSync(path.dirname(nextRoot), { recursive: true })
+      fs.renameSync(legacyRoot, nextRoot)
+      return
+    }
+    if (systemAppsRootHasManifest(nextRoot)) {
+      fs.rmSync(legacyRoot, { recursive: true, force: true })
+    }
+  } catch {
+    // 迁失败不影响启动；下次再试
+  }
+}
+
+/**
  * 开发态内置应用根：electron-vite 的 `app.getAppPath()` 可能是 `out/main`，
  * 不能只拼这一条。
  * @param candidates 候选绝对路径，命中第一个存在的目录

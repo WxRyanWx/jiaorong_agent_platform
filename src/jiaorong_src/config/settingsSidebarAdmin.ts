@@ -1,9 +1,11 @@
 import type { SettingsNavigationItem } from '@shared/settingsNavigation'
 import { shallowRef } from 'vue'
+import { matchesIdentityWhitelist } from './identityWhitelist'
 import {
   startJiaorongRemoteRuntimeConfigSync,
   subscribeJiaorongRemoteRuntimeConfig
 } from './remoteRuntimeConfig'
+import { readStoredUserInfo } from './storedUserInfo'
 
 /** 非管理员侧栏仍保留 DOM，仅视觉隐藏的路由 */
 export const SETTINGS_SIDEBAR_HIDDEN_ROUTES: SettingsNavigationItem['routeName'][] = [
@@ -50,35 +52,9 @@ export const hydrateSettingsSidebarAdminWhitelist = (): void => {
 
 const SETTINGS_SIDEBAR_HIDDEN_ROUTE_SET = new Set(SETTINGS_SIDEBAR_HIDDEN_ROUTES)
 
-const getStoredUserInfo = (): {
-  userName: string | null
-  phone: string | null
-} => {
-  try {
-    const raw = localStorage.getItem('userInfo')
-    if (!raw) {
-      return { userName: null, phone: null }
-    }
-    const parsed = JSON.parse(raw) as {
-      userName?: unknown
-      phone?: unknown
-    }
-    return {
-      userName: typeof parsed?.userName === 'string' ? parsed.userName : null,
-      phone: typeof parsed?.phone === 'string' ? parsed.phone : null
-    }
-  } catch {
-    return { userName: null, phone: null }
-  }
-}
-
 /** 当前用户是否为设置页管理员 */
-export const isSettingsSidebarAdmin = (): boolean => {
-  const { userName, phone } = getStoredUserInfo()
-  return [userName, phone].some(
-    (value) => value !== null && adminWhitelistRef.value.includes(value)
-  )
-}
+export const isSettingsSidebarAdmin = (): boolean =>
+  matchesIdentityWhitelist(adminWhitelistRef.value, readStoredUserInfo())
 
 /** 管理员 / 普通用户打开设置时的默认落地路由 */
 export const SETTINGS_SIDEBAR_DEFAULT_ROUTE_NAME = {

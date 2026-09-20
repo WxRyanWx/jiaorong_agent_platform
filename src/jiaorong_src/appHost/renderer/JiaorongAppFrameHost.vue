@@ -5,12 +5,12 @@
  */
 
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { Icon } from '@iconify/vue'
 import { JIAORONG_AUTH_SESSION_CHANGED_EVENT } from '@jiaorong/auth/host'
-import { isAppRouteLocation } from '../../router/apps.meta'
-import type { JiaorongAppOpenInfo } from '../types'
+import { isEmbeddedAppRouteLocation } from '../../router/apps.meta'
+import type { JiaorongAppOpenInfo, JiaorongAppSpawnWarning } from '../types'
 
 // 组件名固定，供 keep-alive 与调试面板识别
 defineOptions({ name: 'JiaorongAppFrameHost' })
@@ -19,6 +19,10 @@ defineOptions({ name: 'JiaorongAppFrameHost' })
 const { t } = useI18n()
 /** 当前路由。 */
 const route = useRoute()
+/** 装失败时退回对话。 */
+const router = useRouter()
+/** 开发者中心独立窗口：返回列表时要停 Node。 */
+const isStandalone = computed(() => route.query.standalone === '1')
 /** 已创建的 webview 打开信息，一个应用一条。 */
 const frames = ref<JiaorongAppOpenInfo[]>([])
 /** appId → 真正写进 webview 的 src；延后一拍赋值，避免属性抖动导致重载。 */
@@ -38,8 +42,8 @@ let stopCatalogListener: (() => void) | undefined
 const activeAppId = computed(() => {
   /** 路由参数里的 appId。 */
   const value = route.params?.appId
-  // 不在应用路由上
-  if (!isAppRouteLocation(route.name, route.path)) return ''
+  // 只认内嵌应用页，应用中心 / 开发者中心列表不算
+  if (!isEmbeddedAppRouteLocation(route.name, route.path)) return ''
   // 只认字符串参数
   return typeof value === 'string' ? value.trim() : ''
 })
@@ -50,6 +54,43 @@ const hostActive = computed(() => Boolean(activeAppId.value))
 const visibleAppId = computed(() => activeAppId.value || parkedAppId.value)
 /** 只在应用路由上才展示错误，避免污染其它页面。 */
 const activeError = computed(() => (activeAppId.value ? errorText.value : ''))
+/** 当前应用的 Node 启动警告；盖在 webview 上，避免只看到包内那句「无法连接」。 */
+const activeSpawnWarning = computed(() => {
+  if (!activeAppId.value) return null
+  return frames.value.find((item) => item.appId === activeAppId.value)?.spawnWarning ?? null
+})
+/**
+ * 把 spawn 警告收成一句用户文案。
+ * @param warning 主进程探测结果
+ */
+function spawnWarningLabel(warning: JiaorongAppSpawnWarning): string {
+  if (warning.kind === 'port_busy') {
+    const name = warning.occupiers?.filter(Boolean).join('、') || ''
+    return name ? t('routes.appNodePortBusyNamed', { name }) : t('routes.appNodePortBusy')
+  }
+  return t('routes.appNodeExited')
+}
+
+/** 横幅文案。 */
+const spawnWarningText = computed(() => {
+  const warning = activeSpawnWarning.value
+  return warning ? spawnWarningLabel(warning) : ''
+})
+
+/**
+ * 应用打不开时清掉帧并退回对话，不留失败页。
+ * @param appId 打不开的应用
+ */
+async function leaveUnavailableApp(appId: string) {
+  errorText.value = ''
+  parkedAppId.value = parkedAppId.value === appId ? '' : parkedAppId.value
+  forgetGuestFrame(appId)
+  frames.value = frames.value.filter((item) => item.appId !== appId)
+  void window.jiaorongApps?.leave?.(appId)
+  if (activeAppId.value === appId) {
+    await router.replace({ name: 'chat' })
+  }
+}
 
 /**
  * 确保该应用有常驻 webview；没有就向主进程要打开信息。
@@ -58,29 +99,34 @@ const activeError = computed(() => (activeAppId.value ? errorText.value : ''))
 async function ensureFrame(appId: string) {
   // 空 id 不处理
   if (!appId) return
-  // 已经建过：只清掉上一次的错误提示
-  if (frames.value.some((item) => item.appId === appId)) {
-    errorText.value = ''
-    return
-  }
-  loading.value = true
+  /** 是否已经有常驻帧。 */
+  const existed = frames.value.some((item) => item.appId === appId)
+  /** 打开信息 IPC。桥还没挂上时不能当成「应用不存在」。 */
+  const getOpenInfo = window.jiaorongApps?.getOpenInfo
+  if (!getOpenInfo) return
+  if (!existed) loading.value = true
   errorText.value = ''
   try {
     /** 主进程返回的 webview 打开信息。 */
-    const info = await window.jiaorongApps?.getOpenInfo(appId)
-    // 拿不到 src：未安装、不可见或主进程未就绪
+    const info = await getOpenInfo(appId)
+    // 拿不到 src：未安装或下载失败。已有帧（例如正在更新）继续显示，不踢回对话。
     if (!info?.src) {
-      errorText.value = t('routes.embeddedAppUnavailable')
+      if (existed) return
+      await leaveUnavailableApp(appId)
       return
     }
-    // await 期间可能已被其它调用建好
+    if (existed) {
+      // 更新占用提示；已有 webview 不重建
+      frames.value = frames.value.map((item) =>
+        item.appId === appId ? { ...item, spawnWarning: info.spawnWarning } : item
+      )
+      return
+    }
     if (frames.value.some((item) => item.appId === appId)) return
-    // 追加一条，触发下面的 watch 去写 src
     frames.value = [...frames.value, info]
   } catch (error) {
-    // IPC 失败按「应用不可用」提示
     console.error('[jiaorong-app] Failed to open app', error)
-    errorText.value = t('routes.embeddedAppUnavailable')
+    if (!existed) await leaveUnavailableApp(appId)
   } finally {
     loading.value = false
   }
@@ -174,11 +220,18 @@ async function onAuthSessionChanged() {
 }
 
 // 路由切到某个应用：记住停靠 id 并确保帧存在
-watch(activeAppId, (id) => {
-  // 空 id（离开应用页）不动，保持 webview 常驻
+watch(activeAppId, (id, previousId) => {
   if (id) {
     parkedAppId.value = id
     void ensureFrame(id)
+    return
+  }
+  // 开发者中心独立窗口点返回：停 Node 释放端口，并丢掉帧以便下次重新 spawn
+  if (isStandalone.value && previousId) {
+    void window.jiaorongApps?.leave?.(previousId)
+    forgetGuestFrame(previousId)
+    frames.value = frames.value.filter((item) => item.appId !== previousId)
+    parkedAppId.value = ''
   }
 })
 
@@ -260,6 +313,9 @@ onUnmounted(() => {
     >
       {{ activeError }}
     </p>
+    <div v-if="hostActive && spawnWarningText" class="jiaorong-app-frame-host__banner">
+      {{ spawnWarningText }}
+    </div>
     <!-- 每个已打开的应用一个常驻 webview，靠 is-active 决定谁在可视区 -->
     <webview
       v-for="frame in frames"
@@ -306,6 +362,19 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   min-height: 0;
+}
+
+.jiaorong-app-frame-host__banner {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 4;
+  padding: 10px 16px;
+  background: #fff1f2;
+  color: #be123c;
+  font-size: 13px;
+  line-height: 20px;
 }
 
 /* 加载态：图标与文案横向排列 */

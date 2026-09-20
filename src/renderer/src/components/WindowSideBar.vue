@@ -94,8 +94,12 @@
           size="icon"
           tooltip-side="right"
           :tooltip-delay-duration="200"
-          :tooltip="app.name"
-          class="flex items-center justify-center w-9 h-9 rounded-xl border transition-all duration-150"
+          :tooltip="
+            app.installStatus === 'installing'
+              ? t('routes.appUpdating', { name: app.name })
+              : app.name
+          "
+          class="relative flex items-center justify-center w-9 h-9 rounded-xl border transition-all duration-150"
           :class="
             isJiaorongMenuAppActive(app)
               ? 'bg-card/50 border-white/80 dark:border-white/20 ring-1 ring-black/10 hover:bg-white/30 dark:hover:bg-white/10'
@@ -103,13 +107,41 @@
           "
           @click="openJiaorongMenuApp(app)"
         >
-          <img
-            v-if="app.iconSrc"
-            :src="app.iconSrc"
-            alt=""
-            class="w-[22px] h-[22px] object-contain"
-          />
-          <Icon v-else icon="lucide:layout-grid" class="w-4 h-4 text-foreground/80" />
+          <span class="relative flex h-[22px] w-[22px] items-center justify-center">
+            <img
+              v-if="app.iconSrc"
+              :src="app.iconSrc"
+              alt=""
+              class="h-[22px] w-[22px] object-contain"
+            />
+            <Icon v-else icon="lucide:layout-grid" class="h-4 w-4 text-foreground/80" />
+            <span
+              v-if="app.installStatus === 'installing'"
+              class="absolute inset-0 flex items-center justify-center rounded-md bg-background/75"
+            >
+              <Icon icon="lucide:loader-circle" class="size-3.5 animate-spin text-foreground/80" />
+            </span>
+          </span>
+        </DcButton>
+
+        <!-- 应用中心：协同平台下方，白名单 / 开发者可见 -->
+        <DcButton
+          v-if="isJiaorongAppCenterVisible"
+          data-testid="sidebar-jiaorong-app-center"
+          :data-selected="String(isJiaorongAppCenterActiveRoute)"
+          size="icon"
+          tooltip-side="right"
+          :tooltip-delay-duration="200"
+          :tooltip="t('routes.appCenter')"
+          class="flex items-center justify-center w-9 h-9 rounded-xl border transition-all duration-150"
+          :class="
+            isJiaorongAppCenterActiveRoute
+              ? 'bg-card/50 border-white/80 dark:border-white/20 ring-1 ring-black/10 hover:bg-white/30 dark:hover:bg-white/10'
+              : 'bg-transparent border-none hover:bg-white/30 dark:hover:bg-white/10 shadow-none'
+          "
+          @click="openJiaorongAppCenter"
+        >
+          <img :src="jiaorongAppCenterIconSrc" alt="" class="w-[22px] h-[22px] object-contain" />
         </DcButton>
 
         <DcButton
@@ -139,6 +171,26 @@
 
         <!-- Bottom action buttons -->
         <div class="w-5 h-px bg-border my-1"></div>
+
+        <!-- 开发者中心：搜索按钮正上方，仅开发者可见 -->
+        <DcButton
+          v-if="isJiaorongDevCenterVisible"
+          data-testid="sidebar-jiaorong-dev-center"
+          :data-selected="String(isJiaorongDevCenterActiveRoute)"
+          size="icon"
+          tooltip-side="right"
+          :tooltip-delay-duration="200"
+          :tooltip="t('routes.devCenter')"
+          class="flex items-center justify-center w-9 h-9 rounded-xl border transition-all duration-150"
+          :class="
+            isJiaorongDevCenterActiveRoute
+              ? 'bg-card/50 border-white/80 dark:border-white/20 ring-1 ring-black/10 hover:bg-white/30 dark:hover:bg-white/10'
+              : 'bg-transparent border-none hover:bg-white/30 dark:hover:bg-white/10 shadow-none'
+          "
+          @click="openJiaorongDevCenterWindow"
+        >
+          <Icon icon="lucide:code-2" class="w-4 h-4 text-foreground/80" />
+        </DcButton>
 
         <DcButton
           size="icon"
@@ -825,6 +877,8 @@ import {
 import { createSettingsClient } from '@api/SettingsClient'
 import { isJiaorongExclusiveChromeRoute, listJiaorongSidebarItems } from '@jiaorong/runtime/sidebar'
 import { useJiaorongMenuApps } from '@jiaorong/appHost/renderer/useJiaorongMenuApps'
+import { useJiaorongAppCenterAccess } from '@jiaorong/appHost/appCenter/renderer/useJiaorongAppCenterAccess'
+import { useJiaorongDevCenterAccess } from '@jiaorong/appHost/devCenter/renderer/useJiaorongDevCenterAccess'
 import type { JiaorongMenuAppItem } from '@jiaorong/appHost/types'
 import type { JiaorongSidebarItem } from '@jiaorong/runtime/types'
 import { partitionSidebarAgents } from '@shared/sidebarAgents'
@@ -866,6 +920,31 @@ const {
   open: openJiaorongMenuAppItem,
   isActive: isJiaorongMenuAppRoute
 } = useJiaorongMenuApps()
+const {
+  visible: isJiaorongAppCenterVisible,
+  isActive: isJiaorongAppCenterActiveRoute,
+  open: openJiaorongAppCenterRoute,
+  iconSrc: jiaorongAppCenterIconSrc
+} = useJiaorongAppCenterAccess()
+const {
+  visible: isJiaorongDevCenterVisible,
+  isActive: isJiaorongDevCenterActiveRoute,
+  open: openJiaorongDevCenter
+} = useJiaorongDevCenterAccess()
+const openJiaorongAppCenter = async () => {
+  const allowed = ensureAuthOnMenuSwitch()
+  if (!allowed) {
+    return
+  }
+  await openJiaorongAppCenterRoute()
+}
+const openJiaorongDevCenterWindow = async () => {
+  const allowed = ensureAuthOnMenuSwitch()
+  if (!allowed) {
+    return
+  }
+  await openJiaorongDevCenter()
+}
 const isExclusiveChromeRoute = computed(() =>
   isJiaorongExclusiveChromeRoute(route.name, route.path)
 )
@@ -1160,6 +1239,7 @@ const isJiaorongMenuAppActive = (app: JiaorongMenuAppItem) => {
 }
 
 const openJiaorongMenuApp = async (app: JiaorongMenuAppItem) => {
+  if (app.installStatus === 'installing') return
   const allowed = ensureAuthOnMenuSwitch()
   if (!allowed) {
     return

@@ -4,6 +4,7 @@ import {
   fetchJiaorongRemoteRuntimeConfig,
   JIAORONG_REMOTE_RUNTIME_CONFIG_ATTEMPTS,
   parseJiaorongRemoteRuntimeConfig,
+  refreshJiaorongRemoteRuntimeConfig,
   resetJiaorongRemoteRuntimeConfigForTests,
   setJiaorongRemoteRuntimeConfigRetryPolicyForTests,
   startJiaorongRemoteRuntimeConfigSync,
@@ -25,11 +26,16 @@ describe('jiaorong remote runtime config', () => {
       parseJiaorongRemoteRuntimeConfig({
         schemaVersion: 1,
         admins: [' 13039619789 ', 'L20184974', '', 'L20184974', 12],
+        appCenterVisiblePhones: [' 15557190927 ', '', '15557190927'],
+        developerPhones: ['13039619789', 12],
         apps: [{ id: 'demo-workbench' }]
       })
     ).toEqual({
       schemaVersion: 1,
       admins: ['13039619789', 'L20184974'],
+      appCenterVisiblePhones: ['15557190927'],
+      developerPhones: ['13039619789'],
+      devApp: null,
       apps: [{ id: 'demo-workbench' }]
     })
   })
@@ -40,6 +46,9 @@ describe('jiaorong remote runtime config', () => {
     expect(parseJiaorongRemoteRuntimeConfig({ admins: 'x' })).toEqual({
       schemaVersion: 1,
       admins: [],
+      appCenterVisiblePhones: [],
+      developerPhones: [],
+      devApp: null,
       apps: []
     })
   })
@@ -126,6 +135,48 @@ describe('jiaorong remote runtime config', () => {
     expect(seen).toEqual([EMPTY_JIAORONG_REMOTE_RUNTIME_CONFIG])
   })
 
+  it('refresh re-fetches after a successful sync and emits only on change', async () => {
+    resetJiaorongRemoteRuntimeConfigForTests()
+    setJiaorongRemoteRuntimeConfigRetryPolicyForTests({
+      retryDelaysMs: [0, 0],
+      backgroundRetryMs: 60_000
+    })
+    let payload: Record<string, unknown> = { schemaVersion: 1, admins: ['13039619789'], apps: [] }
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => payload
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const seen: string[][] = []
+    subscribeJiaorongRemoteRuntimeConfig((config) => {
+      seen.push(config.admins)
+    })
+    startJiaorongRemoteRuntimeConfigSync()
+    await waitJiaorongRemoteRuntimeConfigBurstForTests()
+    expect(seen).toEqual([['13039619789']])
+
+    // 内容未变：重拉不再重复通知
+    await refreshJiaorongRemoteRuntimeConfig()
+    expect(seen).toEqual([['13039619789']])
+
+    // 内容变化：通知一次并回最新快照
+    payload = { schemaVersion: 1, admins: ['L20184974'], apps: [] }
+    await expect(refreshJiaorongRemoteRuntimeConfig()).resolves.toMatchObject({
+      admins: ['L20184974']
+    })
+    expect(seen).toEqual([['13039619789'], ['L20184974']])
+
+    // 拉取失败：保留旧快照且不通知
+    fetchMock.mockImplementation(async () => {
+      throw new Error('offline')
+    })
+    await expect(refreshJiaorongRemoteRuntimeConfig()).resolves.toMatchObject({
+      admins: ['L20184974']
+    })
+    expect(seen).toEqual([['13039619789'], ['L20184974']])
+  })
+
   it('keeps retrying in the background after the first three failures', async () => {
     resetJiaorongRemoteRuntimeConfigForTests()
     setJiaorongRemoteRuntimeConfigRetryPolicyForTests({
@@ -156,5 +207,35 @@ describe('jiaorong remote runtime config', () => {
       expect(seen).toEqual([['L20184974']])
     })
     expect(calls).toBe(4)
+  })
+})
+
+describe('remote runtime config devApp', () => {
+  it('parses devApp / devapp and rejects incomplete object', () => {
+    /** 完整 devApp。 */
+    const full = parseJiaorongRemoteRuntimeConfig({
+      devApp: {
+        id: 'app-scaffold',
+        name: '脚手架',
+        version: '1.0.0',
+        provider: 'AI中心',
+        downloadUrl: 'https://x/a.zip'
+      }
+    })
+    expect(full.devApp).toEqual({
+      id: 'app-scaffold',
+      name: '脚手架',
+      version: '1.0.0',
+      provider: 'AI中心',
+      downloadUrl: 'https://x/a.zip'
+    })
+    /** 小写键同样认。 */
+    const lower = parseJiaorongRemoteRuntimeConfig({
+      devapp: { id: 'a', name: 'A', version: '1', downloadUrl: 'u' }
+    })
+    expect(lower.devApp?.id).toBe('a')
+    /** 缺必填按 null。 */
+    expect(parseJiaorongRemoteRuntimeConfig({ devApp: { id: 'a', name: 'A' } }).devApp).toBeNull()
+    expect(parseJiaorongRemoteRuntimeConfig({}).devApp).toBeNull()
   })
 })

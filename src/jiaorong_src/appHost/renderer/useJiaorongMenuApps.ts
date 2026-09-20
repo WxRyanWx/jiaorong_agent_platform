@@ -24,6 +24,17 @@ export function useJiaorongMenuApps() {
       // 已有更新的刷新在飞，这份响应过期，丢弃
       if (seq !== refreshSeq) return
       apps.value = next
+      /** 当前停在某个已卸/装失败的应用页时，退回对话，不留「无法打开」。 */
+      const route = router.currentRoute.value
+      const appId = route.params?.appId
+      if (
+        route.name === 'jiaorong-app' &&
+        typeof appId === 'string' &&
+        appId &&
+        !next.some((item) => item.id === appId)
+      ) {
+        await router.replace({ name: 'chat' })
+      }
     } catch (error) {
       // 同上：过期请求失败也不覆盖当前列表
       if (seq !== refreshSeq) return

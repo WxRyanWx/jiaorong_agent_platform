@@ -25,8 +25,8 @@ export type JiaorongAppHostContext = {
   productId?: string
 }
 
-/** 侧栏槽位；目前只有菜单。 */
-export type JiaorongAppSlot = 'menu'
+/** 落位：侧栏菜单，或只在应用中心打开。 */
+export type JiaorongAppSlot = 'menu' | 'app-center'
 
 /** 应用来源：`builtin` 随客户端内置、`local-debug` 本地调试目录、`store` 后管下发。 */
 export type JiaorongAppSource = 'builtin' | 'local-debug' | 'store'
@@ -75,7 +75,7 @@ export type JiaorongAppCatalogRecord = {
   description?: string
   /** 图标相对路径。 */
   icon?: string
-  /** 侧栏位置。 */
+  /** 落位：侧栏菜单或只在应用中心。 */
   slot: JiaorongAppSlot
   /** 来源。 */
   source: JiaorongAppSource
@@ -83,6 +83,8 @@ export type JiaorongAppCatalogRecord = {
   enabled?: boolean
   /** 可见性。 */
   auth?: JiaorongAppAuth | null
+  /** 提供方；应用中心卡片展示，配置未给则为空。 */
+  provider?: string
   /** 包。 */
   package: JiaorongAppPackage
 }
@@ -101,7 +103,7 @@ export type JiaorongAppManifest = {
   description?: string
   /** webview 入口。 */
   entry: string
-  /** 槽位。 */
+  /** 落位。 */
   slot?: JiaorongAppSlot
   /** 点开时管理类 spawn 一次的脚本，可用 && 拼接。 */
   spawn?: string
@@ -145,6 +147,84 @@ export type JiaorongMenuAppItem = {
   installStatus: JiaorongAppInstallStatus
 }
 
+/** 应用中心一条应用。 */
+export type JiaorongAppCenterItem = {
+  /** 应用 id。 */
+  id: string
+  /** 显示名。 */
+  name: string
+  /** 描述。 */
+  description?: string
+  /** 图标 URL；未安装且无本地图标时为 null。 */
+  iconSrc?: string | null
+  /** 目录版本。 */
+  version: string
+  /** 已装版本。 */
+  installedVersion?: string | null
+  /** 安装状态。 */
+  installStatus: JiaorongAppInstallStatus
+  /** 是否远程 zip 包（下载 / 更新走网络）。 */
+  remotePackage: boolean
+  /** 当前用户是否可打开。 */
+  openable: boolean
+  /** 是否允许卸载（仅开发者）。 */
+  canUninstall: boolean
+  /** 是否仅开发者可见（单应用 auth 未通过）。 */
+  developerOnly: boolean
+  /** 提供方；配置未给则为空串。 */
+  provider: string
+}
+
+/** 开发者本地登记的一个应用（浏览器存储 apps.json 的一条）。 */
+export type JiaorongDevAppRecord = {
+  /** 应用 id，取自 app.json。 */
+  id: string
+  /** 显示名。 */
+  name: string
+  /** 版本。 */
+  version: string
+  /** 描述。 */
+  description?: string
+  /** 图标相对路径（取自 app.json）。 */
+  icon?: string
+  /** 插件文件夹绝对路径。 */
+  dir: string
+  /** 登记时间戳。 */
+  createdAt: number
+}
+
+/** 开发者中心一张卡片。 */
+export type JiaorongDevCenterItem = {
+  /** 应用 id。 */
+  id: string
+  /** 显示名。 */
+  name: string
+  /** 描述。 */
+  description?: string
+  /** 图标 URL。 */
+  iconSrc?: string | null
+  /** 版本。 */
+  version: string
+  /** 安装状态。 */
+  installStatus: JiaorongAppInstallStatus
+  /** 是否可打开（已落盘且可见）。 */
+  openable: boolean
+  /** 是否默认示例应用。 */
+  sample: boolean
+  /** 提供方 / 来源说明。 */
+  provider: string
+  /** 本地目录；示例应用为空串。 */
+  dir: string
+}
+
+/** 打开应用时 Node spawn 的警告：页面仍打开，但后端没起来。 */
+export type JiaorongAppSpawnWarning = {
+  /** 端口被其他已打开应用占用，或进程立刻退出。 */
+  kind: 'port_busy' | 'exited'
+  /** 当前仍在跑、可能占端口的应用显示名。 */
+  occupiers?: string[]
+}
+
 /** webview 打开参数。 */
 export type JiaorongAppOpenInfo = {
   /** 应用 id。 */
@@ -155,4 +235,6 @@ export type JiaorongAppOpenInfo = {
   preload: string
   /** persist 分区。 */
   partition: string
+  /** Node 没起来时的原因，供宿主 toast。 */
+  spawnWarning?: JiaorongAppSpawnWarning
 }

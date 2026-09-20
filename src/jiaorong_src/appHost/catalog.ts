@@ -7,7 +7,14 @@ import {
   whenJiaorongRemoteRuntimeConfigFirstAttemptSettled
 } from '../config/remoteRuntimeConfig'
 import { normalizeAppAuth } from './auth'
-import type { JiaorongAppCatalogRecord, JiaorongAppPackage, JiaorongAppSource } from './types'
+import { APP_MANIFEST_SLOTS } from './manifestRules'
+import { setSystemBundledAppIds } from './systemApps'
+import type {
+  JiaorongAppCatalogRecord,
+  JiaorongAppPackage,
+  JiaorongAppSlot,
+  JiaorongAppSource
+} from './types'
 
 /** 应用 id 合法格式。 */
 const APP_ID_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
@@ -32,12 +39,31 @@ type BuiltinCatalogFile = {
  * @param value 目录里的 `source` 字段
  */
 function isAppSource(value: unknown): value is JiaorongAppSource {
-  // 只认这三个字面量，其它一律回落到 builtin
+  // 只认这三个字面量，其它回落到 store（避免漏写 source 被当成系统应用）
   return value === 'builtin' || value === 'local-debug' || value === 'store'
 }
 
 /**
+ * 解析目录里的挂载位置。系统应用固定侧栏；商店应用缺省只进应用中心。
+ * @param value 目录 `slot`
+ * @param source 应用来源
+ */
+function parseAppSlot(value: unknown, source: JiaorongAppSource): JiaorongAppSlot {
+  // 系统应用本期只进侧栏，OSS 写了 app-center 也忽略
+  if (source === 'builtin') return 'menu'
+  /** 目录里的 slot 原文。 */
+  const slot = typeof value === 'string' ? value.trim() : ''
+  if ((APP_MANIFEST_SLOTS as readonly string[]).includes(slot)) return slot as JiaorongAppSlot
+  return source === 'store' ? 'app-center' : 'menu'
+}
+
+function isHttpUrl(value: string): boolean {
+  return /^https?:\/\//i.test(value)
+}
+
+/**
  * 解析目录 JSON 里的 package（dir/zip）。
+ * 把误写在 builtinDir 里的 http(s) 地址当成 zip 下载地址。
  * @param raw `package` 字段
  */
 function parsePackage(raw: unknown): JiaorongAppPackage | null {
@@ -45,19 +71,21 @@ function parsePackage(raw: unknown): JiaorongAppPackage | null {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
   /** 对象形态的入参。 */
   const record = raw as Record<string, unknown>
-  /** 类型。 */
-  const kind = record.kind === 'zip' ? 'zip' : 'dir'
   /** 内置目录名。 */
-  const builtinDir = typeof record.builtinDir === 'string' ? record.builtinDir.trim() : ''
+  let builtinDir = typeof record.builtinDir === 'string' ? record.builtinDir.trim() : ''
   /** downloadUrl 地址。 */
-  const downloadUrl = typeof record.downloadUrl === 'string' ? record.downloadUrl.trim() : ''
+  let downloadUrl = typeof record.downloadUrl === 'string' ? record.downloadUrl.trim() : ''
   /** zip 校验和。 */
   const sha256 = typeof record.sha256 === 'string' ? record.sha256.trim() : ''
-  // dir 型必须给内置目录名
+  // 目录把 zip 地址写进 builtinDir 时，按远程包处理
+  if (!downloadUrl && isHttpUrl(builtinDir)) {
+    downloadUrl = builtinDir
+    builtinDir = ''
+  }
+  /** 有下载地址就是 zip。 */
+  const kind = record.kind === 'zip' || isHttpUrl(downloadUrl) ? 'zip' : 'dir'
   if (kind === 'dir' && !builtinDir) return null
-  // zip 型至少有下载地址或内置目录其一
   if (kind === 'zip' && !downloadUrl && !builtinDir) return null
-  // 空字段不下发，避免应用侧把空串当有效值
   return {
     kind,
     ...(builtinDir ? { builtinDir } : {}),
@@ -91,16 +119,19 @@ export function parseAppCatalogRecord(raw: unknown): JiaorongAppCatalogRecord | 
   const description = typeof record.description === 'string' ? record.description.trim() : ''
   /** 图标。 */
   const icon = typeof record.icon === 'string' ? record.icon.trim() : ''
+  /** 提供方。 */
+  const provider = typeof record.provider === 'string' ? record.provider.trim() : ''
+  /** 来源：发布默认 store；只有 OSS 手改 builtin 才当系统应用。 */
+  const source = isAppSource(record.source) ? record.source : 'store'
   return {
     id,
     name,
     version,
     ...(description ? { description } : {}),
     ...(icon ? { icon } : {}),
-    // 目前只有侧栏一种落位
-    slot: 'menu',
-    // 来源非法时按内置处理
-    source: isAppSource(record.source) ? record.source : 'builtin',
+    ...(provider ? { provider } : {}),
+    slot: parseAppSlot(record.slot, source),
+    source,
     // 只有显式 false 才算停用
     enabled: record.enabled === false ? false : true,
     // auth 归一化，三数组皆空表示全员可见
@@ -144,6 +175,9 @@ function applyRemoteAppCatalog(schemaVersion: number, apps: unknown[]): void {
     schemaVersion,
     apps
   })
+  setSystemBundledAppIds(
+    remoteAppCatalog.filter((item) => item.source === 'builtin').map((item) => item.id)
+  )
   // 通知侧栏刷新
   catalogChangedListener?.()
 }
@@ -172,6 +206,11 @@ export function setRemoteAppCatalogChangedListener(listener: (() => void) | null
   catalogChangedListener = listener
 }
 
+/** 安装 / 卸载后主动通知侧栏，不必等 OSS 再拉一次。 */
+export function notifyRemoteAppCatalogChanged(): void {
+  catalogChangedListener?.()
+}
+
 /** 点火后台拉取，不等待 OSS。 */
 export function startRemoteAppCatalogSync(): void {
   bindRemoteAppCatalogSubscription()
@@ -189,6 +228,7 @@ export function resetRemoteAppCatalogForTests(): void {
   remoteAppCatalog = []
   catalogSubscribed = false
   catalogChangedListener = null
+  setSystemBundledAppIds([])
   resetJiaorongRemoteRuntimeConfigForTests()
 }
 

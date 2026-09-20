@@ -1,5 +1,11 @@
 import type { DeepchatBridge } from '@shared/contracts/bridge'
-import type { JiaorongAppOpenInfo, JiaorongMenuAppItem } from '@jiaorong/appHost/types'
+import type {
+  JiaorongAppCenterItem,
+  JiaorongDevAppRecord,
+  JiaorongDevCenterItem,
+  JiaorongAppOpenInfo,
+  JiaorongMenuAppItem
+} from '@jiaorong/appHost/types'
 
 declare global {
   interface Window {
@@ -21,6 +27,36 @@ declare global {
     }
     jiaorongApps?: {
       listVisible(): Promise<JiaorongMenuAppItem[]>
+      listAppCenter(): Promise<JiaorongAppCenterItem[]>
+      installAppCenter(
+        appId: string
+      ): Promise<{ ok: boolean; message?: string; item?: JiaorongAppCenterItem }>
+      uninstallAppCenter(appId: string): Promise<{ ok: boolean; message?: string }>
+      listDevCenter(): Promise<JiaorongDevCenterItem[]>
+      createDevApp(): Promise<{ ok: boolean; message?: string; record?: JiaorongDevAppRecord }>
+      publishDevApp(
+        appId: string,
+        manifestJson: string,
+        zipPath: string
+      ): Promise<{ ok: boolean; message?: string; filePath?: string }>
+      pickDevZip(): Promise<{ ok: boolean; message?: string; filePath?: string }>
+      peekDevZip(zipPath: string): Promise<{
+        ok: boolean
+        message?: string
+        fields?: {
+          id: string
+          name: string
+          version: string
+          entry: string
+          slot: string
+          icon: string
+          description: string
+          spawn: string
+        }
+      }>
+      downloadDevSample(): Promise<{ ok: boolean; message?: string; filePath?: string }>
+      syncDevApps(apps: JiaorongDevAppRecord[]): Promise<JiaorongDevAppRecord[]>
+      openDevCenterWindow(): Promise<boolean>
       getOpenInfo(appId: string): Promise<JiaorongAppOpenInfo | null>
       leave(appId: string): Promise<{ ok: boolean }>
       onCatalogChanged(handler: () => void): () => void

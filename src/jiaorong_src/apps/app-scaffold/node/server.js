@@ -77,7 +77,7 @@ function buildPrompt(appDir) {
     .map((name) => `- ${skillFile(appDir, name)}`)
     .join('\n')
   return [
-    '你是应用脚手架助手，用中文简洁回答。',
+    '你是示例应用助手，用中文简洁回答。',
     '',
     '默认必须先用文件读取工具打开并严格遵循这份技能，再回答用户：',
     def,
@@ -193,7 +193,7 @@ async function invokeSuperAgent(method, args) {
       ...input,
       key: typeof input.key === 'string' && input.key.trim() ? input.key.trim() : 'workbench',
       name:
-        typeof input.name === 'string' && input.name.trim() ? input.name.trim() : '应用脚手架助手',
+        typeof input.name === 'string' && input.name.trim() ? input.name.trim() : '示例应用助手',
       skills: SKILLS,
       config: {
         ...(input.config && typeof input.config === 'object' ? input.config : {}),

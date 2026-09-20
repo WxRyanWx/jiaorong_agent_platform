@@ -6,7 +6,18 @@ import {
   JIAORONG_APP_LEAVE_CHANNEL,
   JIAORONG_APP_LIST_CHANNEL,
   JIAORONG_APP_OPEN_CHANNEL,
-  JIAORONG_APP_CATALOG_CHANGED_CHANNEL
+  JIAORONG_APP_CATALOG_CHANGED_CHANNEL,
+  JIAORONG_APP_CENTER_LIST_CHANNEL,
+  JIAORONG_APP_CENTER_INSTALL_CHANNEL,
+  JIAORONG_APP_CENTER_UNINSTALL_CHANNEL,
+  JIAORONG_DEV_CENTER_CREATE_CHANNEL,
+  JIAORONG_DEV_CENTER_DOWNLOAD_CHANNEL,
+  JIAORONG_DEV_CENTER_LIST_CHANNEL,
+  JIAORONG_DEV_CENTER_OPEN_WINDOW_CHANNEL,
+  JIAORONG_DEV_CENTER_PEEK_ZIP_CHANNEL,
+  JIAORONG_DEV_CENTER_PICK_ZIP_CHANNEL,
+  JIAORONG_DEV_CENTER_PUBLISH_CHANNEL,
+  JIAORONG_DEV_CENTER_SYNC_CHANNEL
 } from '../channels'
 import type { JiaorongAppRuntime } from '../types'
 import { handleAppBridgeInvoke, toMenuAppItem, toOpenInfo } from './bridge'
@@ -27,27 +38,46 @@ import {
   readSessionPartition,
   resolveGuestInvokeAppId
 } from './guest'
-import appsManages from './appsManages'
-import { getUserAppsRoot } from './paths'
+import { sharedAppsManager } from './appManagerInstance'
+import { migrateLegacySystemAppsIfNeeded } from './paths'
+import {
+  installAppCenterApp,
+  isDeveloperIdentity,
+  listAppCenterItems,
+  uninstallAppCenterApp
+} from '../appCenter/main/appCenter'
+import {
+  createDevApp,
+  downloadSampleApp,
+  listDevCenterItems,
+  pickDevZip,
+  peekDevZipManifest,
+  publishDevApp
+} from '../devCenter/main/devCenter'
+import { getDevApps, syncDevApps } from '../devCenter/main/devApps'
+import { openDevCenterWindow } from '../devCenter/main/devCenterWindow'
 import { installJiaorongDevToolsShortcut } from './devtoolsShortcut'
 import { registerJiaorongAppProtocolHandler } from './protocol'
 import { setRemoteAppCatalogChangedListener, startRemoteAppCatalogSync } from '../catalog'
-import { ensureJiaorongAppInstalled, findVisibleOpenableApp, scanJiaorongApps } from './scan'
+import { refreshJiaorongRemoteRuntimeConfig } from '../../config/remoteRuntimeConfig'
+import { readAppManifest } from './manifest'
+import {
+  ensureJiaorongAppInstalled,
+  findVisibleOpenableApp,
+  isJiaorongSidebarMenuApp,
+  scanJiaorongApps
+} from './scan'
+import {
+  isSystemAppUpdating,
+  setSystemAppUpdateBroadcaster,
+  syncCollaborationPlatform
+} from './systemAppUpdate'
 import { readAuthUserKey, readUserIdentityFromAuthSession } from './userIdentity'
 
 /** 是否已注册 IPC。 */
 let started = false
 /** 上次广播用的用户键。 */
 let lastBroadcastUserKey: string | null = null
-/** 应用管理类单例。 */
-let appsManager: appsManages | null = null
-
-/** 本进程应用管理器。 */
-function appsManagerOf(): appsManages {
-  // 懒建单例，安装根目录取自用户 apps 目录
-  if (!appsManager) appsManager = new appsManages(getUserAppsRoot())
-  return appsManager
-}
 
 /**
  * IPC sender 的 URL。
@@ -92,22 +122,77 @@ function senderAppId(event: IpcMainInvokeEvent): string | null {
 }
 
 /**
+ * 读发布弹窗输入。
+ * @param input IPC 原始值
+ */
+function readDevPublishInput(input: unknown): {
+  appId: string
+  manifestJson: string
+  zipPath: string
+} {
+  if (!input || typeof input !== 'object') return { appId: '', manifestJson: '', zipPath: '' }
+  /** 原始字段表。 */
+  const record = input as Record<string, unknown>
+  return {
+    appId: typeof record.appId === 'string' ? record.appId : '',
+    manifestJson: typeof record.manifestJson === 'string' ? record.manifestJson : '',
+    zipPath: typeof record.zipPath === 'string' ? record.zipPath : ''
+  }
+}
+
+/**
+ * 读 zip 路径入参。
+ * @param input IPC 原始值
+ */
+function readZipPathInput(input: unknown): string {
+  if (typeof input === 'string') return input.trim()
+  if (!input || typeof input !== 'object') return ''
+  /** zip 绝对路径。 */
+  const zipPath = (input as { zipPath?: unknown }).zipPath
+  return typeof zipPath === 'string' ? zipPath.trim() : ''
+}
+
+function readAppIdInput(input: unknown): string {
+  // 只认对象里的字符串 appId
+  if (!input || typeof input !== 'object') return ''
+  /** 入参里的 appId 字段。 */
+  const appId = (input as { appId?: unknown }).appId
+  return typeof appId === 'string' ? appId.trim() : ''
+}
+
+/**
+ * 启停用目录里的 app.json.id；路由 / 目录 id 可以和它相同。
+ * @param appId 打开时的应用 id
+ * @param appDir 已打开的那份目录
+ */
+function resolveSpawnAppId(appId: string, appDir?: string | null): string {
+  return (appDir && readAppManifest(appDir)?.id) || appId
+}
+
+/**
  * 当前用户可见的应用运行时。
  * @param deps 超级智能体依赖（读登录态）
  */
 function listVisible(deps: JiaorongAppHostDeps): JiaorongAppRuntime[] {
   /** 当前用户身份。 */
   const user = readUserIdentityFromAuthSession(deps.getAuthSession())
-  // 过滤后再确保落地：后管应用已下载不用拷，其余按内置目录拷到用户 apps
   return scanJiaorongApps(user)
     .filter((item) => {
-      // 当前用户不可见
       if (!item.visible) return false
-      // 后管应用还没下载，不能出现在侧栏
-      if (item.source === 'store' && item.installStatus === 'not_installed') return false
+      // 正在拉 zip：侧栏保留入口
+      if (isSystemAppUpdating(item.id)) return true
+      // zip 应用没装上或失败：不进侧栏，避免点进去「无法打开」
+      if (
+        (item.source === 'builtin' || item.source === 'store') &&
+        (item.installStatus === 'not_installed' || item.installStatus === 'error')
+      ) {
+        return false
+      }
       return true
     })
-    .map((item) => (item.source === 'store' ? item : ensureJiaorongAppInstalled(item)))
+    .map((item) =>
+      isSystemAppUpdating(item.id) ? { ...item, installStatus: 'installing' as const } : item
+    )
 }
 
 /**
@@ -197,7 +282,7 @@ async function broadcastContext(deps: JiaorongAppHostDeps): Promise<void> {
   const userChanged = lastBroadcastUserKey !== null && lastBroadcastUserKey !== currentUser
   lastBroadcastUserKey = currentUser
   // 换人登录：所有应用子进程都要停，避免串数据
-  if (userChanged) appsManagerOf().stopAllRunningApps()
+  if (userChanged) sharedAppsManager().stopAllRunningApps()
   /** 一个 webContents。 */
   for (const contents of webContents.getAllWebContents()) {
     // 跳过已销毁的
@@ -220,7 +305,7 @@ async function broadcastContext(deps: JiaorongAppHostDeps): Promise<void> {
     const runtime = findRuntimeById(deps, appId)
     // 已不可见：停进程并下发空 context
     if (!runtime?.visible) {
-      appsManagerOf().stopApp(appId)
+      sharedAppsManager().stopApp(appId)
       sendJiaorongAppBridgeEvent('context', emptyGuestContext(deps, appId), appId)
       continue
     }
@@ -241,6 +326,7 @@ export function startJiaorongAppHost(deps: JiaorongAppHostDeps): void {
   // IPC 只注册一次
   if (started) return
   started = true
+  migrateLegacySystemAppsIfNeeded()
   // 记下当前登录用户，供后续判断是否换人
   lastBroadcastUserKey = readAuthUserKey(deps.getAuthSession())
   // 登录态变化时重广播 context
@@ -261,20 +347,102 @@ export function startJiaorongAppHost(deps: JiaorongAppHostDeps): void {
   }
   // OSS 目录变化后推给侧栏，并点火后台拉取
   setRemoteAppCatalogChangedListener(broadcastCatalogChanged)
+  setSystemAppUpdateBroadcaster(broadcastCatalogChanged)
   startRemoteAppCatalogSync()
+  void syncCollaborationPlatform(deps)
 
-  // 侧栏列出当前用户可见的应用
+  // 侧栏：协同平台 + slot=menu 的已装商店应用；其余只在应用中心打开
   ipcMain.handle(JIAORONG_APP_LIST_CHANNEL, () => {
-    return listVisible(deps).map((item) => toMenuAppItem(item))
+    return listVisible(deps)
+      .filter((item) => isJiaorongSidebarMenuApp(item))
+      .map((item) => toMenuAppItem(item))
+  })
+
+  // 应用中心列表：先主动重拉 OSS 目录，再回远程应用 + 安装状态
+  ipcMain.handle(JIAORONG_APP_CENTER_LIST_CHANNEL, async () => {
+    await refreshJiaorongRemoteRuntimeConfig()
+    return listAppCenterItems(deps)
+  })
+
+  // 应用中心安装 / 更新：下载 zip 校验后解压安装
+  ipcMain.handle(JIAORONG_APP_CENTER_INSTALL_CHANNEL, async (_event, input: unknown) => {
+    return installAppCenterApp(deps, readAppIdInput(input))
+  })
+
+  // 应用中心卸载：仅开发者
+  ipcMain.handle(JIAORONG_APP_CENTER_UNINSTALL_CHANNEL, (_event, input: unknown) => {
+    return uninstallAppCenterApp(deps, readAppIdInput(input))
+  })
+
+  // 开发者中心列表：示例应用 + 本地登记应用
+  ipcMain.handle(JIAORONG_DEV_CENTER_LIST_CHANNEL, () => {
+    return listDevCenterItems(deps)
+  })
+
+  // 开发者中心创建：选目录 + 校验 app.json，存储仍在渲染浏览器存储
+  ipcMain.handle(JIAORONG_DEV_CENTER_CREATE_CHANNEL, () => {
+    return createDevApp(deps)
+  })
+
+  // 开发者中心发布：占位提交（服务端接口未接入）
+  ipcMain.handle(JIAORONG_DEV_CENTER_PUBLISH_CHANNEL, (_event, input: unknown) => {
+    return publishDevApp(deps, readDevPublishInput(input))
+  })
+
+  // 开发者中心发布表单：选 zip 包
+  ipcMain.handle(JIAORONG_DEV_CENTER_PICK_ZIP_CHANNEL, () => {
+    return pickDevZip(deps)
+  })
+
+  // 开发者中心发布表单：读取 zip 内 app.json
+  ipcMain.handle(JIAORONG_DEV_CENTER_PEEK_ZIP_CHANNEL, (_event, input: unknown) => {
+    return peekDevZipManifest(deps, readZipPathInput(input))
+  })
+
+  // 开发者中心示例下载：选目录后落 zip
+  ipcMain.handle(JIAORONG_DEV_CENTER_DOWNLOAD_CHANNEL, () => {
+    return downloadSampleApp(deps)
+  })
+
+  // 渲染浏览器存储名单同步主进程：内存镜像 + link 登记（spawn / getAppDir 走源目录）
+  ipcMain.handle(JIAORONG_DEV_CENTER_SYNC_CHANNEL, (_event, input: unknown) => {
+    const user = readUserIdentityFromAuthSession(deps.getAuthSession())
+    if (!isDeveloperIdentity(user)) return []
+    /** sync 前的登记 id，用于清理被移除的 link。 */
+    const previousIds = getDevApps().map((item) => item.id)
+    /** sync 后的名单。 */
+    const next = syncDevApps(input)
+    /** 应用管理器。 */
+    const manager = sharedAppsManager()
+    for (const record of next) {
+      // link 模式不复制目录；重复登记覆盖旧 link
+      const linked = manager.installAppFromPath(record.dir, { mode: 'link', overwrite: true })
+      // 登记失败＝清单不合规，spawn 起不来，留条日志好排查
+      if (!linked.success)
+        console.warn('[jiaorong-dev-center] link 登记失败', record.id, linked.message)
+    }
+    /** 新名单 id 集合。 */
+    const nextIds = new Set(next.map((item) => item.id))
+    for (const appId of previousIds) {
+      if (nextIds.has(appId)) continue
+      // 只清开发者中心登记的 link，不动正常安装
+      if (manager.isLinkedApp(appId)) manager.uninstallApp(appId, true)
+    }
+    return next
+  })
+
+  // 侧栏入口：开发者中心独立窗口
+  ipcMain.handle(JIAORONG_DEV_CENTER_OPEN_WINDOW_CHANNEL, () => {
+    const user = readUserIdentityFromAuthSession(deps.getAuthSession())
+    if (!isDeveloperIdentity(user)) return false
+    openDevCenterWindow()
+    return true
   })
 
   // 打开应用：确保安装、spawn 子进程、返回 webview 参数
   ipcMain.handle(JIAORONG_APP_OPEN_CHANNEL, async (_event, input: unknown) => {
     /** 当前应用 id。 */
-    const appId =
-      input && typeof input === 'object' && typeof (input as { appId?: unknown }).appId === 'string'
-        ? (input as { appId: string }).appId.trim()
-        : ''
+    const appId = readAppIdInput(input)
     // 入参缺 appId
     if (!appId) return null
     /** 当前应用运行时。 */
@@ -284,32 +452,56 @@ export function startJiaorongAppHost(deps: JiaorongAppHostDeps): void {
     /** 是否已安装守卫或协议。 */
     const installed = ensureJiaorongAppInstalled(runtime)
     /** 应用管理器。 */
-    const manager = appsManagerOf()
-    // 重新扫盘，拿到最新安装状态
-    manager.refresh()
-    // 按 app.json.spawn 起子进程
-    const startedSpawn = manager.startApp(installed.id)
+    const manager = sharedAppsManager()
+    // 启停只认打开目录里的 app.json.id，文件夹名可以和 id 不同
+    const spawnId = resolveSpawnAppId(installed.id, installed.appDir)
+    // 起进程前记下其他已跑应用，后面用来判断是不是端口撞车
+    const occupiers = manager.listRunningAppNames(spawnId)
+    // 按 app.json.spawn 起子进程；cwd 用打开的那份目录
+    const startedSpawn = manager.startApp(
+      spawnId,
+      installed.appDir ? { cwd: installed.appDir } : undefined
+    )
     // spawn 失败只告警，页面仍可打开
     if (!startedSpawn.success) {
-      console.warn('[jiaorong-app] spawn failed', installed.id, startedSpawn.message)
+      console.warn('[jiaorong-app] spawn failed', spawnId, startedSpawn.message)
+    }
+    /** 打开信息。 */
+    const info = toOpenInfo(installed)
+    if (!info) return null
+    // 有 spawn 时等一小会：EADDRINUSE 的进程几乎立刻退出，日志里也会写 address already in use
+    if (manager.getApp(spawnId)?.spawn?.trim()) {
+      if (!startedSpawn.success) {
+        info.spawnWarning =
+          occupiers.length > 0 ? { kind: 'port_busy', occupiers } : { kind: 'exited' }
+      } else {
+        await new Promise<void>((resolve) => setTimeout(resolve, 800))
+        const log = manager.readLastSpawnLog(spawnId)
+        const portBusy = /EADDRINUSE|address already in use|端口.*占用/i.test(log)
+        if (portBusy || !manager.isRunning(spawnId)) {
+          info.spawnWarning =
+            portBusy || occupiers.length > 0 ? { kind: 'port_busy', occupiers } : { kind: 'exited' }
+        }
+      }
     }
     // 打开后立刻下发一次 context
     void broadcastContext(deps)
-    return toOpenInfo(installed)
+    return info
   })
 
   // 离开应用：停子进程并停掉正在生成的会话
   ipcMain.handle(JIAORONG_APP_LEAVE_CHANNEL, async (_event, input: unknown) => {
     /** 当前应用 id。 */
-    const appId =
-      input && typeof input === 'object' && typeof (input as { appId?: unknown }).appId === 'string'
-        ? (input as { appId: string }).appId.trim()
-        : ''
+    const appId = readAppIdInput(input)
     // 入参缺 appId
     if (!appId) return { ok: false }
-    appsManagerOf().stopApp(appId)
+    /** 应用管理器。 */
+    const manager = sharedAppsManager()
+    /** 与打开时相同的 spawn id，避免停错进程。 */
+    const spawnId = resolveSpawnAppId(appId, manager.getAppDir(appId))
+    manager.stopApp(spawnId)
     // 异步停生成，不阻塞侧栏跳转
-    void abortAppGenerations(deps, appId)
+    void abortAppGenerations(deps, spawnId)
     return { ok: true }
   })
 
@@ -342,19 +534,30 @@ export function startJiaorongAppHost(deps: JiaorongAppHostDeps): void {
 export function stopJiaorongAppHost(): void {
   // 没启动过就不用卸
   if (!started) return
-  // 摘掉四个 IPC handler
+  // 摘掉全部 IPC handler
   ipcMain.removeHandler(JIAORONG_APP_LIST_CHANNEL)
   ipcMain.removeHandler(JIAORONG_APP_OPEN_CHANNEL)
   ipcMain.removeHandler(JIAORONG_APP_LEAVE_CHANNEL)
   ipcMain.removeHandler(JIAORONG_APP_BRIDGE_INVOKE_CHANNEL)
+  ipcMain.removeHandler(JIAORONG_APP_CENTER_LIST_CHANNEL)
+  ipcMain.removeHandler(JIAORONG_APP_CENTER_INSTALL_CHANNEL)
+  ipcMain.removeHandler(JIAORONG_APP_CENTER_UNINSTALL_CHANNEL)
+  ipcMain.removeHandler(JIAORONG_DEV_CENTER_LIST_CHANNEL)
+  ipcMain.removeHandler(JIAORONG_DEV_CENTER_CREATE_CHANNEL)
+  ipcMain.removeHandler(JIAORONG_DEV_CENTER_PUBLISH_CHANNEL)
+  ipcMain.removeHandler(JIAORONG_DEV_CENTER_PICK_ZIP_CHANNEL)
+  ipcMain.removeHandler(JIAORONG_DEV_CENTER_PEEK_ZIP_CHANNEL)
+  ipcMain.removeHandler(JIAORONG_DEV_CENTER_DOWNLOAD_CHANNEL)
+  ipcMain.removeHandler(JIAORONG_DEV_CENTER_SYNC_CHANNEL)
+  ipcMain.removeHandler(JIAORONG_DEV_CENTER_OPEN_WINDOW_CHANNEL)
   // 注销目录与事件回调
   setRemoteAppCatalogChangedListener(null)
+  setSystemAppUpdateBroadcaster(null)
   setJiaorongAppContextBroadcaster(null)
   setJiaorongAppSessionResolver(null)
   // 停掉所有子进程，避免退出后留孤儿
-  appsManagerOf().stopAllRunningApps()
+  sharedAppsManager().stopAllRunningApps()
   // 复位状态，允许再次 start
   lastBroadcastUserKey = null
   started = false
-  appsManager = null
 }

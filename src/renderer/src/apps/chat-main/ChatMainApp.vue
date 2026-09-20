@@ -29,7 +29,8 @@ import CliApprovalDialog from '@/components/cli/CliApprovalDialog.vue'
 import { initAppStores, useMcpInstallDeeplinkHandler } from '@/lib/storeInitializer'
 import { ensureShellBootstrap } from '@/lib/shellBootstrap'
 import { getToken, useAuthLoginDeeplinkHandler } from '@jiaorong/auth/host'
-import { isAppRouteLocation, isSkillRouteLocation } from '@jiaorong/router'
+import { isEmbeddedAppRouteLocation, isSkillRouteLocation } from '@jiaorong/router'
+import { isSystemBundledApp } from '@jiaorong/appHost/systemApps'
 import { ensureIconsLoaded } from '@/lib/iconLoader'
 import { useFontManager } from '@/composables/useFontManager'
 import { applyDocumentAppearance } from '@/foundation/appearance/documentAppearance'
@@ -59,6 +60,11 @@ import {
 import { TooltipProvider } from '@shadcn/components/ui/tooltip'
 
 const DEV_WELCOME_OVERRIDE_KEY = '__deepchat_dev_force_welcome'
+
+/** 独立窗口只看首屏 hash：路由 resolve 前 onMounted 也要判定得出来。 */
+function resolveDevCenterStandalone(): boolean {
+  return window.location.hash.includes('standalone=1')
+}
 
 const performanceReporter = new RendererPerformanceReporter()
 provide(RENDERER_PERFORMANCE_REPORTER, performanceReporter)
@@ -111,7 +117,9 @@ const { setup: setupMcpDeeplink, cleanup: cleanupMcpDeeplink } = useMcpInstallDe
 const { setup: setupAuthLoginDeeplink, cleanup: cleanupAuthLoginDeeplink } =
   useAuthLoginDeeplinkHandler()
 const isLoginRoute = computed(() => route.name === 'login')
-const isJiaorongAppRoute = computed(() => isAppRouteLocation(route.name, route.path))
+/** 开发者中心独立窗口：只渲染页面，不带主壳与主窗口启动副作用。 */
+const isDevCenterStandalone = resolveDevCenterStandalone()
+const isEmbeddedAppRoute = computed(() => isEmbeddedAppRouteLocation(route.name, route.path))
 const isPluginCenterShell = computed(() => isSkillRouteLocation(route.name, route.path))
 
 watch(
@@ -146,6 +154,27 @@ watch(
 )
 
 const router = useRouter()
+/** 当前内嵌应用 id；不在应用页则为空。 */
+const embeddedAppId = computed(() => {
+  const value = route.params.appId
+  return typeof value === 'string' ? value.trim() : ''
+})
+/** 应用中心打开的应用显示返回；协同平台走侧栏，不加。 */
+const showAppBack = computed(
+  () => isEmbeddedAppRoute.value && !isSystemBundledApp(embeddedAppId.value)
+)
+
+/**
+ * 返回列表。开发者中心独立窗口会停 Node；应用中心只切页，不关应用。
+ */
+function backFromEmbeddedApp(): void {
+  if (isDevCenterStandalone) {
+    void router.push({ name: 'jiaorong-dev-center', query: { standalone: '1' } })
+    return
+  }
+  void router.push({ name: 'jiaorong-app-center' })
+}
+
 const isStartupRouteReady = ref(false)
 const processingStartDeeplinkToken = ref<number | null>(null)
 const processedStartDeeplinkToken = ref<number | null>(null)
@@ -456,7 +485,12 @@ useEventListener(
   handleGuidedOnboardingResumeRequested as EventListener
 )
 
-void ensureStartupWelcomeState()
+// 独立窗口只承载开发者中心，不做欢迎页与引导跳转
+if (isDevCenterStandalone) {
+  isStartupRouteReady.value = true
+} else {
+  void ensureStartupWelcomeState()
+}
 
 watch(
   () =>
@@ -469,6 +503,8 @@ watch(
 
 onMounted(() => {
   performanceReporter.recordStartup('shell-mounted')
+  // 通知、深链、会话引导都归主窗口，独立窗口重复注册会双份响应
+  if (isDevCenterStandalone) return
   cleanupSemanticNotifications = notificationClient.onSemanticNotification((delivery) => {
     semanticNotificationController.handle(delivery)
   })
@@ -543,7 +579,32 @@ onBeforeUnmount(() => {
 
 <template>
   <div
-    v-if="isLoginRoute"
+    v-if="isDevCenterStandalone"
+    data-testid="app-dev-center-standalone"
+    class="flex h-screen w-screen flex-col overflow-hidden bg-background"
+  >
+    <div
+      v-if="isMacOS"
+      class="dev-center-window-drag h-9 w-full shrink-0 bg-window-background"
+    ></div>
+    <div v-if="isEmbeddedAppRoute" class="standalone-app-toolbar bg-window-background">
+      <button
+        type="button"
+        class="standalone-app-toolbar__back"
+        data-testid="dev-center-back"
+        @click="backFromEmbeddedApp"
+      >
+        {{ t('routes.embeddedAppBack') }}
+      </button>
+    </div>
+    <div class="relative min-h-0 flex-1 overflow-hidden">
+      <RouterView v-if="isStartupRouteReady" />
+      <JiaorongAppFrameHost v-if="isStartupRouteReady" />
+    </div>
+    <NotificationHost surface="settings" :theme="toasterTheme" :dir="langStore.dir" />
+  </div>
+  <div
+    v-else-if="isLoginRoute"
     data-testid="app-login-root"
     class="flex h-screen w-screen flex-col overflow-hidden"
     :class="isWinMacOS ? 'bg-window-background' : 'bg-background'"
@@ -572,11 +633,21 @@ onBeforeUnmount(() => {
             :class="
               isPluginCenterShell
                 ? 'bg-window-background'
-                : isJiaorongAppRoute
+                : isEmbeddedAppRoute
                   ? 'bg-background'
                   : 'rounded-tl-xl border-l border-t border-black/20 bg-background dark:border-white/10'
             "
           >
+            <div v-if="showAppBack" class="standalone-app-toolbar bg-window-background">
+              <button
+                type="button"
+                class="standalone-app-toolbar__back"
+                data-testid="app-center-back"
+                @click="backFromEmbeddedApp"
+              >
+                {{ t('routes.embeddedAppBack') }}
+              </button>
+            </div>
             <div class="relative min-h-0 flex-1">
               <template v-if="isStartupRouteReady">
                 <!--
@@ -623,3 +694,33 @@ onBeforeUnmount(() => {
     </TooltipProvider>
   </div>
 </template>
+
+<style scoped>
+.dev-center-window-drag {
+  -webkit-app-region: drag;
+}
+
+.standalone-app-toolbar {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  padding: 0 12px;
+  background: var(--bg-window-background, #eff5ff);
+}
+
+.standalone-app-toolbar__back {
+  height: 28px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--foreground);
+  font-size: 13px;
+  line-height: 28px;
+  cursor: pointer;
+}
+
+.standalone-app-toolbar__back:hover {
+  background: var(--muted);
+}
+</style>

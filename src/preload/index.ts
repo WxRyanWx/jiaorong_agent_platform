@@ -12,6 +12,17 @@ import { normalizeExternalUrl } from '@shared/externalUrl'
 import { createBridge } from './createBridge'
 import {
   JIAORONG_APP_CATALOG_CHANGED_CHANNEL,
+  JIAORONG_APP_CENTER_INSTALL_CHANNEL,
+  JIAORONG_APP_CENTER_LIST_CHANNEL,
+  JIAORONG_APP_CENTER_UNINSTALL_CHANNEL,
+  JIAORONG_DEV_CENTER_CREATE_CHANNEL,
+  JIAORONG_DEV_CENTER_DOWNLOAD_CHANNEL,
+  JIAORONG_DEV_CENTER_LIST_CHANNEL,
+  JIAORONG_DEV_CENTER_OPEN_WINDOW_CHANNEL,
+  JIAORONG_DEV_CENTER_PEEK_ZIP_CHANNEL,
+  JIAORONG_DEV_CENTER_PICK_ZIP_CHANNEL,
+  JIAORONG_DEV_CENTER_PUBLISH_CHANNEL,
+  JIAORONG_DEV_CENTER_SYNC_CHANNEL,
   JIAORONG_APP_LEAVE_CHANNEL,
   JIAORONG_APP_LIST_CHANNEL,
   JIAORONG_APP_OPEN_CHANNEL
@@ -115,6 +126,21 @@ const deepchatDevApi = isDevHiddenApiEnabled
 const deepchatBridge = Object.freeze(createBridge(ipcRenderer))
 const jiaorongApps = Object.freeze({
   listVisible: () => ipcRenderer.invoke(JIAORONG_APP_LIST_CHANNEL),
+  listAppCenter: () => ipcRenderer.invoke(JIAORONG_APP_CENTER_LIST_CHANNEL),
+  installAppCenter: (appId: string) =>
+    ipcRenderer.invoke(JIAORONG_APP_CENTER_INSTALL_CHANNEL, { appId }),
+  uninstallAppCenter: (appId: string) =>
+    ipcRenderer.invoke(JIAORONG_APP_CENTER_UNINSTALL_CHANNEL, { appId }),
+  listDevCenter: () => ipcRenderer.invoke(JIAORONG_DEV_CENTER_LIST_CHANNEL),
+  createDevApp: () => ipcRenderer.invoke(JIAORONG_DEV_CENTER_CREATE_CHANNEL),
+  publishDevApp: (appId: string, manifestJson: string, zipPath: string) =>
+    ipcRenderer.invoke(JIAORONG_DEV_CENTER_PUBLISH_CHANNEL, { appId, manifestJson, zipPath }),
+  pickDevZip: () => ipcRenderer.invoke(JIAORONG_DEV_CENTER_PICK_ZIP_CHANNEL),
+  peekDevZip: (zipPath: string) =>
+    ipcRenderer.invoke(JIAORONG_DEV_CENTER_PEEK_ZIP_CHANNEL, { zipPath }),
+  downloadDevSample: () => ipcRenderer.invoke(JIAORONG_DEV_CENTER_DOWNLOAD_CHANNEL),
+  syncDevApps: (apps: unknown) => ipcRenderer.invoke(JIAORONG_DEV_CENTER_SYNC_CHANNEL, apps),
+  openDevCenterWindow: () => ipcRenderer.invoke(JIAORONG_DEV_CENTER_OPEN_WINDOW_CHANNEL),
   getOpenInfo: (appId: string) => ipcRenderer.invoke(JIAORONG_APP_OPEN_CHANNEL, { appId }),
   leave: (appId: string) => ipcRenderer.invoke(JIAORONG_APP_LEAVE_CHANNEL, { appId }),
   onCatalogChanged: (handler: () => void) => {

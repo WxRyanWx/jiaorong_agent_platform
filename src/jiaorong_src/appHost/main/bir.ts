@@ -31,8 +31,17 @@ interface ErrorMessage {
   /** 失败说明。 */
   message: string;
 }
+/** 页面把 `jiaorong` 事件转发给 Node。回调不能过 JSON，只能推这条。 */
+interface EventMessage {
+  /** 固定为 `event`。 */
+  msgType: 'event';
+  /** 事件名，如 `chat.stream.updated`。 */
+  event: string;
+  /** 事件体。 */
+  payload: unknown;
+}
 /** 页面能发出去的消息。 */
-type OutgoingMessage = ResponseMessage | ErrorMessage;
+type OutgoingMessage = ResponseMessage | ErrorMessage | EventMessage;
 
 // ── 扩展 Window 类型，声明 window.sa ──
 declare global {
@@ -51,6 +60,8 @@ declare global {
 class RendererBridge {
   /** 可被调用的能力根对象。 */
   private sa: Record<string, any>;
+  /** 页面上真正的 `window.jiaorong`，订阅时走它，避免包一层后递归。 */
+  private rawJiaorong: Record<string, any> | undefined;
   /** 包内 Node 的 WS 端口，由子应用自己指定。 */
   private port: number;
   /** 当前 WS 连接。 */
@@ -59,6 +70,10 @@ class RendererBridge {
   private isConnected = false;
   /** 重连定时器，null 表示没有在排队。 */
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  /** 已转发给 Node 的事件名 → 页面退订函数。 */
+  private jiaorongUnsubs = new Map<string, () => void>();
+  /** WS 未 OPEN 时暂存的事件，重连后补发。 */
+  private pendingEvents: EventMessage[] = [];
 
   /**
    * @param options 能力根对象与端口
@@ -67,8 +82,82 @@ class RendererBridge {
     sa: Record<string, any>;
     port: number;
   }) {
-    this.sa = options.sa;
+    this.rawJiaorong = options.sa?.jiaorong;
     this.port = options.port;
+    this.sa = {
+      ...options.sa,
+      jiaorong: this.wrapJiaorong(options.sa?.jiaorong)
+    };
+  }
+
+  /**
+   * 只拦截 `on` / `off`：Node 回调过不了 JSON，不能当普通 RPC。
+   * 其余属性仍从原对象取，避免浅拷贝丢掉嵌套方法。
+   */
+  private wrapJiaorong(jiaorong: Record<string, any> | undefined) {
+    if (!jiaorong || typeof jiaorong !== 'object') return jiaorong;
+    return new Proxy(jiaorong, {
+      get: (target, prop, receiver) => {
+        if (prop === 'on') {
+          return (event: unknown) => this.subscribeJiaorongEvent(event);
+        }
+        if (prop === 'off') {
+          return (event: unknown) => this.unsubscribeJiaorongEvent(event);
+        }
+        return Reflect.get(target, prop, receiver);
+      }
+    });
+  }
+
+  /** `jiaorong.on` / `off` 的入参：数组、事件名字符串、或 `{event}`。 */
+  private eventMethodArgs(payload: unknown): unknown[] {
+    if (Array.isArray(payload)) return payload;
+    if (typeof payload === 'string') return [payload];
+    if (payload && typeof payload === 'object') return [payload];
+    return [];
+  }
+
+  /** 从 Node 发来的 payload 里取出事件名。 */
+  private readEventName(event: unknown): string {
+    if (typeof event === 'string' && event.trim()) return event.trim();
+    if (event && typeof event === 'object' && typeof (event as { event?: unknown }).event === 'string') {
+      const name = String((event as { event: string }).event).trim();
+      if (name) return name;
+    }
+    throw new Error('需要事件名');
+  }
+
+  /**
+   * 页面订阅真实 `jiaorong.on`，事件到了再 `{msgType:'event'}` 推给 Node。
+   * 同一事件只订一次。
+   */
+  private subscribeJiaorongEvent(event: unknown) {
+    const name = this.readEventName(event);
+    if (this.jiaorongUnsubs.has(name)) return { ok: true, event: name };
+    const on = this.rawJiaorong?.on;
+    if (typeof on !== 'function') {
+      throw new Error('jiaorong.on 不可用');
+    }
+    const unsub = on(name, (payload: unknown) => {
+      this.sendMsg({
+        msgType: 'event',
+        event: name,
+        payload
+      });
+    });
+    this.jiaorongUnsubs.set(name, typeof unsub === 'function' ? unsub : () => {});
+    return { ok: true, event: name };
+  }
+
+  /** 取消页面上转给 Node 的订阅。 */
+  private unsubscribeJiaorongEvent(event: unknown) {
+    const name = this.readEventName(event);
+    const unsub = this.jiaorongUnsubs.get(name);
+    if (unsub) {
+      unsub();
+      this.jiaorongUnsubs.delete(name);
+    }
+    return { ok: true, event: name };
   }
 
   /** 启动桥：建立首次连接。 */
@@ -113,6 +202,10 @@ class RendererBridge {
     this.ws.onopen = () => {
       console.log('[RendererBridge] WS连接成功');
       this.isConnected = true;
+      const queued = this.pendingEvents.splice(0);
+      for (const msg of queued) {
+        this.sendMsg(msg);
+      }
     };
 
     // 收到 Node 发来的调用请求
@@ -131,9 +224,15 @@ class RendererBridge {
             if (typeof fn !== 'function') {
               throw new Error(`方法【${method}】不存在于sa`);
             }
-            // payload 缺省兜底为空数组，避免 spread 非数组时报错
+            /** Node 展开后的位置参数；`on` 的第二参回调会被 JSON 变成 null。 */
+            const args =
+              method === 'jiaorong.on' || method === 'jiaorong.off'
+                ? this.eventMethodArgs(payload)
+                : Array.isArray(payload)
+                  ? payload
+                  : [];
             /** 方法返回值。 */
-            const result = await fn(...(Array.isArray(payload) ? payload : []));
+            const result = await fn(...args);
             // 成功回包
             this.sendMsg({
               msgType: 'response',
@@ -177,18 +276,34 @@ class RendererBridge {
   }
 
   /**
-   * 发一条消息给 Node；连接未 OPEN 时静默丢弃。
-   * @param msg 响应或错误消息
+   * 发一条消息给 Node。RPC 回包在未 OPEN 时丢弃；事件可短时排队等重连。
+   * @param msg 响应、错误或事件
    */
   private sendMsg(msg: OutgoingMessage) {
-    // 只有连接处于 OPEN 才能发出去
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify(msg));
+      try {
+        this.ws.send(JSON.stringify(msg));
+      } catch (err) {
+        console.error('[RendererBridge] 发送失败', err);
+      }
+      return;
     }
+    if (msg.msgType !== 'event') return;
+    this.pendingEvents.push(msg);
+    if (this.pendingEvents.length > 50) this.pendingEvents.shift();
   }
 
-  /** 主动停止：清掉重连定时器并关闭连接，之后不再自动重连。 */
+  /** 主动停止：退订转发、清掉重连定时器并关闭连接，之后不再自动重连。 */
   stop() {
+    for (const unsub of this.jiaorongUnsubs.values()) {
+      try {
+        unsub();
+      } catch {
+        // 退订失败不影响关桥
+      }
+    }
+    this.jiaorongUnsubs.clear();
+    this.pendingEvents = [];
     // 清除重连定时器
     if (this.reconnectTimer !== null) {
       clearTimeout(this.reconnectTimer);
@@ -226,24 +341,11 @@ async function initRendererBridge(port: number, apisCustom: any) {
 }
 
 // 兜底：即使 contextBridge 暴露失败，页面也能直接调 window.initRendererBridge
-if(window){
-  window.initRendererBridge =  async (port: number, apisCustom: any) => {
-  /** 桥实例。 */
-  const bridge = new RendererBridge({
-    sa: {
-      // 应用自定义能力
-      apisCustom,
-      // 客户端注入的 window.jiaorong
-      jiaorong: window.jiaorong
-    },
-    port,
-  });
-  await bridge.start();
-  return bridge;
-}
+if (typeof window !== 'undefined') {
+  window.initRendererBridge = initRendererBridge;
 }
 
 // 供主进程 preload 与测试直接引用
 export { RendererBridge, initRendererBridge };
 // 消息协议类型，Node 侧按同一套结构编解码
-export type { RequestMessage, ResponseMessage, ErrorMessage, OutgoingMessage };
+export type { RequestMessage, ResponseMessage, ErrorMessage, EventMessage, OutgoingMessage };
