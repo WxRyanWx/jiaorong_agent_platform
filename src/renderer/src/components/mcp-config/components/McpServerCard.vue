@@ -197,6 +197,7 @@ watch(watchDescription, () => {
 <template>
   <div
     :data-mcp-server="server.name"
+    :data-mcp-source="server.source || undefined"
     class="bg-card flex flex-col shadow-sm border rounded-lg overflow-hidden transition-all duration-200 hover:shadow-md group"
   >
     <div class="px-4 py-2 flex-1">

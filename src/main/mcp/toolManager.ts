@@ -25,6 +25,7 @@ import type { SemanticNotificationPublisher } from '@/notifications'
 import { awaitWithAbort } from '@/lib/awaitWithAbort'
 import type { McpSettings } from './settings'
 import { CUA_PLUGIN_ID } from '@shared/types/plugin'
+import { isMcpServerVisibleToAgent } from '@shared/mcp/visibleToAgent'
 import {
   appendCuaResultProjections,
   normalizeCuaToolArguments,
@@ -1001,6 +1002,17 @@ export class ToolManager {
           toolCall.id,
           'target_unavailable',
           `Error: Configuration missing for server '${toolServerName}'.`,
+          access?.throwPreDispatchErrors
+        )
+      }
+      if (
+        !this.pluginOwnership.isServerAvailable(toolServerName) &&
+        !isMcpServerVisibleToAgent(serverConfig, accessContext.agentId)
+      ) {
+        return this.createPreDispatchErrorResponse(
+          toolCall.id,
+          'tool_not_allowed',
+          `MCP server '${toolServerName}' is not allowed for this agent.`,
           access?.throwPreDispatchErrors
         )
       }

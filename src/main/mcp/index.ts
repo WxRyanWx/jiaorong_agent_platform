@@ -60,6 +60,7 @@ import { hasMcpIdentityBearingChange } from './serverIdentity'
 import type { CacheImageOptions } from '@/platform/imageCache'
 import { awaitWithAbort } from '@/lib/awaitWithAbort'
 import { isJiaorongKnowledgeBaseMcpServer } from '@jiaorong/knowledgeBase/mcp/knowledgeBaseMcpConstants'
+import { isMcpServerVisibleToAgent } from '@shared/mcp/visibleToAgent'
 
 type McpToolAccessContext = {
   enabledTools?: string[]
@@ -333,6 +334,17 @@ export class McpService implements McpServicePort {
     }
 
     return !context.enabledServerIds || context.enabledServerIds.includes(serverName)
+  }
+
+  private isServerVisibleToAgent(
+    serverName: string,
+    context: McpToolAccessContext,
+    configs: Record<string, MCPServerConfig>
+  ): boolean {
+    if (this.pluginRuntimeSupervisor.isServerAvailable(serverName)) {
+      return true
+    }
+    return isMcpServerVisibleToAgent(configs[serverName], context.agentId)
   }
 
   async initialize() {
@@ -1171,12 +1183,18 @@ export class McpService implements McpServicePort {
   ): Promise<MCPToolDefinition[]> {
     const context = normalizeToolAccessContext(enabledMcpTools)
     const enabled = await this.mcpSettings.getMcpEnabled()
-    const tools = await this.toolManager.getAllToolDefinitions(context)
+    const [tools, serverConfigs] = await Promise.all([
+      this.toolManager.getAllToolDefinitions(context),
+      this.mcpSettings.getMcpServers()
+    ])
     return tools.filter((tool) => {
       if (!enabled && !this.pluginRuntimeSupervisor.isServerAvailable(tool.server.name)) {
         return false
       }
-      return this.isServerAllowedByContext(tool.server.name, context)
+      if (!this.isServerAllowedByContext(tool.server.name, context)) {
+        return false
+      }
+      return this.isServerVisibleToAgent(tool.server.name, context, serverConfigs)
     })
   }
 
@@ -1197,14 +1215,22 @@ export class McpService implements McpServicePort {
           (serverName) =>
             (!selectedServerNames || selectedServerNames.has(serverName)) &&
             !this.isPluginOwnedServerConfig(serverConfigs[serverName], serverName) &&
-            !this.pluginRuntimeSupervisor.ownsServer(serverName)
+            !this.pluginRuntimeSupervisor.ownsServer(serverName) &&
+            this.isServerVisibleToAgent(serverName, context, serverConfigs)
         )
       : []
-    return this.toolManager.snapshotCachedToolDefinitions({
+    const snapshot = this.toolManager.snapshotCachedToolDefinitions({
       ...context,
       includeRegularServers: enabled,
       expectedServerNames
     })
+    if (snapshot.state !== 'ready') return snapshot
+    return {
+      ...snapshot,
+      tools: snapshot.tools.filter((tool) =>
+        this.isServerVisibleToAgent(tool.server.name, context, serverConfigs)
+      )
+    }
   }
 
   /**

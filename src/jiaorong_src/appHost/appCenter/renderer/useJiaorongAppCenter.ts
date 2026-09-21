@@ -99,7 +99,11 @@ export function useJiaorongAppCenter() {
    */
   async function open(app: JiaorongAppCenterItem): Promise<void> {
     if (isInstalling(app)) return
-    await router.push({ name: 'jiaorong-app', params: { appId: app.id } })
+    await router.push({
+      name: 'jiaorong-app',
+      params: { appId: app.id },
+      query: { from: 'app-center' }
+    })
   }
 
   /** 登录态或目录变化后刷新列表。 */

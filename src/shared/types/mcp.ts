@@ -117,6 +117,8 @@ export interface MCPServerConfig {
   source?: string
   sourceId?: string
   ownerPluginId?: string
+  /** 非空时仅这些智能体能看到并调用该 MCP 的工具。 */
+  visibleToAgentIds?: string[]
   inheritEnv?: 'legacy' | 'minimal'
   /**
    * Host-owned identity. Importers must not use a mutable display name as durable identity.

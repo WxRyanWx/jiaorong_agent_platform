@@ -1,5 +1,6 @@
 /** 超级智能体依赖端口类型：对话、文件、斜杠目录、鉴权。 */
 
+import type { MCPServerConfig } from '@shared/types/mcp'
 import type { JiaorongAuthSession } from './userIdentity'
 import type { ThemeMode } from '../types'
 
@@ -475,4 +476,23 @@ export type JiaorongAppHostDeps = {
   }) => Promise<Array<{ name: string; group: string }>>
   /** 文件落地端口。 */
   files?: JiaorongAppFilePort
+  /** MCP 创建/启停端口。 */
+  mcp?: JiaorongAppMcpPort
+}
+
+/** 应用桥创建 MCP 用的端口。 */
+export type JiaorongAppMcpPort = {
+  /** 读取已配置的 MCP。 */
+  getMcpServers(): Promise<Record<string, MCPServerConfig>>
+  /** 写入一条 MCP。 */
+  addMcpServer(
+    serverName: string,
+    config: MCPServerConfig
+  ): Promise<{ status: 'added' | 'duplicate' }>
+  /** 启用或停用并同步进程。 */
+  setMcpServerEnabled(serverName: string, enabled: boolean): Promise<void>
+  /** 更新一条 MCP。 */
+  updateMcpServer(serverName: string, config: Partial<MCPServerConfig>): Promise<void>
+  /** 进程是否在跑。 */
+  isServerRunning(serverName: string): Promise<boolean>
 }

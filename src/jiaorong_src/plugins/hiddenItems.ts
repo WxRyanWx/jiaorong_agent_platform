@@ -29,7 +29,8 @@ export const PLUGIN_CENTER_HIDDEN_SELECTORS = [
   '[data-mcp-market-button]',
   '[data-mcp-master-switch]',
   '[data-mcp-enterprise-identity]',
-  '[data-mcp-server-counts]'
+  '[data-mcp-server-counts]',
+  '[data-mcp-source="jiaorong-app"]'
 ] as const
 
 const cssAttr = (value: string): string => JSON.stringify(value)

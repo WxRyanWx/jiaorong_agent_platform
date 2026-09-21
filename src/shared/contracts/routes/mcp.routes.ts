@@ -64,6 +64,7 @@ const MCPServerConfigObjectSchema = z
     source: z.string().max(512).optional(),
     sourceId: z.string().max(512).optional(),
     ownerPluginId: z.string().max(512).optional(),
+    visibleToAgentIds: z.array(z.string().min(1).max(512)).max(256).optional(),
     inheritEnv: z.enum(['legacy', 'minimal']).optional(),
     serverId: z.string().uuid().optional(),
     configGeneration: z.number().int().positive().optional(),

@@ -19,6 +19,7 @@ import {
   rememberPickedDirectory
 } from './guest'
 import { appAgentIds } from './agentMap'
+import { handleJiaorongMcpCreate } from './mcpCreate'
 import { queryJiaorongKnowledgeBaseDirectory, queryJiaorongKnowledgeBases } from './knowledgeBase'
 import { getAppPreloadFileUrl, isPathInsideRoot } from './paths'
 import { ensureJiaorongAppProtocolSession } from './protocol'
@@ -443,6 +444,13 @@ export async function handleAppBridgeInvoke(
       // 知识库目录下探
       case 'knowledgeBase.queryDirectory':
         return queryJiaorongKnowledgeBaseDirectory(deps, record)
+      // 按 JSON 创建 MCP，默开，可限定智能体
+      case 'mcp.create': {
+        if (!readAuthToken(deps.getAuthSession())) {
+          return { code: 'UNAUTHORIZED', message: '未登录' }
+        }
+        return await handleJiaorongMcpCreate(deps, runtime, record)
+      }
       // 其余方法交给对话桥（agent / session 等）
       default: {
         /** 调用结果。 */

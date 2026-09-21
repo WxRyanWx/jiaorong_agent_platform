@@ -2,6 +2,7 @@ import { computed, ref, watch } from 'vue'
 import { useMcpStore } from '@/stores/mcp'
 import { useSessionStore } from '@/stores/ui/session'
 import { createConfigClient } from '@api/ConfigClient'
+import { isMcpServerVisibleToAgent } from '@shared/mcp/visibleToAgent'
 
 const CUSTOM_PROMPTS_CLIENT = 'deepchat/custom-prompts-server'
 
@@ -46,27 +47,43 @@ export function useAgentMcpData() {
   })
 
   const tools = computed(() => {
-    if (!isAcpMode.value) return [...mcpStore.visibleTools, ...mcpStore.pluginTools]
+    const agentId = sessionStore.activeSession?.agentId
+    const visibleToAgent = (serverName: string) =>
+      isMcpServerVisibleToAgent(mcpStore.config.mcpServers[serverName], agentId)
+    if (!isAcpMode.value) {
+      return [...mcpStore.visibleTools, ...mcpStore.pluginTools].filter((tool) =>
+        visibleToAgent(tool.server.name)
+      )
+    }
     const set = selectionSet.value
     if (!set) return []
-    return mcpStore.visibleTools.filter((tool) => set.has(tool.server.name))
+    return mcpStore.visibleTools.filter(
+      (tool) => set.has(tool.server.name) && visibleToAgent(tool.server.name)
+    )
   })
 
   const resources = computed(() => {
-    if (!isAcpMode.value) return mcpStore.visibleResources
+    const agentId = sessionStore.activeSession?.agentId
+    const visible = mcpStore.visibleResources.filter((resource) =>
+      isMcpServerVisibleToAgent(mcpStore.config.mcpServers[resource.client.name], agentId)
+    )
+    if (!isAcpMode.value) return visible
     const set = selectionSet.value
     if (!set) return []
-    return mcpStore.visibleResources.filter((resource) => set.has(resource.client.name))
+    return visible.filter((resource) => set.has(resource.client.name))
   })
 
   const prompts = computed(() => {
-    if (!isAcpMode.value) return mcpStore.visiblePrompts
+    const agentId = sessionStore.activeSession?.agentId
+    const visible = mcpStore.visiblePrompts.filter(
+      (prompt) =>
+        prompt.client?.name === CUSTOM_PROMPTS_CLIENT ||
+        isMcpServerVisibleToAgent(mcpStore.config.mcpServers[prompt.client?.name], agentId)
+    )
+    if (!isAcpMode.value) return visible
     const set = selectionSet.value
-    if (!set)
-      return mcpStore.visiblePrompts.filter(
-        (prompt) => prompt.client?.name === CUSTOM_PROMPTS_CLIENT
-      )
-    return mcpStore.visiblePrompts.filter(
+    if (!set) return visible.filter((prompt) => prompt.client?.name === CUSTOM_PROMPTS_CLIENT)
+    return visible.filter(
       (prompt) => prompt.client?.name === CUSTOM_PROMPTS_CLIENT || set.has(prompt.client?.name)
     )
   })

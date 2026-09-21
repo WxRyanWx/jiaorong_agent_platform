@@ -144,7 +144,8 @@ export function useJiaorongDevCenter() {
     await router.push({
       name: 'jiaorong-app',
       params: { appId: app.id },
-      query: route.query.standalone === '1' ? { standalone: '1' } : {}
+      query:
+        route.query.standalone === '1' ? { standalone: '1' } : { from: 'dev-center' }
     })
   }
 

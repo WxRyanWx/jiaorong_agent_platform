@@ -30,7 +30,6 @@ import { initAppStores, useMcpInstallDeeplinkHandler } from '@/lib/storeInitiali
 import { ensureShellBootstrap } from '@/lib/shellBootstrap'
 import { getToken, useAuthLoginDeeplinkHandler } from '@jiaorong/auth/host'
 import { isEmbeddedAppRouteLocation, isSkillRouteLocation } from '@jiaorong/router'
-import { isSystemBundledApp } from '@jiaorong/appHost/systemApps'
 import { ensureIconsLoaded } from '@/lib/iconLoader'
 import { useFontManager } from '@/composables/useFontManager'
 import { applyDocumentAppearance } from '@/foundation/appearance/documentAppearance'
@@ -154,22 +153,27 @@ watch(
 )
 
 const router = useRouter()
-/** 当前内嵌应用 id；不在应用页则为空。 */
-const embeddedAppId = computed(() => {
-  const value = route.params.appId
-  return typeof value === 'string' ? value.trim() : ''
+/** 从应用市场 / 开发者中心列表点进来才显示返回。 */
+const embeddedFrom = computed(() => {
+  const value = route.query.from
+  return typeof value === 'string' ? value : ''
 })
-/** 应用中心打开的应用显示返回；协同平台走侧栏，不加。 */
+/** 应用中心打开的应用显示返回；侧栏 menu 进的不加。 */
 const showAppBack = computed(
-  () => isEmbeddedAppRoute.value && !isSystemBundledApp(embeddedAppId.value)
+  () =>
+    isEmbeddedAppRoute.value &&
+    (embeddedFrom.value === 'app-center' || embeddedFrom.value === 'dev-center')
 )
 
 /**
  * 返回列表。开发者中心独立窗口会停 Node；应用中心只切页，不关应用。
  */
 function backFromEmbeddedApp(): void {
-  if (isDevCenterStandalone) {
-    void router.push({ name: 'jiaorong-dev-center', query: { standalone: '1' } })
+  if (isDevCenterStandalone || embeddedFrom.value === 'dev-center') {
+    void router.push({
+      name: 'jiaorong-dev-center',
+      query: isDevCenterStandalone ? { standalone: '1' } : {}
+    })
     return
   }
   void router.push({ name: 'jiaorong-app-center' })

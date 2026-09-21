@@ -3607,6 +3607,14 @@ export async function createMainProcessControl(dependencies: {
       writeImageBase64: (file) => fileService.writeImageBase64(file),
       prepareFile: (filePath, mimeType) => fileService.prepareFile(filePath, mimeType)
     },
+    mcp: {
+      getMcpServers: () => mcpService.getMcpServers(),
+      addMcpServer: (serverName, config) => mcpService.addMcpServer(serverName, config),
+      updateMcpServer: (serverName, config) => mcpService.updateMcpServer(serverName, config),
+      setMcpServerEnabled: (serverName, enabled) =>
+        mcpService.setMcpServerEnabled(serverName, enabled),
+      isServerRunning: (serverName) => mcpService.isServerRunning(serverName)
+    },
     dialogue: {
       createDeepChatAgent: (input) => agentSettings.createDeepChatAgent(input as never),
       updateDeepChatAgent: (agentId, updates) =>

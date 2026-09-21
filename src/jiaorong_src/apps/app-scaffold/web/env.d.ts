@@ -43,6 +43,7 @@ interface Window {
     agent: { create: JiaorongCall; update: JiaorongCall; get: JiaorongCall; list: JiaorongCall }
     session: Record<string, JiaorongCall>
     catalog: Record<string, JiaorongCall>
+    mcp: { create: JiaorongCall }
     knowledgeBase: { query: JiaorongCall; queryDirectory: JiaorongCall }
     dialog: Record<string, JiaorongCall>
     clipboard: { writeImage: JiaorongCall }

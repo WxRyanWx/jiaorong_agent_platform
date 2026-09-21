@@ -31,6 +31,9 @@ export function useJiaorongMenuApps() {
         route.name === 'jiaorong-app' &&
         typeof appId === 'string' &&
         appId &&
+        route.query.from !== 'app-center' &&
+        route.query.from !== 'dev-center' &&
+        route.query.standalone !== '1' &&
         !next.some((item) => item.id === appId)
       ) {
         await router.replace({ name: 'chat' })
@@ -48,7 +51,7 @@ export function useJiaorongMenuApps() {
    * @param app 侧栏点中的应用
    */
   async function open(app: JiaorongMenuAppItem) {
-    await router.push({ name: 'jiaorong-app', params: { appId: app.id } })
+    await router.push({ name: 'jiaorong-app', params: { appId: app.id }, query: {} })
   }
 
   /**

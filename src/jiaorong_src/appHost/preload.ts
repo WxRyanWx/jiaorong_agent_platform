@@ -183,6 +183,9 @@ const jiaorong = {
     systemPrompts: call('catalog.systemPrompts'), // 系统提示词
     agentTools: call('catalog.agentTools') // 智能体工具
   },
+  mcp: {
+    create: call('mcp.create') // 按 JSON 创建 MCP，默开，可限定智能体
+  },
   knowledgeBase: {
     query: call('knowledgeBase.query'), // 查知识库
     queryDirectory: call('knowledgeBase.queryDirectory') // 下探目录

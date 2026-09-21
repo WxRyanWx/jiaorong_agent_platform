@@ -360,6 +360,7 @@ import { useAgentStore } from '@/stores/ui/agent'
 import { useProjectStore } from '@/stores/ui/project'
 import { useModelCapabilities } from '@/composables/useModelCapabilities'
 import { ToolModeSchema, type ToolMode, type ToolModeOverride } from '@shared/toolMode'
+import { isMcpServerVisibleToAgent } from '@shared/mcp/visibleToAgent'
 
 type ToolGroupItem = {
   id: string
@@ -446,9 +447,16 @@ const toolModeError = ref('')
 let latestLoadToken = 0
 let unsubscribeSkillSessionChanged: (() => void) | null = null
 
-const enabledServers = computed(() => mcpStore.enabledServers)
+const enabledServers = computed(() =>
+  mcpStore.enabledServers.filter((server) =>
+    isMcpServerVisibleToAgent(
+      mcpStore.config.mcpServers[server.name],
+      sessionStore.activeSession?.agentId
+    )
+  )
+)
 const enabledPluginServers = computed(() => mcpStore.enabledPluginServers)
-const enabledServerCount = computed(() => mcpStore.enabledServerCount)
+const enabledServerCount = computed(() => enabledServers.value.length)
 const availableAgents = computed(() => (Array.isArray(agentStore.agents) ? agentStore.agents : []))
 const resolveAgentType = (agentId: string | null | undefined): 'deepchat' | 'acp' => {
   if (!agentId) {
