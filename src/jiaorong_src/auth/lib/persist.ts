@@ -1,7 +1,13 @@
 import { createConfigClient } from '@api/ConfigClient'
+import {
+  JIAORONG_AUTH_SESSION_CHANGED_EVENT,
+  JIAORONG_AUTH_SESSION_SETTING_KEY
+} from './sessionEvents'
 
-export const JIAORONG_AUTH_SESSION_SETTING_KEY = 'jiaorong_auth_session'
-export const JIAORONG_AUTH_SESSION_CHANGED_EVENT = 'jiaorong-auth-session-changed'
+export {
+  JIAORONG_AUTH_SESSION_CHANGED_EVENT,
+  JIAORONG_AUTH_SESSION_SETTING_KEY
+}
 
 function notifyAuthSessionChanged(): void {
   if (typeof window === 'undefined') return

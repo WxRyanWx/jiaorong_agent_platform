@@ -1,5 +1,5 @@
 import { shallowRef } from 'vue'
-import { JIAORONG_AUTH_SESSION_CHANGED_EVENT } from '../auth/lib/persist'
+import { JIAORONG_AUTH_SESSION_CHANGED_EVENT } from '../auth/lib/sessionEvents'
 import { matchesIdentityWhitelist } from './identityWhitelist'
 import {
   startJiaorongRemoteRuntimeConfigSync,
