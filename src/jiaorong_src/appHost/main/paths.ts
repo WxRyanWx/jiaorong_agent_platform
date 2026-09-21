@@ -24,6 +24,12 @@ export function getUserAppDir(appId: string, homeDir = os.homedir()): string {
   return path.join(getUserAppsRoot(homeDir), appId)
 }
 
+/** 点目录是安装临时解压等内部目录，不当成应用。 */
+export function isHiddenAppDirName(name: string): boolean {
+  const base = path.basename(name)
+  return !base || base.startsWith('.')
+}
+
 /**
  * 系统应用安装根：Electron `userData` 下，不进 `~/.jiaorongchat`。
  * macOS 约 `~/Library/Application Support/<产品名>/jiaorong-system-apps`。
@@ -43,9 +49,11 @@ export function getSystemAppDir(appId: string): string {
 /** 目标根下是否已有任意系统应用清单。 */
 function systemAppsRootHasManifest(root: string): boolean {
   try {
-    return fs.readdirSync(root, { withFileTypes: true }).some(
-      (entry) => entry.isDirectory() && fs.existsSync(path.join(root, entry.name, 'app.json'))
-    )
+    return fs
+      .readdirSync(root, { withFileTypes: true })
+      .some(
+        (entry) => entry.isDirectory() && fs.existsSync(path.join(root, entry.name, 'app.json'))
+      )
   } catch {
     return false
   }

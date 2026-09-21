@@ -221,6 +221,95 @@ export function getBoundGuestAppId(webContentsId: number): string | null {
   return guestAppByContents.get(webContentsId) ?? null
 }
 
+/** 读 BrowserWindow.id；Electron 类型声明里不一定带 getOwnerBrowserWindow。 */
+type WindowOwnerContents = {
+  getOwnerBrowserWindow?: () => { id: number; isDestroyed: () => boolean } | null
+}
+
+/**
+ * 从 webContents 取所属窗口 id。
+ * @param contents Electron WebContents
+ */
+export function readOwnerBrowserWindowId(contents: unknown): number | null {
+  if (!contents || typeof contents !== 'object') return null
+  const getOwner = (contents as WindowOwnerContents).getOwnerBrowserWindow
+  if (typeof getOwner !== 'function') return null
+  try {
+    const win = getOwner.call(contents)
+    if (!win || win.isDestroyed()) return null
+    return typeof win.id === 'number' ? win.id : null
+  } catch {
+    return null
+  }
+}
+
+/** 哪个 BrowserWindow 打开过哪些应用的 spawn。独立窗口关掉时用来停 Node。 */
+const spawnedByWindow = new Map<number, Set<string>>()
+
+/**
+ * 记下该窗口打开时拉起的应用。
+ * @param windowId BrowserWindow.id
+ * @param appId spawn 用的应用 id
+ */
+export function rememberWindowSpawn(windowId: number, appId: string): void {
+  const id = appId.trim()
+  if (!windowId || !id) return
+  let ids = spawnedByWindow.get(windowId)
+  if (!ids) {
+    ids = new Set()
+    spawnedByWindow.set(windowId, ids)
+  }
+  ids.add(id)
+}
+
+/**
+ * 该窗口主动 leave 后不再由窗口关闭来停。
+ * @param windowId BrowserWindow.id
+ * @param appId spawn 用的应用 id
+ */
+export function forgetWindowSpawn(windowId: number, appId: string): void {
+  const ids = spawnedByWindow.get(windowId)
+  if (!ids) return
+  ids.delete(appId)
+  if (ids.size === 0) spawnedByWindow.delete(windowId)
+}
+
+/**
+ * 取出并清空该窗口打开过的应用 id。
+ * @param windowId BrowserWindow.id
+ */
+export function takeWindowSpawns(windowId: number): string[] {
+  const ids = spawnedByWindow.get(windowId)
+  spawnedByWindow.delete(windowId)
+  return ids ? [...ids] : []
+}
+
+/** 进程退出时丢掉窗口 spawn 记录。 */
+export function clearWindowSpawns(): void {
+  spawnedByWindow.clear()
+}
+
+/**
+ * 仍挂在该窗口下的 guest 应用 id。
+ * @param win 目标窗口
+ */
+export function listGuestAppIdsForWindow(win: { id: number }): string[] {
+  const ids: string[] = []
+  const seen = new Set<string>()
+  const all =
+    typeof webContents.getAllWebContents === 'function' ? webContents.getAllWebContents() : []
+  for (const contents of all) {
+    if (contents.isDestroyed()) continue
+    const ownerId = readOwnerBrowserWindowId(contents)
+    if (ownerId !== win.id) continue
+    const appId = getBoundGuestAppId(contents.id) ?? readJiaorongAppHostname(contents.getURL())
+    if (!appId || seen.has(appId)) continue
+    seen.add(appId)
+    ids.push(appId)
+  }
+  return ids
+}
+
 /**
  * 规范化目录路径，便于白名单比较。
  * @param dirPath 用户选中的目录

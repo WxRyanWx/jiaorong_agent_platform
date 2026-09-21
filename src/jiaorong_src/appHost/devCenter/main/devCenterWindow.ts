@@ -3,9 +3,25 @@
 import { BrowserWindow } from 'electron'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { sharedAppsManager } from '../../main/appManagerInstance'
+import { listGuestAppIdsForWindow, takeWindowSpawns } from '../../main/guest'
+import { readAppManifest } from '../../main/manifest'
 
 /** 独立窗口单例。 */
 let devCenterWindow: BrowserWindow | null = null
+
+/**
+ * 关掉独立窗口时停掉它打开过的 Node。
+ * @param win 即将关闭的窗口
+ */
+function stopAppsOpenedInWindow(win: BrowserWindow): void {
+  const manager = sharedAppsManager()
+  const ids = new Set([...takeWindowSpawns(win.id), ...listGuestAppIdsForWindow(win)])
+  for (const appId of ids) {
+    const appDir = manager.getAppDir(appId)
+    manager.stopApp((appDir && readAppManifest(appDir)?.id) || appId)
+  }
+}
 
 /** 独立窗口加载地址：hash 路由带 standalone 标记，渲染端据此去掉主壳。 */
 function resolveDevCenterWindowUrl(): string {
@@ -54,6 +70,11 @@ export function openDevCenterWindow(): void {
   devCenterWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
   devCenterWindow.once('ready-to-show', () => {
     devCenterWindow?.show()
+  })
+  devCenterWindow.on('close', () => {
+    if (devCenterWindow && !devCenterWindow.isDestroyed()) {
+      stopAppsOpenedInWindow(devCenterWindow)
+    }
   })
   devCenterWindow.on('closed', () => {
     devCenterWindow = null

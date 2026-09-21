@@ -5,14 +5,17 @@
  */
 
 import * as fs from 'node:fs'
+import * as os from 'node:os'
 import * as path from 'node:path'
 import { randomBytes } from 'node:crypto'
 import { spawn, execSync, ChildProcess } from 'node:child_process'
 import { isSystemBundledApp } from '../systemApps'
-import { getSystemAppDir, getSystemAppsRoot, isPathInsideRoot } from './paths'
+import { getSystemAppDir, getSystemAppsRoot, isHiddenAppDirName, isPathInsideRoot } from './paths'
 
 /** 安装目录名必须是单层 kebab-id，防止 zip 清单把包装到 apps 目录外。 */
 const APP_FOLDER_ID_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
+/** 刚 spawn 时还没 LISTEN，这段时间内允许复用，避免并发 getOpenInfo 把进程杀掉重拉。 */
+const SPAWN_REUSE_GRACE_MS = 5000
 
 // ==================== 枚举 ====================
 
@@ -257,6 +260,10 @@ class appsManages {
   private appLinkMap: Map<string, string> = new Map()
   /** 运行中的应用进程：appId → ChildProcess */
   private runningProcesses: Map<string, ChildProcess> = new Map()
+  /** 本次 spawn 的开始时间，用来给复用留出 LISTEN 宽限期。 */
+  private spawnStartedAt: Map<string, number> = new Map()
+  /** 本次 spawn 的工作目录，退出时按 cwd 清残留。 */
+  private runningCwd: Map<string, string> = new Map()
   /** 最近一次 spawn 的 stdout/stderr，用来判断 EADDRINUSE。 */
   private spawnLogs: Map<string, string> = new Map()
 
@@ -294,7 +301,7 @@ class appsManages {
   ): void {
     // 传了 child 但已不是当前登记的进程（说明又被重启过），不要覆盖新进程状态
     if (child && this.runningProcesses.get(appId) !== child) return
-    this.runningProcesses.delete(appId)
+    this.clearRunning(appId)
     /** 该应用的运行时记录。 */
     const runtime = this.appRuntimeCache.get(appId)
     // 没有运行时记录就不用回写
@@ -337,6 +344,128 @@ class appsManages {
         /* already gone */
       }
     }
+  }
+
+  /**
+   * 清掉进程表里的一条，返回当时的工作目录。
+   * @param appId 应用 id
+   */
+  private clearRunning(appId: string): string | undefined {
+    const cwd = this.runningCwd.get(appId)
+    this.runningProcesses.delete(appId)
+    this.spawnStartedAt.delete(appId)
+    this.runningCwd.delete(appId)
+    return cwd
+  }
+
+  /**
+   * POSIX 下看进程组有没有 TCP LISTEN。不探具体端口号；查不到工具时返回 null。
+   * @param pid spawn 出的壳进程 PID
+   */
+  private processGroupHasListen(pid: number): boolean | null {
+    if (process.platform === 'win32') return null
+    const pids = new Set<number>([pid])
+    try {
+      const grouped = execSync(`pgrep -g ${pid}`, {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore']
+      }).trim()
+      for (const row of grouped.split('\n')) {
+        const value = Number(row.trim())
+        if (Number.isInteger(value) && value > 0) pids.add(value)
+      }
+    } catch {
+      /* pgrep 无匹配时非 0 退出 */
+    }
+    const pending = [...pids]
+    while (pending.length > 0) {
+      const current = pending.pop()!
+      try {
+        const children = execSync(`pgrep -P ${current}`, {
+          encoding: 'utf8',
+          stdio: ['ignore', 'pipe', 'ignore']
+        }).trim()
+        for (const row of children.split('\n')) {
+          const value = Number(row.trim())
+          if (!Number.isInteger(value) || value <= 0 || pids.has(value)) continue
+          pids.add(value)
+          pending.push(value)
+        }
+      } catch {
+        /* 没有子进程 */
+      }
+    }
+    let sawLsof = false
+    for (const childPid of pids) {
+      try {
+        const out = execSync(`lsof -nP -a -p ${childPid} -iTCP -sTCP:LISTEN`, {
+          encoding: 'utf8',
+          stdio: ['ignore', 'pipe', 'ignore']
+        })
+        sawLsof = true
+        if (out.trim()) return true
+      } catch (err) {
+        if ((err as { status?: number }).status === 1) {
+          sawLsof = true
+          continue
+        }
+      }
+    }
+    return sawLsof ? false : null
+  }
+
+  /**
+   * 已登记进程是否还能复用：宽限期内、或进程组确实在听 TCP。
+   * @param appId 应用 id
+   */
+  private canReuseSpawn(appId: string): boolean {
+    if (!this.isRunning(appId)) return false
+    const startedAt = this.spawnStartedAt.get(appId)
+    if (startedAt !== undefined && Date.now() - startedAt < SPAWN_REUSE_GRACE_MS) return true
+    const log = this.spawnLogs.get(appId) ?? ''
+    if (/EADDRINUSE|address already in use|端口.*占用/i.test(log)) return false
+    const pid = this.runningProcesses.get(appId)?.pid
+    if (!pid) return false
+    const listening = this.processGroupHasListen(pid)
+    // 探不到（无 lsof / Windows）时沿用「进程还活着」
+    return listening !== false
+  }
+
+  /**
+   * 解压到系统临时目录，避免半成品出现在用户 apps 根下。
+   */
+  private createTempExtractDir(): string {
+    return fs.mkdtempSync(path.join(os.tmpdir(), 'jiaorong-extract-'))
+  }
+
+  /**
+   * 同盘 rename，跨盘退回复制。
+   * @param from 源目录
+   * @param to 目标目录
+   */
+  private renameOrCopy(from: string, to: string): void {
+    try {
+      fs.renameSync(from, to)
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== 'EXDEV') throw err
+      this.copyDirectory(from, to)
+      fs.rmSync(from, { recursive: true, force: true })
+    }
+  }
+
+  /**
+   * 把解压结果放到安装目标目录。
+   * @param extractRoot 清单所在目录
+   * @param tempDir 临时解压根
+   * @param targetDir 最终安装目录
+   */
+  private placeExtractedApp(extractRoot: string, tempDir: string, targetDir: string): void {
+    if (extractRoot === tempDir) {
+      this.renameOrCopy(tempDir, targetDir)
+      return
+    }
+    this.copyDirectory(extractRoot, targetDir)
+    fs.rmSync(tempDir, { recursive: true, force: true })
   }
 
   /**
@@ -452,6 +581,8 @@ class appsManages {
       for (const entry of entries) {
         // 子文件夹：普通安装的应用
         if (entry.isDirectory()) {
+          // 跳过 .temp_extract_* 等点目录，避免安装半成品被登记成应用
+          if (isHiddenAppDirName(entry.name)) continue
           // 按目录里的 app.json.id 登记；文件夹名不参与身份判断
           this.tryLoadFromDirectory(entry.name)
         } else if (entry.isFile() && entry.name.endsWith('.app-link.json')) {
@@ -503,6 +634,10 @@ class appsManages {
    * @param folderName 用户 apps 目录下的子文件夹名
    */
   private tryLoadFromDirectory(folderName: string): boolean {
+    // 点目录不是应用安装目录
+    if (!folderName || isHiddenAppDirName(folderName) || path.basename(folderName) !== folderName) {
+      return false
+    }
     /** 清单路径。 */
     const configPath = path.join(this.appsRootPath, folderName, this.configFileName)
     // 不是应用目录（没有 app.json）
@@ -978,9 +1113,9 @@ class appsManages {
       return { success: false, message: `不支持的包格式 "${ext}"，仅支持 .zip 和 .app` }
     }
 
-    // 尝试解压
-    /** 临时解压目录，带时间戳避免并发互相覆盖。 */
-    const tempDir = path.join(this.appsRootPath, '.temp_extract_' + Date.now())
+    // 尝试解压：放系统临时目录，不进用户 apps 根
+    /** 临时解压目录。 */
+    const tempDir = this.createTempExtractDir()
     try {
       this.ensureDir(tempDir)
       this.extractZip(absPackagePath, tempDir)
@@ -1053,15 +1188,7 @@ class appsManages {
       // 移动解压内容到目标目录
       /** 清单所在目录，即真正的包根。 */
       const extractRoot = path.dirname(manifestPath)
-      // 清单就在解压根目录
-      if (extractRoot === tempDir) {
-        // app.json 在根目录，直接重命名 tempDir
-        fs.renameSync(tempDir, targetDir)
-      } else {
-        // app.json 在子目录，复制该目录
-        this.copyDirectory(extractRoot, targetDir)
-        fs.rmSync(tempDir, { recursive: true, force: true })
-      }
+      this.placeExtractedApp(extractRoot, tempDir, targetDir)
 
       /** 统一的本次时间戳。 */
       const now = new Date().toISOString()
@@ -1104,8 +1231,8 @@ class appsManages {
     /** 系统应用根。 */
     const systemRoot = getSystemAppsRoot()
     this.ensureDir(systemRoot)
-    /** 临时解压目录。 */
-    const tempDir = path.join(systemRoot, `.temp_extract_${Date.now()}`)
+    /** 临时解压目录，不进系统应用根，避免扫到半成品。 */
+    const tempDir = this.createTempExtractDir()
     try {
       this.ensureDir(tempDir)
       this.extractZip(absPackagePath, tempDir)
@@ -1142,12 +1269,7 @@ class appsManages {
       try {
         /** 清单所在目录。 */
         const extractRoot = path.dirname(manifestPath)
-        if (extractRoot === tempDir) {
-          fs.renameSync(tempDir, targetDir)
-        } else {
-          this.copyDirectory(extractRoot, targetDir)
-          fs.rmSync(tempDir, { recursive: true, force: true })
-        }
+        this.placeExtractedApp(extractRoot, tempDir, targetDir)
         if (fs.existsSync(backupDir)) fs.rmSync(backupDir, { recursive: true, force: true })
       } catch (error) {
         if (fs.existsSync(targetDir)) fs.rmSync(targetDir, { recursive: true, force: true })
@@ -1749,7 +1871,8 @@ class appsManages {
 
   /**
    * 点开应用时执行 app.json.spawn（整串交给 shell，支持 &&）。
-   * 无 spawn 则跳过。不向子进程注入超级智能体 IPC。端口由子应用自己听，客户端不探口、不管冲突。
+   * 无 spawn 则跳过。不向子进程注入超级智能体 IPC。端口由子应用自己听，客户端不探具体端口号、不管冲突。
+   * 复用已登记进程时只确认进程组是否仍在 LISTEN；僵尸进程会杀掉重拉。
    * @param appId 应用 ID，必须是 app.json.id
    * @param options.cwd 打开的那份目录；不传则走已登记的 getAppDir
    */
@@ -1787,13 +1910,19 @@ class appsManages {
       }
     }
 
-    // 已在跑就复用，避免应用中心返回后再打开把 Node 重启掉
+    // 已在跑且确实在听（或刚拉起）就复用，避免应用中心返回后再打开把 Node 重启掉
     if (this.isRunning(appId)) {
-      return {
-        success: true,
-        message: `应用 "${appId}" 已在运行`,
-        data: { command, cwd: appDir, pid: this.runningProcesses.get(appId)?.pid || 0 }
+      if (this.canReuseSpawn(appId)) {
+        return {
+          success: true,
+          message: `应用 "${appId}" 已在运行`,
+          data: { command, cwd: appDir, pid: this.runningProcesses.get(appId)?.pid || 0 }
+        }
       }
+      const stale = this.runningProcesses.get(appId)
+      if (stale) this.killChildTree(stale)
+      const staleCwd = this.clearRunning(appId)
+      if (staleCwd) this.killLeftoverInDir(staleCwd)
     }
     // 清掉上次客户端崩溃后仍占着该目录的残留 Node
     this.killLeftoverInDir(appDir)
@@ -1857,6 +1986,8 @@ class appsManages {
 
       // 记录进程引用
       this.runningProcesses.set(appId, child)
+      this.spawnStartedAt.set(appId, Date.now())
+      this.runningCwd.set(appId, appDir)
 
       /** 运行时记录。 */
       const runtime = this.getOrCreateRuntime(appId)
@@ -1882,40 +2013,33 @@ class appsManages {
   }
 
   /**
-   * 停止应用的 Node 服务
-   * 先尝试优雅退出（SIGTERM），超时后强制终止（SIGKILL）
+   * 停止应用的 Node 服务。整棵进程树 SIGKILL，不依赖 appCache 是否还有这条应用。
    * @param appId 应用 ID
    */
   stopApp(appId: string): AppManageResult {
-    /** 应用配置。 */
+    /** 应用配置；refresh 之后可能已经被清掉。 */
     const app = this.appCache.get(appId)
-    // 应用不存在
-    if (!app) return { success: false, message: `应用 "${appId}" 不存在` }
-
-    // 本来就没在跑，视为成功（幂等）
-    if (!this.isRunning(appId)) {
-      // 清理残留状态
-      this.markChildEnded(appId, app.enabled ? AppState.ENABLED : AppState.DISABLED)
-      return { success: true, message: `应用 "${appId}" 未在运行，无需停止` }
-    }
-
     /** 正在运行的子进程。 */
-    const child = this.runningProcesses.get(appId)!
-    /** 运行时记录。 */
-    const runtime = this.getOrCreateRuntime(appId)
+    const child = this.runningProcesses.get(appId)
+    /** 停之前记下 cwd，杀树后再按目录清残留。 */
+    const cwd = this.runningCwd.get(appId)
 
     try {
-      // 整棵进程树一起杀，避免孙进程继续占端口
-      this.killChildTree(child)
-      this.runningProcesses.delete(appId)
-      // 退回启用/禁用态并清进程引用
-      runtime.process = undefined
-      runtime.pid = undefined
-      runtime.state = app.enabled ? AppState.ENABLED : AppState.DISABLED
-      this.saveRuntimeState()
-
-      this.emit('stopped', app)
-
+      if (child && this.isRunning(appId)) {
+        // 整棵进程树一起杀，避免孙进程继续占端口
+        this.killChildTree(child)
+      }
+      this.clearRunning(appId)
+      if (cwd) this.killLeftoverInDir(cwd)
+      /** 运行时记录；缓存没有时也可以没有。 */
+      const runtime = this.appRuntimeCache.get(appId)
+      if (runtime) {
+        runtime.process = undefined
+        runtime.pid = undefined
+        runtime.state = app?.enabled ? AppState.ENABLED : AppState.DISABLED
+        this.saveRuntimeState()
+      }
+      if (app) this.emit('stopped', app)
       return { success: true, message: `应用 "${appId}" 已停止` }
     } catch (err) {
       // kill 失败时保留登记，下次 stop 会再试
@@ -1925,10 +2049,11 @@ class appsManages {
 
   /** 停掉所有已 spawn 的子进程。 */
   stopAllRunningApps(): void {
-    // 先拷贝键集合：stopApp 会在遍历中改动 runningProcesses
-    for (const appId of [...this.runningProcesses.keys()]) {
-      this.stopApp(appId)
-    }
+    // 先拷贝目录与键：stopApp 会在遍历中改动 runningProcesses
+    const dirs = Array.from(this.runningCwd.values())
+    const runningIds = Array.from(this.runningProcesses.keys())
+    for (const appId of runningIds) this.stopApp(appId)
+    for (const dir of dirs) this.killLeftoverInDir(dir)
   }
 
   /**
@@ -2086,8 +2211,8 @@ class appsManages {
     /** 根目录下的一档条目。 */
     const entries = fs.readdirSync(this.appsRootPath, { withFileTypes: true })
     for (const entry of entries) {
-      // 只看目录
-      if (!entry.isDirectory()) continue
+      // 只看目录；跳过安装临时解压目录
+      if (!entry.isDirectory() || isHiddenAppDirName(entry.name)) continue
       /** 该目录下的清单路径。 */
       const configPath = path.join(this.appsRootPath, entry.name, this.configFileName)
       // 不是应用目录

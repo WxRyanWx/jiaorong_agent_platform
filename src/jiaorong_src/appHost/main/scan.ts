@@ -23,6 +23,7 @@ import {
   getSystemAppsRoot,
   getUserAppDir,
   getUserAppsRoot,
+  isHiddenAppDirName,
   isPathInsideRoot,
   shouldCopyAppPath
 } from './paths'
@@ -213,8 +214,8 @@ function listLocalDebugApps(catalogIds: Set<string>): JiaorongAppCatalogRecord[]
   const seen = new Set<string>()
   /** 目录下一档。 */
   for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
-    // 只认目录
-    if (!entry.isDirectory()) continue
+    // 只认目录；跳过 .temp_extract_* 等点目录，避免安装半成品进本地调试
+    if (!entry.isDirectory() || isHiddenAppDirName(entry.name)) continue
     /** 应用安装目录。 */
     const appDir = path.join(root, entry.name)
     /** 应用清单。 */
@@ -314,8 +315,7 @@ function resolveRuntime(
   /** 已按 app.json.id 登记的安装目录，文件夹名可以不同。 */
   const linkedDir = sharedAppsManager().getAppDir(record.id)
   // 改回 store 后，jiaorong-system-apps 里的旧包不算商店已装，侧栏不再展示
-  const userDir =
-    linkedDir && isPathInsideRoot(getSystemAppsRoot(), linkedDir) ? null : linkedDir
+  const userDir = linkedDir && isPathInsideRoot(getSystemAppsRoot(), linkedDir) ? null : linkedDir
   /** 用户目录里的清单。 */
   const userManifest = userDir ? readAppManifest(userDir) : null
   /** 配置表允许看见，或本机已经有安装目录（无配置权限但手丢了也能进侧栏）。 */

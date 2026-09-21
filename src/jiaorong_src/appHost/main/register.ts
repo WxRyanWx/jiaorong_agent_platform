@@ -32,10 +32,14 @@ import {
 import { appAgentIds } from './agentMap'
 import {
   bindGuestAppId,
+  clearWindowSpawns,
+  forgetWindowSpawn,
   getBoundGuestAppId,
   installJiaorongAppGuestIsolation,
   readJiaorongAppHostname,
+  readOwnerBrowserWindowId,
   readSessionPartition,
+  rememberWindowSpawn,
   resolveGuestInvokeAppId
 } from './guest'
 import { sharedAppsManager } from './appManagerInstance'
@@ -167,6 +171,14 @@ function readAppIdInput(input: unknown): string {
  */
 function resolveSpawnAppId(appId: string, appDir?: string | null): string {
   return (appDir && readAppManifest(appDir)?.id) || appId
+}
+
+/**
+ * 发起 IPC 的渲染窗口 id；探测失败时不当成独立窗口。
+ * @param event IPC 事件
+ */
+function senderBrowserWindowId(event: IpcMainInvokeEvent): number | null {
+  return readOwnerBrowserWindowId(event.sender)
 }
 
 /**
@@ -440,7 +452,7 @@ export function startJiaorongAppHost(deps: JiaorongAppHostDeps): void {
   })
 
   // 打开应用：确保安装、spawn 子进程、返回 webview 参数
-  ipcMain.handle(JIAORONG_APP_OPEN_CHANNEL, async (_event, input: unknown) => {
+  ipcMain.handle(JIAORONG_APP_OPEN_CHANNEL, async (event, input: unknown) => {
     /** 当前应用 id。 */
     const appId = readAppIdInput(input)
     // 入参缺 appId
@@ -462,6 +474,8 @@ export function startJiaorongAppHost(deps: JiaorongAppHostDeps): void {
       spawnId,
       installed.appDir ? { cwd: installed.appDir } : undefined
     )
+    const windowId = senderBrowserWindowId(event)
+    if (startedSpawn.success && windowId !== null) rememberWindowSpawn(windowId, spawnId)
     // spawn 失败只告警，页面仍可打开
     if (!startedSpawn.success) {
       console.warn('[jiaorong-app] spawn failed', spawnId, startedSpawn.message)
@@ -490,7 +504,7 @@ export function startJiaorongAppHost(deps: JiaorongAppHostDeps): void {
   })
 
   // 离开应用：停子进程并停掉正在生成的会话
-  ipcMain.handle(JIAORONG_APP_LEAVE_CHANNEL, async (_event, input: unknown) => {
+  ipcMain.handle(JIAORONG_APP_LEAVE_CHANNEL, async (event, input: unknown) => {
     /** 当前应用 id。 */
     const appId = readAppIdInput(input)
     // 入参缺 appId
@@ -499,6 +513,8 @@ export function startJiaorongAppHost(deps: JiaorongAppHostDeps): void {
     const manager = sharedAppsManager()
     /** 与打开时相同的 spawn id，避免停错进程。 */
     const spawnId = resolveSpawnAppId(appId, manager.getAppDir(appId))
+    const windowId = senderBrowserWindowId(event)
+    if (windowId !== null) forgetWindowSpawn(windowId, spawnId)
     manager.stopApp(spawnId)
     // 异步停生成，不阻塞侧栏跳转
     void abortAppGenerations(deps, spawnId)
@@ -557,6 +573,7 @@ export function stopJiaorongAppHost(): void {
   setJiaorongAppSessionResolver(null)
   // 停掉所有子进程，避免退出后留孤儿
   sharedAppsManager().stopAllRunningApps()
+  clearWindowSpawns()
   // 复位状态，允许再次 start
   lastBroadcastUserKey = null
   started = false

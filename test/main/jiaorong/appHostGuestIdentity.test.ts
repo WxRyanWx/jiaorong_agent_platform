@@ -7,12 +7,17 @@ import {
   readSessionPartition,
   resolveGuestInvokeAppId,
   bindGuestAppId,
+  clearWindowSpawns,
   forgetSessionOwner,
+  forgetWindowSpawn,
   getBoundGuestAppId,
   getSessionOwner,
   isGuestPathAllowed,
   rememberPickedDirectory,
   rememberSessionOwner,
+  rememberWindowSpawn,
+  takeWindowSpawns,
+  readOwnerBrowserWindowId,
   unbindGuest
 } from '../../../src/jiaorong_src/appHost/main/guest'
 import {
@@ -199,5 +204,30 @@ describe('jiaorong app guest identity', () => {
       filterOfficialDeepchatPayload('chat.stream.updated', { sessionId: 'official-s1', blocks: [] })
     ).toEqual({ sessionId: 'official-s1', blocks: [] })
     forgetSessionOwner('app-s1')
+  })
+
+  it('tracks spawned apps per window until the window is taken', () => {
+    rememberWindowSpawn(9, 'demo-a')
+    rememberWindowSpawn(9, 'demo-b')
+    rememberWindowSpawn(10, 'demo-c')
+    forgetWindowSpawn(9, 'demo-a')
+    expect(takeWindowSpawns(9)).toEqual(['demo-b'])
+    expect(takeWindowSpawns(9)).toEqual([])
+    expect(takeWindowSpawns(10)).toEqual(['demo-c'])
+    clearWindowSpawns()
+  })
+
+  it('reads owner window id from webContents-like objects', () => {
+    expect(readOwnerBrowserWindowId(null)).toBeNull()
+    expect(
+      readOwnerBrowserWindowId({
+        getOwnerBrowserWindow: () => ({ id: 7, isDestroyed: () => false })
+      })
+    ).toBe(7)
+    expect(
+      readOwnerBrowserWindowId({
+        getOwnerBrowserWindow: () => ({ id: 7, isDestroyed: () => true })
+      })
+    ).toBeNull()
   })
 })

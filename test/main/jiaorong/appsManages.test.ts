@@ -49,11 +49,68 @@ describe('appsManages', () => {
     expect(started.data?.pid).toBeGreaterThan(0)
     expect(manager.isRunning('hello-app')).toBe(true)
 
+    const reused = manager.startApp('hello-app')
+    expect(reused.success).toBe(true)
+    expect(reused.data?.pid).toBe(started.data?.pid)
+
     const skipped = manager.startApp('missing')
     expect(skipped.success).toBe(false)
 
     manager.stopApp('hello-app')
     expect(manager.isRunning('hello-app')).toBe(false)
+  })
+
+  it('does not register hidden extract directories as apps', async () => {
+    const appsRoot = await makeRoot()
+    const installRoot = path.join(appsRoot, 'apps')
+    const hidden = path.join(installRoot, '.temp_extract_1')
+    await mkdir(path.join(hidden, 'web-ui'), { recursive: true })
+    await writeFile(
+      path.join(hidden, 'app.json'),
+      JSON.stringify({
+        id: 'ghost-extract',
+        name: 'Ghost',
+        version: '1.0.0',
+        entry: 'web-ui/index.html',
+        slot: 'menu'
+      }),
+      'utf8'
+    )
+    const manager = new appsManages(installRoot)
+    expect(manager.getApp('ghost-extract')).toBeNull()
+  })
+
+  it('stops spawn after refresh drops an in-memory registration', async () => {
+    const appsRoot = await makeRoot()
+    const source = path.join(appsRoot, 'src-app')
+    await mkdir(path.join(source, 'web-ui'), { recursive: true })
+    await writeFile(
+      path.join(source, 'app.json'),
+      JSON.stringify({
+        id: 'ref-app',
+        name: 'Ref',
+        version: '1.0.0',
+        entry: 'web-ui/index.html',
+        slot: 'menu',
+        spawn: 'node -e "setTimeout(()=>{}, 30000)"'
+      }),
+      'utf8'
+    )
+    await writeFile(path.join(source, 'web-ui', 'index.html'), '<html></html>', 'utf8')
+
+    const manager = new appsManages(path.join(appsRoot, 'apps'))
+    expect(manager.installAppFromPath(source, { mode: 'reference' }).success).toBe(true)
+    const started = manager.startApp('ref-app', { cwd: source })
+    expect(started.success, started.message).toBe(true)
+    expect(manager.isRunning('ref-app')).toBe(true)
+
+    manager.refresh()
+    expect(manager.getApp('ref-app')).toBeNull()
+    expect(manager.isRunning('ref-app')).toBe(true)
+
+    const stopped = manager.stopApp('ref-app')
+    expect(stopped.success, stopped.message).toBe(true)
+    expect(manager.isRunning('ref-app')).toBe(false)
   })
 
   it('does not register collaboration-platform from the user apps root', async () => {
