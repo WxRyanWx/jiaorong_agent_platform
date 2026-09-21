@@ -1,5 +1,6 @@
 # 测试环境安装包（API → Vite mode=test → jiaorong auth/config.ts 测试服）
 # 覆盖：mac x64、mac arm64、win x64、win arm64、linux x64
+# 测试包版本固定为 99.0.0，高于生产包，避免测试安装被新的生产安装包覆盖
 name: Build Test Application
 
 on:
@@ -20,6 +21,7 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   RTK_INSTALL_GITHUB_TOKEN: ${{ secrets.RTK_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
   RTK_INSTALL_GITHUB_TOKEN_SOURCE: ${{ secrets.RTK_GITHUB_TOKEN != '' && 'RTK_GITHUB_TOKEN' || 'GITHUB_TOKEN' }}
+  TEST_PACKAGE_VERSION: "99.0.0"
 
 jobs:
   build-windows:
@@ -78,6 +80,12 @@ jobs:
         run: pnpm run installRuntime:win:${{ matrix.arch }}
         env:
           GITHUB_TOKEN: ${{ env.RTK_INSTALL_GITHUB_TOKEN }}
+
+      - name: Pin test package version
+        shell: bash
+        run: |
+          npm pkg set "version=${TEST_PACKAGE_VERSION}"
+          echo "Pinned test package version to $(npm pkg get version)"
 
       - name: Build Windows (test API)
         run: |
@@ -144,6 +152,12 @@ jobs:
         run: pnpm run installRuntime:linux:${{ matrix.arch }}
         env:
           GITHUB_TOKEN: ${{ env.RTK_INSTALL_GITHUB_TOKEN }}
+
+      - name: Pin test package version
+        shell: bash
+        run: |
+          npm pkg set "version=${TEST_PACKAGE_VERSION}"
+          echo "Pinned test package version to $(npm pkg get version)"
 
       - name: Build Linux (test API)
         run: |
@@ -219,6 +233,12 @@ jobs:
         run: pnpm run installRuntime:mac:${{ matrix.arch }}
         env:
           GITHUB_TOKEN: ${{ env.RTK_INSTALL_GITHUB_TOKEN }}
+
+      - name: Pin test package version
+        shell: bash
+        run: |
+          npm pkg set "version=${TEST_PACKAGE_VERSION}"
+          echo "Pinned test package version to $(npm pkg get version)"
 
       - name: Build Mac (test API)
         run: |
