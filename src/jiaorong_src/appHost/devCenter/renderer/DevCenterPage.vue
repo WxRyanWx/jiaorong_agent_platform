@@ -23,6 +23,7 @@ import {
   TooltipTrigger
 } from '@shadcn/components/ui/tooltip'
 import { useToast } from '@/components/use-toast'
+import { useProjectStore } from '@/stores/ui/project'
 import type { JiaorongDevCenterItem } from '@jiaorong/appHost/types'
 import {
   APP_MANIFEST_SLOTS,
@@ -36,8 +37,21 @@ import './DevCenterPage.less'
 
 const { t } = useI18n()
 const { toast } = useToast()
-const { apps, lastError, create, remove, publish, pickZip, peekZip, downloadSample, open } =
-  useJiaorongDevCenter()
+const projectStore = useProjectStore()
+const {
+  apps,
+  lastError,
+  isBusy,
+  isDownloadingSample,
+  isOpening,
+  create,
+  remove,
+  publish,
+  pickZip,
+  peekZip,
+  downloadSample,
+  open
+} = useJiaorongDevCenter()
 
 /** 发布表单字段：中文标签 + 悬浮说明。 */
 type PublishField = {
@@ -192,6 +206,33 @@ async function confirmPublish(): Promise<void> {
   }
 }
 
+/**
+ * 点卡片目录：复用宿主既有 project.openDirectory，在系统文件管理器里打开插件文件夹。
+ * @param app 卡片项
+ */
+async function handleRevealDir(app: JiaorongDevCenterItem): Promise<void> {
+  if (!app.dir || isBusy.value) return
+  try {
+    await projectStore.openDirectory(app.dir)
+  } catch (error) {
+    console.warn('[jiaorong-dev-center] reveal dir failed', app.dir, error)
+    toast({ title: t('routes.devCenterOpenDirFailed'), variant: 'destructive' })
+  }
+}
+
+/**
+ * 目录拆成头尾两段：头部可截断出省略号，尾部末级目录名始终完整，视觉上即中间省略。
+ * @param dir 插件文件夹绝对路径
+ */
+function splitDir(dir: string): { head: string; tail: string } {
+  /** 去掉末尾分隔符后的目录。 */
+  const trimmed = dir.replace(/[/\\]+$/, '')
+  /** 末级分隔符位置；mac / linux / win 三种分隔符都认。 */
+  const sepIndex = Math.max(trimmed.lastIndexOf('/'), trimmed.lastIndexOf('\\'))
+  if (sepIndex < 0) return { head: '', tail: trimmed || dir }
+  return { head: trimmed.slice(0, sepIndex + 1), tail: trimmed.slice(sepIndex + 1) }
+}
+
 // 主进程返回的失败信息统一走 toast
 watch(lastError, (error) => {
   if (!error) return
@@ -212,7 +253,7 @@ watch(lastError, (error) => {
         <h1 class="app-center-page__title">{{ t('routes.devCenter') }}</h1>
         <p class="app-center-page__subtitle">{{ t('routes.devCenterSubtitle') }}</p>
       </div>
-      <Button size="sm" data-testid="dev-center-create" @click="create">
+      <Button size="sm" data-testid="dev-center-create" :disabled="isBusy" @click="create">
         <Icon icon="lucide:folder-plus" class="dev-center-page__create-icon" />
         {{ t('routes.devCenterCreate') }}
       </Button>
@@ -245,7 +286,19 @@ watch(lastError, (error) => {
         <p class="app-center-card__desc">{{ app.description }}</p>
 
         <div class="app-center-card__foot">
-          <span class="app-center-card__provider">{{ app.provider }}</span>
+          <span v-if="app.provider" class="app-center-card__provider">{{ app.provider }}</span>
+          <button
+            v-if="app.dir"
+            type="button"
+            class="dev-center-page__dir"
+            :title="app.dir"
+            :disabled="isBusy"
+            :data-testid="`dev-center-reveal-${app.id}`"
+            @click="handleRevealDir(app)"
+          >
+            <span class="dev-center-page__dir-head">{{ splitDir(app.dir).head }}</span>
+            <span class="dev-center-page__dir-tail">{{ splitDir(app.dir).tail }}</span>
+          </button>
           <div class="app-center-card__actions">
             <Button
               v-if="app.sample"
@@ -253,8 +306,14 @@ watch(lastError, (error) => {
               size="sm"
               class="app-center-card__action-btn"
               data-testid="dev-center-download"
+              :disabled="isBusy"
               @click="downloadSample"
             >
+              <Icon
+                v-if="isDownloadingSample"
+                icon="lucide:loader-circle"
+                class="app-center-card__action-spin"
+              />
               {{ t('routes.devCenterDownload') }}
             </Button>
             <template v-else>
@@ -263,6 +322,7 @@ watch(lastError, (error) => {
                 size="sm"
                 class="app-center-card__action-btn"
                 :data-testid="`dev-center-remove-${app.id}`"
+                :disabled="isBusy"
                 @click="remove(app)"
               >
                 {{ t('routes.devCenterRemove') }}
@@ -271,6 +331,7 @@ watch(lastError, (error) => {
                 size="sm"
                 class="app-center-card__action-btn"
                 :data-testid="`dev-center-publish-${app.id}`"
+                :disabled="isBusy"
                 @click="openPublishDialog(app)"
               >
                 {{ t('routes.devCenterPublish') }}
@@ -281,13 +342,18 @@ watch(lastError, (error) => {
               size="sm"
               class="app-center-card__action-btn"
               :data-testid="`dev-center-open-${app.id}`"
+              :disabled="isBusy"
               @click="open(app)"
             >
+              <Icon
+                v-if="isOpening(app)"
+                icon="lucide:loader-circle"
+                class="app-center-card__action-spin"
+              />
               {{ t('routes.appCenterOpen') }}
             </Button>
           </div>
         </div>
-        <p v-if="app.dir" class="dev-center-page__dir" :title="app.dir">{{ app.dir }}</p>
       </article>
     </div>
 

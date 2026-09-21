@@ -13,8 +13,18 @@ import './AppCenterPage.less'
 
 const { t } = useI18n()
 const { toast } = useToast()
-const { apps, lastError, isRefreshing, refresh, isInstalling, install, uninstall, open } =
-  useJiaorongAppCenter()
+const {
+  apps,
+  lastError,
+  isRefreshing,
+  isBusy,
+  refresh,
+  isInstalling,
+  isOpening,
+  install,
+  uninstall,
+  open
+} = useJiaorongAppCenter()
 
 /**
  * 主操作按钮文案键：已装给更新 / 打开，未装给安装。
@@ -69,7 +79,7 @@ watch(lastError, (error) => {
         variant="outline"
         size="sm"
         data-testid="app-center-refresh"
-        :disabled="isRefreshing"
+        :disabled="isRefreshing || isBusy"
         @click="refresh"
       >
         <Icon
@@ -115,6 +125,7 @@ watch(lastError, (error) => {
               variant="ghost"
               size="sm"
               class="app-center-card__action-btn"
+              :disabled="isBusy"
               :data-testid="`app-center-uninstall-${app.id}`"
               @click="uninstall(app)"
             >
@@ -124,17 +135,22 @@ watch(lastError, (error) => {
               v-if="app.openable"
               size="sm"
               class="app-center-card__action-btn"
-              :disabled="isInstalling(app)"
+              :disabled="isBusy"
               :data-testid="`app-center-open-${app.id}`"
               @click="open(app)"
             >
+              <Icon
+                v-if="isOpening(app)"
+                icon="lucide:loader-circle"
+                class="app-center-card__action-spin"
+              />
               {{ t('routes.appCenterOpen') }}
             </Button>
             <Button
               v-if="showPrimaryAction(app)"
               size="sm"
               class="app-center-card__action-btn"
-              :disabled="isInstalling(app)"
+              :disabled="isBusy"
               :data-testid="`app-center-install-${app.id}`"
               @click="install(app)"
             >

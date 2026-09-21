@@ -101,6 +101,7 @@
   "devCenterPublish": "发布",
   "devCenterRemove": "移除",
   "devCenterDownload": "下载示例代码",
+  "devCenterOpenDirFailed": "无法打开该文件夹",
   "devCenterEmpty": "暂无应用，点击「创建应用」登记本地插件文件夹",
   "devCenterPublishTitle": "发布应用",
   "devCenterConfirm": "确认",

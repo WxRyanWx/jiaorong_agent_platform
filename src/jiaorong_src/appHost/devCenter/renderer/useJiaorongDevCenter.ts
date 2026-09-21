@@ -1,8 +1,9 @@
 /** 开发者中心页数据源：浏览器存储名单 + 主进程列表 / 创建 / 发布 / 示例下载。 */
 
-import { onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { JIAORONG_AUTH_SESSION_CHANGED_EVENT } from '@jiaorong/auth/host'
+import { stashOpenInfo } from '../../renderer/openAppHandoff'
 import type { JiaorongDevAppRecord, JiaorongDevCenterItem } from '../../types'
 import type { AppManifestFormFields } from '../../manifestRules'
 
@@ -37,10 +38,29 @@ export function useJiaorongDevCenter() {
   const route = useRoute()
   /** 卡片列表。 */
   const apps = ref<JiaorongDevCenterItem[]>([])
+  /** 正在打开（等 Node 起完）的应用 id；空串表示没有。 */
+  const openingId = ref('')
+  /** 正在移除登记的应用 id；空串表示没有。 */
+  const removingId = ref('')
+  /** 示例应用是否正在下载。 */
+  const isDownloadingSample = ref(false)
   /** 最近一次失败信息。 */
   const lastError = ref<{ message?: string } | null>(null)
   /** 刷新序号，用于丢掉过期响应。 */
   let refreshSeq = 0
+
+  /** 页面是否被占用：打开 / 移除 / 下载期间锁住全部操作按钮，避免并发改状态。 */
+  const isBusy = computed(
+    () => openingId.value !== '' || removingId.value !== '' || isDownloadingSample.value
+  )
+
+  /**
+   * 该应用是否正在打开。
+   * @param app 卡片项
+   */
+  function isOpening(app: JiaorongDevCenterItem): boolean {
+    return openingId.value === app.id
+  }
 
   /** 重新拉开发者中心列表。 */
   async function refresh(): Promise<void> {
@@ -60,6 +80,8 @@ export function useJiaorongDevCenter() {
 
   /** 创建应用：主进程选目录校验，成功后写浏览器存储并同步。 */
   async function create(): Promise<boolean> {
+    // 已有打开 / 下载在飞，不接新操作
+    if (isBusy.value) return false
     lastError.value = null
     /** 主进程创建结果。 */
     const result = await window.jiaorongApps?.createDevApp()
@@ -82,9 +104,16 @@ export function useJiaorongDevCenter() {
 
   /** 移除登记：只删名单，不动用户文件夹。 */
   async function remove(app: JiaorongDevCenterItem): Promise<void> {
+    // 打开未完成时禁止移除，避免 link 登记被抽掉后 Node 停不下来
+    if (isBusy.value) return
     lastError.value = null
-    await writeStoredDevApps(readStoredDevApps().filter((item) => item.id !== app.id))
-    await refresh()
+    removingId.value = app.id
+    try {
+      await writeStoredDevApps(readStoredDevApps().filter((item) => item.id !== app.id))
+      await refresh()
+    } finally {
+      removingId.value = ''
+    }
   }
 
   /** 发布占位提交：最终版 app.json + zip 包。 */
@@ -92,6 +121,8 @@ export function useJiaorongDevCenter() {
     app: JiaorongDevCenterItem,
     payload: { manifestJson: string; zipPath: string }
   ): Promise<boolean> {
+    // 打开 / 下载未完成时不提交发布
+    if (isBusy.value) return false
     lastError.value = null
     /** 主进程发布结果。 */
     const result = await window.jiaorongApps?.publishDevApp(
@@ -132,26 +163,49 @@ export function useJiaorongDevCenter() {
 
   /** 示例应用下载到用户所选目录。 */
   async function downloadSample(): Promise<void> {
+    // 已有打开 / 下载在飞，忽略重复点击
+    if (isBusy.value) return
     lastError.value = null
-    /** 主进程下载结果。 */
-    const result = await window.jiaorongApps?.downloadDevSample()
-    if (!result) return
-    if (!result.ok && result.message !== '已取消') lastError.value = { message: result.message }
+    isDownloadingSample.value = true
+    try {
+      /** 主进程下载结果。 */
+      const result = await window.jiaorongApps?.downloadDevSample()
+      if (!result) return
+      if (!result.ok && result.message !== '已取消') lastError.value = { message: result.message }
+    } finally {
+      isDownloadingSample.value = false
+    }
   }
 
-  /** 打开应用：当前窗口就地跳；独立窗口带上 standalone，避免刷新掉壳。 */
+  /**
+   * 打开应用：先等主进程把 Node 起完再跳；独立窗口带上 standalone，避免刷新掉壳。
+   * @param app 卡片项
+   */
   async function open(app: JiaorongDevCenterItem): Promise<void> {
+    // 已有打开 / 下载在飞，忽略重复点击
+    if (isBusy.value) return
     lastError.value = null
-    const info = await window.jiaorongApps?.getOpenInfo(app.id)
-    if (!info?.src) {
+    openingId.value = app.id
+    try {
+      /** 主进程返回的 webview 打开信息，拿到即代表 Node 已起完。 */
+      const info = await window.jiaorongApps?.getOpenInfo(app.id)
+      if (!info?.src) {
+        lastError.value = { message: 'MISSING' }
+        return
+      }
+      // 交给常驻宿主复用，省掉第二次打开 IPC
+      stashOpenInfo(info)
+      await router.push({
+        name: 'jiaorong-app',
+        params: { appId: app.id },
+        query: route.query.standalone === '1' ? { standalone: '1' } : { from: 'dev-center' }
+      })
+    } catch (error) {
+      console.warn('[jiaorong-dev-center] open failed', app.id, error)
       lastError.value = { message: 'MISSING' }
-      return
+    } finally {
+      openingId.value = ''
     }
-    await router.push({
-      name: 'jiaorong-app',
-      params: { appId: app.id },
-      query: route.query.standalone === '1' ? { standalone: '1' } : { from: 'dev-center' }
-    })
   }
 
   /** 登录态或目录变化后刷新列表。 */
@@ -180,6 +234,9 @@ export function useJiaorongDevCenter() {
   return {
     apps,
     lastError,
+    isBusy,
+    isDownloadingSample,
+    isOpening,
     create,
     remove,
     publish,

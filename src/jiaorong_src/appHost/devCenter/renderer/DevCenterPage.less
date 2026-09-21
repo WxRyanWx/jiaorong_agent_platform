@@ -9,13 +9,48 @@
   }
 
   &__dir {
-    margin: 10px 0 0;
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    font-family: inherit;
     font-size: 11px;
     line-height: 16px;
     color: var(--muted-foreground);
+    cursor: pointer;
+    /* 极端窄卡时裁掉尾部，避免压到操作按钮 */
+    overflow: hidden;
+
+    &:hover:not(:disabled) {
+      color: var(--foreground);
+      text-decoration: underline;
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+  }
+
+  /* 头部可截断：省略号落在目录中段 */
+  &__dir-head {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  /* 末级目录名始终完整展示 */
+  &__dir-tail {
+    flex: none;
+    white-space: nowrap;
+  }
+
+  /* 本地应用没有提供方文案时，操作区仍靠右 */
+  .app-center-card__actions {
+    margin-left: auto;
   }
 
   &__dialog {

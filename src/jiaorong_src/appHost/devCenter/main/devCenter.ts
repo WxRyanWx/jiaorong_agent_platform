@@ -121,7 +121,8 @@ export function listDevCenterItems(deps: JiaorongAppHostDeps): JiaorongDevCenter
       installStatus: runtime?.installStatus ?? 'not_installed',
       openable: onDisk,
       sample: false,
-      provider: '本地开发',
+      // 开发者中心里本地应用的提供方恒为自己，不再显示冗余文案
+      provider: '',
       dir: record.dir
     })
   }

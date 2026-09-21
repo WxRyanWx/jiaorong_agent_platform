@@ -10,6 +10,7 @@ import { useI18n } from 'vue-i18n'
 import { Icon } from '@iconify/vue'
 import { JIAORONG_AUTH_SESSION_CHANGED_EVENT } from '@jiaorong/auth/host'
 import { isEmbeddedAppRouteLocation } from '../../router/apps.meta'
+import { clearOpenInfoHandoff, takeOpenInfo } from './openAppHandoff'
 import type { JiaorongAppOpenInfo, JiaorongAppSpawnWarning } from '../types'
 
 // 组件名固定，供 keep-alive 与调试面板识别
@@ -111,8 +112,8 @@ async function ensureFrame(appId: string) {
   if (!existed) loading.value = true
   errorText.value = ''
   try {
-    /** 主进程返回的 webview 打开信息。 */
-    const info = await getOpenInfo(appId)
+    /** 主进程返回的 webview 打开信息；列表页预热过就直接复用。 */
+    const info = takeOpenInfo(appId) ?? (await getOpenInfo(appId))
     // 拿不到 src：未安装或下载失败。已有帧（例如正在更新）继续显示，不踢回对话。
     if (!info?.src) {
       if (existed) return
@@ -190,6 +191,8 @@ function bindFrameListeners() {
 
 /** 登录态变化后逐帧校验打开信息，变了就换新 src，不变则沿用避免白屏。 */
 async function onAuthSessionChanged() {
+  // 登录态变了，列表页留下的预热结果已不可信
+  clearOpenInfoHandoff()
   /** 保留下来的帧。 */
   const kept: JiaorongAppOpenInfo[] = []
   for (const frame of frames.value) {

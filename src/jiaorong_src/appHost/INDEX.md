@@ -35,6 +35,7 @@
 | `main/slashCatalog.ts` | `catalog.slash` |
 | `main/knowledgeBase.ts` | 知识库查询 |
 | `renderer/JiaorongAppFrameHost.vue` | 常驻 webview：`getOpenInfo` + preload |
+| `renderer/openAppHandoff.ts` | 列表页「打开」预热结果交接，宿主免二次 IPC |
 | `renderer/pages/AppHostPage.vue` | 路由占位 |
 | `appCenter/renderer/AppCenterPage.vue` `AppCenterPage.less` | 应用中心卡片网格页 |
 | `renderer/useJiaorongMenuApps.ts` | 侧栏可见应用 |
@@ -42,6 +43,6 @@
 | `appCenter/renderer/useJiaorongAppCenterAccess.ts` | 侧栏「应用中心」入口可见性与跳转 |
 | `devCenter/main/devApps.ts` | 开发者名单内存镜像 + app.json 必填校验 |
 | `devCenter/main/devCenter.ts` | 开发者中心列表 / 创建 / 发布占位 / 示例下载 |
-| `devCenter/renderer/DevCenterPage.vue` `DevCenterPage.less` | 开发者中心卡片页（复用应用中心卡片样式） |
+| `devCenter/renderer/DevCenterPage.vue` `DevCenterPage.less` | 开发者中心卡片页（复用应用中心卡片样式；目录按钮占满行内剩余宽度并复用 `project.openDirectory`，本地应用不显示提供方） |
 | `devCenter/renderer/useJiaorongDevCenter.ts` | 页数据源：浏览器存储名单 + 主进程操作 |
 | `devCenter/renderer/useJiaorongDevCenterAccess.ts` | 侧栏「开发者中心」入口（仅开发者） |

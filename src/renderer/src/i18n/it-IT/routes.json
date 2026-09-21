@@ -101,6 +101,7 @@
   "devCenterPublish": "Publish",
   "devCenterRemove": "Remove",
   "devCenterDownload": "Download",
+  "devCenterOpenDirFailed": "Impossibile aprire la cartella",
   "devCenterEmpty": "No apps yet. Use \"Create App\" to register a local plugin folder.",
   "devCenterPublishTitle": "Publish App",
   "devCenterConfirm": "Confirm",

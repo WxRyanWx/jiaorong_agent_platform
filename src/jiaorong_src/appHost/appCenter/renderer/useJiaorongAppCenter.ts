@@ -1,8 +1,9 @@
 /** 应用中心页数据源：列表、安装 / 更新、卸载、打开，并跟随目录与登录态刷新。 */
 
-import { onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { JIAORONG_AUTH_SESSION_CHANGED_EVENT } from '@jiaorong/auth/host'
+import { stashOpenInfo } from '../../renderer/openAppHandoff'
 import type { JiaorongAppCenterItem } from '../../types'
 
 /** 应用中心页状态与操作。 */
@@ -13,12 +14,22 @@ export function useJiaorongAppCenter() {
   const apps = ref<JiaorongAppCenterItem[]>([])
   /** 正在安装 / 更新的应用 id。 */
   const installingIds = ref<string[]>([])
+  /** 正在卸载的应用 id。 */
+  const uninstallingIds = ref<string[]>([])
+  /** 正在打开（等 Node 起完）的应用 id；空串表示没有。 */
+  const openingId = ref('')
   /** 列表是否正在拉取，用于刷新按钮转圈。 */
   const isRefreshing = ref(false)
   /** 最近一次失败信息；null 表示无错误。 */
   const lastError = ref<{ appId: string; message?: string } | null>(null)
   /** 刷新序号，用于丢掉过期响应。 */
   let refreshSeq = 0
+
+  /** 页面是否被占用：打开 / 安装 / 卸载期间锁住全部操作按钮，避免并发改状态。 */
+  const isBusy = computed(
+    () =>
+      openingId.value !== '' || installingIds.value.length > 0 || uninstallingIds.value.length > 0
+  )
 
   /** 重新拉应用中心列表。 */
   async function refresh(): Promise<void> {
@@ -50,12 +61,20 @@ export function useJiaorongAppCenter() {
   }
 
   /**
+   * 该应用是否正在打开。
+   * @param app 卡片项
+   */
+  function isOpening(app: JiaorongAppCenterItem): boolean {
+    return openingId.value === app.id
+  }
+
+  /**
    * 安装或更新：主进程下载 zip 校验后解压安装。
    * @param app 卡片项
    */
   async function install(app: JiaorongAppCenterItem): Promise<void> {
-    // 同一应用并发安装直接忽略
-    if (isInstalling(app)) return
+    // 已有打开 / 安装在飞，不接新操作
+    if (isBusy.value) return
     lastError.value = null
     installingIds.value = [...installingIds.value, app.id]
     try {
@@ -79,7 +98,10 @@ export function useJiaorongAppCenter() {
    * @param app 卡片项
    */
   async function uninstall(app: JiaorongAppCenterItem): Promise<void> {
+    // 打开 / 安装未完成时禁止卸载，避免删掉正在启动的目录
+    if (isBusy.value) return
     lastError.value = null
+    uninstallingIds.value = [...uninstallingIds.value, app.id]
     try {
       /** 主进程卸载结果。 */
       const result = await window.jiaorongApps?.uninstallAppCenter(app.id)
@@ -89,27 +111,41 @@ export function useJiaorongAppCenter() {
     } catch (error) {
       console.warn('[jiaorong-app-center] uninstall failed', app.id, error)
       lastError.value = { appId: app.id }
+    } finally {
+      uninstallingIds.value = uninstallingIds.value.filter((id) => id !== app.id)
     }
     await refresh()
   }
 
   /**
-   * 打开应用：复用既有应用页路由与 webview 宿主。
+   * 打开应用：先等主进程把 Node 起完，再进应用页。
    * @param app 卡片项
    */
   async function open(app: JiaorongAppCenterItem): Promise<void> {
-    if (isInstalling(app)) return
+    // 已有打开 / 安装在飞，忽略重复点击
+    if (isBusy.value) return
     lastError.value = null
-    const info = await window.jiaorongApps?.getOpenInfo(app.id)
-    if (!info?.src) {
+    openingId.value = app.id
+    try {
+      /** 主进程返回的 webview 打开信息，拿到即代表 Node 已起完。 */
+      const info = await window.jiaorongApps?.getOpenInfo(app.id)
+      if (!info?.src) {
+        lastError.value = { appId: app.id, message: 'MISSING' }
+        return
+      }
+      // 交给常驻宿主复用，省掉第二次打开 IPC
+      stashOpenInfo(info)
+      await router.push({
+        name: 'jiaorong-app',
+        params: { appId: app.id },
+        query: { from: 'app-center' }
+      })
+    } catch (error) {
+      console.warn('[jiaorong-app-center] open failed', app.id, error)
       lastError.value = { appId: app.id, message: 'MISSING' }
-      return
+    } finally {
+      openingId.value = ''
     }
-    await router.push({
-      name: 'jiaorong-app',
-      params: { appId: app.id },
-      query: { from: 'app-center' }
-    })
   }
 
   /** 登录态或目录变化后刷新列表。 */
@@ -133,5 +169,16 @@ export function useJiaorongAppCenter() {
     window.removeEventListener(JIAORONG_AUTH_SESSION_CHANGED_EVENT, requestRefresh)
   })
 
-  return { apps, lastError, isRefreshing, refresh, isInstalling, install, uninstall, open }
+  return {
+    apps,
+    lastError,
+    isRefreshing,
+    isBusy,
+    refresh,
+    isInstalling,
+    isOpening,
+    install,
+    uninstall,
+    open
+  }
 }
