@@ -49,7 +49,10 @@ function showPrimaryAction(app: JiaorongAppCenterItem): boolean {
 watch(lastError, (error) => {
   if (!error) return
   toast({
-    title: error.message || t('routes.appCenterInstallError'),
+    title:
+      error.message === 'MISSING'
+        ? t('routes.embeddedAppMissing')
+        : error.message || t('routes.appCenterInstallError'),
     variant: 'destructive'
   })
 })

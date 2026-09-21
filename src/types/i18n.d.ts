@@ -2263,6 +2263,7 @@ declare module 'vue-i18n' {
     embeddedApp: string
     embeddedAppLoading: string
     embeddedAppUnavailable: string
+    embeddedAppMissing: string
     pluginCenterTitle: string
     pluginCenterSkills: string
     pluginCenterConnectors: string

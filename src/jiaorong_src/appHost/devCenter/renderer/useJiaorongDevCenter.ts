@@ -141,11 +141,16 @@ export function useJiaorongDevCenter() {
 
   /** 打开应用：当前窗口就地跳；独立窗口带上 standalone，避免刷新掉壳。 */
   async function open(app: JiaorongDevCenterItem): Promise<void> {
+    lastError.value = null
+    const info = await window.jiaorongApps?.getOpenInfo(app.id)
+    if (!info?.src) {
+      lastError.value = { message: 'MISSING' }
+      return
+    }
     await router.push({
       name: 'jiaorong-app',
       params: { appId: app.id },
-      query:
-        route.query.standalone === '1' ? { standalone: '1' } : { from: 'dev-center' }
+      query: route.query.standalone === '1' ? { standalone: '1' } : { from: 'dev-center' }
     })
   }
 

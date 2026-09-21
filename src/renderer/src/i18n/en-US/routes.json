@@ -73,6 +73,7 @@
   "embeddedAppLoading": "Starting",
   "appUpdating": "Updating {name}",
   "embeddedAppUnavailable": "Unable to open this app",
+  "embeddedAppMissing": "This app could not be found. It may have been deleted.",
   "embeddedAppBack": "Back",
   "appNodePortBusy": "This app's Node port is already in use. Change the app's listen port and try again.",
   "appNodePortBusyNamed": "This app's Node port is already used by \"{name}\". Change this app's listen port and try again.",

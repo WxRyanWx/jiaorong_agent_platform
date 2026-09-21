@@ -78,18 +78,22 @@ const spawnWarningText = computed(() => {
 })
 
 /**
- * 应用打不开时清掉帧并退回对话，不留失败页。
+ * 应用打不开时清掉帧。从列表进来的留在本页提示；侧栏进的退回对话。
  * @param appId 打不开的应用
  */
 async function leaveUnavailableApp(appId: string) {
-  errorText.value = ''
   parkedAppId.value = parkedAppId.value === appId ? '' : parkedAppId.value
   forgetGuestFrame(appId)
   frames.value = frames.value.filter((item) => item.appId !== appId)
   void window.jiaorongApps?.leave?.(appId)
-  if (activeAppId.value === appId) {
-    await router.replace({ name: 'chat' })
+  if (activeAppId.value !== appId) {
+    errorText.value = ''
+    return
   }
+  errorText.value = t('routes.embeddedAppMissing')
+  const from = typeof route.query.from === 'string' ? route.query.from : ''
+  if (isStandalone.value || from === 'dev-center' || from === 'app-center') return
+  await router.replace({ name: 'chat' })
 }
 
 /**

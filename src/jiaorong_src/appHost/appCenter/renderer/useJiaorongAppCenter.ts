@@ -99,6 +99,12 @@ export function useJiaorongAppCenter() {
    */
   async function open(app: JiaorongAppCenterItem): Promise<void> {
     if (isInstalling(app)) return
+    lastError.value = null
+    const info = await window.jiaorongApps?.getOpenInfo(app.id)
+    if (!info?.src) {
+      lastError.value = { appId: app.id, message: 'MISSING' }
+      return
+    }
     await router.push({
       name: 'jiaorong-app',
       params: { appId: app.id },

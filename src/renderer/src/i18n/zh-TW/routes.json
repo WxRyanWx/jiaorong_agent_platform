@@ -73,6 +73,7 @@
   "embeddedAppLoading": "Opening app…",
   "appUpdating": "{name}更新中",
   "embeddedAppUnavailable": "Unable to open this app",
+  "embeddedAppMissing": "找不到該應用，可能已被刪除",
   "embeddedAppBack": "返回",
   "appNodePortBusy": "目前應用的 Node 連接埠已被佔用。請修改應用啟動連接埠後再打開。",
   "appNodePortBusyNamed": "目前應用的 Node 連接埠已被「{name}」佔用。請修改本應用的啟動連接埠後再打開。",

@@ -196,7 +196,10 @@ async function confirmPublish(): Promise<void> {
 watch(lastError, (error) => {
   if (!error) return
   toast({
-    title: error.message || t('routes.devCenterCreateFailed'),
+    title:
+      error.message === 'MISSING'
+        ? t('routes.embeddedAppMissing')
+        : error.message || t('routes.devCenterCreateFailed'),
     variant: 'destructive'
   })
 })
