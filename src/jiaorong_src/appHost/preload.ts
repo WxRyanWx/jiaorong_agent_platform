@@ -143,7 +143,7 @@ const jiaorong = {
   getPathForFile, // File 转本机路径
   setDebug, // 打开桥调试日志
   disconnect: call('disconnect'), // 断开本页桥
-  getContext: call('context.get'), // 应用目录与登录态
+  getContext: call('context.get'), // 应用目录、登录态与环境（dev / prod）
   userinfo: call('userinfo.get'), // 当前用户
   respondToolInteraction: call('chat.respondToolInteraction'), // 回答工具审批
   openDevTools: call('devtools.open'), // 打开应用 DevTools

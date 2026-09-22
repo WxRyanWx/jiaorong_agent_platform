@@ -1,6 +1,6 @@
 /** 组装 `context.get` 的超级智能体上下文（含登录 token）。 */
 
-import { resolveAuthApiBaseUrl, resolveAuthProductId } from '../../api/auth/config'
+import { resolveAuthApiBaseUrl, resolveAuthEnv, resolveAuthProductId } from '../../api/auth/config'
 import { readUserIdentityFromUserInfo } from '../auth'
 import type { JiaorongAppHostContext, JiaorongAppRuntime } from '../types'
 import type { JiaorongAppHostDeps } from './deps'
@@ -49,6 +49,7 @@ export function buildHostContext(
     // 未登录为 null，应用据此决定是否跳登录
     token: readAuthToken(session),
     apiBaseUrl: resolveAuthApiBaseUrl(),
-    productId: resolveAuthProductId()
+    productId: resolveAuthProductId(),
+    env: resolveAuthEnv()
   }
 }

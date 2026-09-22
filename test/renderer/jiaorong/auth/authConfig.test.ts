@@ -6,6 +6,7 @@ import {
   AUTH_API_TEST_PRODUCT_ID,
   listJiaorongPrivateApiCorsUrls,
   resolveAuthApiOrigin,
+  resolveAuthEnv,
   resolveAuthProductId
 } from '@jiaorong/api/auth/config'
 
@@ -15,6 +16,8 @@ describe('auth api env config', () => {
     expect(resolveAuthApiOrigin('test')).toBe(AUTH_API_TEST_ORIGIN)
     expect(resolveAuthProductId('development')).toBe(AUTH_API_TEST_PRODUCT_ID)
     expect(resolveAuthProductId('test')).toBe(AUTH_API_TEST_PRODUCT_ID)
+    expect(resolveAuthEnv('development')).toBe('dev')
+    expect(resolveAuthEnv('test')).toBe('dev')
   })
 
   it('maps production and unknown modes to the prod origin and Product-Id', () => {
@@ -22,6 +25,8 @@ describe('auth api env config', () => {
     expect(resolveAuthProductId('production')).toBe(AUTH_API_PROD_PRODUCT_ID)
     expect(resolveAuthApiOrigin('staging')).toBe(AUTH_API_PROD_ORIGIN)
     expect(resolveAuthProductId('staging')).toBe(AUTH_API_PROD_PRODUCT_ID)
+    expect(resolveAuthEnv('production')).toBe('prod')
+    expect(resolveAuthEnv('staging')).toBe('prod')
   })
 
   it('scopes CORS filter urls to the current mode origin only', () => {

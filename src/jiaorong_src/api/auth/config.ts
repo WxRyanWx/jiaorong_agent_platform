@@ -27,6 +27,15 @@ export function resolveAuthMode(mode = import.meta.env.MODE || 'production'): st
   return mode || 'production'
 }
 
+/** `context.get` 的环境标识：测试服 `dev`，正式服 `prod`。 */
+export type JiaorongRuntimeEnv = 'dev' | 'prod'
+
+/** development / test 走测试服，其余（含 production）走正式服。 */
+export function resolveAuthEnv(mode = import.meta.env.MODE || 'production'): JiaorongRuntimeEnv {
+  const resolved = resolveAuthMode(mode)
+  return resolved === 'development' || resolved === 'test' ? 'dev' : 'prod'
+}
+
 export function resolveAuthApiOrigin(mode = import.meta.env.MODE || 'production'): string {
   const resolved = resolveAuthMode(mode)
   return (AUTH_API_ORIGIN_BY_MODE[resolved] || DEFAULT_AUTH_API_ORIGIN).replace(/\/$/, '')

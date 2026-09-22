@@ -64,6 +64,7 @@ import { installJiaorongDevToolsShortcut } from './devtoolsShortcut'
 import { registerJiaorongAppProtocolHandler } from './protocol'
 import { setRemoteAppCatalogChangedListener, startRemoteAppCatalogSync } from '../catalog'
 import { refreshJiaorongRemoteRuntimeConfig } from '../../config/remoteRuntimeConfig'
+import { resolveAuthEnv } from '../../api/auth/config'
 import { readAppManifest } from './manifest'
 import {
   ensureJiaorongAppInstalled,
@@ -279,7 +280,8 @@ function emptyGuestContext(
     appId,
     appDir: '',
     // 不给 token
-    token: null
+    token: null,
+    env: resolveAuthEnv()
   }
 }
 

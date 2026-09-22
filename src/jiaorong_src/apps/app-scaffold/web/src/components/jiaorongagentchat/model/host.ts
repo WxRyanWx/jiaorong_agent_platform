@@ -36,6 +36,8 @@ export type HostContext = {
   apiBaseUrl?: string
   /** 与 apiBaseUrl 成对的 Product-Id。 */
   productId?: string
+  /** 当前客户端环境：测试服 `dev`，正式服 `prod`。 */
+  env?: 'dev' | 'prod'
   /** 本应用 Node HTTP 实际端口。未启动为 null。 */
   nodePort?: number | null
   /** `http://127.0.0.1:<nodePort>`。 */

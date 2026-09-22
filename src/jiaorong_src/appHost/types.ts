@@ -23,6 +23,8 @@ export type JiaorongAppHostContext = {
   apiBaseUrl?: string
   /** 请求头 Product-Id。 */
   productId?: string
+  /** 当前客户端环境：测试服 `dev`，正式服 `prod`。 */
+  env: 'dev' | 'prod'
 }
 
 /** 落位：侧栏菜单，或只在应用中心打开。 */
