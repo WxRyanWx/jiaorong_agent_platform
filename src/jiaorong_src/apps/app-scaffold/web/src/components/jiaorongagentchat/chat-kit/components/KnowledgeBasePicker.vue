@@ -580,10 +580,11 @@ onBeforeUnmount(() => {
                         "
                       />
                     </td>
-                    <td class="kb-picker-td">
+                    <td class="kb-picker-td kb-picker-td-name">
                       <button
                         type="button"
                         class="kb-picker-name-btn"
+                        :title="row.fileName"
                         @click="row.isDirectory ? enterFolder(row) : undefined"
                       >
                         <KbFileTypeIcon

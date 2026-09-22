@@ -244,4 +244,34 @@ describe('BrowserPanel', () => {
     expect(browserClient.attachCurrentWindow).not.toHaveBeenCalled()
     expect(browserClient.updateCurrentWindowBounds).not.toHaveBeenCalled()
   })
+
+  it('hides the native browser view when mermaid fullscreen covers the window', async () => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(
+      makeRect(24, 48, 320, 480)
+    )
+
+    const { browserClient } = await setup()
+    await vi.advanceTimersByTimeAsync(160)
+    await flushPromises()
+    expect(browserClient.attachCurrentWindow).toHaveBeenCalled()
+    browserClient.updateCurrentWindowBounds.mockClear()
+    browserClient.detach.mockClear()
+
+    const portal = document.createElement('div')
+    portal.className = 'markstream-vue'
+    const overlay = document.createElement('div')
+    overlay.className = 'mermaid-modal-overlay'
+    portal.appendChild(overlay)
+    document.body.appendChild(portal)
+    await Promise.resolve()
+    await flushPromises()
+
+    expect(browserClient.updateCurrentWindowBounds).toHaveBeenCalledWith(
+      'session-a',
+      expect.objectContaining({ width: 320, height: 480 }),
+      false
+    )
+    expect(browserClient.detach).toHaveBeenCalledWith('session-a')
+    portal.remove()
+  })
 })

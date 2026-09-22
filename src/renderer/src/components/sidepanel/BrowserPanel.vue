@@ -77,6 +77,7 @@ import { Input } from '@shadcn/components/ui/input'
 import { createBrowserClient } from '@api/BrowserClient'
 import BrowserPlaceholder from './BrowserPlaceholder.vue'
 import type { YoBrowserStatus } from '@shared/types/browser'
+import { useNativeViewOcclusion } from '@/composables/useNativeViewOcclusion'
 import { useSidepanelStore } from '@/stores/ui/sidepanel'
 
 const props = defineProps<{
@@ -88,6 +89,7 @@ const emit = defineEmits<{ (event: 'toggle-fullscreen'): void }>()
 const { t } = useI18n()
 const sidepanelStore = useSidepanelStore()
 const browserClient = createBrowserClient()
+const { isOccluded } = useNativeViewOcclusion()
 
 const containerRef = ref<HTMLElement | null>(null)
 const browserStatus = ref<YoBrowserStatus>({
@@ -118,6 +120,7 @@ const showPlaceholder = computed(
 const isBrowserPanelVisible = computed(
   () => sidepanelStore.open && sidepanelStore.activeTab === 'browser'
 )
+const shouldAttachNativeView = computed(() => isBrowserPanelVisible.value && !isOccluded.value)
 
 const callBrowserAction = async <T>(action: string, run: () => Promise<T>): Promise<T | null> => {
   try {
@@ -184,7 +187,7 @@ const areBoundsEqual = (left: Rectangle | null, right: Rectangle): boolean => {
 
 const canSyncVisibleBounds = () => {
   return Boolean(
-    currentSessionId.value && browserStatus.value.initialized && isBrowserPanelVisible.value
+    currentSessionId.value && browserStatus.value.initialized && shouldAttachNativeView.value
   )
 }
 
@@ -197,7 +200,7 @@ const waitForStableRect = async (runId: number): Promise<Rectangle | null> => {
   let stableCount = 0
   const deadline = Date.now() + STABLE_RECT_TIMEOUT_MS
 
-  while (runId === visibilityRunId && isBrowserPanelVisible.value) {
+  while (runId === visibilityRunId && shouldAttachNativeView.value) {
     const rect = captureContainerBounds()
     if (rect && rect.width > 0 && rect.height > 0) {
       const key = `${Math.round(rect.x)}:${Math.round(rect.y)}:${Math.round(rect.width)}:${Math.round(rect.height)}`
@@ -283,7 +286,7 @@ const cancelScheduledBoundsSync = () => {
 }
 
 const hideEmbedded = async (sessionId: string = currentSessionId.value) => {
-  visibilityRunId += 1
+  const runId = ++visibilityRunId
   cancelScheduledBoundsSync()
 
   if (!sessionId) {
@@ -301,11 +304,18 @@ const hideEmbedded = async (sessionId: string = currentSessionId.value) => {
   await callBrowserAction('updateCurrentWindowBounds(hidden)', () =>
     browserClient.updateCurrentWindowBounds(sessionId, hiddenBounds, false)
   )
+  if (runId !== visibilityRunId) {
+    return
+  }
   await callBrowserAction('detach', () => browserClient.detach(sessionId))
 }
 
 const ensureVisibleAttachment = async () => {
-  if (!currentSessionId.value || !browserStatus.value.initialized || !isBrowserPanelVisible.value) {
+  if (
+    !currentSessionId.value ||
+    !browserStatus.value.initialized ||
+    !shouldAttachNativeView.value
+  ) {
     return
   }
 
@@ -313,7 +323,7 @@ const ensureVisibleAttachment = async () => {
   await nextTick()
 
   const stableRect = await waitForStableRect(runId)
-  if (stableRect == null || runId !== visibilityRunId || !isBrowserPanelVisible.value) {
+  if (stableRect == null || runId !== visibilityRunId || !shouldAttachNativeView.value) {
     return
   }
 
@@ -368,7 +378,7 @@ const handleOpenRequested = async (payload: {
 
   await loadState(currentSessionId.value)
   await nextTick()
-  if (isBrowserPanelVisible.value) {
+  if (shouldAttachNativeView.value) {
     await ensureVisibleAttachment()
   }
 }
@@ -462,7 +472,7 @@ useResizeObserver(containerRef, () => {
   scheduleVisibleBoundsSync()
 })
 
-watch(isBrowserPanelVisible, (visible) => {
+watch(shouldAttachNativeView, (visible) => {
   if (visible) {
     void loadState(currentSessionId.value)
     void ensureVisibleAttachment()
@@ -485,7 +495,7 @@ watch(
     }
 
     void loadState(nextSessionId)
-    if (isBrowserPanelVisible.value) {
+    if (shouldAttachNativeView.value) {
       void ensureVisibleAttachment()
     }
   },
@@ -500,7 +510,7 @@ onMounted(async () => {
   if (currentSessionId.value) {
     await loadState(currentSessionId.value)
   }
-  if (isBrowserPanelVisible.value) {
+  if (shouldAttachNativeView.value) {
     await ensureVisibleAttachment()
   }
 })

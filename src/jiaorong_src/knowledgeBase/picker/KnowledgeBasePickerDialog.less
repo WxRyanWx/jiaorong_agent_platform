@@ -390,7 +390,7 @@
 
 .kb-picker-table {
   width: 100%;
-  min-width: 720px;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: 14px;
 }
@@ -420,21 +420,31 @@
 .kb-picker-th-size,
 .kb-picker-td-size {
   width: 112px;
+  white-space: nowrap;
 }
 
 .kb-picker-th-ext,
 .kb-picker-td-ext {
   width: 96px;
+  white-space: nowrap;
 }
 
 .kb-picker-th-time,
 .kb-picker-td-time {
   width: 160px;
+  white-space: nowrap;
 }
 
 .kb-picker-th-status,
 .kb-picker-td-status {
   width: 112px;
+  white-space: nowrap;
+}
+
+.kb-picker-th-name,
+.kb-picker-td-name {
+  width: 360px;
+  overflow: hidden;
 }
 
 .kb-picker-th-name {
@@ -462,8 +472,9 @@
 }
 
 .kb-picker-name-btn {
-  display: inline-flex;
-  max-width: 100%;
+  display: flex;
+  width: 100%;
+  min-width: 0;
   align-items: center;
   gap: 8px;
   border: 0;
@@ -481,6 +492,7 @@
 }
 
 .kb-picker-name-text {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
