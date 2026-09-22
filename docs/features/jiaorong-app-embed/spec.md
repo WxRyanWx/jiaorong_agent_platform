@@ -19,7 +19,7 @@
 ## 对话桥
 
 - 未登录（无 token）时 `agent.*` / `session.*` / `respondToolInteraction` 返回 `UNAUTHORIZED`。
-- `agent.create` 以 `appId+key` 幂等；官方侧栏 / Welcome / 设置里的 Agent 列表不出现这些 Agent（含 `sessions.getAgents` 与 `config.listAgents`）。
+- `agent.create` 以 `appId+agentKey` 幂等，入参 `key` 仍可用。创建对话、发消息用返回的 `id`。官方侧栏 / Welcome / 设置里的 Agent 列表不出现这些 Agent（含 `sessions.getAgents` 与 `config.listAgents`）。
 - 会话只允许操作本应用映射 Agent 下的 session。
 - 流式事件 payload 与官方 `chat.stream.updated`（`kind:'snapshot'` + `blocks`）一致。
 - 登录、登出、切组织后向已打开的应用 guest 推 `context`。

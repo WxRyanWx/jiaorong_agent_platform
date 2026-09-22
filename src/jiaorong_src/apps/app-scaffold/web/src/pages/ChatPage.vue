@@ -19,12 +19,7 @@ import {
   NODE_PORT
 } from '../constants'
 import { formatError } from '../lib/errorText'
-import {
-  createNodeClient,
-  setActiveNodeClient,
-  startRendererBridge,
-  type NodeClient
-} from '../api'
+import { createNodeClient, setActiveNodeClient, startRendererBridge, type NodeClient } from '../api'
 
 /** Node 还没 listen 完时的轮询间隔，单位毫秒。 */
 const NODE_POLL_MS = 100
@@ -88,7 +83,7 @@ async function bootstrap(): Promise<void> {
       if (stopped) return
       userLabel.value = readUserLabel(info as Record<string, unknown> | undefined)
       const agent = (await jr.agent.create({
-        key: CHAT_AGENT_KEY,
+        agentKey: CHAT_AGENT_KEY,
         name: CHAT_AGENT_NAME
       })) as { id?: string } | undefined
       if (stopped) return

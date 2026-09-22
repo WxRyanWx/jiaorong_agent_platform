@@ -86,7 +86,7 @@ export function buildChatAgentPrompt(appDir: string): string {
 /** 直连页和 Node 转发页共用的 create / update 入参。 */
 export function agentSnapshot(appDir: string) {
   return {
-    key: CHAT_AGENT_KEY,
+    agentKey: CHAT_AGENT_KEY,
     name: CHAT_AGENT_NAME,
     skills: [...CHAT_SKILLS],
     config: { systemPrompt: buildChatAgentPrompt(appDir) }

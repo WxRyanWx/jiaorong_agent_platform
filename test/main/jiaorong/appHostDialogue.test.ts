@@ -277,6 +277,72 @@ describe('jiaorong app dialogue bridge', () => {
     expect(updateDeepChatAgent).not.toHaveBeenCalled()
   })
 
+  it('accepts agentKey and still treats key as the same agent', async () => {
+    const agentRecord = {
+      id: 'deepchat-contract',
+      name: '合同审核',
+      enabled: true
+    }
+    const createDeepChatAgent = vi.fn().mockResolvedValue(agentRecord)
+    const loggedIn = deps({
+      getAuthSession: () => ({ token: 'tok-1' }),
+      dialogue: {
+        createDeepChatAgent,
+        updateDeepChatAgent: vi.fn().mockResolvedValue(agentRecord),
+        listAgents: vi.fn(),
+        getAgent: vi.fn().mockResolvedValue(agentRecord),
+        createSession: vi.fn(),
+        getSession: vi.fn(),
+        listLightweight: vi.fn(),
+        listMessagesPage: vi.fn(),
+        getMessage: vi.fn(),
+        renameSession: vi.fn(),
+        deleteSession: vi.fn(),
+        searchHistory: vi.fn(),
+        sendMessage: vi.fn(),
+        steerActiveTurn: vi.fn(),
+        cancelGeneration: vi.fn(),
+        respondToolInteraction: vi.fn()
+      }
+    })
+
+    const created = (await handleAppBridgeInvoke(
+      loggedIn,
+      runtime,
+      'agent.create',
+      { appId: 'demo-workbench', agentKey: 'contract-review', name: '合同审核' },
+      1
+    )) as { id: string; created: boolean }
+
+    const again = (await handleAppBridgeInvoke(
+      loggedIn,
+      runtime,
+      'agent.create',
+      { appId: 'demo-workbench', key: 'contract-review', name: '合同审核' },
+      1
+    )) as { id: string; created: boolean }
+
+    const preferred = (await handleAppBridgeInvoke(
+      loggedIn,
+      runtime,
+      'agent.create',
+      {
+        appId: 'demo-workbench',
+        agentKey: 'contract-review',
+        key: 'other-name',
+        name: '合同审核'
+      },
+      1
+    )) as { id: string }
+
+    expect(created.created).toBe(true)
+    expect(again.id).toBe(created.id)
+    expect(again.created).toBe(false)
+    expect(preferred.id).toBe(created.id)
+    expect(createDeepChatAgent).toHaveBeenCalledTimes(1)
+    expect(store.has('demo-workbench::other-name')).toBe(false)
+  })
+
   it('defaults a new app agent to the Super Agent jiaorong model', async () => {
     const createDeepChatAgent = vi.fn().mockResolvedValue({
       id: 'deepchat-app-model',

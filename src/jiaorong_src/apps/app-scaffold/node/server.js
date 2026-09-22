@@ -189,9 +189,13 @@ async function invokeSuperAgent(method, args) {
   if (method === 'agent.create' || method === 'agent.update') {
     const ctx = await sa.context.get({})
     const input = payload && typeof payload === 'object' ? payload : {}
+    const legacyKey = typeof input.key === 'string' ? input.key.trim() : ''
+    const agentKey =
+      (typeof input.agentKey === 'string' && input.agentKey.trim()) || legacyKey || 'workbench'
     payload = {
       ...input,
-      key: typeof input.key === 'string' && input.key.trim() ? input.key.trim() : 'workbench',
+      agentKey,
+      key: legacyKey || agentKey,
       name:
         typeof input.name === 'string' && input.name.trim() ? input.name.trim() : '示例应用助手',
       skills: SKILLS,

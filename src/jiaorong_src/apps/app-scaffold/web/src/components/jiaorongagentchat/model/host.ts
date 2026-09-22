@@ -96,7 +96,7 @@ export type Agent = {
   config?: DeepChatAgentConfig | null
 }
 
-/** 创建智能体入参。已存在同 key 时覆盖可写配置，`created` 仍为 false。 */
+/** 创建智能体入参。已存在同 agentKey 时覆盖可写配置，`created` 仍为 false。 */
 export type CreateAppAgentInput = {
   /** 名称。 */
   name: string
@@ -110,8 +110,10 @@ export type CreateAppAgentInput = {
   avatar?: AgentAvatar | null
   /** 智能体 config。 */
   config?: DeepChatAgentConfig | null
-  /** 键或智能体 key。 */
-  key: string
+  /** 应用内稳定标识。创建对话、发消息用返回的 id。 */
+  agentKey?: string
+  /** 旧字段，与 agentKey 相同。都传时用 agentKey。 */
+  key?: string
   /** 技能短名列表。 */
   skills?: string[]
 }

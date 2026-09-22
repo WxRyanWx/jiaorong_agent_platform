@@ -79,6 +79,15 @@ function readString(record: InvokeRecord, key: string): string {
 }
 
 /**
+ * 创建智能体的应用内标识。文档用 agentKey；旧调用传的 key 仍可用。
+ * 两个都传时用 agentKey。
+ * @param record invoke 入参对象
+ */
+function readCreateAgentKey(record: InvokeRecord): string {
+  return readString(record, 'agentKey') || readString(record, 'key')
+}
+
+/**
  * 取出对话端口；未接线则 FORBIDDEN。
  * @param deps 超级智能体依赖
  */
@@ -762,15 +771,15 @@ export async function handleDialogueInvoke(
 
   // 按方法名分发；不认的方法返回 undefined 交给上层报错
   switch (method) {
-    // 按 key 创建智能体，已存在则按同一份字段覆盖
+    // 按 agentKey 创建智能体，已存在则按同一份字段覆盖；旧字段 key 仍可用
     case 'agent.create': {
-      /** 智能体 key。 */
-      const key = readString(record, 'key')
+      /** 应用内智能体标识，绑定表仍记在 key 上。 */
+      const key = readCreateAgentKey(record)
       /** 智能体名称。 */
       const name = readString(record, 'name')
-      // key 与 name 都必填
+      // agentKey（或旧的 key）与 name 都必填
       if (!key || !name) {
-        throw bridgeError('VALIDATION_ERROR', '需要提供 key 和 name')
+        throw bridgeError('VALIDATION_ERROR', '需要提供 agentKey 和 name')
       }
       // 同一 appId+key 串行，避免并发建出两个 agent
       return runAppAgentMapExclusive(appId, key, async () => {
