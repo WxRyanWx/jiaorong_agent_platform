@@ -129,7 +129,8 @@ export const CONFIG_ENTRY_KEYS = [
 const JiaorongAuthSessionSchema = z.object({
   token: z.string(),
   userInfo: z.string().optional(),
-  userFullInfo: z.string().optional()
+  userFullInfo: z.string().optional(),
+  tokenIssuedAt: z.number().int().optional()
 })
 
 // Cached verification result for a provider's current connection configuration.

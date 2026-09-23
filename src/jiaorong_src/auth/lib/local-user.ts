@@ -1,5 +1,5 @@
 import { clearAuthStorage } from '../../api/auth/utils/local'
-import { schedulePersistAuthSession } from './persist'
+import { schedulePersistAuthSession, TOKEN_ISSUED_AT_STORAGE_KEY } from './persist'
 
 export const getToken = () => {
   return localStorage.getItem('xkaitoken')
@@ -7,7 +7,14 @@ export const getToken = () => {
 
 export const setToken = (token: string) => {
   localStorage.setItem('xkaitoken', token)
+  // 记录签发时间，供非 JWT「签发超过 2 天」主动换新判断
+  localStorage.setItem(TOKEN_ISSUED_AT_STORAGE_KEY, String(Date.now()))
   schedulePersistAuthSession()
+}
+
+/** token 签发时间戳（毫秒）；0 表示未记录（老版本升级） */
+export const getTokenIssuedAt = () => {
+  return Number(localStorage.getItem(TOKEN_ISSUED_AT_STORAGE_KEY)) || 0
 }
 
 export const setUserInfoRecords = (data: unknown) => {

@@ -1,8 +1,9 @@
-import { clearPersistedAuthSession } from '../../../auth/lib/persist'
+import { clearPersistedAuthSession, TOKEN_ISSUED_AT_STORAGE_KEY } from '../../../auth/lib/persist'
 
 /** 仅清除桥接登录相关 storage，避免误清应用设置等其它 localStorage */
 export const clearAuthStorage = () => {
   localStorage.removeItem('xkaitoken')
+  localStorage.removeItem(TOKEN_ISSUED_AT_STORAGE_KEY)
   localStorage.removeItem('userFullInfo')
   localStorage.removeItem('userInfo')
   return clearPersistedAuthSession()

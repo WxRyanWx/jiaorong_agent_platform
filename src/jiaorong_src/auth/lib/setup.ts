@@ -1,9 +1,12 @@
 import type { Router } from 'vue-router'
 import { Message } from '@arco-design/web-vue'
-import { api, responseFn, responseErrorFn } from '@jiaorong/api/auth'
+import { api, responseFn, responseErrorFn, setAuthRenewHandler } from '@jiaorong/api/auth'
 import { resetAuthSessionValidation } from './session'
+import { renewToken, startTokenRenewalScheduler } from './tokenRenewal'
 
 export function setupAuthInterceptors(router: Router) {
+  // 401 先静默续期并重试，续期被拒才清态跳登录
+  setAuthRenewHandler(renewToken)
   api.interceptors.response.use(
     (response) => {
       responseFn(response, () => {
@@ -12,7 +15,9 @@ export function setupAuthInterceptors(router: Router) {
       return response.data
     },
     (error) => {
-      responseErrorFn(error, (code) => {
+      // 必须返回 responseErrorFn 的结果：401 静默续期重试的成功值经此送达调用方，
+      // 丢弃会产生无人 catch 的悬空 rejection
+      return responseErrorFn(error, (code) => {
         if (code === 1) {
           resetAuthSessionValidation()
           router.push({ name: 'login' })
@@ -29,7 +34,8 @@ export function setupAuthInterceptors(router: Router) {
           router.push({ name: 'login' })
         }
       })
-      return Promise.reject(error)
     }
   )
+  // 须在响应拦截器注册后启动：续期响应依赖拦截器解包
+  startTokenRenewalScheduler()
 }

@@ -1,3 +1,4 @@
+import type { AxiosRequestConfig } from 'axios'
 import request from './interceptors'
 
 export const postLogin = (query: string, params: FormData) => {
@@ -27,6 +28,18 @@ export function getUserInfo(options?: { silent?: boolean; timeout?: number }) {
     ...(typeof options?.timeout === 'number' ? { timeout: options.timeout } : {}),
     headers: options?.silent ? { dontShowMessage: true } : undefined
   })
+}
+
+/** 旧 token 换新 token：无入参，后端读请求头 Fusion-Auth 返回新 token */
+export function refreshAuthToken() {
+  /** 静默续期标记：失败不打 toast，401 也不再走续期重试 */
+  const config: AxiosRequestConfig & { authRefreshRequest?: boolean } = {
+    headers: { dontShowMessage: true },
+    authRefreshRequest: true,
+    // 静默续期单独限 15s，避免 hang 住拖慢 401 重试链
+    timeout: 15000
+  }
+  return request.post('/auth/token/refresh', null, config)
 }
 
 export function updatePwd(query: string, params: { newPwd: string; key: string }) {

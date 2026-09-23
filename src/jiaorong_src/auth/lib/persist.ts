@@ -9,6 +9,9 @@ export {
   JIAORONG_AUTH_SESSION_SETTING_KEY
 }
 
+/** token 签发时间戳的 localStorage 键，续期判断与会话读写共用 */
+export const TOKEN_ISSUED_AT_STORAGE_KEY = 'xkaitokenIssuedAt'
+
 function notifyAuthSessionChanged(): void {
   if (typeof window === 'undefined') return
   window.dispatchEvent(new Event(JIAORONG_AUTH_SESSION_CHANGED_EVENT))
@@ -18,6 +21,7 @@ export type JiaorongAuthSession = {
   token: string
   userInfo?: string
   userFullInfo?: string
+  tokenIssuedAt?: number
 }
 
 let writeQueue: Promise<void> = Promise.resolve()
@@ -26,7 +30,8 @@ function readLocalSession(): JiaorongAuthSession {
   return {
     token: localStorage.getItem('xkaitoken')?.trim() || '',
     userInfo: localStorage.getItem('userInfo') || undefined,
-    userFullInfo: localStorage.getItem('userFullInfo') || undefined
+    userFullInfo: localStorage.getItem('userFullInfo') || undefined,
+    tokenIssuedAt: Number(localStorage.getItem(TOKEN_ISSUED_AT_STORAGE_KEY)) || undefined
   }
 }
 
@@ -41,6 +46,11 @@ function writeLocalSession(session: JiaorongAuthSession): void {
   }
   if (session.userFullInfo) {
     localStorage.setItem('userFullInfo', session.userFullInfo)
+  }
+  if (session.tokenIssuedAt) {
+    localStorage.setItem(TOKEN_ISSUED_AT_STORAGE_KEY, String(session.tokenIssuedAt))
+  } else {
+    localStorage.removeItem(TOKEN_ISSUED_AT_STORAGE_KEY)
   }
 }
 
@@ -111,7 +121,8 @@ export async function hydrateAuthSessionFromConfig(): Promise<void> {
     writeLocalSession({
       token,
       userInfo: stored.userInfo,
-      userFullInfo: stored.userFullInfo
+      userFullInfo: stored.userFullInfo,
+      tokenIssuedAt: Number(stored.tokenIssuedAt) || undefined
     })
     notifyAuthSessionChanged()
   } catch (error) {
