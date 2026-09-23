@@ -25,7 +25,7 @@
 - `appHost/main/register.ts`、`preload/index.ts|d.ts`：IPC 与桥接面。
 - `router/apps.meta.ts|apps.ts`：路由 `jiaorong-dev-center`（`/dev-center`，exclusive chrome，
   非内嵌路由，保留圆角外壳）。
-- `WindowSideBar.vue`：搜索上方开发者入口（`isJiaorongDeveloper`）。
+- `WindowSideBar.vue`：搜索上方开发者入口（无权限判断，所有人可见）。
 - `appHost/devCenter/main/devCenterWindow.ts`（新）：独立 BrowserWindow，加载主渲染入口
   `#/dev-center?standalone=1`；`webSecurity:false` 与主窗口一致（图标走 file://）。
 - `appHost/main/register.ts`：`open-window` 开独立窗口；`open-app` 只找主壳窗口（排除设置 /
@@ -54,7 +54,8 @@ DevCenterPage onMounted
 ## 兼容性
 
 - 应用中心链路不变；开发者名单为空时 scan 结果与现状一致。
-- 配置缺 `developerPhones` 时入口隐藏，路由组件内再校验一次开发者身份。
+- 开发者中心入口与全部 handler 不做权限校验；应用中心可见性仍走 `appCenterVisiblePhones` /
+  `developerPhones`，配置缺失按空名单隐藏应用中心入口。
 
 ## 测试策略
 

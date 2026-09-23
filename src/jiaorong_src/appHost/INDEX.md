@@ -47,4 +47,4 @@
 | `devCenter/renderer/DevAppWindowRail.vue` `DevAppWindowRail.less` | 独立窗口纯 UI 侧边栏（所有 agent + 已打开应用图标） |
 | `devCenter/renderer/DevCenterPage.vue` `DevCenterPage.less` | 开发者中心卡片页（复用应用中心卡片样式；目录按钮占满行内剩余宽度并复用 `project.openDirectory`，本地应用不显示提供方） |
 | `devCenter/renderer/useJiaorongDevCenter.ts` | 页数据源：浏览器存储名单 + 主进程操作 |
-| `devCenter/renderer/useJiaorongDevCenterAccess.ts` | 侧栏「开发者中心」入口（仅开发者） |
+| `devCenter/renderer/useJiaorongDevCenterAccess.ts` | 侧栏「开发者中心」入口（所有人可见，只维护高亮与跳转） |

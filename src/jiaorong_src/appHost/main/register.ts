@@ -46,7 +46,6 @@ import { sharedAppsManager } from './appManagerInstance'
 import { migrateLegacySystemAppsIfNeeded } from './paths'
 import {
   installAppCenterApp,
-  isDeveloperIdentity,
   listAppCenterItems,
   uninstallAppCenterApp
 } from '../appCenter/main/appCenter'
@@ -400,17 +399,17 @@ export function startJiaorongAppHost(deps: JiaorongAppHostDeps): void {
 
   // 开发者中心发布：占位提交（服务端接口未接入）
   ipcMain.handle(JIAORONG_DEV_CENTER_PUBLISH_CHANNEL, (_event, input: unknown) => {
-    return publishDevApp(deps, readDevPublishInput(input))
+    return publishDevApp(readDevPublishInput(input))
   })
 
   // 开发者中心发布表单：选 zip 包
   ipcMain.handle(JIAORONG_DEV_CENTER_PICK_ZIP_CHANNEL, () => {
-    return pickDevZip(deps)
+    return pickDevZip()
   })
 
   // 开发者中心发布表单：读取 zip 内 app.json
   ipcMain.handle(JIAORONG_DEV_CENTER_PEEK_ZIP_CHANNEL, (_event, input: unknown) => {
-    return peekDevZipManifest(deps, readZipPathInput(input))
+    return peekDevZipManifest(readZipPathInput(input))
   })
 
   // 开发者中心示例下载：选目录后落 zip
@@ -420,8 +419,6 @@ export function startJiaorongAppHost(deps: JiaorongAppHostDeps): void {
 
   // 渲染浏览器存储名单同步主进程：内存镜像 + link 登记（spawn / getAppDir 走源目录）
   ipcMain.handle(JIAORONG_DEV_CENTER_SYNC_CHANNEL, (_event, input: unknown) => {
-    const user = readUserIdentityFromAuthSession(deps.getAuthSession())
-    if (!isDeveloperIdentity(user)) return []
     /** sync 前的登记 id，用于清理被移除的 link。 */
     const previousIds = getDevApps().map((item) => item.id)
     /** sync 后的名单。 */
@@ -447,8 +444,6 @@ export function startJiaorongAppHost(deps: JiaorongAppHostDeps): void {
 
   // 开发者中心「打开」：每个应用一个独立窗口，关窗停 Node
   ipcMain.handle(JIAORONG_DEV_APP_OPEN_WINDOW_CHANNEL, (_event, input: unknown) => {
-    const user = readUserIdentityFromAuthSession(deps.getAuthSession())
-    if (!isDeveloperIdentity(user)) return false
     /** 要开独立窗口的应用 id。 */
     const appId = readAppIdInput(input)
     if (!appId) return false

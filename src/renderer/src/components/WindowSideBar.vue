@@ -172,9 +172,8 @@
         <!-- Bottom action buttons -->
         <div class="w-5 h-px bg-border my-1"></div>
 
-        <!-- 开发者中心：搜索按钮正上方，仅开发者可见 -->
+        <!-- 开发者中心：搜索按钮正上方，所有人可见 -->
         <DcButton
-          v-if="isJiaorongDevCenterVisible"
           data-testid="sidebar-jiaorong-dev-center"
           :data-selected="String(isJiaorongDevCenterActiveRoute)"
           size="icon"
@@ -926,11 +925,8 @@ const {
   open: openJiaorongAppCenterRoute,
   iconSrc: jiaorongAppCenterIconSrc
 } = useJiaorongAppCenterAccess()
-const {
-  visible: isJiaorongDevCenterVisible,
-  isActive: isJiaorongDevCenterActiveRoute,
-  open: openJiaorongDevCenter
-} = useJiaorongDevCenterAccess()
+const { isActive: isJiaorongDevCenterActiveRoute, open: openJiaorongDevCenter } =
+  useJiaorongDevCenterAccess()
 const openJiaorongAppCenter = async () => {
   const allowed = ensureAuthOnMenuSwitch()
   if (!allowed) {

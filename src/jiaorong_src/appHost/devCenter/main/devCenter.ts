@@ -6,7 +6,6 @@ import { pipeline } from 'node:stream/promises'
 import { Readable } from 'node:stream'
 import type { ReadableStream as NodeReadableStream } from 'node:stream/web'
 import { dialog } from 'electron'
-import { isDeveloperIdentity } from '../../appCenter/main/appCenter'
 import { peekJiaorongRemoteRuntimeConfig } from '../../../config/remoteRuntimeConfig'
 import type { JiaorongRemoteDevAppConfig } from '../../../config/remoteRuntimeConfig'
 import { resolveAppIconSrc } from '../../main/bridge'
@@ -79,7 +78,6 @@ function resolveSample(
 export function listDevCenterItems(deps: JiaorongAppHostDeps): JiaorongDevCenterItem[] {
   /** 当前登录身份。 */
   const user = readUserIdentityFromAuthSession(deps.getAuthSession())
-  if (!isDeveloperIdentity(user)) return []
   /** 全量运行时（已并入开发者本地包）。 */
   const runtimes = scanJiaorongApps(user)
   /** 运行时索引。 */
@@ -136,8 +134,6 @@ export function listDevCenterItems(deps: JiaorongAppHostDeps): JiaorongDevCenter
 export async function createDevApp(deps: JiaorongAppHostDeps): Promise<DevCenterMutationResult> {
   /** 当前登录身份。 */
   const user = readUserIdentityFromAuthSession(deps.getAuthSession())
-  // 非开发者不允许登记
-  if (!isDeveloperIdentity(user)) return { ok: false, message: '当前账号不是开发者' }
   /** 目录选择结果。 */
   const picked = await dialog.showOpenDialog({ properties: ['openDirectory'] })
   if (picked.canceled || picked.filePaths.length === 0) return { ok: false, message: '已取消' }
@@ -169,31 +165,22 @@ export async function createDevApp(deps: JiaorongAppHostDeps): Promise<DevCenter
 
 /**
  * 读取发布 zip 内 app.json，供表单回填。
- * @param deps 超级智能体依赖
  * @param zipPath 用户选择的 zip
  */
-export function peekDevZipManifest(
-  deps: JiaorongAppHostDeps,
-  zipPath: string
-): DevCenterMutationResult {
-  const user = readUserIdentityFromAuthSession(deps.getAuthSession())
-  if (!isDeveloperIdentity(user)) return { ok: false, message: '当前账号不是开发者' }
+export function peekDevZipManifest(zipPath: string): DevCenterMutationResult {
   return peekZipManifest(zipPath.trim())
 }
 
 /**
  * 发布：校验表单、把确认后的 app.json 写入临时 zip，再连同清单提交后管。
  * 服务端接口未接入时本地占位成功。
- * @param deps 超级智能体依赖
  * @param input 弹窗确认结果
  */
-export async function publishDevApp(
-  deps: JiaorongAppHostDeps,
-  input: { appId: string; manifestJson: string; zipPath: string }
-): Promise<DevCenterMutationResult> {
-  /** 当前登录身份。 */
-  const user = readUserIdentityFromAuthSession(deps.getAuthSession())
-  if (!isDeveloperIdentity(user)) return { ok: false, message: '当前账号不是开发者' }
+export async function publishDevApp(input: {
+  appId: string
+  manifestJson: string
+  zipPath: string
+}): Promise<DevCenterMutationResult> {
   if (!input.appId) return { ok: false, message: '缺少应用 id' }
   /** 最终版 app.json 解析结果。 */
   let manifest: unknown = null
@@ -228,12 +215,8 @@ export async function publishDevApp(
 
 /**
  * 选 zip 包：发布表单用。
- * @param deps 超级智能体依赖
  */
-export async function pickDevZip(deps: JiaorongAppHostDeps): Promise<DevCenterMutationResult> {
-  /** 当前登录身份。 */
-  const user = readUserIdentityFromAuthSession(deps.getAuthSession())
-  if (!isDeveloperIdentity(user)) return { ok: false, message: '当前账号不是开发者' }
+export async function pickDevZip(): Promise<DevCenterMutationResult> {
   /** 文件选择结果。 */
   const picked = await dialog.showOpenDialog({
     properties: ['openFile'],
@@ -250,8 +233,6 @@ export async function pickDevZip(deps: JiaorongAppHostDeps): Promise<DevCenterMu
 export async function downloadSampleApp(
   deps: JiaorongAppHostDeps
 ): Promise<DevCenterMutationResult> {
-  const user = readUserIdentityFromAuthSession(deps.getAuthSession())
-  if (!isDeveloperIdentity(user)) return { ok: false, message: '当前账号不是开发者' }
   const sample = resolveSample(deps)
   /** zip 下载地址。 */
   const downloadUrl = sample?.devApp.downloadUrl ?? ''
