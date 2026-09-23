@@ -10,10 +10,10 @@ import {
   JIAORONG_APP_CENTER_LIST_CHANNEL,
   JIAORONG_APP_CENTER_INSTALL_CHANNEL,
   JIAORONG_APP_CENTER_UNINSTALL_CHANNEL,
+  JIAORONG_DEV_APP_OPEN_WINDOW_CHANNEL,
   JIAORONG_DEV_CENTER_CREATE_CHANNEL,
   JIAORONG_DEV_CENTER_DOWNLOAD_CHANNEL,
   JIAORONG_DEV_CENTER_LIST_CHANNEL,
-  JIAORONG_DEV_CENTER_OPEN_WINDOW_CHANNEL,
   JIAORONG_DEV_CENTER_PEEK_ZIP_CHANNEL,
   JIAORONG_DEV_CENTER_PICK_ZIP_CHANNEL,
   JIAORONG_DEV_CENTER_PUBLISH_CHANNEL,
@@ -59,7 +59,7 @@ import {
   publishDevApp
 } from '../devCenter/main/devCenter'
 import { getDevApps, syncDevApps } from '../devCenter/main/devApps'
-import { openDevCenterWindow } from '../devCenter/main/devCenterWindow'
+import { openDevAppWindow } from '../devCenter/main/devAppWindow'
 import { installJiaorongDevToolsShortcut } from './devtoolsShortcut'
 import { registerJiaorongAppProtocolHandler } from './protocol'
 import { setRemoteAppCatalogChangedListener, startRemoteAppCatalogSync } from '../catalog'
@@ -445,11 +445,14 @@ export function startJiaorongAppHost(deps: JiaorongAppHostDeps): void {
     return next
   })
 
-  // 侧栏入口：开发者中心独立窗口
-  ipcMain.handle(JIAORONG_DEV_CENTER_OPEN_WINDOW_CHANNEL, () => {
+  // 开发者中心「打开」：每个应用一个独立窗口，关窗停 Node
+  ipcMain.handle(JIAORONG_DEV_APP_OPEN_WINDOW_CHANNEL, (_event, input: unknown) => {
     const user = readUserIdentityFromAuthSession(deps.getAuthSession())
     if (!isDeveloperIdentity(user)) return false
-    openDevCenterWindow()
+    /** 要开独立窗口的应用 id。 */
+    const appId = readAppIdInput(input)
+    if (!appId) return false
+    openDevAppWindow(appId)
     return true
   })
 
@@ -567,7 +570,7 @@ export function stopJiaorongAppHost(): void {
   ipcMain.removeHandler(JIAORONG_DEV_CENTER_PEEK_ZIP_CHANNEL)
   ipcMain.removeHandler(JIAORONG_DEV_CENTER_DOWNLOAD_CHANNEL)
   ipcMain.removeHandler(JIAORONG_DEV_CENTER_SYNC_CHANNEL)
-  ipcMain.removeHandler(JIAORONG_DEV_CENTER_OPEN_WINDOW_CHANNEL)
+  ipcMain.removeHandler(JIAORONG_DEV_APP_OPEN_WINDOW_CHANNEL)
   // 注销目录与事件回调
   setRemoteAppCatalogChangedListener(null)
   setSystemAppUpdateBroadcaster(null)

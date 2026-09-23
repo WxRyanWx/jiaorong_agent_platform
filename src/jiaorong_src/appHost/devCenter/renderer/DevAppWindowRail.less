@@ -1,0 +1,54 @@
+/* 开发者应用独立窗口侧边栏：尺寸 / 选中态对齐主窗口图标栏，纯 UI 不可交互
+ * Less 会把 rgb(... / alpha) 里的 / 当成运算，带透明度时请写成 ~'...' 转义字符串
+ */
+
+.jiaorong-dev-app-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  width: 48px;
+  padding: 8px 0;
+  -webkit-app-region: no-drag;
+  background: var(--bg-window-background, #eff5ff);
+
+  &__item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: 1px solid transparent;
+    border-radius: 12px;
+    color: ~'color-mix(in srgb, var(--foreground) 80%, transparent)';
+
+    &.is-active {
+      background: ~'color-mix(in srgb, var(--card) 50%, transparent)';
+      border-color: ~'color-mix(in srgb, #fff 80%, transparent)';
+      box-shadow: 0 0 0 1px ~'color-mix(in srgb, #000 10%, transparent)';
+    }
+  }
+
+  &__sep {
+    width: 20px;
+    height: 1px;
+    margin: 4px 0;
+    background: var(--border);
+  }
+
+  &__icon {
+    width: 22px;
+    height: 22px;
+    object-fit: contain;
+  }
+
+  &__glyph {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+.dark .jiaorong-dev-app-rail__item.is-active {
+  border-color: ~'color-mix(in srgb, #fff 20%, transparent)';
+}

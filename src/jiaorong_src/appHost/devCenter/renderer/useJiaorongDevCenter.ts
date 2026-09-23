@@ -1,9 +1,7 @@
 /** 开发者中心页数据源：浏览器存储名单 + 主进程列表 / 创建 / 发布 / 示例下载。 */
 
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
 import { JIAORONG_AUTH_SESSION_CHANGED_EVENT } from '@jiaorong/auth/host'
-import { stashOpenInfo } from '../../renderer/openAppHandoff'
 import type { JiaorongDevAppRecord, JiaorongDevCenterItem } from '../../types'
 import type { AppManifestFormFields } from '../../manifestRules'
 
@@ -32,10 +30,6 @@ async function writeStoredDevApps(apps: JiaorongDevAppRecord[]): Promise<void> {
 
 /** 开发者中心页状态与操作。 */
 export function useJiaorongDevCenter() {
-  /** Vue Router。 */
-  const router = useRouter()
-  /** 当前路由：standalone 查询标记区分独立窗口。 */
-  const route = useRoute()
   /** 卡片列表。 */
   const apps = ref<JiaorongDevCenterItem[]>([])
   /** 正在打开（等 Node 起完）的应用 id；空串表示没有。 */
@@ -178,7 +172,7 @@ export function useJiaorongDevCenter() {
   }
 
   /**
-   * 打开应用：先等主进程把 Node 起完再跳；独立窗口带上 standalone，避免刷新掉壳。
+   * 打开应用：主进程为该应用开独立窗口，窗口内渲染纯 UI 侧边栏 + webview。
    * @param app 卡片项
    */
   async function open(app: JiaorongDevCenterItem): Promise<void> {
@@ -187,19 +181,9 @@ export function useJiaorongDevCenter() {
     lastError.value = null
     openingId.value = app.id
     try {
-      /** 主进程返回的 webview 打开信息，拿到即代表 Node 已起完。 */
-      const info = await window.jiaorongApps?.getOpenInfo(app.id)
-      if (!info?.src) {
-        lastError.value = { message: 'MISSING' }
-        return
-      }
-      // 交给常驻宿主复用，省掉第二次打开 IPC
-      stashOpenInfo(info)
-      await router.push({
-        name: 'jiaorong-app',
-        params: { appId: app.id },
-        query: route.query.standalone === '1' ? { standalone: '1' } : { from: 'dev-center' }
-      })
+      /** 主进程是否成功创建 / 聚焦独立窗口。 */
+      const opened = await window.jiaorongApps?.openDevAppWindow(app.id)
+      if (!opened) lastError.value = { message: 'MISSING' }
     } catch (error) {
       console.warn('[jiaorong-dev-center] open failed', app.id, error)
       lastError.value = { message: 'MISSING' }

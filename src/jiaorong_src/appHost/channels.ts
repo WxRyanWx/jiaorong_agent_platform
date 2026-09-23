@@ -32,7 +32,8 @@ export const JIAORONG_DEV_CENTER_PICK_ZIP_CHANNEL = 'jiaorong-dev-center:pick-zi
 /** 开发者中心发布表单：读取 zip 内 app.json。 */
 export const JIAORONG_DEV_CENTER_PEEK_ZIP_CHANNEL = 'jiaorong-dev-center:peek-zip'
 /** 侧栏入口：打开开发者中心独立窗口。 */
-export const JIAORONG_DEV_CENTER_OPEN_WINDOW_CHANNEL = 'jiaorong-dev-center:open-window'
+/** 开发者中心「打开」：为该应用开一个独立窗口（纯 UI 侧边栏 + webview）。 */
+export const JIAORONG_DEV_APP_OPEN_WINDOW_CHANNEL = 'jiaorong-dev-app:open-window'
 /** 渲染把浏览器存储的开发者名单同步给主进程。 */
 export const JIAORONG_DEV_CENTER_SYNC_CHANNEL = 'jiaorong-dev-center:sync'
 /** OSS 目录变化后通知侧栏刷新。 */

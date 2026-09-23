@@ -2,10 +2,7 @@
 
 import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import {
-  hydrateAppCenterAccess,
-  isJiaorongDeveloper
-} from '../../../config/appCenterAccess'
+import { hydrateAppCenterAccess, isJiaorongDeveloper } from '../../../config/appCenterAccess'
 
 /** 侧栏入口状态与行为。 */
 export function useJiaorongDevCenterAccess() {
@@ -20,12 +17,8 @@ export function useJiaorongDevCenterAccess() {
   /** 是否停在开发者中心路由。 */
   const isActive = computed(() => route.name === 'jiaorong-dev-center')
 
-  /** 打开开发者中心独立窗口；桥缺失时退回页内路由。 */
+  /** 跳转开发者中心页：与应用中心一样在主窗口内渲染。 */
   const open = async (): Promise<void> => {
-    if (window.jiaorongApps?.openDevCenterWindow) {
-      await window.jiaorongApps.openDevCenterWindow()
-      return
-    }
     await router.push({ name: 'jiaorong-dev-center' })
   }
 

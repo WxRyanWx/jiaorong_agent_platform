@@ -37,6 +37,7 @@ import AppBar from '@/components/AppBar.vue'
 import { useDeviceVersion } from '@/composables/useDeviceVersion'
 import WindowSideBar from '@/components/WindowSideBar.vue'
 import JiaorongAppFrameHost from '@jiaorong/appHost/renderer/JiaorongAppFrameHost.vue'
+import JiaorongDevAppRail from '@jiaorong/appHost/devCenter/renderer/DevAppWindowRail.vue'
 import SpotlightOverlay from '@/components/spotlight/SpotlightOverlay.vue'
 import { useSpotlightStore } from '@/stores/ui/spotlight'
 import { useSidepanelStore } from '@/stores/ui/sidepanel'
@@ -159,23 +160,12 @@ const embeddedFrom = computed(() => {
   return typeof value === 'string' ? value : ''
 })
 /** 应用中心打开的应用显示返回；侧栏 menu 进的不加。 */
-const showAppBack = computed(
-  () =>
-    isEmbeddedAppRoute.value &&
-    (embeddedFrom.value === 'app-center' || embeddedFrom.value === 'dev-center')
-)
+const showAppBack = computed(() => isEmbeddedAppRoute.value && embeddedFrom.value === 'app-center')
 
 /**
- * 返回列表。开发者中心独立窗口会停 Node；应用中心只切页，不关应用。
+ * 返回列表。应用中心只切页，不关应用；开发者应用走独立窗口，不在主窗口内嵌。
  */
 function backFromEmbeddedApp(): void {
-  if (isDevCenterStandalone || embeddedFrom.value === 'dev-center') {
-    void router.push({
-      name: 'jiaorong-dev-center',
-      query: isDevCenterStandalone ? { standalone: '1' } : {}
-    })
-    return
-  }
   void router.push({ name: 'jiaorong-app-center' })
 }
 
@@ -489,7 +479,7 @@ useEventListener(
   handleGuidedOnboardingResumeRequested as EventListener
 )
 
-// 独立窗口只承载开发者中心，不做欢迎页与引导跳转
+// 独立窗口只承载开发者应用的 webview，不做欢迎页与引导跳转
 if (isDevCenterStandalone) {
   isStartupRouteReady.value = true
 } else {
@@ -584,26 +574,19 @@ onBeforeUnmount(() => {
 <template>
   <div
     v-if="isDevCenterStandalone"
-    data-testid="app-dev-center-standalone"
+    data-testid="app-dev-app-window"
     class="flex h-screen w-screen flex-col overflow-hidden bg-background"
   >
     <div
       v-if="isMacOS"
       class="dev-center-window-drag h-9 w-full shrink-0 bg-window-background"
     ></div>
-    <div v-if="isEmbeddedAppRoute" class="standalone-app-toolbar bg-window-background">
-      <button
-        type="button"
-        class="standalone-app-toolbar__back"
-        data-testid="dev-center-back"
-        @click="backFromEmbeddedApp"
-      >
-        {{ t('routes.embeddedAppBack') }}
-      </button>
-    </div>
-    <div class="relative min-h-0 flex-1 overflow-hidden">
-      <RouterView v-if="isStartupRouteReady" />
-      <JiaorongAppFrameHost v-if="isStartupRouteReady" />
+    <div class="flex flex-row min-h-0 flex-1">
+      <JiaorongDevAppRail />
+      <div class="relative min-h-0 flex-1 overflow-hidden">
+        <RouterView v-if="isStartupRouteReady" />
+        <JiaorongAppFrameHost v-if="isStartupRouteReady" />
+      </div>
     </div>
     <NotificationHost surface="settings" :theme="toasterTheme" :dir="langStore.dir" />
   </div>

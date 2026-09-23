@@ -56,7 +56,7 @@ declare global {
       }>
       downloadDevSample(): Promise<{ ok: boolean; message?: string; filePath?: string }>
       syncDevApps(apps: JiaorongDevAppRecord[]): Promise<JiaorongDevAppRecord[]>
-      openDevCenterWindow(): Promise<boolean>
+      openDevAppWindow(appId: string): Promise<boolean>
       getOpenInfo(appId: string): Promise<JiaorongAppOpenInfo | null>
       leave(appId: string): Promise<{ ok: boolean }>
       onCatalogChanged(handler: () => void): () => void

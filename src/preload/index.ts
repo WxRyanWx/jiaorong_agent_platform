@@ -15,10 +15,10 @@ import {
   JIAORONG_APP_CENTER_INSTALL_CHANNEL,
   JIAORONG_APP_CENTER_LIST_CHANNEL,
   JIAORONG_APP_CENTER_UNINSTALL_CHANNEL,
+  JIAORONG_DEV_APP_OPEN_WINDOW_CHANNEL,
   JIAORONG_DEV_CENTER_CREATE_CHANNEL,
   JIAORONG_DEV_CENTER_DOWNLOAD_CHANNEL,
   JIAORONG_DEV_CENTER_LIST_CHANNEL,
-  JIAORONG_DEV_CENTER_OPEN_WINDOW_CHANNEL,
   JIAORONG_DEV_CENTER_PEEK_ZIP_CHANNEL,
   JIAORONG_DEV_CENTER_PICK_ZIP_CHANNEL,
   JIAORONG_DEV_CENTER_PUBLISH_CHANNEL,
@@ -140,7 +140,8 @@ const jiaorongApps = Object.freeze({
     ipcRenderer.invoke(JIAORONG_DEV_CENTER_PEEK_ZIP_CHANNEL, { zipPath }),
   downloadDevSample: () => ipcRenderer.invoke(JIAORONG_DEV_CENTER_DOWNLOAD_CHANNEL),
   syncDevApps: (apps: unknown) => ipcRenderer.invoke(JIAORONG_DEV_CENTER_SYNC_CHANNEL, apps),
-  openDevCenterWindow: () => ipcRenderer.invoke(JIAORONG_DEV_CENTER_OPEN_WINDOW_CHANNEL),
+  openDevAppWindow: (appId: string) =>
+    ipcRenderer.invoke(JIAORONG_DEV_APP_OPEN_WINDOW_CHANNEL, { appId }),
   getOpenInfo: (appId: string) => ipcRenderer.invoke(JIAORONG_APP_OPEN_CHANNEL, { appId }),
   leave: (appId: string) => ipcRenderer.invoke(JIAORONG_APP_LEAVE_CHANNEL, { appId }),
   onCatalogChanged: (handler: () => void) => {
