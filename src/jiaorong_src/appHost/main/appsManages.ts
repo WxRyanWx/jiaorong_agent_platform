@@ -16,6 +16,75 @@ import { getSystemAppDir, getSystemAppsRoot, isHiddenAppDirName, isPathInsideRoo
 const APP_FOLDER_ID_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 /** 刚 spawn 时还没 LISTEN，这段时间内允许复用，避免并发 getOpenInfo 把进程杀掉重拉。 */
 const SPAWN_REUSE_GRACE_MS = 5000
+const NODE_BIN_NAME = process.platform === 'win32' ? 'node.exe' : 'node'
+const UV_BIN_NAME = process.platform === 'win32' ? 'uv.exe' : 'uv'
+
+/** 这个目录里有没有指定可执行文件。 */
+function directoryHasBin(dir: string, name: string): boolean {
+  if (!dir) return false
+  try {
+    return fs.existsSync(path.join(dir, name))
+  } catch {
+    return false
+  }
+}
+
+/** 安装包 / 开发态里 `runtime` 根目录。 */
+function bundledRuntimeRoots(): string[] {
+  const roots: string[] = []
+  if (typeof process.resourcesPath === 'string' && process.resourcesPath) {
+    roots.push(
+      path.join(process.resourcesPath, 'app.asar.unpacked', 'runtime'),
+      path.join(process.resourcesPath, 'runtime')
+    )
+  }
+  roots.push(path.join(process.cwd(), 'runtime'))
+  try {
+    roots.push(path.resolve(__dirname, '../../../runtime'))
+    roots.push(path.resolve(__dirname, '../../runtime'))
+  } catch {
+    // 打包进单文件时 __dirname 仍可用
+  }
+  return roots
+}
+
+/** 客户端自带 Node 的目录。 */
+export function resolveBundledNodeBin(): string | null {
+  for (const root of bundledRuntimeRoots()) {
+    const dir =
+      process.platform === 'win32' ? path.join(root, 'node') : path.join(root, 'node', 'bin')
+    if (directoryHasBin(dir, NODE_BIN_NAME)) return dir
+  }
+  return null
+}
+
+/** 客户端自带 uv 的目录；Python 技能走它，不另带 python。 */
+export function resolveBundledUvBin(): string | null {
+  for (const root of bundledRuntimeRoots()) {
+    const dir = path.join(root, 'uv')
+    if (directoryHasBin(dir, UV_BIN_NAME)) return dir
+  }
+  return null
+}
+
+/**
+ * spawn 用 PATH：只把客户端自带的运行时接到最前。
+ * 用户 spawn 只写应用内相对路径，例如 `node node/server.js`、`uv run main.py`。
+ * java / python 本体客户端没有，不会凭空拼出来。
+ */
+export function buildSpawnPath(currentPath: string): string {
+  const seen = new Set<string>()
+  const merged = [
+    resolveBundledNodeBin(),
+    resolveBundledUvBin(),
+    ...currentPath.split(path.delimiter)
+  ].filter((dir): dir is string => {
+    if (!dir || seen.has(dir)) return false
+    seen.add(dir)
+    return true
+  })
+  return merged.join(path.delimiter)
+}
 
 // ==================== 枚举 ====================
 
@@ -1936,6 +2005,8 @@ class appsManages {
         cwd: appDir,
         env: {
           ...process.env,
+          // 用户只写应用内相对路径；node 用客户端自带的
+          PATH: buildSpawnPath(process.env.PATH || ''),
           // 告诉子进程自己是哪个应用
           JIAORONG_APP_ID: appId,
           // 只给握手 token，不给超级智能体 IPC

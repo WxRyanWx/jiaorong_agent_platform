@@ -7,9 +7,23 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 vi.unmock('fs')
 vi.unmock('node:fs')
 
-import appsManages from '../../../src/jiaorong_src/appHost/main/appsManages'
+import appsManages, {
+  buildSpawnPath,
+  resolveBundledNodeBin,
+  resolveBundledUvBin
+} from '../../../src/jiaorong_src/appHost/main/appsManages'
 
 describe('appsManages', () => {
+  it('puts bundled node and uv bins first so spawn can stay app-relative', () => {
+    const nodeBin = resolveBundledNodeBin()
+    const uvBin = resolveBundledUvBin()
+    expect(nodeBin).toBeTruthy()
+    const current = ['/usr/bin', '/bin'].join(path.delimiter)
+    const next = buildSpawnPath(current).split(path.delimiter)
+    expect(next[0]).toBe(nodeBin)
+    if (uvBin) expect(next).toContain(uvBin)
+  })
+
   let root = ''
 
   afterEach(async () => {
