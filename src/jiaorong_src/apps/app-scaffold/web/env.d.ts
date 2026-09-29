@@ -23,30 +23,19 @@ declare module '*.json' {
   export default data
 }
 
-type JiaorongCall = (args?: unknown) => Promise<unknown>
-
 /**
- * 交融侧栏注入到 guest webview 的桥。Node 经 WS 调这些方法，页面业务不要直接用。
+ * 交融客户端注入到 guest webview 的桥。
+ * `initRendererBridge` 在 main.ts 里调一次；`jiaorong` 上页面只用得到订阅事件与解析 File 路径，
+ * 其余宿主能力一律经包内 Node 转发，见 `src/api/index.ts`。
  */
 interface Window {
-  initRendererBridge?: (port: number, apisCustom?: any) => Promise<unknown>
+  /** 连包内 Node 的 WS 桥，返回的 stop 用来关连接并停止重连。 */
+  initRendererBridge?: (
+    port: number,
+    apisCustom?: Record<string, unknown>
+  ) => Promise<{ stop: () => void }>
   jiaorong?: {
-    invoke(method: string, args?: unknown): Promise<unknown>
     on(event: string, handler: (payload: unknown) => void): () => void
     getPathForFile(file: File): string
-    setDebug(enabled: boolean): void
-    disconnect: JiaorongCall
-    getContext: JiaorongCall
-    userinfo: JiaorongCall
-    respondToolInteraction: JiaorongCall
-    openDevTools: JiaorongCall
-    agent: { create: JiaorongCall; update: JiaorongCall; get: JiaorongCall; list: JiaorongCall }
-    session: Record<string, JiaorongCall>
-    catalog: Record<string, JiaorongCall>
-    mcp: { create: JiaorongCall }
-    knowledgeBase: { query: JiaorongCall; queryDirectory: JiaorongCall }
-    dialog: Record<string, JiaorongCall>
-    clipboard: { writeImage: JiaorongCall }
-    capture: { pageArea: JiaorongCall }
   }
 }

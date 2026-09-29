@@ -1,8 +1,7 @@
 <!--
   对话页（路由 #/）。
 
-  启动时 initRendererBridge(NODE_PORT)，让 Node 经 WS 调本页 window.jiaorong。
-  对话请求走 Node HTTP /rpc。本页不直接 invoke 超级智能体。
+  桥在 main.ts 里已经连上，本页只发业务请求，一律走包内 Node 的 `POST /rpc`。
   演示：助手最终输出 trim 后恰好为 -1 时，自动再发一条 1。
 -->
 <script setup lang="ts">
@@ -16,52 +15,51 @@ import {
   CHAT_AGENT_NAME,
   CHAT_PLACEHOLDER,
   CHAT_SLASH_ITEMS,
-  NODE_PORT
+  NODE_HTTP_PORT
 } from '../constants'
 import { formatError } from '../lib/errorText'
-import { createNodeClient, setActiveNodeClient, startRendererBridge, type NodeClient } from '../api'
+import { createNodeClient, resolveHostAppId, setActiveNodeClient, type NodeClient } from '../api'
 
-/** Node 还没 listen 完时的轮询间隔，单位毫秒。 */
-const NODE_POLL_MS = 100
+/** 应用 id：以客户端注入的为准（改了 app.json 不用同步改常量），拿不到再退回常量。 */
+const appId = resolveHostAppId() || APP_ID
 
-function waitMs(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
+/** 对话组件的功能开关：脚手架不开模型选择与知识库。 */
 const chatFeatures = {
   modelPicker: false,
   knowledgeBase: false
 }
 
-const ready = shallowRef(false)
+/** 顶部错误文案，空串表示没有错误。 */
 const errorText = shallowRef('')
+/** 当前智能体 id，来自 agent.create 出参。 */
 const agentId = shallowRef('')
+/** 顶栏展示的用户名。 */
 const userLabel = shallowRef('')
+/** 当前会话 id，会话列表与对话区共用。 */
 const sessionId = shallowRef<string | null>(null)
+/** 传给两个组件的客户端。 */
 const nodeClient = shallowRef<NodeClient | null>(null)
 
+/** 组件是否已卸载，卸载后停止轮询。 */
 let stopped = false
-let lastAssistantBySession = new Map<string, string>()
+/** 会话 id → 本轮助手文本；`chat.stream.completed` 里没有正文，只能在这里记着。 */
+const lastAssistantBySession = new Map<string, string>()
+/** 事件退订函数，null 表示还没订阅。 */
 let stopStreamListen: (() => void) | null = null
-let pageBridge: { stop?: () => void } | null = null
 
-function readUserLabel(info: Record<string, unknown> | null | undefined): string {
-  const userName = typeof info?.userName === 'string' ? info.userName.trim() : ''
-  const displayName = typeof info?.displayName === 'string' ? info.displayName.trim() : ''
-  return userName || displayName
-}
-
-function bindMinusOneContinue(jr: NodeClient | null) {
-  stopStreamListen?.()
-  stopStreamListen = null
-  lastAssistantBySession = new Map()
-  if (!jr) return
+/** 订阅流式事件，演示「助手回 -1 就自动续发 1」。 */
+function bindMinusOneContinue(jr: NodeClient) {
+  /** 退订「本轮内容变化」。 */
   const offUpdated = jr.on('chat.stream.updated', (event) => {
+    // blocks 是这条助手消息的全量块，这里只取文本存起来
     lastAssistantBySession.set(event.sessionId, collectAssistantText(event.blocks).trim())
   })
+  /** 退订「本轮正常结束」。 */
   const offCompleted = jr.on('chat.stream.completed', (event) => {
+    /** 本轮助手最终文本。 */
     const text = lastAssistantBySession.get(event.sessionId) ?? ''
     lastAssistantBySession.delete(event.sessionId)
+    // 不是约定的 -1 就不续发
     if (text !== '-1') return
     void jr.session.send({ sessionId: event.sessionId, content: '1' })
   })
@@ -71,66 +69,63 @@ function bindMinusOneContinue(jr: NodeClient | null) {
   }
 }
 
+/** 等包内 Node 起完，并把应用内智能体同步好。 */
 async function bootstrap(): Promise<void> {
+  // 轮询直到成功：Node 由 spawn 拉起，可能比页面晚几百毫秒
   while (!stopped) {
     try {
-      pageBridge?.stop?.()
-      pageBridge = await startRendererBridge(NODE_PORT)
-      await waitMs(50)
-      const jr = createNodeClient(NODE_PORT)
+      /** 走 Node HTTP 的客户端。 */
+      const jr = createNodeClient(NODE_HTTP_PORT)
+      // 记成当前客户端，附件、截图这些自由函数才转发得出去
       setActiveNodeClient(jr)
-      const info = await jr.userinfo()
-      if (stopped) return
-      userLabel.value = readUserLabel(info as Record<string, unknown> | undefined)
+      /** 当前登录用户资料。 */
+      const info = (await jr.userinfo()) as Record<string, unknown> | undefined
+      // 顶栏用户名：优先登录名，其次昵称
+      userLabel.value = String(info?.userName || info?.displayName || '')
+      /** 应用内智能体，技能与系统提示词由 Node 补齐。 */
       const agent = (await jr.agent.create({
         agentKey: CHAT_AGENT_KEY,
         name: CHAT_AGENT_NAME
       })) as { id?: string } | undefined
-      if (stopped) return
-      if (!agent?.id) {
-        throw new Error('agent.create 未返回 id')
-      }
+      // 拿不到 id 说明宿主没建出智能体，交给 catch 重试
+      if (!agent?.id) throw new Error('agent.create 未返回 id')
       nodeClient.value = jr
       agentId.value = agent.id
       bindMinusOneContinue(jr)
       errorText.value = ''
-      ready.value = true
       return
     } catch (error) {
-      pageBridge?.stop?.()
-      pageBridge = null
+      // 失败就清掉当前客户端，把原因显示在页面上，100 毫秒后重试
       setActiveNodeClient(null)
-      if (!stopped) errorText.value = formatError(error)
-      await waitMs(NODE_POLL_MS)
+      errorText.value = formatError(error)
+      await new Promise((resolve) => setTimeout(resolve, 100))
     }
   }
 }
 
 onMounted(() => {
-  void bootstrap().catch((error) => {
-    if (!stopped) errorText.value = formatError(error)
-  })
+  void bootstrap()
 })
 
 onUnmounted(() => {
   stopped = true
   stopStreamListen?.()
-  stopStreamListen = null
   setActiveNodeClient(null)
   nodeClient.value = null
-  pageBridge?.stop?.()
-  pageBridge = null
 })
 </script>
 
 <template>
   <section class="page">
-    <p v-if="errorText" class="err">{{ errorText }}</p>
-    <p v-else-if="!ready" class="hint">正在连接应用后端…</p>
+    <!-- 客户端还没拿到时一直显示加载态：启动期间会重试，错误只是重试原因，不是终态 -->
+    <div v-if="!nodeClient" class="boot">
+      <p class="hint">正在连接应用后端…</p>
+      <p v-if="errorText" class="err">{{ errorText }}</p>
+    </div>
     <div v-else class="layout">
       <JiaorongAgentSessionList
         class="list"
-        :app-id="APP_ID"
+        :app-id="appId"
         :agent-id="agentId"
         :agent-name="CHAT_AGENT_NAME"
         :client="nodeClient"
@@ -138,7 +133,7 @@ onUnmounted(() => {
       />
       <JiaorongAgentChat
         class="chat"
-        :app-id="APP_ID"
+        :app-id="appId"
         :agent-id="agentId"
         :agent-name="CHAT_AGENT_NAME"
         :user-name="userLabel || 'You'"
@@ -162,8 +157,7 @@ onUnmounted(() => {
   flex: 1;
 }
 
-.err,
-.hint {
+.boot {
   margin: 16px;
 }
 

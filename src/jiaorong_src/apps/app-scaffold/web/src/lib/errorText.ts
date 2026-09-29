@@ -69,27 +69,6 @@ export function isJiaorongError(error: unknown): error is JiaorongError {
   )
 }
 
-/**
- * 把未知失败收成 `JiaorongError`。
- * @param error invoke reject 或任意 throw
- */
-export function toJiaorongError(error: unknown): JiaorongError {
-  if (error instanceof JiaorongError) return error
-  if (error && typeof error === 'object' && 'code' in error && 'message' in error) {
-    /** 桥返回的 code。 */
-    const code = String((error as { code: unknown }).code) as JiaorongErrorCode
-    /** 桥返回的 message。 */
-    const message = String((error as { message: unknown }).message)
-    if (code in ERROR_CODES || Object.values(ERROR_CODES).includes(code)) {
-      return new JiaorongError(code, message)
-    }
-  }
-  if (error instanceof Error) {
-    return new JiaorongError('GENERATION_FAILED', error.message)
-  }
-  return new JiaorongError('GENERATION_FAILED', String(error))
-}
-
 const HOST_ERROR_ZH: Record<string, string> = {
   'common.error.requestFailed': '请求失败，请稍后重试，或开新对话',
   'common.error.createChatFailed': '创建会话失败',
