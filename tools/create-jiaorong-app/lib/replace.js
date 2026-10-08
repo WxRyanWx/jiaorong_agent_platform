@@ -8,6 +8,48 @@
 import path from 'node:path'
 import { applyRules, patchJson } from './edit-file.js'
 
+/** JS 单引号字符串里的转义表：反斜杠、单引号、换行，以及会中断字符串的两个行分隔符。 */
+const JS_QUOTE_ESCAPES = {
+  '\\': '\\\\',
+  "'": "\\'",
+  '\n': '\\n',
+  '\r': '\\r',
+  '\u2028': '\\u2028',
+  '\u2029': '\\u2029'
+}
+
+/**
+ * 转义成能安全放进 JS 单引号字符串的内容（不含外层引号）。
+ * 应用名与智能体名是用户自由输入：`it's mine` 原样拼进去会让生成出来的文件直接语法错误，
+ * 反斜杠会静默改掉字面值，真实换行会把字符串截断。
+ * @param value 原始文案
+ * @returns 转义后的文案
+ */
+const toJsQuoted = (value) =>
+  String(value).replace(/[\\'\n\r\u2028\u2029]/g, (char) => JS_QUOTE_ESCAPES[char])
+
+/** HTML 文本节点的转义表。 */
+const HTML_ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;' }
+
+/**
+ * 转义成能安全放进 HTML 文本节点的内容。
+ * 应用名里带 `</title>` 会提前闭合标签，把后面的内容变成可执行脚本。
+ * @param value 原始文案
+ * @returns 转义后的文案
+ */
+const toHtmlText = (value) => String(value).replace(/[&<>]/g, (char) => HTML_ESCAPES[char])
+
+/**
+ * 转义成能安全放进 Vue 模板文本的内容。
+ *
+ * 模板文本会先被 Vue 编译，`{{` 是插值起始符：应用名写成 `{{ 1 }}` 会被编成插值、顶栏显示成 `1`，
+ * 只有半个 `{{` 时构建直接失败。把 `{` 写成 `&#123;` 就不会被当成插值，页面上仍显示 `{`。
+ * `index.html` 的 `<title>` 不是 Vue 模板，用 `toHtmlText` 就够，不必跟着转。
+ * @param value 原始文案
+ * @returns 转义后的文案
+ */
+const toVueText = (value) => toHtmlText(value).replace(/\{/g, '&#123;')
+
 /**
  * 造替换规则表。
  * @param config 问答结果，字段见 `lib/prompts.js`
@@ -20,6 +62,12 @@ const buildRules = (config) => {
   const { appName } = config
   /** 智能体显示名。 */
   const { agentName } = config
+  /** 智能体显示名的 JS 字面量形式：三处都是拼进单引号字符串，必须先转义。 */
+  const agentNameInJs = toJsQuoted(agentName)
+  /** 应用显示名的 HTML 形式：两处都是拼进标签文本，必须先转义。 */
+  const appNameInHtml = toHtmlText(appName)
+  /** 应用显示名的 Vue 模板文本形式：顶栏在 `App.vue` 里，还要防 `{{` 被编成插值。 */
+  const appNameInVue = toVueText(appName)
   /** 日志前缀，替换掉模板里的 `[app-scaffold]`。 */
   const logTag = `[${appId}]`
   /** slot 对应的中文位置名。 */
@@ -53,7 +101,7 @@ const buildRules = (config) => {
     {
       file: 'web/src/constants.ts',
       find: /export const CHAT_AGENT_NAME = '[^']*'/g,
-      to: `export const CHAT_AGENT_NAME = '${agentName}'`,
+      to: `export const CHAT_AGENT_NAME = '${agentNameInJs}'`,
       expect: 1
     },
     // 本机服务侧常量
@@ -78,25 +126,31 @@ const buildRules = (config) => {
     {
       file: 'node/config.js',
       find: /export const AGENT_NAME = '[^']*'/g,
-      to: `export const AGENT_NAME = '${agentName}'`,
+      to: `export const AGENT_NAME = '${agentNameInJs}'`,
       expect: 1
     },
     // 日志前缀
     { file: 'node/main.js', find: /\[app-scaffold\]/g, to: logTag, expect: 3 },
     { file: 'node/service/startup.js', find: /\[app-scaffold\]/g, to: logTag, expect: 3 },
     // 系统提示词首句
-    { file: 'node/service/agent.js', find: /你是示例应用助手/g, to: `你是${agentName}`, expect: 1 },
+    // 这一处落在模板既有的单引号字符串内部，只能做单引号上下文转义，不能整体换成双引号字面量
+    {
+      file: 'node/service/agent.js',
+      find: /你是示例应用助手/g,
+      to: `你是${agentNameInJs}`,
+      expect: 1
+    },
     // 页面标题与顶栏
     {
       file: 'web/index.html',
       find: /<title>[^<]*<\/title>/g,
-      to: `<title>${appName}</title>`,
+      to: `<title>${appNameInHtml}</title>`,
       expect: 1
     },
     {
       file: 'web/src/App.vue',
       find: /<strong>[^<]*<\/strong>/g,
-      to: `<strong>${appName}</strong>`,
+      to: `<strong>${appNameInVue}</strong>`,
       expect: 1
     },
     // Vite 调试端口：pnpm run dev 监听的地址，调试时把 app.json 的 entry 改成它
@@ -118,13 +172,7 @@ const buildRules = (config) => {
     { file: 'README.md', find: /\| 47821 \|/g, to: `| ${config.bridgePort} |`, expect: 1 },
     { file: 'README.md', find: /\| 47822 \|/g, to: `| ${config.httpPort} |`, expect: 1 },
     { file: 'node/README.md', find: /\| 47821 \|/g, to: `| ${config.bridgePort} |`, expect: 1 },
-    { file: 'node/README.md', find: /\| 47822 \|/g, to: `| ${config.httpPort} |`, expect: 1 },
-    {
-      file: 'node/README.md',
-      find: /^pnpm install --ignore-workspace$/m,
-      to: 'pnpm install',
-      expect: 1
-    }
+    { file: 'node/README.md', find: /\| 47822 \|/g, to: `| ${config.httpPort} |`, expect: 1 }
   ]
 }
 

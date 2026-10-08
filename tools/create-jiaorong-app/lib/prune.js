@@ -27,7 +27,9 @@ const copyVariant = ({ projectDir, variant, from, to }) => {
  * @param options projectDir 项目目录；target 相对路径
  */
 const remove = ({ projectDir, target }) => {
-  rmSync(path.join(projectDir, target), { recursive: true, force: true })
+  // maxRetries：递归删目录最容易撞 Windows 杀软 / 索引服务占句柄导致的 EBUSY / ENOTEMPTY / EPERM。
+  // 只有 rmSync 支持这个选项（cpSync 没有，写了会被静默忽略），且必须配 recursive: true 才生效。
+  rmSync(path.join(projectDir, target), { recursive: true, force: true, maxRetries: 3 })
 }
 
 /**

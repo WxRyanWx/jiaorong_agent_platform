@@ -154,9 +154,13 @@ const pickIndex = ({ message, labels, initial = 0, onKey }) =>
         settle(index)
         return
       }
+      /** 是不是「上」：CSI 与 SS3 两种写法都算。 */
+      const isUp = key === '\x1b[A' || key === '\x1bOA'
+      /** 是不是「下」：CSI 与 SS3 两种写法都算。 */
+      const isDown = key === '\x1b[B' || key === '\x1bOB'
       // 上 / 下方向键
-      if (key === '\x1b[A' || key === '\x1b[B') {
-        index = key === '\x1b[A' ? (index - 1 + rows) % rows : (index + 1) % rows
+      if (isUp || isDown) {
+        index = isUp ? (index - 1 + rows) % rows : (index + 1) % rows
         rewind()
         draw()
         return
@@ -177,8 +181,13 @@ const pickIndex = ({ message, labels, initial = 0, onKey }) =>
       /** 本次输入。 */
       const text = String(chunk)
       for (let cursor = 0; cursor < text.length && !settled; cursor += 1) {
-        // 方向键是「ESC + [ + 字母」三字符，整体当一个按键
-        if (text[cursor] === '\x1b' && text[cursor + 1] === '[' && text[cursor + 2]) {
+        // 方向键是「ESC + [ 或 O + 字母」三字符，整体当一个按键；
+        // 只认 `[` 的话，发 SS3 序列（ESC O A）的终端会被当成单独的 Esc，直接把问答取消掉
+        const isEscapeSequence =
+          text[cursor] === '\x1b' &&
+          (text[cursor + 1] === '[' || text[cursor + 1] === 'O') &&
+          Boolean(text[cursor + 2])
+        if (isEscapeSequence) {
           handleKey(text.slice(cursor, cursor + 3))
           cursor += 2
           continue

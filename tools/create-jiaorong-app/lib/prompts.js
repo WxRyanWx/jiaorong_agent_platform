@@ -7,6 +7,7 @@ import path from 'node:path'
 import { askSelect, askText, askToggle } from './ask.js'
 import { UsageError } from './errors.js'
 import {
+  BRIDGE_PORT_MAX,
   DEFAULTS,
   PACKAGE_MANAGER_CHOICES,
   SLOT_CHOICES,
@@ -111,7 +112,8 @@ export const normalizeConfig = ({ answers, cliConfig }) => {
     validateAgentKey(config.agentKey),
     validateAgentName(config.agentName),
     validatePort(devPort, '调试端口'),
-    validatePort(bridgePort, '桥端口'),
+    // 桥端口留出 +1 给 HTTP 端口，命令行传进来的值走这里兜底
+    validatePort(bridgePort, '桥端口', BRIDGE_PORT_MAX),
     validatePort(httpPort, 'HTTP 端口')
   ].filter(Boolean)
   if (problems.length > 0) throw new UsageError(problems.join('；'))
@@ -207,6 +209,29 @@ export const askConfig = async ({ cliConfig, dirName }) => {
         validate: (value) => validatePort(value, '调试端口')
       })
   })
+
+  /** 已经答完的调试端口：桥端口要拿它查重。 */
+  const answeredDevPort = Number(answers.devPort)
+  /**
+   * 校验桥端口，连带查重。
+   * HTTP 端口是桥端口 +1、界面上不问，所以两个都要跟调试端口比。
+   * 撞了在这一题就重问：等到 `normalizeConfig` 才发现，前面答完的内容会被整份丢掉。
+   * @param value 用户输入
+   * @returns 通过返回 undefined，否则返回原因
+   */
+  const validateBridgePort = (value) => {
+    /** 范围校验结果：上限是 BRIDGE_PORT_MAX，留出 +1 给 HTTP 端口。 */
+    const outOfRange = validatePort(value, '桥端口', BRIDGE_PORT_MAX)
+    if (outOfRange) return outOfRange
+    /** 桥端口。 */
+    const bridgePort = Number(value)
+    /** HTTP 端口：命令行单独给过就用，否则跟着桥端口 +1。 */
+    const httpPort = Number(cliConfig.httpPort ?? bridgePort + 1)
+    const isClashing = bridgePort === answeredDevPort || httpPort === answeredDevPort
+    if (isClashing)
+      return `桥端口 ${bridgePort}（HTTP ${httpPort}）和调试端口 ${answeredDevPort} 撞了，换一个`
+    return undefined
+  }
   answers.bridgePort = await askOne({
     name: 'bridgePort',
     cliConfig,
@@ -214,7 +239,7 @@ export const askConfig = async ({ cliConfig, dirName }) => {
       askText({
         message: '本机服务桥端口（HTTP 端口自动 +1）',
         initial: String(ports.bridgePort),
-        validate: (value) => validatePort(value, '桥端口')
+        validate: validateBridgePort
       })
   })
   answers.agentKey = await askOne({

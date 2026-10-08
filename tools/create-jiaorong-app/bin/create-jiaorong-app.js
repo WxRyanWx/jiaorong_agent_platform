@@ -10,6 +10,7 @@
  *   npx create-jiaorong-app my-app --no-ui    不要官方 UI 组件，给极简对话页
  *   npx create-jiaorong-app my-app --yes      全用默认值，不问
  */
+import { spawnSync } from 'node:child_process'
 import { existsSync, readdirSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { CancelledError, askToggle } from '../lib/ask.js'
@@ -59,7 +60,7 @@ create-jiaorong-app：生成交融应用目录
   --agent-key <key>       智能体 key，默认 workbench
   --agent-name <名称>      智能体显示名，默认「应用名 + 助手」
   --dev-port <端口>        前端调试端口，默认 5174
-  --port <端口>            本机服务桥端口，默认按应用 id 派生；HTTP 端口是它 +1
+  --port <端口>            本机服务桥端口，默认按应用 id 派生；HTTP 端口是它 +1，所以最大 65533
   --http-port <端口>       单独指定 HTTP 端口
   --entry <dev|build>     app.json 的 entry 写 web-ui/index.html（默认）还是调试地址 dev
   --no-ui                 不带官方 UI 组件，改用极简对话页
@@ -125,10 +126,25 @@ const parseArgs = (argv) => {
 }
 
 /**
+ * Windows 传统 cmd 下把控制台代码页切到 UTF-8。
+ *
+ * cmd 默认跟随系统区域设置（简中是 GBK/936），而本脚本从头到尾都按 UTF-8 收发：
+ * 输出会被当成 GBK 显示成乱码，用户敲的中文也会被按 GBK 编码送进来、再被 UTF-8 解码成坏字符。
+ * Windows Terminal 与 PowerShell 7 本来就是 65001，这行没有副作用；非交互终端没有控制台，跳过。
+ */
+const useUtf8CodePage = () => {
+  if (process.platform !== 'win32' || !process.stdout.isTTY) return
+  // chcp 是 cmd 内建命令，必须走 shell；代码页是控制台属性，子进程改完父进程这边也生效
+  spawnSync('chcp', ['65001'], { stdio: 'ignore', shell: true })
+}
+
+/**
  * 主流程。
  * @returns 退出码，取值见 `lib/errors.js` 的 `EXIT_CODES`
  */
 const main = async () => {
+  // 帮助与报错文案都是中文，代码页要在解析参数之前切好
+  useUtf8CodePage()
   /** 命令行解析结果。 */
   const { dirName, cliConfig, useDefaults, help } = parseArgs(process.argv.slice(2))
   if (help) {
@@ -137,6 +153,14 @@ const main = async () => {
   }
   /** 目标目录名。 */
   const targetName = resolveDirName({ cliDirName: dirName, cwd: process.cwd() })
+  // cwd 是盘符根（Windows `C:\`）或文件系统根（`/`）时 basename 是空串，
+  // 再往下 projectDir 就等于 cwd 本身，会把整个模板拷进根目录、并按 force 覆盖同名文件，必须先拦住
+  if (!targetName) {
+    console.error(
+      '当前在根目录，取不到目录名；先 cd 到要放项目的目录，或显式指定：jiaorong create app [目录名]'
+    )
+    return EXIT_CODES.usage
+  }
   /** 目标目录绝对路径。 */
   const projectDir = path.resolve(process.cwd(), targetName)
   // 目标已经是个文件：拷模板会 ENOTDIR，这是路径写错了，别报成内部错误

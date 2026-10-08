@@ -34,8 +34,12 @@ export const applyRules = ({ projectDir, rules }) => {
     if (hits !== rule.expect) {
       throw new Error(`${rule.file} 的锚点命中 ${hits} 次，期望 ${rule.expect} 次：${rule.find}`)
     }
-    /** 替换结果：`to` 也按 LF 写，最后统一还原行尾。 */
-    const replaced = source.replace(rule.find, rule.to)
+    /**
+     * 替换结果：`to` 也按 LF 写，最后统一还原行尾。
+     * 传函数而不是字符串：字符串里的 `$&`、`` $` ``、`$'`、`$1` 会被当成替换模式，
+     * 应用名带 `$&` 时会把整段锚点原文塞回去，生成出来的文件就不是用户填的名字了。
+     */
+    const replaced = source.replace(rule.find, () => rule.to)
     writeFileSync(filePath, eol === '\n' ? replaced : replaced.replace(/\n/g, eol))
     touched.add(rule.file)
   }

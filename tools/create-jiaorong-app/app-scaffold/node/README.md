@@ -28,5 +28,5 @@ node/
 `jr.invoke` / `jr.setDebug` / `jr.getPathForFile` 转发不了：前两个是页面自己的开关，`File` 过不了 JSON，只能在页面里调（见 `web/src/api/index.ts` 的 `getPathForFile`）。
 
 ```bash
-pnpm install --ignore-workspace
+pnpm --ignore-workspace install
 ```

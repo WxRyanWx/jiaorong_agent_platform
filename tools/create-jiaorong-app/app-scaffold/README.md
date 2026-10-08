@@ -26,8 +26,10 @@ app-scaffold/
 桥在 `web/src/main.ts` 里挂载一次，页面卸载时调 `stop()`；业务请求见 `web/src/api/index.ts`；方法名映射见 `node/service/forward.js`。
 
 ```bash
-cd web && pnpm install && pnpm build
-cd ../node && pnpm install
+cd web && pnpm --ignore-workspace install && pnpm --ignore-workspace run build
+cd ../node && pnpm --ignore-workspace install
 ```
 
-调试时把 `app.json` 的 `entry` 改成 `pnpm dev` 打印的地址，交付前改回 `web-ui/index.html`。改了 `node/` 之后，离开应用再打开。
+`--ignore-workspace` 只有 pnpm 需要：项目落在某个 `pnpm-workspace.yaml` 下面时，不加它会把依赖装进上级工作区、退出码却还是 0；npm / yarn 不用加。
+
+调试时把 `app.json` 的 `entry` 改成 `pnpm run dev` 打印的地址，交付前改回 `web-ui/index.html`。改了 `node/` 之后，离开应用再打开。

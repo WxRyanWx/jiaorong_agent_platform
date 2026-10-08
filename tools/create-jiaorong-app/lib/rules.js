@@ -27,9 +27,15 @@ export const PACKAGE_MANAGER_CHOICES = [
   { title: '先不装，我自己来', value: 'none' }
 ]
 
-/** 端口可用区间：避开系统保留端口，上限留出 +1 给 HTTP 端口。 */
+/** 端口可用区间：避开系统保留端口。 */
 export const PORT_MIN = 1024
 export const PORT_MAX = 65534
+/**
+ * 桥端口的上限：HTTP 端口是桥端口 +1。
+ * 桥端口要是允许填到 `PORT_MAX`，HTTP 端口就成了 65535、超出可用区间，
+ * 而这一题自己看不出来，要等全部问完才在 `normalizeConfig` 报错，前面填的内容会被整份丢掉。
+ */
+export const BRIDGE_PORT_MAX = PORT_MAX - 1
 
 /**
  * 问答的默认值。
@@ -76,12 +82,13 @@ export const validateAppName = (value) => {
  * 校验端口。
  * @param value 用户输入
  * @param label 端口名称，报错时用来区分是哪一个
+ * @param max 允许的最大值，桥端口传 `BRIDGE_PORT_MAX`
  * @returns 通过返回 undefined，否则返回原因
  */
-export const validatePort = (value, label = '端口') => {
+export const validatePort = (value, label = '端口', max = PORT_MAX) => {
   const port = Number(value)
   if (!Number.isInteger(port)) return `${label}要是整数`
-  if (port < PORT_MIN || port > PORT_MAX) return `${label}要在 ${PORT_MIN} 到 ${PORT_MAX} 之间`
+  if (port < PORT_MIN || port > max) return `${label}要在 ${PORT_MIN} 到 ${max} 之间`
   return undefined
 }
 
