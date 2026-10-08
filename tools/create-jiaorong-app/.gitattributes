@@ -1,0 +1,7 @@
+# 本包整体是脚手架模板：生成时按字节拷进用户项目，改写锚点也按 LF 写。
+# Windows 上 core.autocrlf=true（Git for Windows 安装器默认值）会把模板检出成 CRLF，
+# 锚点会全部落空，所以这里强制文本文件用 LF 检出。
+# lib/edit-file.js 另有一道运行时归一化兜底，两者互不依赖。
+* text=auto eol=lf
+# 图片不参与行尾转换
+*.png binary

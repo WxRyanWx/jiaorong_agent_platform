@@ -9,6 +9,11 @@ import path from 'node:path'
 
 /**
  * 按锚点改写文本文件。
+ *
+ * 模板可能是 CRLF：Windows 上 `core.autocrlf=true`（Git for Windows 安装器默认值）检出就是这样。
+ * 锚点里写的是字面 `\n`，直接拿原文匹配会一次都不中，所以统一先归一成 LF 再匹配，
+ * 写回时还原成文件本来的行尾，避免生成出混合行尾的项目。
+ * 纯 LF 的文件走短路分支，行为与归一化之前完全一致。
  * @param options projectDir 项目目录；rules 规则数组，每项 `{ file, find, to, expect }`
  * @returns 改写过的文件相对路径列表
  */
@@ -19,13 +24,19 @@ export const applyRules = ({ projectDir, rules }) => {
     /** 目标文件绝对路径。 */
     const filePath = path.join(projectDir, rule.file)
     /** 原内容。 */
-    const source = readFileSync(filePath, 'utf8')
+    const raw = readFileSync(filePath, 'utf8')
+    /** 文件本来的行尾：出现过 CRLF 就整份按 CRLF 写回。 */
+    const eol = raw.includes('\r\n') ? '\r\n' : '\n'
+    /** 参与匹配的内容：一律按 LF 比对，锚点才不用管模板是从哪个系统检出的。 */
+    const source = eol === '\n' ? raw : raw.replace(/\r\n/g, '\n')
     /** 实际命中次数。 */
     const hits = source.match(rule.find)?.length ?? 0
     if (hits !== rule.expect) {
       throw new Error(`${rule.file} 的锚点命中 ${hits} 次，期望 ${rule.expect} 次：${rule.find}`)
     }
-    writeFileSync(filePath, source.replace(rule.find, rule.to))
+    /** 替换结果：`to` 也按 LF 写，最后统一还原行尾。 */
+    const replaced = source.replace(rule.find, rule.to)
+    writeFileSync(filePath, eol === '\n' ? replaced : replaced.replace(/\n/g, eol))
     touched.add(rule.file)
   }
   return [...touched]

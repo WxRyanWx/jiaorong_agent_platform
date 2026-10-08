@@ -14,8 +14,11 @@ const DEFAULT_BACKGROUND_RETRY_MS = 30_000
 export type JiaorongRemoteRuntimeConfig = {
   schemaVersion: number
   admins: string[]
-  /** 应用中心可见名单：手机号 / userName，匹配机制同 admins。 */
-  appCenterVisiblePhones: string[]
+  /**
+   * 应用中心可见名单：手机号 / userName。
+   * null 表示 JSON 没写该字段，全员可见；数组表示只这些身份可见。
+   */
+  appCenterVisiblePhones: string[] | null
   /** 开发者名单：手机号 / userName。 */
   developerPhones: string[]
   apps: unknown[]
@@ -24,6 +27,7 @@ export type JiaorongRemoteRuntimeConfig = {
 export const EMPTY_JIAORONG_REMOTE_RUNTIME_CONFIG: JiaorongRemoteRuntimeConfig = {
   schemaVersion: 1,
   admins: [],
+  // 失败哨兵用空数组：不能把拉取失败当成「没配名单」从而全员放行
   appCenterVisiblePhones: [],
   developerPhones: [],
   apps: []
@@ -120,7 +124,13 @@ async function runBurst(generation: number): Promise<void> {
   scheduleBackgroundRetry(generation)
 }
 
-/** 非法 JSON / 缺字段时当成空配置，不抛错。 */
+/** 没写该字段记为 null（全员可见）；写了则按名单，非数组当成空名单。 */
+function parseAppCenterVisiblePhones(record: Record<string, unknown>): string[] | null {
+  if (!Object.prototype.hasOwnProperty.call(record, 'appCenterVisiblePhones')) return null
+  return uniqueStrings(record.appCenterVisiblePhones)
+}
+
+/** 非法 JSON 当成空配置，不抛错。 */
 export function parseJiaorongRemoteRuntimeConfig(raw: unknown): JiaorongRemoteRuntimeConfig {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
     return { ...EMPTY_JIAORONG_REMOTE_RUNTIME_CONFIG }
@@ -133,7 +143,7 @@ export function parseJiaorongRemoteRuntimeConfig(raw: unknown): JiaorongRemoteRu
   return {
     schemaVersion: schemaVersion > 0 ? schemaVersion : 1,
     admins: uniqueStrings(record.admins),
-    appCenterVisiblePhones: uniqueStrings(record.appCenterVisiblePhones),
+    appCenterVisiblePhones: parseAppCenterVisiblePhones(record),
     developerPhones: uniqueStrings(record.developerPhones),
     apps: Array.isArray(record.apps) ? record.apps : []
   }

@@ -44,11 +44,31 @@ describe('app center access', () => {
     expect(isJiaorongAppCenterVisible()).toBe(true)
   })
 
-  it('lets developers in and flags them', () => {
+  it('shows everyone when the visible list is not configured', () => {
+    applyAppCenterAccess(null, ['13039619789'])
+    setStoredUserInfo({ userName: 'anyone', phone: '13900000000' })
+
+    expect(isJiaorongDeveloper()).toBe(false)
+    expect(isJiaorongAppCenterVisible()).toBe(true)
+  })
+
+  it('does not let developers in unless they are on the visible list', () => {
+    applyAppCenterAccess(['15557190927'], ['13039619789'])
+    setStoredUserInfo({ userName: 'dev', phone: '13039619789' })
+
+    expect(isJiaorongDeveloper()).toBe(true)
+    expect(isJiaorongAppCenterVisible()).toBe(false)
+
+    setStoredUserInfo({ userName: 'listed', phone: '15557190927' })
+    expect(isJiaorongDeveloper()).toBe(false)
+    expect(isJiaorongAppCenterVisible()).toBe(true)
+  })
+
+  it('hides everyone when the visible list is configured empty', () => {
     applyAppCenterAccess([], ['13039619789'])
     setStoredUserInfo({ userName: 'dev', phone: '13039619789' })
 
     expect(isJiaorongDeveloper()).toBe(true)
-    expect(isJiaorongAppCenterVisible()).toBe(true)
+    expect(isJiaorongAppCenterVisible()).toBe(false)
   })
 })

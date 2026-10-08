@@ -45,10 +45,13 @@ describe('jiaorong remote runtime config', () => {
     expect(parseJiaorongRemoteRuntimeConfig({ admins: 'x' })).toEqual({
       schemaVersion: 1,
       admins: [],
-      appCenterVisiblePhones: [],
+      appCenterVisiblePhones: null,
       developerPhones: [],
       apps: []
     })
+    expect(
+      parseJiaorongRemoteRuntimeConfig({ appCenterVisiblePhones: [] }).appCenterVisiblePhones
+    ).toEqual([])
   })
 
   it('returns an empty config when fetch fails', async () => {
@@ -130,7 +133,15 @@ describe('jiaorong remote runtime config', () => {
     startJiaorongRemoteRuntimeConfigSync()
     await waitJiaorongRemoteRuntimeConfigBurstForTests()
     expect(fetchMock).toHaveBeenCalledTimes(1)
-    expect(seen).toEqual([EMPTY_JIAORONG_REMOTE_RUNTIME_CONFIG])
+    expect(seen).toEqual([
+      {
+        schemaVersion: 1,
+        admins: [],
+        appCenterVisiblePhones: null,
+        developerPhones: [],
+        apps: []
+      }
+    ])
   })
 
   it('refresh re-fetches after a successful sync and emits only on change', async () => {

@@ -22,3 +22,17 @@ export function matchesIdentityWhitelist(
     (item) => (userName !== '' && item === userName) || (phone !== '' && item === phone)
   )
 }
+
+/**
+ * 可选白名单：null 表示字段没配，全员放行；数组只放行命中手机号或 userName 的人。
+ * 配置还没拉到时不要调用，调用方先按不可见处理。
+ * @param list 未配置为 null，已配置为名单（可为空）
+ * @param identity 当前登录身份
+ */
+export function allowsIdentityByOptionalWhitelist(
+  list: readonly string[] | null,
+  identity: JiaorongStoredIdentity
+): boolean {
+  if (list === null) return true
+  return matchesIdentityWhitelist(list, identity)
+}

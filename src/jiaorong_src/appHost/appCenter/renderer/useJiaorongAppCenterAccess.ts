@@ -2,10 +2,7 @@
 
 import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import {
-  hydrateAppCenterAccess,
-  isJiaorongAppCenterVisible
-} from '../../../config/appCenterAccess'
+import { hydrateAppCenterAccess, isJiaorongAppCenterVisible } from '../../../config/appCenterAccess'
 import appCenterIcon from '../../../assets/应用中心.svg?url'
 
 /** 侧栏入口状态与行为。 */
@@ -15,7 +12,7 @@ export function useJiaorongAppCenterAccess() {
   /** 当前路由。 */
   const route = useRoute()
 
-  /** 入口是否可见：白名单或开发者。 */
+  /** 入口是否可见：没配名单则全员可见，配了则只命中名单。 */
   const visible = computed(() => isJiaorongAppCenterVisible())
 
   /** 是否停在应用中心路由。 */

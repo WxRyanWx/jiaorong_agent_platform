@@ -1,7 +1,10 @@
 /** 应用中心：远程应用列表、zip 下载安装 / 更新、开发者卸载。协同平台不在此列。 */
 
 import fs from 'node:fs'
-import { matchesIdentityWhitelist } from '../../../config/identityWhitelist'
+import {
+  allowsIdentityByOptionalWhitelist,
+  matchesIdentityWhitelist
+} from '../../../config/identityWhitelist'
 import {
   peekJiaorongRemoteRuntimeConfig,
   refreshJiaorongRemoteRuntimeConfig
@@ -44,19 +47,18 @@ export function isDeveloperIdentity(user: JiaorongAppUserIdentity): boolean {
 }
 
 /**
- * 当前登录用户是否可见应用中心（白名单或开发者）。
+ * 当前登录用户是否可见应用中心。
+ * 没写 appCenterVisiblePhones 则全员可见；写了则只命中名单的人可见。开发者名单不另开入口。
  * @param user 主进程读出的登录身份
  */
 export function canAccessAppCenter(user: JiaorongAppUserIdentity): boolean {
   /** 最近一次 OSS 配置快照。 */
   const config = peekJiaorongRemoteRuntimeConfig()
   if (!config) return false
-  return (
-    matchesIdentityWhitelist(config.appCenterVisiblePhones, {
-      userName: user.userName,
-      phone: user.phone
-    }) || isDeveloperIdentity(user)
-  )
+  return allowsIdentityByOptionalWhitelist(config.appCenterVisiblePhones, {
+    userName: user.userName,
+    phone: user.phone
+  })
 }
 
 /**

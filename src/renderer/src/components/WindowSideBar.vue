@@ -124,7 +124,7 @@
           </span>
         </DcButton>
 
-        <!-- 应用中心：协同平台下方，白名单 / 开发者可见 -->
+        <!-- 应用中心：协同平台下方；没配名单全员可见，配了只名单可见 -->
         <DcButton
           v-if="isJiaorongAppCenterVisible"
           data-testid="sidebar-jiaorong-app-center"
