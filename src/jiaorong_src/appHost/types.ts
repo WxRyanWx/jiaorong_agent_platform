@@ -55,7 +55,7 @@ export type JiaorongAppAuth = {
 export type JiaorongAppPackage = {
   /** 文件夹或 zip。 */
   kind: 'dir' | 'zip'
-  /** M1：`src/jiaorong_src/apps/<dir>` 或 extraResources `jiaorong-apps/<dir>` */
+  /** M1：`tools/create-jiaorong-app/<dir>` 或 extraResources `jiaorong-apps/<dir>` */
   builtinDir?: string
   /** M2 后管 zip */
   downloadUrl?: string
@@ -211,11 +211,9 @@ export type JiaorongDevCenterItem = {
   installStatus: JiaorongAppInstallStatus
   /** 是否可打开（已落盘且可见）。 */
   openable: boolean
-  /** 是否默认示例应用。 */
-  sample: boolean
   /** 提供方 / 来源说明。 */
   provider: string
-  /** 本地目录；示例应用为空串。 */
+  /** 本地目录。 */
   dir: string
 }
 

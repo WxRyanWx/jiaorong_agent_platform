@@ -29,7 +29,6 @@ jiaorong_src/
     pages/SkillListPage/ SkillDetailPage/
   utils/ runtime/
   appHost/           # 嵌入应用平台：目录、扫描、权限、协议、preload、window.jiaorong
-  apps/app-scaffold/  # 外部应用脚手架（Elysia）
 ```
 
 ## 约定

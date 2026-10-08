@@ -19,7 +19,7 @@
     "!src/shared/types/core/mcp.ts",
     "!src/shared/types/mcp.ts",
     "src/shadcn/**",
-    "src/jiaorong_src/apps/**/web-ui/**"
+    "tools/create-jiaorong-app/**/web-ui/**"
   ],
   "overrides": [
     {

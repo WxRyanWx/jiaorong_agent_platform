@@ -13,6 +13,7 @@ describe('CLI exit codes', () => {
   it('keeps the public numeric contract stable', () => {
     expect(CLI_EXIT_CODES).toEqual({
       success: 0,
+      partial: 1,
       usage: 2,
       unavailable: 3,
       authorization: 4,

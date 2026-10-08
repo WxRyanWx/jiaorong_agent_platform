@@ -1,4 +1,4 @@
-/** 开发者中心页数据源：浏览器存储名单 + 主进程列表 / 创建 / 发布 / 示例下载。 */
+/** 开发者中心页数据源：浏览器存储名单 + 主进程列表 / 创建 / 发布。 */
 
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { JIAORONG_AUTH_SESSION_CHANGED_EVENT } from '@jiaorong/auth/host'
@@ -36,17 +36,13 @@ export function useJiaorongDevCenter() {
   const openingId = ref('')
   /** 正在移除登记的应用 id；空串表示没有。 */
   const removingId = ref('')
-  /** 示例应用是否正在下载。 */
-  const isDownloadingSample = ref(false)
   /** 最近一次失败信息。 */
   const lastError = ref<{ message?: string } | null>(null)
   /** 刷新序号，用于丢掉过期响应。 */
   let refreshSeq = 0
 
-  /** 页面是否被占用：打开 / 移除 / 下载期间锁住全部操作按钮，避免并发改状态。 */
-  const isBusy = computed(
-    () => openingId.value !== '' || removingId.value !== '' || isDownloadingSample.value
-  )
+  /** 页面是否被占用：打开 / 移除期间锁住全部操作按钮，避免并发改状态。 */
+  const isBusy = computed(() => openingId.value !== '' || removingId.value !== '')
 
   /**
    * 该应用是否正在打开。
@@ -74,7 +70,7 @@ export function useJiaorongDevCenter() {
 
   /** 创建应用：主进程选目录校验，成功后写浏览器存储并同步。 */
   async function create(): Promise<boolean> {
-    // 已有打开 / 下载在飞，不接新操作
+    // 已有打开在飞，不接新操作
     if (isBusy.value) return false
     lastError.value = null
     /** 主进程创建结果。 */
@@ -115,7 +111,7 @@ export function useJiaorongDevCenter() {
     app: JiaorongDevCenterItem,
     payload: { manifestJson: string; zipPath: string }
   ): Promise<boolean> {
-    // 打开 / 下载未完成时不提交发布
+    // 打开未完成时不提交发布
     if (isBusy.value) return false
     lastError.value = null
     /** 主进程发布结果。 */
@@ -155,28 +151,12 @@ export function useJiaorongDevCenter() {
     return result.fields ?? null
   }
 
-  /** 示例应用下载到用户所选目录。 */
-  async function downloadSample(): Promise<void> {
-    // 已有打开 / 下载在飞，忽略重复点击
-    if (isBusy.value) return
-    lastError.value = null
-    isDownloadingSample.value = true
-    try {
-      /** 主进程下载结果。 */
-      const result = await window.jiaorongApps?.downloadDevSample()
-      if (!result) return
-      if (!result.ok && result.message !== '已取消') lastError.value = { message: result.message }
-    } finally {
-      isDownloadingSample.value = false
-    }
-  }
-
   /**
    * 打开应用：主进程为该应用开独立窗口，窗口内渲染纯 UI 侧边栏 + webview。
    * @param app 卡片项
    */
   async function open(app: JiaorongDevCenterItem): Promise<void> {
-    // 已有打开 / 下载在飞，忽略重复点击
+    // 已有打开在飞，忽略重复点击
     if (isBusy.value) return
     lastError.value = null
     openingId.value = app.id
@@ -219,14 +199,12 @@ export function useJiaorongDevCenter() {
     apps,
     lastError,
     isBusy,
-    isDownloadingSample,
     isOpening,
     create,
     remove,
     publish,
     pickZip,
     peekZip,
-    downloadSample,
     open
   }
 }

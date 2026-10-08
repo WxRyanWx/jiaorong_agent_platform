@@ -78,6 +78,27 @@ describe('CLI argument grammar', () => {
     )
   })
 
+  it('keeps create app local and forwards its arguments untouched', () => {
+    expect(parseCliArguments(['create', 'app', 'my-app', '--no-ui'], {})).toMatchObject({
+      domain: 'create',
+      verb: 'app',
+      contract: null,
+      operation: 'local',
+      helpRequested: false,
+      localArgv: ['my-app', '--no-ui']
+    })
+    // 脚手架自己认 --help，CLI 不拦
+    expect(parseCliArguments(['create', 'app', '--help'], {})).toMatchObject({
+      helpRequested: false,
+      localArgv: ['--help']
+    })
+    expect(parseCliArguments(['create', 'app'], {})).toMatchObject({ localArgv: [] })
+
+    expect(() => parseCliArguments(['create', 'project'], {})).toThrow('jiaorong create app')
+    expect(() => parseCliArguments(['create'], {})).toThrow('jiaorong create app')
+    expect(formatCliHelp()).toContain('create app')
+  })
+
   it('parses Programmatic Tool commands without widening ordinary Agent invocation', () => {
     expect(
       parseCliArguments(['tool', 'search', '--query', 'calendar', '--limit', '4'], {})

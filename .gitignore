@@ -15,6 +15,11 @@ build/winarm.json
 build/winx64.json
 build/bundled-plugins/
 build/managed-helpers/
+# 示例应用本地运行产物：随包迁入后由根忽略清单接管
+tools/create-jiaorong-app/app-scaffold/node/run/
+tools/create-jiaorong-app/app-scaffold/node/logs/
+tools/create-jiaorong-app/app-scaffold/vendor/*.tgz
+tools/create-jiaorong-app/app-scaffold/**/*.zip
 runtime/**/*
 plugins/*/runtime/**/*
 .eslintcache

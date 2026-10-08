@@ -1,14 +1,8 @@
-/** 开发者中心：示例应用 + 本地登记应用的列表、创建校验、发布占位、示例下载。 */
+/** 开发者中心：本地登记应用的列表、创建校验、发布占位。 */
 
 import fs from 'node:fs'
-import path from 'node:path'
-import { pipeline } from 'node:stream/promises'
-import { Readable } from 'node:stream'
-import type { ReadableStream as NodeReadableStream } from 'node:stream/web'
 import { dialog } from 'electron'
 import { isDeveloperIdentity } from '../../appCenter/main/appCenter'
-import { peekJiaorongRemoteRuntimeConfig } from '../../../config/remoteRuntimeConfig'
-import type { JiaorongRemoteDevAppConfig } from '../../../config/remoteRuntimeConfig'
 import { resolveAppIconSrc } from '../../main/bridge'
 import type { JiaorongAppHostDeps } from '../../main/deps'
 import {
@@ -20,12 +14,9 @@ import {
 import { readAppManifest } from '../../main/manifest'
 import { scanJiaorongApps } from '../../main/scan'
 import { readUserIdentityFromAuthSession } from '../../main/userIdentity'
-import type { JiaorongAppRuntime, JiaorongDevAppRecord, JiaorongDevCenterItem } from '../../types'
+import type { JiaorongDevAppRecord, JiaorongDevCenterItem } from '../../types'
 import { getDevApps, inspectDevAppDir } from './devApps'
 import { patchZipManifest, peekZipManifest } from './devZip'
-
-/** 示例应用下载超时。 */
-const DOWNLOAD_TIMEOUT_MS = 300_000
 
 /** 开发者中心统一返回。 */
 export type DevCenterMutationResult = {
@@ -37,43 +28,7 @@ export type DevCenterMutationResult = {
 }
 
 /**
- * 示例应用：OSS 配置 devApp 对象独立维护；附带同 id 运行时用于打开状态。
- * @param deps 超级智能体依赖（读登录态）
- */
-function resolveSample(
-  deps: JiaorongAppHostDeps,
-  runtimes?: JiaorongAppRuntime[]
-): {
-  devApp: JiaorongRemoteDevAppConfig
-  openable: boolean
-  installStatus: JiaorongAppRuntime['installStatus']
-  iconSrc: string | null
-} | null {
-  /** 最近一次 OSS 配置快照。 */
-  const config = peekJiaorongRemoteRuntimeConfig()
-  /** 示例应用配置。 */
-  const devApp = config?.devApp ?? null
-  if (!devApp) return null
-  /** 当前登录身份。 */
-  const user = readUserIdentityFromAuthSession(deps.getAuthSession())
-  /** 同 id 运行时；未安装时打开不可用。 */
-  const runtime = (runtimes ?? scanJiaorongApps(user)).find((item) => item.id === devApp.id) ?? null
-  /** 已落盘状态。 */
-  const onDisk = Boolean(
-    runtime &&
-    (runtime.installStatus === 'installed' || runtime.installStatus === 'update_available')
-  )
-  return {
-    devApp,
-    openable: Boolean(runtime && runtime.visible && onDisk),
-    installStatus: runtime?.installStatus ?? 'not_installed',
-    // 配置给了远程图标优先用；否则退回已安装目录里的图标文件
-    iconSrc: devApp.icon ?? (runtime ? resolveAppIconSrc(runtime) : null)
-  }
-}
-
-/**
- * 开发者中心卡片列表：示例应用打头，本地登记应用按登记顺序追加。
+ * 开发者中心卡片列表：本地登记应用按登记顺序。
  * @param deps 超级智能体依赖（读登录态）
  */
 export function listDevCenterItems(deps: JiaorongAppHostDeps): JiaorongDevCenterItem[] {
@@ -86,23 +41,6 @@ export function listDevCenterItems(deps: JiaorongAppHostDeps): JiaorongDevCenter
   const runtimeById = new Map(runtimes.map((item) => [item.id, item]))
   /** 卡片列表。 */
   const items: JiaorongDevCenterItem[] = []
-
-  /** 示例应用配置与打开状态。 */
-  const sample = resolveSample(deps, runtimes)
-  if (sample) {
-    items.push({
-      id: sample.devApp.id,
-      name: sample.devApp.name,
-      ...(sample.devApp.description ? { description: sample.devApp.description } : {}),
-      iconSrc: sample.iconSrc,
-      version: sample.devApp.version,
-      installStatus: sample.installStatus,
-      openable: sample.openable,
-      sample: true,
-      provider: sample.devApp.provider ?? '',
-      dir: ''
-    })
-  }
 
   for (const record of getDevApps()) {
     /** 本地包运行时；sync 之前可能还没并进 scan。 */
@@ -120,7 +58,6 @@ export function listDevCenterItems(deps: JiaorongAppHostDeps): JiaorongDevCenter
       version: record.version,
       installStatus: runtime?.installStatus ?? 'not_installed',
       openable: onDisk,
-      sample: false,
       // 开发者中心里本地应用的提供方恒为自己，不再显示冗余文案
       provider: '',
       dir: record.dir
@@ -241,52 +178,4 @@ export async function pickDevZip(deps: JiaorongAppHostDeps): Promise<DevCenterMu
   })
   if (picked.canceled || picked.filePaths.length === 0) return { ok: false, message: '已取消' }
   return { ok: true, filePath: picked.filePaths[0] }
-}
-
-/**
- * 示例应用下载：选目录后把远程 zip 落到指定目录。
- * @param deps 超级智能体依赖
- */
-export async function downloadSampleApp(
-  deps: JiaorongAppHostDeps
-): Promise<DevCenterMutationResult> {
-  const user = readUserIdentityFromAuthSession(deps.getAuthSession())
-  if (!isDeveloperIdentity(user)) return { ok: false, message: '当前账号不是开发者' }
-  const sample = resolveSample(deps)
-  /** zip 下载地址。 */
-  const downloadUrl = sample?.devApp.downloadUrl ?? ''
-  if (!sample || !downloadUrl) return { ok: false, message: '示例应用没有可用的下载地址' }
-  /** 目录选择结果。 */
-  const picked = await dialog.showOpenDialog({ properties: ['openDirectory'] })
-  if (picked.canceled || picked.filePaths.length === 0) return { ok: false, message: '已取消' }
-  /** 落盘路径。 */
-  const filePath = path.join(
-    picked.filePaths[0],
-    `${sample.devApp.id}-${sample.devApp.version}.zip`
-  )
-  /** 下载控制器。 */
-  const controller = new AbortController()
-  /** 超时定时器。 */
-  const timer = setTimeout(() => controller.abort(), DOWNLOAD_TIMEOUT_MS)
-  try {
-    /** 远程响应。 */
-    const response = await fetch(downloadUrl, { signal: controller.signal })
-    if (!response.ok || !response.body)
-      return { ok: false, message: `下载失败：HTTP ${response.status}` }
-    await pipeline(
-      Readable.fromWeb(response.body as NodeReadableStream),
-      fs.createWriteStream(filePath)
-    )
-    return { ok: true, filePath }
-  } catch (error) {
-    // 失败不留半截包
-    try {
-      fs.rmSync(filePath, { force: true })
-    } catch {
-      // 忽略清理失败
-    }
-    return { ok: false, message: error instanceof Error ? error.message : '下载失败' }
-  } finally {
-    clearTimeout(timer)
-  }
 }

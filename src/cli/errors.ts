@@ -2,8 +2,15 @@ import type { LocalControlError, LocalControlErrorCode } from '@shared/contracts
 
 const MAX_CLI_ERROR_MESSAGE_LENGTH = 4_096
 
+/**
+ * 稳定退出码。
+ *
+ * `partial` 只有本地命令 `create app` 会返回：目录已经生成，只是装依赖或构建失败。
+ * 脚手架（`tools/create-jiaorong-app/lib/errors.js`）用同一套数字，CLI 原样往上传。
+ */
 export const CLI_EXIT_CODES = {
   success: 0,
+  partial: 1,
   usage: 2,
   unavailable: 3,
   authorization: 4,

@@ -40,6 +40,7 @@ import {
   type CliUploadInvocation
 } from './transport'
 import { downloadArtifact } from './artifacts'
+import { runCreateApp } from './createApp'
 import { readBoundedUtf8Stdin } from './stdin'
 
 const SIGNAL_GRACE_MS = 1_000
@@ -249,6 +250,10 @@ export async function runCli(
   if (parsed.helpRequested) {
     writeText(stdout, formatCliHelp(parsed))
     return CLI_EXIT_CODES.success
+  }
+  // 本地命令不碰控制面，直接在当前进程外起脚手架
+  if (parsed.operation === 'local') {
+    return runCreateApp(parsed.localArgv ?? [], { env })
   }
   if (!parsed.contract) {
     writeText(stderr, 'CLI command is not implemented')

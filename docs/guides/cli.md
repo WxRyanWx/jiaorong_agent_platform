@@ -71,6 +71,7 @@ jiaorong image generate --help
 | Code | 含义 |
 | --- | --- |
 | `0` | 成功 |
+| `1` | 部分完成，仅本地命令 `create app`：目录已生成，但装依赖或构建失败 |
 | `2` | 命令或输入无效 |
 | `3` | JiaorongAI 不可用，或协议 / surface 不匹配 |
 | `4` | 鉴权或授权失败 |

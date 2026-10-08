@@ -1,0 +1,28 @@
+/**
+ * 全局样式（不带官方 UI 组件的精简版）。
+ * 只做一件事：让页面撑满客户端给的 webview。
+ */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  width: 100%;
+  max-width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  margin: 0;
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    sans-serif;
+  background: #eff5ff;
+  color: #111827;
+}

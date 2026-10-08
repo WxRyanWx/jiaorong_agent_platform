@@ -12,7 +12,6 @@ import {
   JIAORONG_APP_CENTER_UNINSTALL_CHANNEL,
   JIAORONG_DEV_APP_OPEN_WINDOW_CHANNEL,
   JIAORONG_DEV_CENTER_CREATE_CHANNEL,
-  JIAORONG_DEV_CENTER_DOWNLOAD_CHANNEL,
   JIAORONG_DEV_CENTER_LIST_CHANNEL,
   JIAORONG_DEV_CENTER_PEEK_ZIP_CHANNEL,
   JIAORONG_DEV_CENTER_PICK_ZIP_CHANNEL,
@@ -52,7 +51,6 @@ import {
 } from '../appCenter/main/appCenter'
 import {
   createDevApp,
-  downloadSampleApp,
   listDevCenterItems,
   pickDevZip,
   peekDevZipManifest,
@@ -388,7 +386,7 @@ export function startJiaorongAppHost(deps: JiaorongAppHostDeps): void {
     return uninstallAppCenterApp(deps, readAppIdInput(input))
   })
 
-  // 开发者中心列表：示例应用 + 本地登记应用
+  // 开发者中心列表：本地登记应用
   ipcMain.handle(JIAORONG_DEV_CENTER_LIST_CHANNEL, () => {
     return listDevCenterItems(deps)
   })
@@ -411,11 +409,6 @@ export function startJiaorongAppHost(deps: JiaorongAppHostDeps): void {
   // 开发者中心发布表单：读取 zip 内 app.json
   ipcMain.handle(JIAORONG_DEV_CENTER_PEEK_ZIP_CHANNEL, (_event, input: unknown) => {
     return peekDevZipManifest(deps, readZipPathInput(input))
-  })
-
-  // 开发者中心示例下载：选目录后落 zip
-  ipcMain.handle(JIAORONG_DEV_CENTER_DOWNLOAD_CHANNEL, () => {
-    return downloadSampleApp(deps)
   })
 
   // 渲染浏览器存储名单同步主进程：内存镜像 + link 登记（spawn / getAppDir 走源目录）
@@ -568,7 +561,6 @@ export function stopJiaorongAppHost(): void {
   ipcMain.removeHandler(JIAORONG_DEV_CENTER_PUBLISH_CHANNEL)
   ipcMain.removeHandler(JIAORONG_DEV_CENTER_PICK_ZIP_CHANNEL)
   ipcMain.removeHandler(JIAORONG_DEV_CENTER_PEEK_ZIP_CHANNEL)
-  ipcMain.removeHandler(JIAORONG_DEV_CENTER_DOWNLOAD_CHANNEL)
   ipcMain.removeHandler(JIAORONG_DEV_CENTER_SYNC_CHANNEL)
   ipcMain.removeHandler(JIAORONG_DEV_APP_OPEN_WINDOW_CHANNEL)
   // 注销目录与事件回调

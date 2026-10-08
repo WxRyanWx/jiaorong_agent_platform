@@ -19,14 +19,12 @@ export const JIAORONG_APP_CENTER_LIST_CHANNEL = 'jiaorong-app-center:list'
 export const JIAORONG_APP_CENTER_INSTALL_CHANNEL = 'jiaorong-app-center:install'
 /** 应用中心卸载：仅开发者。 */
 export const JIAORONG_APP_CENTER_UNINSTALL_CHANNEL = 'jiaorong-app-center:uninstall'
-/** 开发者中心列出示例应用与本地登记应用。 */
+/** 开发者中心列出本地登记应用。 */
 export const JIAORONG_DEV_CENTER_LIST_CHANNEL = 'jiaorong-dev-center:list'
 /** 开发者中心创建应用：选目录 + 校验 app.json。 */
 export const JIAORONG_DEV_CENTER_CREATE_CHANNEL = 'jiaorong-dev-center:create'
 /** 开发者中心发布：接口未接入前的占位提交。 */
 export const JIAORONG_DEV_CENTER_PUBLISH_CHANNEL = 'jiaorong-dev-center:publish'
-/** 开发者中心示例应用下载：选目录后落 zip。 */
-export const JIAORONG_DEV_CENTER_DOWNLOAD_CHANNEL = 'jiaorong-dev-center:download'
 /** 开发者中心发布表单：选择 zip 包。 */
 export const JIAORONG_DEV_CENTER_PICK_ZIP_CHANNEL = 'jiaorong-dev-center:pick-zip'
 /** 开发者中心发布表单：读取 zip 内 app.json。 */

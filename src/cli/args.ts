@@ -48,7 +48,7 @@ export const DEFAULT_MUTATION_TIMEOUT_MS = 10 * 60_000
 export type CliOutputMode = 'text' | 'json' | 'jsonl'
 export type { CliRpcContract } from '@shared/contracts/cliCommands'
 
-export type CliCommandOperation = 'rpc' | 'stream' | 'upload' | 'download'
+export type CliCommandOperation = 'rpc' | 'stream' | 'upload' | 'download' | 'local'
 
 export type ParsedCliArguments = Readonly<{
   domain: string
@@ -59,6 +59,8 @@ export type ParsedCliArguments = Readonly<{
   helpRequested: boolean
   operation: CliCommandOperation
   params: JsonValue
+  /** 本地命令的原始参数，直接交给本地实现，不做契约校验。 */
+  localArgv?: readonly string[]
   inputPath?: string
   uploadMaxBytes?: number
   outputPath?: string
@@ -339,9 +341,18 @@ const REGISTERED_CLI_DOMAINS: ReadonlySet<string> = new Set(
   CLI_COMMAND_DEFINITIONS.map((definition) => definition.domain)
 )
 
+/** 只在本地执行、不经控制面的命令域，参数原样交给本地实现。 */
+const LOCAL_CLI_DOMAINS: ReadonlySet<string> = new Set(['create'])
+
 function expandShorthandCliArguments(argv: readonly string[]): readonly string[] {
   const first = argv[0]
-  if (!first || first === 'help' || first.startsWith('-') || REGISTERED_CLI_DOMAINS.has(first)) {
+  if (
+    !first ||
+    first === 'help' ||
+    first.startsWith('-') ||
+    LOCAL_CLI_DOMAINS.has(first) ||
+    REGISTERED_CLI_DOMAINS.has(first)
+  ) {
     return argv
   }
   return ['model', 'invoke', '--prompt', first, ...argv.slice(1)]
@@ -418,6 +429,26 @@ export function parseCliArguments(
       helpRequested: true,
       operation: 'rpc',
       params: {},
+      overwrite: false,
+      readStdin: false
+    }
+  }
+
+  // `create app` 在本地跑脚手架：客户端没启动也能用，参数原样转发（含 --help）
+  if (argv[0] === 'create') {
+    if (argv[1] !== 'app') {
+      throw new CliUsageError('Expected: jiaorong create app [directory] [options]')
+    }
+    return {
+      domain: 'create',
+      verb: 'app',
+      contract: null,
+      outputMode: parseOutputMode(env[CLI_OUTPUT_ENV]),
+      timeoutMs: DEFAULT_CLI_TIMEOUT_MS,
+      helpRequested: false,
+      operation: 'local',
+      params: {},
+      localArgv: argv.slice(2),
       overwrite: false,
       readStdin: false
     }
@@ -1237,6 +1268,7 @@ export function formatCliHelp(command?: Pick<ParsedCliArguments, 'domain' | 'ver
     '  run get             Read an owned run snapshot and messages',
     '  run watch           Stream targeted run events with a resume cursor',
     '  run cancel          Idempotently cancel an owned active run',
+    '  create app          Scaffold a new app from the built-in template',
     '  help                 Show this help',
     '',
     'Options (after the prompt, or after domain and verb):',

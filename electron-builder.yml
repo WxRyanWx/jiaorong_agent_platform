@@ -17,6 +17,7 @@ files:
   - '!vendor/**'
   - '!docs/*'
   - '!plugins/**'
+  - '!tools/**'
   - '!out/main/lightOcrHelper.js'
   - '!out/cli/**'
   - '!keys/*'
@@ -60,22 +61,31 @@ extraResources:
   - from: ./resources/skills/
     to: app.asar.unpacked/resources/skills
     filter: ['**/*']
-  - from: ./src/jiaorong_src/apps/app-scaffold
+  - from: ./tools/create-jiaorong-app/app-scaffold
     to: jiaorong-apps/app-scaffold
     filter:
       - app.json
       - icon.png
       - web-ui/**
       - skill/**
-      - exe/**
       - node/*.js
-      - node/app.js
-      - node/app/**
-      - node/config/**
+      - node/service/**
       - node/package.json
       - node/pnpm-lock.yaml
-      - node/.npmrc
       - node/node_modules/**
+  - from: ./tools/create-jiaorong-app
+    to: create-jiaorong-app
+    filter:
+      - bin/**
+      - lib/**
+      - variants/**
+      - app-scaffold/**
+      - '!app-scaffold/**/node_modules/**'
+      - '!app-scaffold/web-ui/**'
+      - '!app-scaffold/node/run/**'
+      - '!app-scaffold/node/logs/**'
+      - package.json
+      - README.md
   - from: ./build/bundled-plugins/
     to: app.asar.unpacked/plugins
     filter: ['**/*.dcplugin']

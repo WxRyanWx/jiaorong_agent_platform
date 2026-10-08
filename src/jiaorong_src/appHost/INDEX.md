@@ -42,7 +42,7 @@
 | `appCenter/renderer/useJiaorongAppCenter.ts` | 页数据源：列表 / 安装 / 卸载 / 打开 |
 | `appCenter/renderer/useJiaorongAppCenterAccess.ts` | 侧栏「应用中心」入口可见性与跳转 |
 | `devCenter/main/devApps.ts` | 开发者名单内存镜像 + app.json 必填校验 |
-| `devCenter/main/devCenter.ts` | 开发者中心列表 / 创建 / 发布占位 / 示例下载 |
+| `devCenter/main/devCenter.ts` | 开发者中心列表 / 创建 / 发布占位 |
 | `devCenter/main/devAppWindow.ts` | 开发者中心每应用独立窗口，关窗停 Node |
 | `devCenter/renderer/DevAppWindowRail.vue` `DevAppWindowRail.less` | 独立窗口纯 UI 侧边栏（所有 agent + 已打开应用图标） |
 | `devCenter/renderer/DevCenterPage.vue` `DevCenterPage.less` | 开发者中心卡片页（复用应用中心卡片样式；目录按钮占满行内剩余宽度并复用 `project.openDirectory`，本地应用不显示提供方） |

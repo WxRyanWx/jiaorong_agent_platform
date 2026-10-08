@@ -54,7 +54,6 @@ declare global {
           spawn: string
         }
       }>
-      downloadDevSample(): Promise<{ ok: boolean; message?: string; filePath?: string }>
       syncDevApps(apps: JiaorongDevAppRecord[]): Promise<JiaorongDevAppRecord[]>
       openDevAppWindow(appId: string): Promise<boolean>
       getOpenInfo(appId: string): Promise<JiaorongAppOpenInfo | null>

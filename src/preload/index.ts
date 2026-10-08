@@ -17,7 +17,6 @@ import {
   JIAORONG_APP_CENTER_UNINSTALL_CHANNEL,
   JIAORONG_DEV_APP_OPEN_WINDOW_CHANNEL,
   JIAORONG_DEV_CENTER_CREATE_CHANNEL,
-  JIAORONG_DEV_CENTER_DOWNLOAD_CHANNEL,
   JIAORONG_DEV_CENTER_LIST_CHANNEL,
   JIAORONG_DEV_CENTER_PEEK_ZIP_CHANNEL,
   JIAORONG_DEV_CENTER_PICK_ZIP_CHANNEL,
@@ -138,7 +137,6 @@ const jiaorongApps = Object.freeze({
   pickDevZip: () => ipcRenderer.invoke(JIAORONG_DEV_CENTER_PICK_ZIP_CHANNEL),
   peekDevZip: (zipPath: string) =>
     ipcRenderer.invoke(JIAORONG_DEV_CENTER_PEEK_ZIP_CHANNEL, { zipPath }),
-  downloadDevSample: () => ipcRenderer.invoke(JIAORONG_DEV_CENTER_DOWNLOAD_CHANNEL),
   syncDevApps: (apps: unknown) => ipcRenderer.invoke(JIAORONG_DEV_CENTER_SYNC_CHANNEL, apps),
   openDevAppWindow: (appId: string) =>
     ipcRenderer.invoke(JIAORONG_DEV_APP_OPEN_WINDOW_CHANNEL, { appId }),

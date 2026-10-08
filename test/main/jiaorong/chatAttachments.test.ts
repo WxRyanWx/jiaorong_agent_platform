@@ -2,12 +2,12 @@ import { describe, expect, it } from 'vitest'
 import {
   displaySkillLabel,
   normalizeSlashCommands
-} from '../../../src/jiaorong_src/apps/app-scaffold/web/src/components/jiaorongagentchat/lib/slashCommands'
-import { buildTranscript } from '../../../src/jiaorong_src/apps/app-scaffold/web/src/components/jiaorongagentchat/lib/transcript'
+} from '../../../tools/create-jiaorong-app/app-scaffold/web/src/components/jiaorongagentchat/lib/slashCommands'
+import { buildTranscript } from '../../../tools/create-jiaorong-app/app-scaffold/web/src/components/jiaorongagentchat/lib/transcript'
 import {
   getFileTypeIcon,
   isImageAttachment
-} from '../../../src/jiaorong_src/apps/app-scaffold/web/src/components/jiaorongagentchat/lib/fileTypeIcon'
+} from '../../../tools/create-jiaorong-app/app-scaffold/web/src/components/jiaorongagentchat/lib/fileTypeIcon'
 
 describe('normalizeSlashCommands', () => {
   it('turns skillDir into app-scoped skill names and ignores empty input', () => {

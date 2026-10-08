@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { renderChatMarkdown } from '../../../src/jiaorong_src/apps/app-scaffold/web/src/components/jiaorongagentchat/lib/chatMarkdown'
+import { renderChatMarkdown } from '../../../tools/create-jiaorong-app/app-scaffold/web/src/components/jiaorongagentchat/lib/chatMarkdown'
 
 describe('renderChatMarkdown', () => {
   it('renders GFM tables, horizontal rules, and inline emphasis', () => {

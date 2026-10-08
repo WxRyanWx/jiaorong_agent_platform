@@ -35,7 +35,6 @@ describe('jiaorong remote runtime config', () => {
       admins: ['13039619789', 'L20184974'],
       appCenterVisiblePhones: ['15557190927'],
       developerPhones: ['13039619789'],
-      devApp: null,
       apps: [{ id: 'demo-workbench' }]
     })
   })
@@ -48,7 +47,6 @@ describe('jiaorong remote runtime config', () => {
       admins: [],
       appCenterVisiblePhones: [],
       developerPhones: [],
-      devApp: null,
       apps: []
     })
   })
@@ -207,35 +205,5 @@ describe('jiaorong remote runtime config', () => {
       expect(seen).toEqual([['L20184974']])
     })
     expect(calls).toBe(4)
-  })
-})
-
-describe('remote runtime config devApp', () => {
-  it('parses devApp / devapp and rejects incomplete object', () => {
-    /** 完整 devApp。 */
-    const full = parseJiaorongRemoteRuntimeConfig({
-      devApp: {
-        id: 'app-scaffold',
-        name: '脚手架',
-        version: '1.0.0',
-        provider: 'AI中心',
-        downloadUrl: 'https://x/a.zip'
-      }
-    })
-    expect(full.devApp).toEqual({
-      id: 'app-scaffold',
-      name: '脚手架',
-      version: '1.0.0',
-      provider: 'AI中心',
-      downloadUrl: 'https://x/a.zip'
-    })
-    /** 小写键同样认。 */
-    const lower = parseJiaorongRemoteRuntimeConfig({
-      devapp: { id: 'a', name: 'A', version: '1', downloadUrl: 'u' }
-    })
-    expect(lower.devApp?.id).toBe('a')
-    /** 缺必填按 null。 */
-    expect(parseJiaorongRemoteRuntimeConfig({ devApp: { id: 'a', name: 'A' } }).devApp).toBeNull()
-    expect(parseJiaorongRemoteRuntimeConfig({}).devApp).toBeNull()
   })
 })

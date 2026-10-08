@@ -24,6 +24,7 @@ import {
 } from '@shadcn/components/ui/tooltip'
 import { useToast } from '@/components/use-toast'
 import { useProjectStore } from '@/stores/ui/project'
+import { openRuntimeExternal } from '@api/runtime'
 import type { JiaorongDevCenterItem } from '@jiaorong/appHost/types'
 import {
   APP_MANIFEST_SLOTS,
@@ -35,23 +36,14 @@ import {
 import { useJiaorongDevCenter } from './useJiaorongDevCenter'
 import './DevCenterPage.less'
 
+/** 开发者文档生产地址：点击交给系统浏览器打开。 */
+const DEV_DOCS_URL = 'https://c4ai.ccccltd.cn/xkforai/Examples/jiaorong-agent/started.html'
+
 const { t } = useI18n()
 const { toast } = useToast()
 const projectStore = useProjectStore()
-const {
-  apps,
-  lastError,
-  isBusy,
-  isDownloadingSample,
-  isOpening,
-  create,
-  remove,
-  publish,
-  pickZip,
-  peekZip,
-  downloadSample,
-  open
-} = useJiaorongDevCenter()
+const { apps, lastError, isBusy, isOpening, create, remove, publish, pickZip, peekZip, open } =
+  useJiaorongDevCenter()
 
 /** 发布表单字段：中文标签 + 悬浮说明。 */
 type PublishField = {
@@ -220,6 +212,15 @@ async function handleRevealDir(app: JiaorongDevCenterItem): Promise<void> {
   }
 }
 
+/** 打开开发者文档：走宿主既有外链白名单，失败只记日志不打断页面。 */
+async function openDocs(): Promise<void> {
+  try {
+    await openRuntimeExternal(DEV_DOCS_URL)
+  } catch (error) {
+    console.warn('[jiaorong-dev-center] open docs failed', error)
+  }
+}
+
 /**
  * 目录拆成头尾两段：头部可截断出省略号，尾部末级目录名始终完整，视觉上即中间省略。
  * @param dir 插件文件夹绝对路径
@@ -253,10 +254,20 @@ watch(lastError, (error) => {
         <h1 class="app-center-page__title">{{ t('routes.devCenter') }}</h1>
         <p class="app-center-page__subtitle">{{ t('routes.devCenterSubtitle') }}</p>
       </div>
-      <Button size="sm" data-testid="dev-center-create" :disabled="isBusy" @click="create">
-        <Icon icon="lucide:folder-plus" class="dev-center-page__create-icon" />
-        {{ t('routes.devCenterCreate') }}
-      </Button>
+      <div class="dev-center-page__header-actions">
+        <button
+          type="button"
+          class="dev-center-page__docs-link"
+          data-testid="dev-center-docs"
+          @click="openDocs"
+        >
+          {{ t('routes.devCenterDocs') }}
+        </button>
+        <Button size="sm" data-testid="dev-center-create" :disabled="isBusy" @click="create">
+          <Icon icon="lucide:folder-plus" class="dev-center-page__create-icon" />
+          {{ t('routes.devCenterCreate') }}
+        </Button>
+      </div>
     </header>
 
     <div v-if="apps.length === 0" class="app-center-page__empty">
@@ -264,20 +275,13 @@ watch(lastError, (error) => {
     </div>
 
     <div v-else class="app-center-page__grid">
-      <article
-        v-for="app in apps"
-        :key="`${app.sample ? 'sample' : 'local'}:${app.id}`"
-        class="app-center-card"
-      >
+      <article v-for="app in apps" :key="app.id" class="app-center-card">
         <div class="app-center-card__head">
           <img v-if="app.iconSrc" :src="app.iconSrc" alt="" class="app-center-card__icon" />
           <Icon v-else icon="lucide:layout-grid" class="app-center-card__icon-fallback" />
           <div class="app-center-card__meta">
             <div class="app-center-card__name">
               {{ app.name }}
-              <span v-if="app.sample" class="app-center-card__dev-badge">
-                {{ t('routes.devCenterSampleBadge') }}
-              </span>
             </div>
             <div class="app-center-card__version">v{{ app.version }}</div>
           </div>
@@ -301,42 +305,24 @@ watch(lastError, (error) => {
           </button>
           <div class="app-center-card__actions">
             <Button
-              v-if="app.sample"
-              variant="outline"
+              variant="ghost"
               size="sm"
               class="app-center-card__action-btn"
-              data-testid="dev-center-download"
+              :data-testid="`dev-center-remove-${app.id}`"
               :disabled="isBusy"
-              @click="downloadSample"
+              @click="remove(app)"
             >
-              <Icon
-                v-if="isDownloadingSample"
-                icon="lucide:loader-circle"
-                class="app-center-card__action-spin"
-              />
-              {{ t('routes.devCenterDownload') }}
+              {{ t('routes.devCenterRemove') }}
             </Button>
-            <template v-else>
-              <Button
-                variant="ghost"
-                size="sm"
-                class="app-center-card__action-btn"
-                :data-testid="`dev-center-remove-${app.id}`"
-                :disabled="isBusy"
-                @click="remove(app)"
-              >
-                {{ t('routes.devCenterRemove') }}
-              </Button>
-              <Button
-                size="sm"
-                class="app-center-card__action-btn"
-                :data-testid="`dev-center-publish-${app.id}`"
-                :disabled="isBusy"
-                @click="openPublishDialog(app)"
-              >
-                {{ t('routes.devCenterPublish') }}
-              </Button>
-            </template>
+            <Button
+              size="sm"
+              class="app-center-card__action-btn"
+              :data-testid="`dev-center-publish-${app.id}`"
+              :disabled="isBusy"
+              @click="openPublishDialog(app)"
+            >
+              {{ t('routes.devCenterPublish') }}
+            </Button>
             <Button
               v-if="app.openable"
               size="sm"

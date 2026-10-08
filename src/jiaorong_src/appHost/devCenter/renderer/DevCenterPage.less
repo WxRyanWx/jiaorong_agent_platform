@@ -167,4 +167,23 @@
   &__dialog-footer {
     flex-shrink: 0;
   }
+
+  &__header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  &__docs-link {
+    padding: 0;
+    border: none;
+    background: none;
+    cursor: pointer;
+    color: var(--primary, var(--foreground));
+    font-size: 13px;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
 }

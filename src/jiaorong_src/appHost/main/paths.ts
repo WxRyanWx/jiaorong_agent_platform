@@ -93,7 +93,7 @@ export function resolveUnpackagedBuiltinAppsRoot(candidates: string[]): string {
   return candidates[0] ?? ''
 }
 
-/** 内置应用源根：开发走仓库 `apps/`，安装包走 `resources/jiaorong-apps`。 */
+/** 内置应用源根：开发走脚手架包目录（只登记 app-scaffold 子目录），安装包走 `resources/jiaorong-apps`。 */
 export function getBuiltinAppsRoot(): string {
   // 打包后固定放在 extraResources 里
   if (app.isPackaged) {
@@ -101,9 +101,9 @@ export function getBuiltinAppsRoot(): string {
   }
   // 开发态 `app.getAppPath()` 可能指向 out/main，逐个候选试
   return resolveUnpackagedBuiltinAppsRoot([
-    path.join(app.getAppPath(), 'src', 'jiaorong_src', 'apps'),
-    path.join(__dirname, '../../src/jiaorong_src/apps'),
-    path.join(process.cwd(), 'src/jiaorong_src/apps')
+    path.join(app.getAppPath(), 'tools', 'create-jiaorong-app'),
+    path.join(__dirname, '../../tools/create-jiaorong-app'),
+    path.join(process.cwd(), 'tools', 'create-jiaorong-app')
   ])
 }
 

@@ -11,24 +11,6 @@ export const JIAORONG_REMOTE_RUNTIME_CONFIG_ATTEMPTS = 3
 const DEFAULT_RETRY_DELAYS_MS = [1_000, 2_000] as const
 const DEFAULT_BACKGROUND_RETRY_MS = 30_000
 
-/** 开发者中心示例应用：配置 devApp 对象独立维护，不占 apps 目录。 */
-export type JiaorongRemoteDevAppConfig = {
-  /** 应用 id。 */
-  id: string
-  /** 显示名。 */
-  name: string
-  /** 版本。 */
-  version: string
-  /** 描述。 */
-  description?: string
-  /** 提供方。 */
-  provider?: string
-  /** 图标绝对 URL（http/https）；未给时退回已安装目录图标。 */
-  icon?: string
-  /** zip 下载地址。 */
-  downloadUrl: string
-}
-
 export type JiaorongRemoteRuntimeConfig = {
   schemaVersion: number
   admins: string[]
@@ -36,8 +18,6 @@ export type JiaorongRemoteRuntimeConfig = {
   appCenterVisiblePhones: string[]
   /** 开发者名单：手机号 / userName。 */
   developerPhones: string[]
-  /** 开发者中心示例应用；配置未给为 null。 */
-  devApp: JiaorongRemoteDevAppConfig | null
   apps: unknown[]
 }
 
@@ -46,7 +26,6 @@ export const EMPTY_JIAORONG_REMOTE_RUNTIME_CONFIG: JiaorongRemoteRuntimeConfig =
   admins: [],
   appCenterVisiblePhones: [],
   developerPhones: [],
-  devApp: null,
   apps: []
 }
 
@@ -141,39 +120,6 @@ async function runBurst(generation: number): Promise<void> {
   scheduleBackgroundRetry(generation)
 }
 
-/**
- * 解析 devApp 对象；必填缺任一返回 null。
- * @param raw 配置原始值
- */
-function readDevAppConfig(raw: unknown): JiaorongRemoteDevAppConfig | null {
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
-  /** 原始字段表。 */
-  const record = raw as Record<string, unknown>
-  /** 字符串字段读取。 */
-  const read = (key: string): string => (typeof record[key] === 'string' ? record[key].trim() : '')
-  /** 四个必填字段。 */
-  const id = read('id')
-  const name = read('name')
-  const version = read('version')
-  const downloadUrl = read('downloadUrl')
-  if (!id || !name || !version || !downloadUrl) return null
-  /** 描述。 */
-  const description = read('description')
-  /** 提供方。 */
-  const provider = read('provider')
-  /** 图标 URL。 */
-  const icon = read('icon')
-  return {
-    id,
-    name,
-    version,
-    ...(description ? { description } : {}),
-    ...(provider ? { provider } : {}),
-    ...(icon.startsWith('http') ? { icon } : {}),
-    downloadUrl
-  }
-}
-
 /** 非法 JSON / 缺字段时当成空配置，不抛错。 */
 export function parseJiaorongRemoteRuntimeConfig(raw: unknown): JiaorongRemoteRuntimeConfig {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
@@ -189,7 +135,6 @@ export function parseJiaorongRemoteRuntimeConfig(raw: unknown): JiaorongRemoteRu
     admins: uniqueStrings(record.admins),
     appCenterVisiblePhones: uniqueStrings(record.appCenterVisiblePhones),
     developerPhones: uniqueStrings(record.developerPhones),
-    devApp: readDevAppConfig(record.devApp ?? record.devapp),
     apps: Array.isArray(record.apps) ? record.apps : []
   }
 }

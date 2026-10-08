@@ -1,0 +1,54 @@
+{
+  "name": "create-jiaorong-app",
+  "version": "0.1.0",
+  "description": "交融应用脚手架：一条命令按问答生成本地应用目录",
+  "author": "ThinkInAIXYZ",
+  "license": "Apache-2.0",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/WxRyanWx/jiaorong_agent_platform.git",
+    "directory": "tools/create-jiaorong-app"
+  },
+  "homepage": "https://github.com/WxRyanWx/jiaorong_agent_platform/tree/main/tools/create-jiaorong-app#readme",
+  "bugs": {
+    "url": "https://github.com/WxRyanWx/jiaorong_agent_platform/issues"
+  },
+  "bin": {
+    "create-jiaorong-app": "bin/create-jiaorong-app.js"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "variants",
+    "app-scaffold/app.json",
+    "app-scaffold/icon.png",
+    "app-scaffold/_gitignore",
+    "app-scaffold/README.md",
+    "app-scaffold/node/*.js",
+    "app-scaffold/node/README.md",
+    "app-scaffold/node/package.json",
+    "app-scaffold/node/pnpm-lock.yaml",
+    "app-scaffold/node/service/**",
+    "app-scaffold/web/*.ts",
+    "app-scaffold/web/*.html",
+    "app-scaffold/web/*.json",
+    "app-scaffold/web/pnpm-lock.yaml",
+    "app-scaffold/web/src/**",
+    "app-scaffold/skill/**",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
+  },
+  "scripts": {},
+  "keywords": [
+    "jiaorong",
+    "scaffold",
+    "cli"
+  ]
+}

@@ -24,7 +24,7 @@ import {
   filterOfficialDeepchatPayload,
   sendJiaorongAppBridgeEvent
 } from '../../../src/jiaorong_src/appHost/main/events'
-import { findPendingQuestion } from '../../../src/jiaorong_src/apps/app-scaffold/web/src/components/jiaorongagentchat/lib/hostParse'
+import { findPendingQuestion } from '../../../tools/create-jiaorong-app/app-scaffold/web/src/components/jiaorongagentchat/lib/hostParse'
 
 describe('jiaorong app guest identity', () => {
   it('reads app id from jiaorong-app hostname and ignores query params', () => {
