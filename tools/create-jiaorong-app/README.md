@@ -4,17 +4,15 @@
 
 ## 用法
 
-两条入口，同一份代码：装了 JiaorongAI 客户端就用 `jiaorong create app`，没装就走 npm。
-
 ```bash
-# 客户端 CLI，随安装包分发，不需要 npm
-jiaorong create app
-jiaorong create app my-app --no-ui
-
-# npm：按当前目录名一路问答生成
-npm create jiaorong-app@latest
+# 按当前目录名一路问答生成
+pnpm create jiaorong-app
 
 # 生成到 ./my-app
+pnpm create jiaorong-app my-app
+
+# npm 等价写法
+npm create jiaorong-app@latest
 npm create jiaorong-app@latest my-app
 
 # 不要官方 UI 组件，给极简对话页
@@ -23,6 +21,8 @@ npx create-jiaorong-app my-app --no-ui
 # 全用默认值，不问
 npx create-jiaorong-app my-app --yes
 ```
+
+只需要 Node 18 以上，不依赖 JiaorongAI 客户端。
 
 问答分三步：先定应用 id 与名称（后面的端口默认值按 id 派生），再选挂载位置、功能开关、端口与智能体 key，最后确认要不要立刻装依赖。命令行已经给出的项不再问；`Ctrl+C` 直接退出，不留半成品目录。
 
@@ -55,7 +55,7 @@ npx create-jiaorong-app my-app --yes
 
 ## 退出码
 
-`jiaorong create app` 原样透传这些码，脚本与 CI 可以直接判。
+从 JiaorongAI 客户端调用时，这些码会原样透传，脚本与 CI 可以直接判。
 
 | 退出码 | 含义 |
 | --- | --- |
