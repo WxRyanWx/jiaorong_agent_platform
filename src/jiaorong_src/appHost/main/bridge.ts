@@ -15,7 +15,7 @@ import {
   hasPickedDirectory,
   isAbsoluteGuestPath,
   isGuestPathAllowed,
-  isLoopbackHttpEntry,
+  isExternalUrlEntry,
   rememberPickedDirectory
 } from './guest'
 import { appAgentIds } from './agentMap'
@@ -121,8 +121,8 @@ export function toOpenInfo(runtime: JiaorongAppRuntime): JiaorongAppOpenInfo | n
   const partition = ensureJiaorongAppProtocolSession(runtime.id)
   /** guest preload 地址。 */
   const preload = getAppPreloadFileUrl()
-  // 开发态允许直接连本机 http 服务
-  if (isLoopbackHttpEntry(entry)) {
+  // 任意绝对 URL 都可作为远程 / 本地入口
+  if (isExternalUrlEntry(entry)) {
     return {
       appId: runtime.id,
       src: entry,
@@ -130,7 +130,7 @@ export function toOpenInfo(runtime: JiaorongAppRuntime): JiaorongAppOpenInfo | n
       partition
     }
   }
-  // 其它带 scheme 的入口（http/https/file 等）一律拒绝
+  // 不能把入口写成其它应用的 jiaorong-app 协议
   if (/^[a-z][a-z0-9+.-]*:/i.test(entry)) return null
   // 常规包：走自定义协议加载
   return {
@@ -177,6 +177,14 @@ export async function handleAppBridgeInvoke(
       // 断开本页桥，客户端侧无状态需要清
       case 'disconnect':
         return { ok: true }
+      // 子应用向主窗口弹右上角提示
+      case 'notification.show': {
+        const publishAppNotification = deps.publishAppNotification
+        if (!publishAppNotification) {
+          return { code: 'FORBIDDEN', message: '当前客户端不支持应用通知' }
+        }
+        return publishAppNotification(runtime, record)
+      }
       // 打开本应用页面的 DevTools
       case 'devtools.open': {
         /** Electron webContents。 */

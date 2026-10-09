@@ -147,6 +147,9 @@ const jiaorong = {
   userinfo: call('userinfo.get'), // 当前用户
   respondToolInteraction: call('chat.respondToolInteraction'), // 回答工具审批
   openDevTools: call('devtools.open'), // 打开应用 DevTools
+  notification: {
+    show: call('notification.show') // 在主窗口右上角弹提示
+  },
   agent: {
     create: call('agent.create'), // 按 agentKey 创建或覆盖，兼容 key
     get: call('agent.get'), // 按 key/id 取一条

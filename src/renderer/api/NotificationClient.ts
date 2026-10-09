@@ -1,5 +1,6 @@
 import type { DeepchatBridge } from '@shared/contracts/bridge'
 import { semanticNotificationEvent, type DeepchatEventPayload } from '@shared/contracts/events'
+import { appNotificationShowEvent } from '@shared/contracts/events/app-notification.events'
 import {
   notificationAcknowledgePresentationRoute,
   notificationRendererReadyRoute
@@ -10,6 +11,10 @@ export const createNotificationClient = (bridge: DeepchatBridge = getDeepchatBri
   onSemanticNotification: (
     listener: (payload: DeepchatEventPayload<typeof semanticNotificationEvent.name>) => void
   ) => bridge.on(semanticNotificationEvent.name, listener),
+
+  onAppNotification: (
+    listener: (payload: DeepchatEventPayload<typeof appNotificationShowEvent.name>) => void
+  ) => bridge.on(appNotificationShowEvent.name, listener),
 
   notifyRendererReady: async (): Promise<boolean> => {
     const result = await bridge.invoke(notificationRendererReadyRoute.name, {})

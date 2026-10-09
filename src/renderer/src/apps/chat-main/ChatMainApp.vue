@@ -14,6 +14,7 @@ import { usePageRouterStore } from '@/stores/ui/pageRouter'
 import NotificationHost from '@renderer-notifications/NotificationHost.vue'
 import { rendererNotificationManager } from '@renderer-notifications/rendererNotificationRuntime'
 import { SemanticNotificationController } from '@renderer-notifications/semanticNotificationController'
+import { presentAppNotification } from '@renderer-notifications/appNotificationAdapter'
 import { useUiSettingsStore } from '@/stores/uiSettingsStore'
 import { useThemeStore } from '@/stores/theme'
 import { useLanguageStore } from '@/stores/language'
@@ -110,6 +111,7 @@ const semanticNotificationController = new SemanticNotificationController({
   }
 })
 let cleanupSemanticNotifications: (() => void) | undefined
+let cleanupAppNotifications: (() => void) | undefined
 const toasterTheme = computed(() =>
   themeStore.themeMode === 'system' ? (themeStore.isDark ? 'dark' : 'light') : themeStore.themeMode
 )
@@ -502,6 +504,7 @@ onMounted(() => {
   cleanupSemanticNotifications = notificationClient.onSemanticNotification((delivery) => {
     semanticNotificationController.handle(delivery)
   })
+  cleanupAppNotifications = notificationClient.onAppNotification(presentAppNotification)
   void notificationClient
     .notifyRendererReady()
     .then((ready) => {
@@ -566,6 +569,8 @@ onBeforeUnmount(() => {
   cleanupAuthLoginDeeplink()
   cleanupSemanticNotifications?.()
   cleanupSemanticNotifications = undefined
+  cleanupAppNotifications?.()
+  cleanupAppNotifications = undefined
   semanticNotificationController.dispose()
   performanceReporter.dispose()
 })

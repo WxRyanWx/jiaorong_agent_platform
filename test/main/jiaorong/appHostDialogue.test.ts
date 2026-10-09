@@ -57,8 +57,18 @@ vi.mock('../../../src/jiaorong_src/appHost/main/agentMap', async (importOriginal
   }
 })
 
+vi.mock('../../../src/jiaorong_src/appHost/main/protocol', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('../../../src/jiaorong_src/appHost/main/protocol')>()
+  return {
+    ...actual,
+    ensureJiaorongAppProtocolSession: (appId: string) => `persist:jiaorong-app-${appId}`
+  }
+})
+
 import { isJiaorongBridgeFailure } from '../../../src/jiaorong_src/appHost/bridgeErrors'
-import { handleAppBridgeInvoke } from '../../../src/jiaorong_src/appHost/main/bridge'
+import { handleAppBridgeInvoke, toOpenInfo } from '../../../src/jiaorong_src/appHost/main/bridge'
+import { createAppNotificationPublisher } from '../../../src/jiaorong_src/appHost/main/appNotification'
 import { appAgentMapKey } from '../../../src/jiaorong_src/appHost/main/agentMap'
 import {
   bindGuestAppId,
@@ -116,6 +126,119 @@ describe('jiaorong app dialogue bridge', () => {
     const result = await handleAppBridgeInvoke(deps(), runtime, 'disconnect', {}, 1)
     expect(result).toEqual({ ok: true })
     expect(getBoundGuestAppId(1)).toBe('demo-workbench')
+  })
+
+  it('opens external absolute url entries with a host-owned partition', () => {
+    for (const entry of [
+      'https://www.baidu.com',
+      'http://example.com',
+      'file:///tmp/app/index.html'
+    ]) {
+      expect(toOpenInfo({ ...runtime, entry })).toMatchObject({
+        appId: runtime.id,
+        src: entry,
+        partition: 'persist:jiaorong-app-demo-workbench'
+      })
+    }
+  })
+
+  it('rejects entries that try to use another jiaorong app protocol url', () => {
+    expect(
+      toOpenInfo({ ...runtime, entry: 'jiaorong-app://other-app/web-ui/index.html' })
+    ).toBeNull()
+  })
+
+  it('keeps relative package entries on the jiaorong app protocol', () => {
+    expect(toOpenInfo({ ...runtime, entry: 'web-ui/index.html' })).toMatchObject({
+      appId: runtime.id,
+      src: 'jiaorong-app://demo-workbench/web-ui/index.html',
+      partition: 'persist:jiaorong-app-demo-workbench'
+    })
+  })
+
+  it('publishes app notifications with host-owned app identity', async () => {
+    const publish = vi.fn()
+    const result = await handleAppBridgeInvoke(
+      deps({
+        publishAppNotification: createAppNotificationPublisher({ publish, now: () => 1_000 })
+      }),
+      runtime,
+      'notification.show',
+      {
+        type: 'success',
+        title: '导入完成',
+        description: '共导入 20 条数据',
+        dedupeKey: 'import-completed'
+      },
+      1
+    )
+
+    expect(result).toEqual({ accepted: true })
+    expect(publish).toHaveBeenCalledWith('app.notification.show', {
+      appId: 'demo-workbench',
+      appName: '示例工作台',
+      type: 'success',
+      title: '导入完成',
+      description: '共导入 20 条数据',
+      notificationKey: 'demo-workbench:import-completed'
+    })
+  })
+
+  it('validates app notification input', async () => {
+    const publish = vi.fn()
+    const result = await handleAppBridgeInvoke(
+      deps({
+        publishAppNotification: createAppNotificationPublisher({ publish, now: () => 1_000 })
+      }),
+      runtime,
+      'notification.show',
+      { type: 'unknown', title: '' },
+      1
+    )
+
+    expect(isJiaorongBridgeFailure(result)).toBe(true)
+    expect(result).toMatchObject({ code: 'VALIDATION_ERROR' })
+    expect(publish).not.toHaveBeenCalled()
+  })
+
+  it('rate limits app notifications per app', async () => {
+    const publish = vi.fn()
+    const now = vi.fn(() => 1_000)
+    const publishAppNotification = createAppNotificationPublisher({
+      publish,
+      now,
+      limit: 2,
+      windowMs: 60_000
+    })
+    const input = { type: 'info', title: '同步中' } as const
+
+    const first = await handleAppBridgeInvoke(
+      deps({ publishAppNotification }),
+      runtime,
+      'notification.show',
+      input,
+      1
+    )
+    const second = await handleAppBridgeInvoke(
+      deps({ publishAppNotification }),
+      runtime,
+      'notification.show',
+      input,
+      1
+    )
+    const third = await handleAppBridgeInvoke(
+      deps({ publishAppNotification }),
+      runtime,
+      'notification.show',
+      input,
+      1
+    )
+
+    expect(first).toEqual({ accepted: true })
+    expect(second).toEqual({ accepted: true })
+    expect(isJiaorongBridgeFailure(third)).toBe(true)
+    expect(third).toMatchObject({ code: 'RATE_LIMITED' })
+    expect(publish).toHaveBeenCalledTimes(2)
   })
 
   it('opens detached DevTools for the bound guest page', async () => {

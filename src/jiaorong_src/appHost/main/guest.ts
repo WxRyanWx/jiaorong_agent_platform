@@ -64,6 +64,18 @@ export function isLoopbackHttpEntry(entry: string): boolean {
 }
 
 /**
+ * 入口是否为外部绝对 URL。`jiaorong-app` 入口另行按 appId 校验，避免跨应用伪造。
+ * @param entry 页面 URL 或清单 entry
+ */
+export function isExternalUrlEntry(entry: string): boolean {
+  try {
+    return new URL(entry).protocol !== `${JIAORONG_APP_PROTOCOL}:`
+  } catch {
+    return false
+  }
+}
+
+/**
  * 从 `jiaorong-app://<appId>/...` 读 hostname（即 appId）。
  * @param rawUrl guest 当前 URL
  */
@@ -790,8 +802,8 @@ function allowGuestUrl(contents: WebContents, rawUrl: string): boolean {
     // 已绑定则只允许本应用协议 URL
     return bound === next
   }
-  // 非协议 URL 只放行本机回环（开发态应用自有 Node）
-  if (!isLoopbackHttpEntry(rawUrl)) return false
+  // 非应用协议 URL 只放行绝对 URL（http / https / file / 其它外部 scheme）
+  if (!isExternalUrlEntry(rawUrl)) return false
   /** 是否已绑定。 */
   const bound = getBoundGuestAppId(contents.id)
   // 已绑定的 guest 允许访问本机服务
@@ -816,7 +828,7 @@ function attachHostWebviewGuard(contents: WebContents): void {
     /** 从 partition 读出的 appId。 */
     const fromPartition = readAppIdFromGuestPartition(params.partition)
     /** 当前应用 id。 */
-    const appId = fromProtocol ?? (isLoopbackHttpEntry(params.src) ? fromPartition : null)
+    const appId = fromProtocol ?? (isExternalUrlEntry(params.src) ? fromPartition : null)
     /** 期望的 appId。 */
     const expected = appId ? guestPartitionForApp(appId) : ''
     /** Electron session partition。 */

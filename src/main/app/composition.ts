@@ -33,6 +33,7 @@ import {
   filterOfficialDeepchatPayload
 } from '@jiaorong/appHost/main/events'
 import { startJiaorongAppHost, stopJiaorongAppHost } from '@jiaorong/appHost/main/register'
+import { createAppNotificationPublisher } from '@jiaorong/appHost/main/appNotification'
 import {
   isJiaorongAppHiddenAgent,
   listJiaorongAppHiddenAgentIds
@@ -3503,6 +3504,7 @@ export async function createMainProcessControl(dependencies: {
   dependencies.bindControl(control)
   registerRoutes()
   startJiaorongAppHost({
+    publishAppNotification: createAppNotificationPublisher({ publish: publishDeepchatEvent }),
     getAuthSession: () =>
       dependencies.settingsStore.get<JiaorongAuthSession | undefined>('jiaorong_auth_session'),
     getLocale: () => desktopSettings.getLanguage(),

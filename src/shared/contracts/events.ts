@@ -8,6 +8,7 @@ import {
   acpTerminalStartedEvent
 } from './events/acp-terminal.events'
 import { approvalClosedEvent, approvalRequestedEvent } from './events/approvals.events'
+import { appNotificationShowEvent } from './events/app-notification.events'
 import {
   appRuntimeGuidedOnboardingResumeRequestedEvent,
   appRuntimeGuidedOnboardingStartRequestedEvent,
@@ -179,6 +180,7 @@ export * from './events/workspace.events'
 export const DEEPCHAT_EVENT_CATALOG = {
   [approvalRequestedEvent.name]: approvalRequestedEvent,
   [approvalClosedEvent.name]: approvalClosedEvent,
+  [appNotificationShowEvent.name]: appNotificationShowEvent,
   [windowStateChangedEvent.name]: windowStateChangedEvent,
   [workspaceInvalidatedEvent.name]: workspaceInvalidatedEvent,
   [workspaceWatchStatusChangedEvent.name]: workspaceWatchStatusChangedEvent,
