@@ -4,6 +4,7 @@ type GuestWebContents = {
   id: number
   isDestroyed: () => boolean
   openDevTools: ReturnType<typeof vi.fn>
+  send: ReturnType<typeof vi.fn>
 }
 
 const store = new Map<string, { appId: string; key: string; agentId: string }>()
@@ -68,6 +69,11 @@ vi.mock('../../../src/jiaorong_src/appHost/main/protocol', async (importOriginal
 
 import { isJiaorongBridgeFailure } from '../../../src/jiaorong_src/appHost/bridgeErrors'
 import { handleAppBridgeInvoke, toOpenInfo } from '../../../src/jiaorong_src/appHost/main/bridge'
+import {
+  clearAppIntents,
+  createAppIntentOpener,
+  setAppIntentListenerReady
+} from '../../../src/jiaorong_src/appHost/main/appIntent'
 import { createAppNotificationPublisher } from '../../../src/jiaorong_src/appHost/main/appNotification'
 import { appAgentMapKey } from '../../../src/jiaorong_src/appHost/main/agentMap'
 import {
@@ -112,7 +118,9 @@ function deps(overrides?: Partial<JiaorongAppHostDeps>): JiaorongAppHostDeps {
 describe('jiaorong app dialogue bridge', () => {
   beforeEach(() => {
     store.clear()
+    clearAppIntents()
     unbindGuest(1)
+    unbindGuest(2)
     fromId.mockReset()
     fromId.mockReturnValue(null)
     getAllWebContents.mockReset()
@@ -140,6 +148,190 @@ describe('jiaorong app dialogue bridge', () => {
         partition: 'persist:jiaorong-app-demo-workbench'
       })
     }
+  })
+
+  it('returns the client version in app context', async () => {
+    const result = await handleAppBridgeInvoke(
+      deps({ getClientVersion: () => '0.8.1-test' }),
+      runtime,
+      'context.get',
+      {},
+      1
+    )
+
+    expect(result).toMatchObject({ appId: 'demo-workbench', clientVersion: '0.8.1-test' })
+  })
+
+  it('opens another app with a host-owned source intent prefix', async () => {
+    const contents: GuestWebContents = {
+      id: 2,
+      isDestroyed: () => false,
+      openDevTools: vi.fn(),
+      send: vi.fn()
+    }
+    getAllWebContents.mockReturnValue([contents])
+    bindGuestAppId(2, 'target-workbench')
+    setAppIntentListenerReady('target-workbench', 2, true)
+    const requestOpenApp = vi.fn(() => ({ opened: true as const }))
+
+    const result = await handleAppBridgeInvoke(
+      deps({ openAppIntent: createAppIntentOpener({ requestOpenApp }) }),
+      runtime,
+      'app.open',
+      {
+        appId: 'target-workbench',
+        intent: 'open-order',
+        data: { orderId: 'order-1' }
+      },
+      1
+    )
+
+    expect(result).toEqual({ accepted: true })
+    expect(requestOpenApp).toHaveBeenCalledWith('target-workbench', 1)
+    expect(contents.send).toHaveBeenCalledWith('jiaorong-app:bridge-event', {
+      event: 'app.intent',
+      payload: {
+        type: 'demo-workbench:open-order',
+        data: { orderId: 'order-1' }
+      }
+    })
+  })
+
+  it('keeps an app intent pending until the target registers a listener', async () => {
+    const contents: GuestWebContents = {
+      id: 2,
+      isDestroyed: () => false,
+      openDevTools: vi.fn(),
+      send: vi.fn()
+    }
+    getAllWebContents.mockReturnValue([contents])
+    bindGuestAppId(2, 'target-workbench')
+    const requestOpenApp = vi.fn(() => ({ opened: true as const }))
+
+    const result = await handleAppBridgeInvoke(
+      deps({ openAppIntent: createAppIntentOpener({ requestOpenApp }) }),
+      runtime,
+      'app.open',
+      {
+        appId: 'target-workbench',
+        intent: 'open-order',
+        data: { orderId: 'order-2' }
+      },
+      1
+    )
+    expect(result).toEqual({ accepted: true })
+    expect(contents.send).not.toHaveBeenCalled()
+
+    setAppIntentListenerReady('target-workbench', 2, true)
+    expect(contents.send).toHaveBeenCalledWith('jiaorong-app:bridge-event', {
+      event: 'app.intent',
+      payload: {
+        type: 'demo-workbench:open-order',
+        data: { orderId: 'order-2' }
+      }
+    })
+  })
+
+  it('delivers an app intent only to the target window', async () => {
+    const mainWindowContents: GuestWebContents = {
+      id: 2,
+      isDestroyed: () => false,
+      openDevTools: vi.fn(),
+      send: vi.fn()
+    }
+    const standaloneWindowContents: GuestWebContents = {
+      id: 3,
+      isDestroyed: () => false,
+      openDevTools: vi.fn(),
+      send: vi.fn()
+    }
+    getAllWebContents.mockReturnValue([mainWindowContents, standaloneWindowContents])
+    bindGuestAppId(2, 'target-workbench')
+    bindGuestAppId(3, 'target-workbench')
+    setAppIntentListenerReady('target-workbench', 2, true, 10)
+    const requestOpenApp = vi.fn(() => ({ opened: true as const, ownerWindowId: 20 }))
+
+    const result = await handleAppBridgeInvoke(
+      deps({ openAppIntent: createAppIntentOpener({ requestOpenApp }) }),
+      runtime,
+      'app.open',
+      { appId: 'target-workbench', intent: 'open-order', data: { orderId: 'order-3' } },
+      1
+    )
+    expect(result).toEqual({ accepted: true })
+    expect(mainWindowContents.send).not.toHaveBeenCalled()
+    expect(standaloneWindowContents.send).not.toHaveBeenCalled()
+
+    setAppIntentListenerReady('target-workbench', 3, true, 20)
+    expect(mainWindowContents.send).not.toHaveBeenCalled()
+    expect(standaloneWindowContents.send).toHaveBeenCalledWith('jiaorong-app:bridge-event', {
+      event: 'app.intent',
+      payload: {
+        type: 'demo-workbench:open-order',
+        data: { orderId: 'order-3' }
+      }
+    })
+  })
+
+  it('rejects app open input and unavailable target apps', async () => {
+    const requestOpenApp = vi.fn(
+      () => ({ code: 'APP_NOT_FOUND', message: '未找到该应用：missing-app' }) as const
+    )
+    const openAppIntent = createAppIntentOpener({ requestOpenApp })
+
+    const invalid = await handleAppBridgeInvoke(
+      deps({ openAppIntent }),
+      runtime,
+      'app.open',
+      { appId: 'target-workbench', intent: 'OpenOrder', data: {} },
+      1
+    )
+    expect(isJiaorongBridgeFailure(invalid)).toBe(true)
+    expect(invalid).toMatchObject({ code: 'VALIDATION_ERROR' })
+
+    const unavailable = await handleAppBridgeInvoke(
+      deps({ openAppIntent }),
+      runtime,
+      'app.open',
+      { appId: 'missing-app', intent: 'open-order', data: {} },
+      1
+    )
+    expect(isJiaorongBridgeFailure(unavailable)).toBe(true)
+    expect(unavailable).toMatchObject({ code: 'APP_NOT_FOUND' })
+  })
+
+  it('rejects oversized utf-8 app intent data before opening the target app', async () => {
+    const requestOpenApp = vi.fn(() => ({ opened: true as const }))
+    const openAppIntent = createAppIntentOpener({ requestOpenApp })
+
+    const result = await handleAppBridgeInvoke(
+      deps({ openAppIntent }),
+      runtime,
+      'app.open',
+      { appId: 'target-workbench', intent: 'open-order', data: { text: '文'.repeat(8193) } },
+      1
+    )
+
+    expect(isJiaorongBridgeFailure(result)).toBe(true)
+    expect(result).toMatchObject({ code: 'VALIDATION_ERROR' })
+    expect(requestOpenApp).not.toHaveBeenCalled()
+  })
+
+  it('does not open a target app when the source app id cannot form a safe intent type', async () => {
+    const requestOpenApp = vi.fn(() => ({ opened: true as const }))
+    const openAppIntent = createAppIntentOpener({ requestOpenApp })
+
+    const result = await handleAppBridgeInvoke(
+      deps({ openAppIntent }),
+      { ...runtime, id: 'bad:source-app' },
+      'app.open',
+      { appId: 'target-workbench', intent: 'open-order', data: {} },
+      1
+    )
+
+    expect(isJiaorongBridgeFailure(result)).toBe(true)
+    expect(result).toMatchObject({ code: 'VALIDATION_ERROR' })
+    expect(requestOpenApp).not.toHaveBeenCalled()
   })
 
   it('rejects entries that try to use another jiaorong app protocol url', () => {

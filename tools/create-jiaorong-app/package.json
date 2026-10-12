@@ -1,6 +1,6 @@
 {
   "name": "create-jiaorong-app",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "交融应用脚手架：一条命令按问答生成本地应用目录",
   "author": "ThinkInAIXYZ",
   "license": "Apache-2.0",
@@ -27,6 +27,7 @@
     "app-scaffold/README.md",
     "app-scaffold/node/*.js",
     "app-scaffold/node/README.md",
+    "app-scaffold/node/_npmrc",
     "app-scaffold/node/package.json",
     "app-scaffold/node/pnpm-lock.yaml",
     "app-scaffold/node/service/**",

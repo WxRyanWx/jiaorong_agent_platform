@@ -15,6 +15,8 @@ export type JiaorongAppHostContext = {
   theme: ThemeMode
   /** 当前应用 id。 */
   appId: string
+  /** 当前客户端版本。 */
+  clientVersion: string
   /** 安装目录。 */
   appDir: string
   /** xkaitoken；未登录为 null。 */

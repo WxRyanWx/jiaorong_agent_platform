@@ -1,11 +1,13 @@
 /** 启动/销毁应用平台：IPC、协议、隔离。应用子进程由 appsManages spawn，不注入超级智能体 IPC。 */
 
-import { ipcMain, webContents, type IpcMainInvokeEvent } from 'electron'
+import { BrowserWindow, ipcMain, webContents, type IpcMainInvokeEvent } from 'electron'
 import {
   JIAORONG_APP_BRIDGE_INVOKE_CHANNEL,
   JIAORONG_APP_LEAVE_CHANNEL,
   JIAORONG_APP_LIST_CHANNEL,
   JIAORONG_APP_OPEN_CHANNEL,
+  JIAORONG_APP_OPEN_REQUEST_CHANNEL,
+  JIAORONG_APP_INTENT_READY_CHANNEL,
   JIAORONG_APP_CATALOG_CHANGED_CHANNEL,
   JIAORONG_APP_CENTER_LIST_CHANNEL,
   JIAORONG_APP_CENTER_INSTALL_CHANNEL,
@@ -19,6 +21,8 @@ import {
   JIAORONG_DEV_CENTER_SYNC_CHANNEL
 } from '../channels'
 import type { JiaorongAppRuntime } from '../types'
+import { bridgeError, type JiaorongBridgeError } from '../bridgeErrors'
+import { clearAppIntents, createAppIntentOpener, setAppIntentListenerReady } from './appIntent'
 import { handleAppBridgeInvoke, toMenuAppItem, toOpenInfo } from './bridge'
 import { buildHostContext } from './context'
 import type { JiaorongAppHostDeps } from './deps'
@@ -207,6 +211,47 @@ function listVisible(deps: JiaorongAppHostDeps): JiaorongAppRuntime[] {
 }
 
 /**
+ * 请求发起调用的窗口打开目标应用。
+ * @param deps 超级智能体依赖
+ * @param targetAppId 目标应用 id
+ * @param sourceWebContentsId 来源 guest WebContents id
+ */
+function requestAppIntentOpen(
+  deps: JiaorongAppHostDeps,
+  targetAppId: string,
+  sourceWebContentsId: number
+): { opened: true; ownerWindowId: number | null } | JiaorongBridgeError {
+  const target = findVisibleOpenableApp(listVisible(deps), targetAppId)
+  if (!target) {
+    return bridgeError('APP_NOT_FOUND', `未找到该应用：${targetAppId}`)
+  }
+  const openInfo = toOpenInfo(ensureJiaorongAppInstalled(target))
+  if (!openInfo?.src) {
+    return bridgeError('APP_NOT_FOUND', `该应用没有可用入口：${targetAppId}`)
+  }
+
+  const sourceContents = webContents.fromId(sourceWebContentsId)
+  if (!sourceContents || sourceContents.isDestroyed()) {
+    return bridgeError('FORBIDDEN', '找不到发起应用跳转的页面')
+  }
+  const targetContents = webContents
+    .getAllWebContents()
+    .find((contents) => !contents.isDestroyed() && getBoundGuestAppId(contents.id) === targetAppId)
+  const routeContents = targetContents ?? sourceContents
+  const owner = BrowserWindow.fromWebContents(routeContents)
+  if (!owner || owner.isDestroyed()) {
+    return bridgeError('FORBIDDEN', '找不到发起应用跳转的窗口')
+  }
+  if (targetContents && owner.isMinimized()) owner.restore()
+  if (targetContents) {
+    owner.show()
+    owner.focus()
+  }
+  owner.webContents.send(JIAORONG_APP_OPEN_REQUEST_CHANNEL, { appId: targetAppId })
+  return { opened: true, ownerWindowId: owner.id }
+}
+
+/**
  * 按 id 找可见运行时。
  * @param deps 超级智能体依赖（读登录态）
  * @param appId 应用 id
@@ -276,6 +321,7 @@ function emptyGuestContext(
     locale: deps.getLocale(),
     theme: deps.getTheme(),
     appId,
+    clientVersion: deps.getClientVersion?.() ?? '',
     appDir: '',
     // 不给 token
     token: null,
@@ -294,7 +340,10 @@ async function broadcastContext(deps: JiaorongAppHostDeps): Promise<void> {
   const userChanged = lastBroadcastUserKey !== null && lastBroadcastUserKey !== currentUser
   lastBroadcastUserKey = currentUser
   // 换人登录：所有应用子进程都要停，避免串数据
-  if (userChanged) sharedAppsManager().stopAllRunningApps()
+  if (userChanged) {
+    sharedAppsManager().stopAllRunningApps()
+    clearAppIntents()
+  }
   /** 一个 webContents。 */
   for (const contents of webContents.getAllWebContents()) {
     // 跳过已销毁的
@@ -331,6 +380,13 @@ async function broadcastContext(deps: JiaorongAppHostDeps): Promise<void> {
  * @param deps 超级智能体依赖
  */
 export function startJiaorongAppHost(deps: JiaorongAppHostDeps): void {
+  const hostDeps: JiaorongAppHostDeps = {
+    ...deps,
+    openAppIntent: createAppIntentOpener({
+      requestOpenApp: (targetAppId, sourceWebContentsId) =>
+        requestAppIntentOpen(deps, targetAppId, sourceWebContentsId)
+    })
+  }
   // 这三步幂等，重复调用也要刷新依赖
   registerJiaorongAppProtocolHandler(deps)
   installJiaorongAppGuestIsolation()
@@ -540,7 +596,28 @@ export function startJiaorongAppHost(deps: JiaorongAppHostDeps): void {
       return { code: 'APP_NOT_FOUND', message: `未找到该应用：${appId}` }
     }
     // 交给桥按方法名分发
-    return handleAppBridgeInvoke(deps, runtime, method, args, event.sender.id)
+    return handleAppBridgeInvoke(hostDeps, runtime, method, args, event.sender.id)
+  })
+
+  // guest 注册 app.intent 监听后，主进程才投递 pending intent
+  ipcMain.handle(JIAORONG_APP_INTENT_READY_CHANNEL, (event, raw: unknown) => {
+    const appId = senderAppId(event)
+    const active = Boolean(
+      raw && typeof raw === 'object' && (raw as { active?: unknown }).active === true
+    )
+    if (!appId) return false
+    if (active) {
+      event.sender.once('destroyed', () => {
+        setAppIntentListenerReady(appId, event.sender.id, false)
+      })
+    }
+    setAppIntentListenerReady(
+      appId,
+      event.sender.id,
+      active,
+      readOwnerBrowserWindowId(event.sender)
+    )
+    return true
   })
 }
 
@@ -553,6 +630,7 @@ export function stopJiaorongAppHost(): void {
   ipcMain.removeHandler(JIAORONG_APP_OPEN_CHANNEL)
   ipcMain.removeHandler(JIAORONG_APP_LEAVE_CHANNEL)
   ipcMain.removeHandler(JIAORONG_APP_BRIDGE_INVOKE_CHANNEL)
+  ipcMain.removeHandler(JIAORONG_APP_INTENT_READY_CHANNEL)
   ipcMain.removeHandler(JIAORONG_APP_CENTER_LIST_CHANNEL)
   ipcMain.removeHandler(JIAORONG_APP_CENTER_INSTALL_CHANNEL)
   ipcMain.removeHandler(JIAORONG_APP_CENTER_UNINSTALL_CHANNEL)
@@ -571,6 +649,7 @@ export function stopJiaorongAppHost(): void {
   // 停掉所有子进程，避免退出后留孤儿
   sharedAppsManager().stopAllRunningApps()
   clearWindowSpawns()
+  clearAppIntents()
   // 复位状态，允许再次 start
   lastBroadcastUserKey = null
   started = false

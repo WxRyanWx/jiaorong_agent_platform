@@ -158,8 +158,13 @@ export async function handleAppBridgeInvoke(
 ): Promise<unknown> {
   /** 对象形态的入参。 */
   const record = args && typeof args === 'object' ? (args as Record<string, unknown>) : {}
-  /** 当前应用 id。 */
-  const appId = typeof record.appId === 'string' ? record.appId.trim() : runtime.id
+  /** 当前应用 id；app.open 的 appId 是目标应用，不是调用方身份。 */
+  const appId =
+    method === 'app.open'
+      ? runtime.id
+      : typeof record.appId === 'string'
+        ? record.appId.trim()
+        : runtime.id
   // 越权：拿别的应用 id 调本应用的桥
   if (appId !== runtime.id) {
     return { code: 'FORBIDDEN', message: 'appId 与当前打开的应用不一致' }
@@ -177,6 +182,14 @@ export async function handleAppBridgeInvoke(
       // 断开本页桥，客户端侧无状态需要清
       case 'disconnect':
         return { ok: true }
+      // 打开另一个应用并携带一次性 Intent
+      case 'app.open': {
+        const openAppIntent = deps.openAppIntent
+        if (!openAppIntent) {
+          return { code: 'FORBIDDEN', message: '当前客户端不支持应用跳转' }
+        }
+        return openAppIntent(runtime, record, webContentsId)
+      }
       // 子应用向主窗口弹右上角提示
       case 'notification.show': {
         const publishAppNotification = deps.publishAppNotification

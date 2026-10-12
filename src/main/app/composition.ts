@@ -3505,6 +3505,7 @@ export async function createMainProcessControl(dependencies: {
   registerRoutes()
   startJiaorongAppHost({
     publishAppNotification: createAppNotificationPublisher({ publish: publishDeepchatEvent }),
+    getClientVersion: () => app.getVersion(),
     getAuthSession: () =>
       dependencies.settingsStore.get<JiaorongAuthSession | undefined>('jiaorong_auth_session'),
     getLocale: () => desktopSettings.getLanguage(),

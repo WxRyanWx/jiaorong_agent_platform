@@ -1,6 +1,7 @@
 /** 超级智能体依赖端口类型：对话、文件、斜杠目录、鉴权。 */
 
 import type { MCPServerConfig } from '@shared/types/mcp'
+import type { AppIntentOpener } from './appIntent'
 import type { AppNotificationPublisher } from './appNotification'
 import type { JiaorongAuthSession } from './userIdentity'
 import type { ThemeMode } from '../types'
@@ -432,6 +433,8 @@ export type JiaorongAppFilePort = {
 
 /** 应用平台注入的依赖。 */
 export type JiaorongAppHostDeps = {
+  /** 当前客户端版本。 */
+  getClientVersion?: () => string
   /** 当前鉴权会话。 */
   getAuthSession(): JiaorongAuthSession | undefined
   /** 界面语言。 */
@@ -481,6 +484,8 @@ export type JiaorongAppHostDeps = {
   mcp?: JiaorongAppMcpPort
   /** 子应用主窗口通知发布器。 */
   publishAppNotification?: AppNotificationPublisher
+  /** 子应用打开另一个应用的 Intent 处理器。 */
+  openAppIntent?: AppIntentOpener
 }
 
 /** 应用桥创建 MCP 用的端口。 */

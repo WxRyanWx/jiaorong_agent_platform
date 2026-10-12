@@ -38,6 +38,8 @@ const attached = new Set<string>()
 const parkedAppId = ref('')
 /** 取消目录订阅。 */
 let stopCatalogListener: (() => void) | undefined
+/** 取消应用间跳转请求订阅。 */
+let stopOpenAppListener: (() => void) | undefined
 
 /** 当前路由对应的应用 id；不在应用路由上则为空串。 */
 const activeAppId = computed(() => {
@@ -135,6 +137,18 @@ async function ensureFrame(appId: string) {
   } finally {
     loading.value = false
   }
+}
+
+/**
+ * 处理子应用发起的应用间跳转。
+ * @param request 目标应用请求
+ */
+async function openAppFromIntent(request: { appId: string }) {
+  await router.push({
+    name: 'jiaorong-app',
+    params: { appId: request.appId },
+    query: isStandalone.value ? { standalone: '1' } : {}
+  })
 }
 
 /**
@@ -285,11 +299,17 @@ onMounted(() => {
     // 目录变化可能带来新装好的应用，重新确保一次
     if (activeAppId.value) void ensureFrame(activeAppId.value)
   })
+  stopOpenAppListener = window.jiaorongApps?.onOpenApp?.((request) => {
+    void openAppFromIntent(request).catch((error) => {
+      console.warn('[jiaorong-app] Failed to open app from intent', request.appId, error)
+    })
+  })
 })
 
 // 卸载：退订，并通知主进程停掉所有应用子进程
 onUnmounted(() => {
   stopCatalogListener?.()
+  stopOpenAppListener?.()
   window.removeEventListener(JIAORONG_AUTH_SESSION_CHANGED_EVENT, onAuthSessionChanged)
   for (const frame of frames.value) {
     void window.jiaorongApps?.leave?.(frame.appId)

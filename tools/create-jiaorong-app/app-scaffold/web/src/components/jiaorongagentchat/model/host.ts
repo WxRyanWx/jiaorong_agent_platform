@@ -28,6 +28,8 @@ export type HostContext = {
   theme: ThemeMode
   /** 当前应用 id。 */
   appId: string
+  /** 当前客户端版本。 */
+  clientVersion: string
   /** 应用安装目录。 */
   appDir: string
   /** 当前登录 xkaitoken；未登录为 null。用来调自有后端（Fusion-Auth）。 */

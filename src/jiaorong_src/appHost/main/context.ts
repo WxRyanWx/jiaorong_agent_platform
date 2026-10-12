@@ -44,6 +44,8 @@ export function buildHostContext(
     locale: deps.getLocale(),
     theme: deps.getTheme(),
     appId: runtime.id,
+    // Electron app.getVersion()，供应用做客户端能力兼容
+    clientVersion: deps.getClientVersion?.() ?? '',
     // 系统应用没有用户安装目录时给空串
     appDir: runtime.appDir || '',
     // 未登录为 null，应用据此决定是否跳登录

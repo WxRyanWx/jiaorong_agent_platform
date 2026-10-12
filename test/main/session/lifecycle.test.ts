@@ -566,6 +566,27 @@ describe('SessionLifecycle', () => {
     })
   })
 
+  it('deletes an empty new session when the initial turn fails', async () => {
+    const harness = createHarness()
+    harness.initialTurn.startInitialTurn.mockRejectedValueOnce(new Error('provider failed'))
+    harness.deletion.deleteSessionTree.mockResolvedValueOnce(['session-1'])
+
+    await expect(
+      harness.coordinator.createSession(
+        { agentId: 'deepchat', message: 'Hello', projectDir: null },
+        42
+      )
+    ).rejects.toThrow('provider failed')
+
+    expect(harness.transcript.hasMessages).toHaveBeenCalledWith('session-1')
+    expect(harness.desktop.unbind).toHaveBeenCalledWith(42)
+    expect(harness.deletion.deleteSessionTree).toHaveBeenCalledWith('session-1')
+    expect(harness.projection.notify).toHaveBeenCalledWith({
+      sessionIds: ['session-1'],
+      reason: 'deleted'
+    })
+  })
+
   it('preserves a cancelled new session once its user fact exists', async () => {
     const harness = createHarness()
     const controller = new AbortController()

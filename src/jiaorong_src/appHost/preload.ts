@@ -6,7 +6,8 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import {
   JIAORONG_APP_BRIDGE_EVENT_CHANNEL,
-  JIAORONG_APP_BRIDGE_INVOKE_CHANNEL
+  JIAORONG_APP_BRIDGE_INVOKE_CHANNEL,
+  JIAORONG_APP_INTENT_READY_CHANNEL
 } from '@jiaorong/appHost/channels'
 import { isJiaorongBridgeFailure } from '@jiaorong/appHost/bridgeErrors'
 import { logJiaorongSdkDebug } from '@jiaorong/appHost/sdkDebugLog'
@@ -110,6 +111,14 @@ function setDebug(enabled: boolean) {
 }
 
 /**
+ * 向主进程上报 `app.intent` 是否有监听。
+ * @param active 是否仍有监听
+ */
+function reportAppIntentReady(active: boolean) {
+  void ipcRenderer.invoke(JIAORONG_APP_INTENT_READY_CHANNEL, { active }).catch(() => {})
+}
+
+/**
  * 订阅主进程推送的事件。
  * @param event 事件名
  * @param handler 回调
@@ -125,6 +134,7 @@ function on(event: string, handler: Handler) {
   const set = listeners.get(name) ?? new Set<Handler>()
   set.add(handler)
   listeners.set(name, set)
+  if (name === 'app.intent' && set.size === 1) reportAppIntentReady(true)
   return () => {
     /** 取消时该事件的回调集合。 */
     const current = listeners.get(name)
@@ -132,7 +142,9 @@ function on(event: string, handler: Handler) {
     if (!current) return
     current.delete(handler)
     // 最后一个回调退订后删掉键，避免 Map 无限增长
-    if (current.size === 0) listeners.delete(name)
+    if (current.size > 0) return
+    listeners.delete(name)
+    if (name === 'app.intent') reportAppIntentReady(false)
   }
 }
 
@@ -147,6 +159,9 @@ const jiaorong = {
   userinfo: call('userinfo.get'), // 当前用户
   respondToolInteraction: call('chat.respondToolInteraction'), // 回答工具审批
   openDevTools: call('devtools.open'), // 打开应用 DevTools
+  app: {
+    open: call('app.open') // 打开另一个应用并携带一次性 Intent
+  },
   notification: {
     show: call('notification.show') // 在主窗口右上角弹提示
   },

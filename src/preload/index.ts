@@ -24,6 +24,7 @@ import {
   JIAORONG_DEV_CENTER_SYNC_CHANNEL,
   JIAORONG_APP_LEAVE_CHANNEL,
   JIAORONG_APP_LIST_CHANNEL,
+  JIAORONG_APP_OPEN_REQUEST_CHANNEL,
   JIAORONG_APP_OPEN_CHANNEL
 } from '@jiaorong/appHost/channels'
 
@@ -142,6 +143,18 @@ const jiaorongApps = Object.freeze({
     ipcRenderer.invoke(JIAORONG_DEV_APP_OPEN_WINDOW_CHANNEL, { appId }),
   getOpenInfo: (appId: string) => ipcRenderer.invoke(JIAORONG_APP_OPEN_CHANNEL, { appId }),
   leave: (appId: string) => ipcRenderer.invoke(JIAORONG_APP_LEAVE_CHANNEL, { appId }),
+  onOpenApp: (handler: (request: { appId: string }) => void) => {
+    const listener = (_event: unknown, request: unknown) => {
+      if (!request || typeof request !== 'object') return
+      const appId = (request as { appId?: unknown }).appId
+      if (typeof appId !== 'string' || !appId.trim()) return
+      handler({ appId: appId.trim() })
+    }
+    ipcRenderer.on(JIAORONG_APP_OPEN_REQUEST_CHANNEL, listener)
+    return () => {
+      ipcRenderer.removeListener(JIAORONG_APP_OPEN_REQUEST_CHANNEL, listener)
+    }
+  },
   onCatalogChanged: (handler: () => void) => {
     const listener = () => {
       handler()

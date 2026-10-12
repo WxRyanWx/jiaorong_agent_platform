@@ -8,9 +8,16 @@
 export type NodeClient = {
   invoke(method: string, args?: unknown): Promise<unknown> // 按 SDK 方法名转发一次调用
   on(event: string, handler: (payload: any) => void): () => void // 订阅宿主事件，返回退订函数
-  getContext(): Promise<{ appDir?: string; [key: string]: unknown }> // 应用目录、登录态与环境
+  getContext(): Promise<{ appDir?: string; clientVersion: string; [key: string]: unknown }> // 应用目录、客户端版本、登录态与环境
   userinfo(): Promise<Record<string, unknown>> // 当前登录用户资料
   respondToolInteraction(input: unknown): Promise<unknown> // 回答工具审批与追问
+  app: {
+    open(input: {
+      appId: string
+      intent: string
+      data: Record<string, unknown>
+    }): Promise<{ accepted: true }>
+  } // 打开另一个应用并携带一次性 Intent
   agent: Record<string, (input?: unknown) => Promise<any>> // create / get / list
   session: Record<string, (input?: unknown) => Promise<any>> // create / send / stop / list 等
   catalog: Record<string, (input?: unknown) => Promise<any>> // slash / models / systemPrompts 等
@@ -99,6 +106,9 @@ export function createNodeClient(httpPort: number): NodeClient {
       invoke('context.get', {}) as Promise<{ appDir?: string; [key: string]: unknown }>,
     userinfo: () => invoke('userinfo.get', {}) as Promise<Record<string, unknown>>,
     respondToolInteraction: (input) => invoke('chat.respondToolInteraction', input),
+    app: {
+      open: (input) => invoke('app.open', input) as Promise<{ accepted: true }>
+    },
     agent: sa.agent,
     session: sa.session,
     catalog: sa.catalog,

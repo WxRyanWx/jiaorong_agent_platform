@@ -44,7 +44,7 @@ npx create-jiaorong-app my-app --yes
 | `--no-ui` | 不带官方 UI 组件，改用极简对话页 | 带 |
 | `--no-router` | 不带路由，`App.vue` 直接挂对话页 | 带 |
 | `--no-skill` | 不带技能模板 | 带 |
-| `--pm <包管理器>` | `pnpm` / `npm` / `yarn` / `none` | `pnpm` |
+| `--pm <包管理器>` | `pnpm` / `npm` / `yarn` / `none` | `pnpm`；`node/` 使用 hoisted 布局，交付 zip 可跨平台解压 |
 | `--no-install` | 生成后不装依赖 | 装 |
 | `--yes`, `-y` | 全用默认值，不问；目录非空时也直接覆盖 | — |
 | `--help`, `-h` | 看说明 | — |

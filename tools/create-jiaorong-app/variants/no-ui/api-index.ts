@@ -93,7 +93,11 @@ export function createNodeClient(httpPort: number): NodeClient {
     // 事件只能在本页订阅：Node 订到的是它自己的回调，回不到页面
     on: (event, handler) => window.jiaorong?.on?.(event, handler) ?? (() => undefined),
     getContext: () =>
-      invoke('context.get', {}) as Promise<{ appDir?: string; [key: string]: unknown }>,
+      invoke('context.get', {}) as Promise<{
+        appDir?: string
+        clientVersion: string
+        [key: string]: unknown
+      }>,
     userinfo: () => invoke('userinfo.get', {}) as Promise<Record<string, unknown>>,
     respondToolInteraction: (input) => invoke('chat.respondToolInteraction', input),
     agent: sa.agent,

@@ -93,10 +93,16 @@ function guestAppIdForContents(contents: Electron.WebContents): string | null {
  * @param payload 事件体
  * @param appId 目标应用 id，缺省则不推
  */
-export function sendJiaorongAppBridgeEvent(event: string, payload: unknown, appId?: string): void {
+export function sendJiaorongAppBridgeEvent(
+  event: string,
+  payload: unknown,
+  appId?: string,
+  preferredWebContentsId?: number
+): void {
   // 没有目标应用，直接返回
   if (!appId) return
-  /** 一个 webContents。 */
+  /** 目标应用的 guest 页。 */
+  const targets: Electron.WebContents[] = []
   for (const contents of webContents.getAllWebContents()) {
     // 跳过已销毁的
     if (contents.isDestroyed()) continue
@@ -104,6 +110,16 @@ export function sendJiaorongAppBridgeEvent(event: string, payload: unknown, appI
     const guestAppId = guestAppIdForContents(contents)
     // 只发给目标应用的 guest
     if (!guestAppId || guestAppId !== appId) continue
+    targets.push(contents)
+  }
+  if (preferredWebContentsId !== undefined) {
+    const preferred = targets.find((contents) => contents.id === preferredWebContentsId)
+    if (preferred) {
+      preferred.send(JIAORONG_APP_BRIDGE_EVENT_CHANNEL, { event, payload })
+      return
+    }
+  }
+  for (const contents of targets) {
     contents.send(JIAORONG_APP_BRIDGE_EVENT_CHANNEL, { event, payload })
   }
 }

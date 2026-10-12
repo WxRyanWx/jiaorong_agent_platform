@@ -41,9 +41,11 @@ const copyTemplate = ({ projectDir }) => {
   }
   // force: true 是默认值，这里写明「覆盖同名文件」是有意为之：非空目录确认过才走到这一步
   cpSync(sourceDir, projectDir, { recursive: true, force: true, filter: shouldCopy })
-  /** npm 发包会吃掉点文件，所以包内叫 `_gitignore`，落盘再改回来。 */
+  /** npm 发包会吃掉点文件，所以包内叫 `_gitignore` / `_npmrc`，落盘再改回来。 */
   const renamed = path.join(projectDir, '_gitignore')
   if (existsSync(renamed)) renameSync(renamed, path.join(projectDir, '.gitignore'))
+  const npmrcSource = path.join(projectDir, 'node', '_npmrc')
+  if (existsSync(npmrcSource)) renameSync(npmrcSource, path.join(projectDir, 'node', '.npmrc'))
 }
 
 /**

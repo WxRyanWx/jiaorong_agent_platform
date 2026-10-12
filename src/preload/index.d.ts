@@ -58,6 +58,7 @@ declare global {
       openDevAppWindow(appId: string): Promise<boolean>
       getOpenInfo(appId: string): Promise<JiaorongAppOpenInfo | null>
       leave(appId: string): Promise<{ ok: boolean }>
+      onOpenApp(handler: (request: { appId: string }) => void): () => void
       onCatalogChanged(handler: () => void): () => void
     }
   }
