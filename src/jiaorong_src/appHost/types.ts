@@ -209,6 +209,8 @@ export type JiaorongDevCenterItem = {
   iconSrc?: string | null
   /** 版本。 */
   version: string
+  /** 运行时应用目录中的已发布版本。 */
+  publishedVersion?: string
   /** 安装状态。 */
   installStatus: JiaorongAppInstallStatus
   /** 是否可打开（已落盘且可见）。 */

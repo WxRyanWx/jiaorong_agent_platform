@@ -505,8 +505,9 @@ export function startJiaorongAppHost(deps: JiaorongAppHostDeps): void {
     return uninstallAppCenterApp(deps, appId)
   })
 
-  // 开发者中心列表：本地登记应用
-  ipcMain.handle(JIAORONG_DEV_CENTER_LIST_CHANNEL, () => {
+  // 开发者中心列表：先重拉运行时目录，避免已发布应用被误判为首次发布
+  ipcMain.handle(JIAORONG_DEV_CENTER_LIST_CHANNEL, async () => {
+    await refreshJiaorongRemoteRuntimeConfig()
     return listDevCenterItems(deps)
   })
 
@@ -515,8 +516,9 @@ export function startJiaorongAppHost(deps: JiaorongAppHostDeps): void {
     return createDevApp(deps)
   })
 
-  // 开发者中心发布：占位提交（服务端接口未接入）
-  ipcMain.handle(JIAORONG_DEV_CENTER_PUBLISH_CHANNEL, (_event, input: unknown) => {
+  // 开发者中心发布：提交前取最新目录，主进程兜底校验是否更新
+  ipcMain.handle(JIAORONG_DEV_CENTER_PUBLISH_CHANNEL, async (_event, input: unknown) => {
+    await refreshJiaorongRemoteRuntimeConfig()
     return publishDevApp(deps, readDevPublishInput(input))
   })
 

@@ -142,7 +142,9 @@ function publishFormIssueText(fields: AppManifestFormFields): string {
 
 /** 打开发布弹窗：先选 zip，再回填 app.json。 */
 function openPublishDialog(app: JiaorongDevCenterItem): void {
-  publishForm.value = emptyManifestForm()
+  publishForm.value = app.publishedVersion
+    ? { ...emptyManifestForm(), id: app.id }
+    : emptyManifestForm()
   publishZipPath.value = ''
   publishError.value = ''
   publishTarget.value = app
@@ -150,15 +152,27 @@ function openPublishDialog(app: JiaorongDevCenterItem): void {
 
 /** 选择 zip 包并回填 app.json。 */
 async function choosePublishZip(): Promise<void> {
+  const target = publishTarget.value
+  if (!target) return
   /** 主进程返回的路径。 */
   const filePath = await pickZip()
   if (!filePath) return
+  if (publishTarget.value !== target) return
   publishZipPath.value = filePath
   publishError.value = ''
   /** zip 内清单。 */
   const fields = await peekZip(filePath)
+  if (publishTarget.value !== target) return
   if (!fields) {
-    publishForm.value = emptyManifestForm()
+    publishForm.value = target.publishedVersion
+      ? { ...emptyManifestForm(), id: target.id }
+      : emptyManifestForm()
+    return
+  }
+  if (target.publishedVersion && fields.id !== target.id) {
+    publishZipPath.value = ''
+    publishForm.value = { ...emptyManifestForm(), id: target.id }
+    publishError.value = '应用 ID 与当前应用不一致'
     return
   }
   publishForm.value = { ...fields }
@@ -321,7 +335,7 @@ watch(lastError, (error) => {
               :disabled="isBusy"
               @click="openPublishDialog(app)"
             >
-              {{ t('routes.devCenterPublish') }}
+              {{ app.publishedVersion ? '更新' : t('routes.devCenterPublish') }}
             </Button>
             <Button
               v-if="app.openable"
@@ -348,7 +362,11 @@ watch(lastError, (error) => {
         <DialogContent class="dev-center-page__dialog">
           <div class="dev-center-page__dialog-body">
             <DialogHeader class="dev-center-page__dialog-header">
-              <DialogTitle>{{ t('routes.devCenterPublishTitle') }}</DialogTitle>
+              <DialogTitle>
+                {{
+                  publishTarget?.publishedVersion ? '更新应用' : t('routes.devCenterPublishTitle')
+                }}
+              </DialogTitle>
               <DialogDescription>
                 {{
                   publishTarget
@@ -425,6 +443,7 @@ watch(lastError, (error) => {
                 <Input
                   v-else
                   v-model="publishForm[field.key]"
+                  :disabled="field.key === 'id' && Boolean(publishTarget?.publishedVersion)"
                   :placeholder="field.placeholder"
                   :data-testid="`dev-center-publish-${field.key}`"
                 />

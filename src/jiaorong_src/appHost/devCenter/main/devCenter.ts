@@ -2,9 +2,11 @@
 
 import fs from 'node:fs'
 import { dialog } from 'electron'
+import { loadBuiltinAppCatalog } from '../../catalog'
 import { isDeveloperIdentity } from '../../appCenter/main/appCenter'
 import { resolveAppIconSrc } from '../../main/bridge'
 import type { JiaorongAppHostDeps } from '../../main/deps'
+import { compareAppVersion } from '../../main/scan'
 import {
   formFieldsFromRecord,
   inspectManifestRecord,
@@ -13,7 +15,11 @@ import {
 } from '../../manifestRules'
 import { readAppManifest } from '../../main/manifest'
 import { readUserIdentityFromAuthSession } from '../../main/userIdentity'
-import type { JiaorongDevAppRecord, JiaorongDevCenterItem } from '../../types'
+import type {
+  JiaorongAppCatalogRecord,
+  JiaorongDevAppRecord,
+  JiaorongDevCenterItem
+} from '../../types'
 import { getDevApps, inspectDevAppDir } from './devApps'
 import { patchZipManifest, peekZipManifest } from './devZip'
 
@@ -24,6 +30,14 @@ export type DevCenterMutationResult = {
   record?: JiaorongDevAppRecord
   filePath?: string
   fields?: AppManifestFormFields
+}
+
+/**
+ * 从运行时应用目录找已发布应用。
+ * @param appId 应用 id
+ */
+function findPublishedAppRecord(appId: string): JiaorongAppCatalogRecord | undefined {
+  return loadBuiltinAppCatalog().find((item) => item.id === appId)
 }
 
 /**
@@ -55,12 +69,15 @@ export function listDevCenterItems(deps: JiaorongAppHostDeps): JiaorongDevCenter
       appDir: record.dir,
       entry: manifest?.entry ?? null
     }
+    /** 已发布版本；本地调试目录与线上目录共用这个 id 时进入更新模式。 */
+    const published = findPublishedAppRecord(record.id)
     items.push({
       id: record.id,
       name: record.name,
       ...(record.description ? { description: record.description } : {}),
       iconSrc: resolveAppIconSrc(localRuntime),
       version: record.version,
+      ...(published ? { publishedVersion: published.version } : {}),
       installStatus: manifest ? 'installed' : 'error',
       openable: Boolean(manifest),
       // 开发者中心里本地应用的提供方恒为自己，不再显示冗余文案
@@ -132,7 +149,8 @@ export async function publishDevApp(
   /** 当前登录身份。 */
   const user = readUserIdentityFromAuthSession(deps.getAuthSession())
   if (!isDeveloperIdentity(user)) return { ok: false, message: '当前账号不是开发者' }
-  if (!input.appId) return { ok: false, message: '缺少应用 id' }
+  const appId = input.appId.trim()
+  if (!appId) return { ok: false, message: '缺少应用 id' }
   /** 最终版 app.json 解析结果。 */
   let manifest: unknown = null
   try {
@@ -155,6 +173,25 @@ export async function publishDevApp(
   }
   /** 确认后的表单。 */
   const fields = formFieldsFromRecord(record)
+  /** 当前登记项对应的线上应用；存在时本卡片处于更新模式。 */
+  const publishedForCurrentApp = findPublishedAppRecord(appId)
+  if (publishedForCurrentApp && fields.id !== appId) {
+    return { ok: false, message: '应用 ID 不能修改' }
+  }
+  /** 首次发布时，最终 app.json.id 不能撞其它已发布应用。 */
+  const publishedForFinalApp = findPublishedAppRecord(fields.id)
+  if (!publishedForCurrentApp && publishedForFinalApp) {
+    return { ok: false, message: '应用 ID 已存在，请在对应应用下更新' }
+  }
+  if (
+    publishedForCurrentApp &&
+    !compareAppVersion(publishedForCurrentApp.version, fields.version)
+  ) {
+    return {
+      ok: false,
+      message: `更新版本必须大于线上版本 ${publishedForCurrentApp.version}`
+    }
+  }
   /** 带确认后 app.json 的临时包。 */
   const patched = patchZipManifest(zipPath, fields)
   if (!patched.ok || !patched.zipPath) {
