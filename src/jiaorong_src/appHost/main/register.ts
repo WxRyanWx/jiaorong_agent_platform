@@ -14,6 +14,7 @@ import {
   JIAORONG_APP_CENTER_INSTALL_CHANNEL,
   JIAORONG_APP_CENTER_UNINSTALL_CHANNEL,
   JIAORONG_DEV_APP_OPEN_WINDOW_CHANNEL,
+  JIAORONG_DEV_APP_INFO_CHANNEL,
   JIAORONG_DEV_CENTER_CREATE_CHANNEL,
   JIAORONG_DEV_CENTER_LIST_CHANNEL,
   JIAORONG_DEV_CENTER_PEEK_ZIP_CHANNEL,
@@ -370,8 +371,9 @@ async function broadcastContext(deps: JiaorongAppHostDeps): Promise<void> {
   lastBroadcastUserKey = currentUser
   // 换人登录：所有应用子进程都要停，避免串数据
   if (userChanged) {
-    await closeAllDevAppWindows()
+    // 先清旧名单，再等调试窗口关闭；窗口关闭期间新身份的同步才能保留下来
     syncDevApps([])
+    await closeAllDevAppWindows()
     sharedAppsManager().stopAllRunningApps()
     clearAppIntents()
   }
@@ -572,6 +574,15 @@ export function startJiaorongAppHost(deps: JiaorongAppHostDeps): void {
     return openDevAppWindow(appId)
   })
 
+  // 调试窗口侧边栏：只读内存名单，不触发远端配置刷新
+  ipcMain.handle(JIAORONG_DEV_APP_INFO_CHANNEL, (_event, input: unknown) => {
+    const user = readUserIdentityFromAuthSession(deps.getAuthSession())
+    if (!isDeveloperIdentity(user)) return null
+    const { appId } = readDevAppOpenInput(input)
+    if (!appId) return null
+    return listDevCenterItems(deps).find((item) => item.id === appId) ?? null
+  })
+
   // 打开应用：确保安装、spawn 子进程、返回 webview 参数
   ipcMain.handle(JIAORONG_APP_OPEN_CHANNEL, async (event, input: unknown) => {
     /** 当前应用 id。 */
@@ -725,6 +736,7 @@ export function stopJiaorongAppHost(): void {
   ipcMain.removeHandler(JIAORONG_DEV_CENTER_PEEK_ZIP_CHANNEL)
   ipcMain.removeHandler(JIAORONG_DEV_CENTER_SYNC_CHANNEL)
   ipcMain.removeHandler(JIAORONG_DEV_APP_OPEN_WINDOW_CHANNEL)
+  ipcMain.removeHandler(JIAORONG_DEV_APP_INFO_CHANNEL)
   // 注销目录与事件回调
   setRemoteAppCatalogChangedListener(null)
   setSystemAppUpdateBroadcaster(null)

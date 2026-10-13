@@ -6,6 +6,7 @@ import {
   syncDevApps
 } from '../../../src/jiaorong_src/appHost/devCenter/main/devApps'
 import { findZipAppJsonKey } from '../../../src/jiaorong_src/appHost/devCenter/main/devZip'
+import { readAuthUserKey } from '../../../src/jiaorong_src/appHost/main/userIdentity'
 import {
   buildManifestJson,
   formFieldsFromRecord,
@@ -94,6 +95,17 @@ describe('dev center registry sync', () => {
   })
 })
 
+describe('dev center identity key', () => {
+  it('uses the stable userName as the account key', () => {
+    const session = {
+      userFullInfo: JSON.stringify({ userName: 'L20184974', phone: '13000000000' })
+    }
+    expect(readAuthUserKey(session)).toBe('L20184974')
+    session.userFullInfo = JSON.stringify({ userName: 'L20184974', phone: '15500000000' })
+    expect(readAuthUserKey(session)).toBe('L20184974')
+  })
+})
+
 describe('publish manifest form', () => {
   it('rejects incomplete or illegal fields and omits empty optionals', () => {
     expect(inspectManifestRecord({ id: 'demo', name: 'Demo' })).toEqual({
@@ -173,11 +185,12 @@ describe('publish manifest form', () => {
 })
 
 describe('zip app.json key lookup', () => {
-  it('prefers the shallowest app.json and skips macOS junk', () => {
+  it('accepts root or one wrapper folder and skips macOS junk', () => {
     expect(findZipAppJsonKey(['payload/app.json', 'app.json', '__MACOSX/app.json'])).toBe(
       'app.json'
     )
     expect(findZipAppJsonKey(['bundle/app.json', 'bundle/web/index.html'])).toBe('bundle/app.json')
     expect(findZipAppJsonKey(['__MACOSX/._app.json', 'readme.txt'])).toBeNull()
+    expect(findZipAppJsonKey(['bundle/node_modules/demo/app.json'])).toBeNull()
   })
 })

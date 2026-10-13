@@ -123,6 +123,10 @@ const publishZipPath = ref('')
 const publishError = ref('')
 /** 发布提交中。 */
 const isPublishing = ref(false)
+/** 发布 zip 读取中。 */
+const isChoosingZip = ref(false)
+/** 发布弹窗实例序号；异步返回后只处理当前实例。 */
+let publishSequence = 0
 
 /**
  * 把校验结果收成界面文案。
@@ -142,9 +146,9 @@ function publishFormIssueText(fields: AppManifestFormFields): string {
 
 /** 打开发布弹窗：先选 zip，再回填 app.json。 */
 function openPublishDialog(app: JiaorongDevCenterItem): void {
-  publishForm.value = app.publishedVersion
-    ? { ...emptyManifestForm(), id: app.id }
-    : emptyManifestForm()
+  if (isPublishing.value || isChoosingZip.value) return
+  publishSequence += 1
+  publishForm.value = { ...emptyManifestForm(), id: app.id }
   publishZipPath.value = ''
   publishError.value = ''
   publishTarget.value = app
@@ -152,43 +156,55 @@ function openPublishDialog(app: JiaorongDevCenterItem): void {
 
 /** 选择 zip 包并回填 app.json。 */
 async function choosePublishZip(): Promise<void> {
+  if (isPublishing.value || isChoosingZip.value) return
   const target = publishTarget.value
   if (!target) return
-  /** 主进程返回的路径。 */
-  const filePath = await pickZip()
-  if (!filePath) return
-  if (publishTarget.value !== target) return
-  publishZipPath.value = filePath
-  publishError.value = ''
-  /** zip 内清单。 */
-  const fields = await peekZip(filePath)
-  if (publishTarget.value !== target) return
-  if (!fields) {
-    publishForm.value = target.publishedVersion
-      ? { ...emptyManifestForm(), id: target.id }
-      : emptyManifestForm()
-    return
+  isChoosingZip.value = true
+  try {
+    /** 主进程返回的路径。 */
+    const filePath = await pickZip()
+    if (!filePath) return
+    if (publishTarget.value !== target) return
+    publishZipPath.value = filePath
+    publishError.value = ''
+    /** zip 内清单。 */
+    const fields = await peekZip(filePath)
+    if (publishTarget.value !== target) return
+    if (!fields) {
+      publishForm.value = { ...emptyManifestForm(), id: target.id }
+      return
+    }
+    if (fields.id !== target.id) {
+      publishZipPath.value = ''
+      publishForm.value = { ...emptyManifestForm(), id: target.id }
+      publishError.value = '应用 ID 与当前应用不一致'
+      return
+    }
+    publishForm.value = { ...fields }
+  } finally {
+    isChoosingZip.value = false
   }
-  if (target.publishedVersion && fields.id !== target.id) {
-    publishZipPath.value = ''
-    publishForm.value = { ...emptyManifestForm(), id: target.id }
-    publishError.value = '应用 ID 与当前应用不一致'
-    return
-  }
-  publishForm.value = { ...fields }
 }
 
-/** 关闭发布弹窗。 */
-function closePublishDialog(): void {
+/** 清空当前发布弹窗状态。 */
+function resetPublishDialog(): void {
+  publishSequence += 1
   publishTarget.value = null
   publishError.value = ''
+}
+
+/** 用户关闭发布弹窗；发布中禁止。 */
+function closePublishDialog(): void {
+  if (isPublishing.value) return
+  resetPublishDialog()
 }
 
 /** 确认发布：校验表单，写回 zip 内 app.json 后提交。 */
 async function confirmPublish(): Promise<void> {
   /** 弹窗目标。 */
   const target = publishTarget.value
-  if (!target || isPublishing.value) return
+  if (!target || isPublishing.value || isChoosingZip.value) return
+  const sequence = publishSequence
   if (!publishZipPath.value) {
     publishError.value = t('routes.devCenterPublishZipRequired')
     return
@@ -204,8 +220,9 @@ async function confirmPublish(): Promise<void> {
       manifestJson: buildManifestJson(fields),
       zipPath: publishZipPath.value
     })
+    if (publishSequence !== sequence || publishTarget.value !== target) return
     if (!ok) return
-    closePublishDialog()
+    resetPublishDialog()
     toast({ title: t('routes.devCenterPublishPending') })
   } finally {
     isPublishing.value = false
@@ -400,7 +417,12 @@ watch(lastError, (error) => {
                     :placeholder="t('routes.devCenterPublishZipPlaceholder')"
                     class="dev-center-page__zip-input"
                   />
-                  <Button variant="outline" size="sm" @click="choosePublishZip">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    :disabled="isPublishing || isChoosingZip"
+                    @click="choosePublishZip"
+                  >
                     {{ t('routes.devCenterPublishZipPick') }}
                   </Button>
                 </div>
@@ -443,7 +465,7 @@ watch(lastError, (error) => {
                 <Input
                   v-else
                   v-model="publishForm[field.key]"
-                  :disabled="field.key === 'id' && Boolean(publishTarget?.publishedVersion)"
+                  :disabled="field.key === 'id'"
                   :placeholder="field.placeholder"
                   :data-testid="`dev-center-publish-${field.key}`"
                 />
@@ -451,10 +473,15 @@ watch(lastError, (error) => {
               <p v-if="publishError" class="dev-center-page__error">{{ publishError }}</p>
             </div>
             <DialogFooter class="dev-center-page__dialog-footer">
-              <Button variant="outline" size="sm" @click="closePublishDialog">
+              <Button
+                variant="outline"
+                size="sm"
+                :disabled="isPublishing || isChoosingZip"
+                @click="closePublishDialog"
+              >
                 {{ t('routes.devCenterCancel') }}
               </Button>
-              <Button size="sm" :disabled="isPublishing" @click="confirmPublish">
+              <Button size="sm" :disabled="isPublishing || isChoosingZip" @click="confirmPublish">
                 {{ t('routes.devCenterConfirm') }}
               </Button>
             </DialogFooter>

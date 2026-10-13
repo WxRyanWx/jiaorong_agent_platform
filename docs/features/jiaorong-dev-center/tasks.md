@@ -1,10 +1,9 @@
-# 开发者中心 任务
+# 开发者中心任务
 
-- [x] 1. 应用中心代码迁入 `appHost/appCenter/` 独立模块并修正引用。
-- [x] 2. `channels` / `types` / `devApps` / `devCenter` 主进程 Presenter。
-- [x] 3. `scan` 合并开发者本地 runtime；`register` / `preload` 接线。
-- [x] 4. 路由 + 侧栏入口 + i18n。
-- [x] 5. `DevCenterPage` 卡片 / 创建 / 发布弹窗 / 示例下载。
-- [x] 6. 单测 + format / lint / typecheck。
-- [x] 7. 独立窗口：devCenterWindow + ChatMainApp standalone 分支 + 回主窗口跳转。
-- [x] 8. sync 时 link 登记开发者目录（修 Node 起不来）；创建校验补 slot / 版本号；图标来源修正。
+- [x] 1. 开发者入口与页面路由。
+- [x] 2. 本地登记、清单校验与身份隔离存储。
+- [x] 3. 独立调试窗口与临时运行目录接管。
+- [x] 4. 生产 / 调试切换确认与进程清理。
+- [x] 5. 发布表单、zip 读取与 ID / 版本校验。
+- [x] 6. 已发布应用更新模式与 IPC 兜底校验。
+- [x] 7. 主进程与渲染端测试、类型检查。

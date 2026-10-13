@@ -7,6 +7,17 @@ export type JiaorongStoredIdentity = {
 }
 
 /**
+ * 身份键：userName 稳定优先，缺失时用手机号；两者都没有按匿名处理。
+ * @param identity 当前登录身份
+ */
+export function resolveJiaorongIdentityValue(identity: JiaorongStoredIdentity): string {
+  const userName = identity.userName?.trim() || ''
+  if (userName) return userName
+  const phone = identity.phone?.trim() || ''
+  return phone || 'anonymous'
+}
+
+/**
  * 身份是否命中白名单。空名单恒不命中。
  * @param list OSS 下发的手机号 / userName 名单
  * @param identity 当前登录身份

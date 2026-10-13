@@ -1,6 +1,7 @@
 /** 从主进程 `jiaorong_auth_session` 读用户身份、token，以及 `userinfo.get` 载荷。 */
 
 import { readUserIdentityFromUserInfo } from '../auth'
+import { resolveJiaorongIdentityValue } from '../../config/identityWhitelist'
 import type { JiaorongAppUserIdentity } from '../types'
 
 /** electron-store 里扫码登录会话。 */
@@ -56,7 +57,7 @@ export function readAuthToken(session: JiaorongAuthSession | undefined): string 
  * @param session 可空会话
  */
 export function readAuthUserKey(session: JiaorongAuthSession | undefined): string {
-  return readUserIdentityFromAuthSession(session).userName?.trim() ?? ''
+  return resolveJiaorongIdentityValue(readUserIdentityFromAuthSession(session))
 }
 
 /**

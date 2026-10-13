@@ -3,6 +3,7 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { randomUUID } from 'node:crypto'
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate'
 import {
   formFieldsFromRecord,
@@ -18,8 +19,12 @@ export type DevZipResult = {
   zipPath?: string
 }
 
+type ZipManifestEntry =
+  | { ok: true; key: string; original: Record<string, unknown> }
+  | { ok: false; message: string }
+
 /**
- * 在 zip 条目里找 app.json：优先根目录，再找包裹一层的目录。
+ * 在 zip 条目里找根目录或包裹一层目录里的 app.json。
  * @param keys zip 内路径
  */
 export function findZipAppJsonKey(keys: string[]): string | null {
@@ -27,7 +32,7 @@ export function findZipAppJsonKey(keys: string[]): string | null {
   const candidates = keys.filter((key) => {
     if (key.endsWith('/')) return false
     if (key.split('/').includes('__MACOSX')) return false
-    return key === 'app.json' || key.endsWith('/app.json')
+    return key === 'app.json' || (key.endsWith('/app.json') && key.split('/').length === 2)
   })
   candidates.sort((a, b) => a.split('/').length - b.split('/').length)
   return candidates[0] ?? null
@@ -48,21 +53,16 @@ function unzipEntries(zipPath: string): Record<string, Uint8Array> {
   return entries
 }
 
+/** 是否为 zip 路径；Windows 上扩展名大小写不固定。 */
+export function isZipPath(zipPath: string): boolean {
+  return path.extname(zipPath.trim()).toLowerCase() === '.zip'
+}
+
 /**
- * 读取 zip 内 app.json，填发布表单。
- * @param zipPath 用户选择的 zip
+ * 从已解开的 zip 条目读取 app.json。
+ * @param entries zip 条目
  */
-export function peekZipManifest(zipPath: string): DevZipResult {
-  if (!zipPath.endsWith('.zip') || !fs.existsSync(zipPath)) {
-    return { ok: false, message: '请选择 zip 包' }
-  }
-  /** zip 条目。 */
-  let entries: Record<string, Uint8Array>
-  try {
-    entries = unzipEntries(zipPath)
-  } catch {
-    return { ok: false, message: '无法读取 zip 包' }
-  }
+function readZipManifestEntry(entries: Record<string, Uint8Array>): ZipManifestEntry {
   /** app.json 条目名。 */
   const key = findZipAppJsonKey(Object.keys(entries))
   if (!key || !entries[key]) return { ok: false, message: 'zip 包里没有 app.json' }
@@ -72,10 +72,31 @@ export function peekZipManifest(zipPath: string): DevZipResult {
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
       return { ok: false, message: 'zip 包里的 app.json 不是合法 JSON' }
     }
-    return { ok: true, fields: formFieldsFromRecord(parsed as Record<string, unknown>) }
+    return { ok: true, key, original: parsed as Record<string, unknown> }
   } catch {
     return { ok: false, message: 'zip 包里的 app.json 不是合法 JSON' }
   }
+}
+
+/**
+ * 读取 zip 内 app.json，填发布表单。
+ * @param zipPath 用户选择的 zip
+ */
+export function peekZipManifest(zipPath: string): DevZipResult {
+  if (!isZipPath(zipPath) || !fs.existsSync(zipPath)) {
+    return { ok: false, message: '请选择 zip 包' }
+  }
+  /** zip 条目。 */
+  let entries: Record<string, Uint8Array>
+  try {
+    entries = unzipEntries(zipPath)
+  } catch {
+    return { ok: false, message: '无法读取 zip 包' }
+  }
+  /** zip 内清单。 */
+  const manifest = readZipManifestEntry(entries)
+  if (!manifest.ok) return manifest
+  return { ok: true, fields: formFieldsFromRecord(manifest.original) }
 }
 
 /**
@@ -84,27 +105,28 @@ export function peekZipManifest(zipPath: string): DevZipResult {
  * @param fields 确认后的表单
  */
 export function patchZipManifest(zipPath: string, fields: AppManifestFormFields): DevZipResult {
-  const peeked = peekZipManifest(zipPath)
-  if (!peeked.ok) return peeked
-  /** zip 条目。 */
-  const entries = unzipEntries(zipPath)
-  /** app.json 条目名。 */
-  const key = findZipAppJsonKey(Object.keys(entries))
-  if (!key || !entries[key]) return { ok: false, message: 'zip 包里没有 app.json' }
-  /** 原清单。 */
-  let original: Record<string, unknown> = {}
-  try {
-    /** 解析结果。 */
-    const parsed: unknown = JSON.parse(strFromU8(entries[key]))
-    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-      original = parsed as Record<string, unknown>
-    }
-  } catch {
-    return { ok: false, message: 'zip 包里的 app.json 不是合法 JSON' }
+  if (!isZipPath(zipPath) || !fs.existsSync(zipPath)) {
+    return { ok: false, message: '请选择 zip 包' }
   }
-  entries[key] = strToU8(`${JSON.stringify(overlayManifestRecord(original, fields), null, 2)}\n`)
-  /** 提交用的临时包，不覆盖用户原文件。 */
-  const outPath = path.join(os.tmpdir(), `jiaorong-publish-${Date.now()}.zip`)
-  fs.writeFileSync(outPath, Buffer.from(zipSync(entries)))
-  return { ok: true, zipPath: outPath }
+  /** zip 条目。 */
+  let entries: Record<string, Uint8Array>
+  try {
+    entries = unzipEntries(zipPath)
+  } catch {
+    return { ok: false, message: '无法读取 zip 包' }
+  }
+  /** zip 内清单。 */
+  const manifest = readZipManifestEntry(entries)
+  if (!manifest.ok) return manifest
+  try {
+    /** 提交前的校验包；当前发布接口未接入，调用方校验后负责删除。 */
+    const outPath = path.join(os.tmpdir(), `jiaorong-publish-${randomUUID()}.zip`)
+    entries[manifest.key] = strToU8(
+      `${JSON.stringify(overlayManifestRecord(manifest.original, fields), null, 2)}\n`
+    )
+    fs.writeFileSync(outPath, Buffer.from(zipSync(entries)))
+    return { ok: true, zipPath: outPath }
+  } catch {
+    return { ok: false, message: '生成发布包失败' }
+  }
 }

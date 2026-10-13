@@ -260,13 +260,5 @@ export async function switchDevAppToProduction(appId: string): Promise<boolean> 
 export async function prepareSwitchDevAppToProduction(
   appId: string
 ): Promise<JiaorongAppOpenPrepareResult> {
-  if (!isDevAppWindowOpen(appId)) return { ok: true }
-  /** 开发者中心登记记录。 */
-  const record = getDevApps().find((item) => item.id === appId)
-  /** 本地目录清单。 */
-  const manifest = record ? readAppManifest(record.dir) : null
-  const confirmed = await confirmSwitchRuntime(manifest?.name || appId, 'production')
-  if (!confirmed) return { ok: false }
-  await closeDevAppWindow(appId)
-  return { ok: true }
+  return { ok: await switchDevAppToProduction(appId) }
 }

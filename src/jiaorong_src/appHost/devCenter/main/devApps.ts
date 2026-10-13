@@ -4,16 +4,13 @@ import fs from 'node:fs'
 import {
   APP_MANIFEST_ID_RE,
   inspectManifestRecord,
-  manifestIssueMessage,
-  readManifestString
+  manifestIssueMessage
 } from '../../manifestRules'
 import { readAppManifest } from '../../main/manifest'
 import type { JiaorongAppCatalogRecord, JiaorongDevAppRecord } from '../../types'
 
 /** 主进程内存镜像；渲染 sync 过来才有人。 */
 let devApps: JiaorongDevAppRecord[] = []
-
-const readString = readManifestString
 
 /**
  * 校验并替换内存名单；非法条目直接丢弃。
@@ -31,19 +28,13 @@ export function syncDevApps(input: unknown): JiaorongDevAppRecord[] {
     /** 单条原始数据。 */
     const record = raw as Record<string, unknown>
     /** 应用 id。 */
-    const id = readString(record.id)
+    const id = typeof record.id === 'string' ? record.id.trim() : ''
     /** 插件文件夹。 */
-    const dir = readString(record.dir)
+    const dir = typeof record.dir === 'string' ? record.dir.trim() : ''
     // id / dir 缺一即非法；同 id 只留第一条
     if (!id || !APP_MANIFEST_ID_RE.test(id) || !dir || next.some((item) => item.id === id)) continue
-    /** 清单图标：旧名单没存 icon 时回目录补读。 */
-    const icon = readString(record.icon) || readAppManifest(dir)?.icon || ''
     next.push({
       id,
-      name: readString(record.name) || id,
-      version: readString(record.version) || '0.0.0',
-      ...(readString(record.description) ? { description: readString(record.description) } : {}),
-      ...(icon ? { icon } : {}),
       dir,
       createdAt: typeof record.createdAt === 'number' ? record.createdAt : Date.now()
     })
@@ -74,22 +65,26 @@ export function devAppCatalogRecords(
 ): { record: JiaorongAppCatalogRecord; dir: string }[] {
   return devApps
     .filter((item) => !skipIds.has(item.id))
-    .map((item) => ({
-      record: {
-        id: item.id,
-        name: item.name,
-        version: item.version,
-        ...(item.description ? { description: item.description } : {}),
-        ...(item.icon ? { icon: item.icon } : {}),
-        slot: 'app-center' as const,
-        source: 'local-debug' as const,
-        enabled: true,
-        auth: null,
-        provider: '本地开发',
-        package: { kind: 'dir' as const, builtinDir: item.id }
-      },
-      dir: item.dir
-    }))
+    .map((item) => {
+      /** 当前目录清单；缺失时运行时由 appDir 状态标为错误。 */
+      const manifest = readAppManifest(item.dir)
+      return {
+        record: {
+          id: item.id,
+          name: manifest?.name ?? item.id,
+          version: manifest?.version ?? '0.0.0',
+          ...(manifest?.description ? { description: manifest.description } : {}),
+          ...(manifest?.icon ? { icon: manifest.icon } : {}),
+          slot: manifest?.slot ?? 'app-center',
+          source: 'local-debug' as const,
+          enabled: true,
+          auth: null,
+          provider: '本地开发',
+          package: { kind: 'dir' as const, builtinDir: item.id }
+        },
+        dir: item.dir
+      }
+    })
 }
 
 /**

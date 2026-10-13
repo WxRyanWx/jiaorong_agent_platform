@@ -40,7 +40,7 @@ declare global {
         appId: string,
         manifestJson: string,
         zipPath: string
-      ): Promise<{ ok: boolean; message?: string; filePath?: string }>
+      ): Promise<{ ok: boolean; message?: string }>
       pickDevZip(): Promise<{ ok: boolean; message?: string; filePath?: string }>
       peekDevZip(zipPath: string): Promise<{
         ok: boolean
@@ -57,6 +57,7 @@ declare global {
         }
       }>
       syncDevApps(apps: JiaorongDevAppRecord[]): Promise<JiaorongDevAppRecord[]>
+      getDevAppInfo(appId: string): Promise<JiaorongDevCenterItem | null>
       openDevAppWindow(appId: string): Promise<JiaorongDevAppOpenResult>
       prepareOpenApp(appId: string): Promise<JiaorongAppOpenPrepareResult>
       getOpenInfo(appId: string): Promise<JiaorongAppOpenInfo | null>

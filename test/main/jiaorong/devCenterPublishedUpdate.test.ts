@@ -16,6 +16,7 @@ vi.mock('../../../src/jiaorong_src/appHost/main/bridge', () => ({
   resolveAppIconSrc: vi.fn(() => null)
 }))
 vi.mock('../../../src/jiaorong_src/appHost/devCenter/main/devZip', () => ({
+  isZipPath: vi.fn(() => true),
   peekZipManifest: vi.fn(),
   patchZipManifest: patchZipManifestMock
 }))
@@ -26,6 +27,7 @@ import {
 } from '../../../src/jiaorong_src/appHost/devCenter/main/devCenter'
 import { syncDevApps } from '../../../src/jiaorong_src/appHost/devCenter/main/devApps'
 import type { JiaorongAppCatalogRecord } from '../../../src/jiaorong_src/appHost/types'
+import { beforeEach } from 'vitest'
 
 const publishedCatalogRecord: JiaorongAppCatalogRecord = {
   id: 'published-app',
@@ -65,6 +67,26 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
+beforeEach(() => {
+  vi.mocked(fs.readFileSync).mockReturnValue(manifestJson('published-app', '1.0.1'))
+  syncDevApps([
+    {
+      id: 'published-app',
+      name: 'Local App',
+      version: '1.0.1',
+      dir: '/tmp/published-app',
+      createdAt: 1
+    },
+    {
+      id: 'local-app',
+      name: 'Local App',
+      version: '1.0.0',
+      dir: '/tmp/local-app',
+      createdAt: 2
+    }
+  ])
+})
+
 describe('dev center published app update', () => {
   it('marks local apps that exist in the runtime catalog as published', () => {
     loadBuiltinAppCatalogMock.mockReturnValue([publishedCatalogRecord])
@@ -85,6 +107,26 @@ describe('dev center published app update', () => {
     })
   })
 
+  it('shows the current manifest name and version instead of stale registry metadata', () => {
+    loadBuiltinAppCatalogMock.mockReturnValue([])
+    mockLocalManifest('published-app', '2.0.0')
+    syncDevApps([
+      {
+        id: 'published-app',
+        name: 'Old Name',
+        version: '1.0.0',
+        dir: '/tmp/published-app',
+        createdAt: 1
+      }
+    ])
+
+    expect(listDevCenterItems(deps)[0]).toMatchObject({
+      id: 'published-app',
+      name: 'Local App',
+      version: '2.0.0'
+    })
+  })
+
   it('rejects an update when the final app id changes', async () => {
     loadBuiltinAppCatalogMock.mockReturnValue([publishedCatalogRecord])
     vi.mocked(fs.existsSync).mockReturnValue(true)
@@ -99,20 +141,33 @@ describe('dev center published app update', () => {
     expect(patchZipManifestMock).not.toHaveBeenCalled()
   })
 
-  it('rejects a first publish that reuses another published app id', async () => {
+  it('rejects a first publish when the final app id changes', async () => {
     loadBuiltinAppCatalogMock.mockReturnValue([publishedCatalogRecord])
     vi.mocked(fs.existsSync).mockReturnValue(true)
 
     const result = await publishDevApp(deps, {
       appId: 'local-app',
-      manifestJson: manifestJson('published-app', '1.0.1'),
+      manifestJson: manifestJson('published-app', '1.0.0'),
       zipPath: '/tmp/app.zip'
     })
 
     expect(result).toMatchObject({
       ok: false,
-      message: '应用 ID 已存在，请在对应应用下更新'
+      message: '应用 ID 不能修改'
     })
+    expect(patchZipManifestMock).not.toHaveBeenCalled()
+  })
+
+  it('rejects publishing an app missing from the local registry', async () => {
+    vi.mocked(fs.existsSync).mockReturnValue(true)
+
+    const result = await publishDevApp(deps, {
+      appId: 'missing-app',
+      manifestJson: manifestJson('missing-app', '1.0.0'),
+      zipPath: '/tmp/app.zip'
+    })
+
+    expect(result).toMatchObject({ ok: false, message: '应用不存在或已被移除' })
     expect(patchZipManifestMock).not.toHaveBeenCalled()
   })
 
@@ -150,9 +205,10 @@ describe('dev center published app update', () => {
     await expect(
       publishDevApp(deps, {
         appId: 'local-app',
-        manifestJson: manifestJson('new-app', '1.0.0'),
+        manifestJson: manifestJson('local-app', '1.0.0'),
         zipPath: '/tmp/app.zip'
       })
     ).resolves.toMatchObject({ ok: true })
+    expect(vi.mocked(fs.rmSync)).toHaveBeenCalledWith('/tmp/patched.zip', { force: true })
   })
 })

@@ -21,9 +21,8 @@ const app = ref<JiaorongDevCenterItem | null>(null)
 async function loadRailApp(appId: string): Promise<void> {
   if (!appId) return
   try {
-    /** 开发者中心列表含本地登记的图标与显示名。 */
-    const items = (await window.jiaorongApps?.listDevCenter()) ?? []
-    app.value = items.find((item) => item.id === appId) ?? null
+    /** 专用信息接口只读内存名单，不触发远端配置刷新。 */
+    app.value = (await window.jiaorongApps?.getDevAppInfo(appId)) ?? null
   } catch (error) {
     console.warn('[jiaorong-dev-app] failed to load rail app', appId, error)
   }

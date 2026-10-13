@@ -183,14 +183,6 @@ export type JiaorongAppCenterItem = {
 export type JiaorongDevAppRecord = {
   /** 应用 id，取自 app.json。 */
   id: string
-  /** 显示名。 */
-  name: string
-  /** 版本。 */
-  version: string
-  /** 描述。 */
-  description?: string
-  /** 图标相对路径（取自 app.json）。 */
-  icon?: string
   /** 插件文件夹绝对路径。 */
   dir: string
   /** 登记时间戳。 */

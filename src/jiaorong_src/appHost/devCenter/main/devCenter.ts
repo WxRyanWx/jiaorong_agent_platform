@@ -21,15 +21,21 @@ import type {
   JiaorongDevCenterItem
 } from '../../types'
 import { getDevApps, inspectDevAppDir } from './devApps'
-import { patchZipManifest, peekZipManifest } from './devZip'
+import { isZipPath, patchZipManifest, peekZipManifest } from './devZip'
 
 /** 开发者中心统一返回。 */
 export type DevCenterMutationResult = {
   ok: boolean
   message?: string
   record?: JiaorongDevAppRecord
-  filePath?: string
   fields?: AppManifestFormFields
+}
+
+/** 选 zip 返回。 */
+export type DevCenterPickResult = {
+  ok: boolean
+  message?: string
+  filePath?: string
 }
 
 /**
@@ -53,10 +59,15 @@ export function listDevCenterItems(deps: JiaorongAppHostDeps): JiaorongDevCenter
 
   for (const record of getDevApps()) {
     /** 本地目录清单。 */
+    const manifestProblem = inspectDevAppDir(record.dir)
     const manifest = readAppManifest(record.dir)
     /** 本地目录运行时，仅用于图标解析。 */
     const localRuntime = {
       ...record,
+      name: manifest?.name ?? record.id,
+      version: manifest?.version ?? '0.0.0',
+      description: manifest?.description ?? '',
+      icon: manifest?.icon ?? '',
       slot: 'app-center' as const,
       source: 'local-debug' as const,
       enabled: true,
@@ -64,7 +75,7 @@ export function listDevCenterItems(deps: JiaorongAppHostDeps): JiaorongDevCenter
       provider: '',
       package: { kind: 'dir' as const },
       visible: true,
-      installStatus: manifest ? ('installed' as const) : ('error' as const),
+      installStatus: manifestProblem ? ('error' as const) : ('installed' as const),
       installedVersion: manifest?.version ?? null,
       appDir: record.dir,
       entry: manifest?.entry ?? null
@@ -73,13 +84,13 @@ export function listDevCenterItems(deps: JiaorongAppHostDeps): JiaorongDevCenter
     const published = findPublishedAppRecord(record.id)
     items.push({
       id: record.id,
-      name: record.name,
-      ...(record.description ? { description: record.description } : {}),
+      name: manifest?.name ?? record.id,
+      ...(manifest?.description ? { description: manifest.description } : {}),
       iconSrc: resolveAppIconSrc(localRuntime),
-      version: record.version,
+      version: manifest?.version ?? '0.0.0',
       ...(published ? { publishedVersion: published.version } : {}),
-      installStatus: manifest ? 'installed' : 'error',
-      openable: Boolean(manifest),
+      installStatus: manifestProblem ? 'error' : 'installed',
+      openable: !manifestProblem,
       // 开发者中心里本地应用的提供方恒为自己，不再显示冗余文案
       provider: '',
       dir: record.dir
@@ -100,6 +111,8 @@ export async function createDevApp(deps: JiaorongAppHostDeps): Promise<DevCenter
   /** 目录选择结果。 */
   const picked = await dialog.showOpenDialog({ properties: ['openDirectory'] })
   if (picked.canceled || picked.filePaths.length === 0) return { ok: false, message: '已取消' }
+  const userAfterDialog = readUserIdentityFromAuthSession(deps.getAuthSession())
+  if (!isDeveloperIdentity(userAfterDialog)) return { ok: false, message: '当前账号不是开发者' }
   /** 插件文件夹。 */
   const dir = picked.filePaths[0]
   /** 清单校验原因；null 表示可以登记。 */
@@ -112,10 +125,6 @@ export async function createDevApp(deps: JiaorongAppHostDeps): Promise<DevCenter
     ok: true,
     record: {
       id: manifest.id,
-      name: manifest.name,
-      version: manifest.version,
-      ...(manifest.description ? { description: manifest.description } : {}),
-      ...(manifest.icon ? { icon: manifest.icon } : {}),
       dir,
       createdAt: Date.now()
     }
@@ -168,21 +177,17 @@ export async function publishDevApp(
   if (issue) return { ok: false, message: manifestIssueMessage(issue) }
   /** zip 包路径。 */
   const zipPath = (input.zipPath || '').trim()
-  if (!zipPath.endsWith('.zip') || !fs.existsSync(zipPath)) {
+  if (!isZipPath(zipPath) || !fs.existsSync(zipPath)) {
     return { ok: false, message: '请选择 zip 包' }
   }
   /** 确认后的表单。 */
   const fields = formFieldsFromRecord(record)
+  /** 当前登记项；发布只能从开发者中心已有卡片发起。 */
+  const currentRecord = getDevApps().find((item) => item.id === appId)
+  if (!currentRecord) return { ok: false, message: '应用不存在或已被移除' }
   /** 当前登记项对应的线上应用；存在时本卡片处于更新模式。 */
   const publishedForCurrentApp = findPublishedAppRecord(appId)
-  if (publishedForCurrentApp && fields.id !== appId) {
-    return { ok: false, message: '应用 ID 不能修改' }
-  }
-  /** 首次发布时，最终 app.json.id 不能撞其它已发布应用。 */
-  const publishedForFinalApp = findPublishedAppRecord(fields.id)
-  if (!publishedForCurrentApp && publishedForFinalApp) {
-    return { ok: false, message: '应用 ID 已存在，请在对应应用下更新' }
-  }
+  if (fields.id !== appId) return { ok: false, message: '应用 ID 不能修改' }
   if (
     publishedForCurrentApp &&
     !compareAppVersion(publishedForCurrentApp.version, fields.version)
@@ -197,15 +202,20 @@ export async function publishDevApp(
   if (!patched.ok || !patched.zipPath) {
     return { ok: false, message: patched.message || '写入 zip 失败' }
   }
-  // 接口未给：zip + app.json 已备好，先返回成功占位
-  return { ok: true, message: '发布接口待接入，本次仅本地记录', filePath: patched.zipPath }
+  try {
+    fs.rmSync(patched.zipPath, { force: true })
+  } catch (error) {
+    console.warn('[jiaorong-dev-center] Failed to cleanup publish zip', patched.zipPath, error)
+  }
+  // 接口未给：本地完成校验后返回成功占位，不保留临时包
+  return { ok: true, message: '发布接口待接入，本次仅本地记录' }
 }
 
 /**
  * 选 zip 包：发布表单用。
  * @param deps 超级智能体依赖
  */
-export async function pickDevZip(deps: JiaorongAppHostDeps): Promise<DevCenterMutationResult> {
+export async function pickDevZip(deps: JiaorongAppHostDeps): Promise<DevCenterPickResult> {
   /** 当前登录身份。 */
   const user = readUserIdentityFromAuthSession(deps.getAuthSession())
   if (!isDeveloperIdentity(user)) return { ok: false, message: '当前账号不是开发者' }
@@ -215,5 +225,7 @@ export async function pickDevZip(deps: JiaorongAppHostDeps): Promise<DevCenterMu
     filters: [{ name: 'zip', extensions: ['zip'] }]
   })
   if (picked.canceled || picked.filePaths.length === 0) return { ok: false, message: '已取消' }
+  const userAfterDialog = readUserIdentityFromAuthSession(deps.getAuthSession())
+  if (!isDeveloperIdentity(userAfterDialog)) return { ok: false, message: '当前账号不是开发者' }
   return { ok: true, filePath: picked.filePaths[0] }
 }

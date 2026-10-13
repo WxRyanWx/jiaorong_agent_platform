@@ -4,15 +4,26 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { JIAORONG_AUTH_SESSION_CHANGED_EVENT } from '@jiaorong/auth/host'
 import type { JiaorongDevAppRecord, JiaorongDevCenterItem } from '../../types'
 import type { AppManifestFormFields } from '../../manifestRules'
+import { readStoredUserInfo } from '../../../config/storedUserInfo'
+import { resolveJiaorongIdentityValue } from '../../../config/identityWhitelist'
 
-/** 浏览器存储键：开发者名单 apps.json，后续替换为服务端接口。 */
-const DEV_APPS_STORAGE_KEY = 'jiaorong-dev-apps.json'
+/** 浏览器存储键前缀：开发者名单，后续替换为服务端接口。 */
+const DEV_APPS_STORAGE_PREFIX = 'jiaorong-dev-apps'
+
+/** 当前登录身份对应的开发者名单存储键。 */
+function resolveDevAppsStorageKey(): string {
+  /** 当前登录身份。 */
+  const identity = readStoredUserInfo()
+  /** 与主进程换人判断一致的身份值。 */
+  const identityValue = resolveJiaorongIdentityValue(identity)
+  return `${DEV_APPS_STORAGE_PREFIX}:${encodeURIComponent(identityValue)}.json`
+}
 
 /** 读浏览器存储名单；损坏按空名单处理。 */
-function readStoredDevApps(): JiaorongDevAppRecord[] {
+function readStoredDevApps(storageKey: string): JiaorongDevAppRecord[] {
   try {
     /** 存储原文。 */
-    const raw = localStorage.getItem(DEV_APPS_STORAGE_KEY)
+    const raw = localStorage.getItem(storageKey)
     if (!raw) return []
     /** 解析结果。 */
     const parsed = JSON.parse(raw) as unknown
@@ -23,8 +34,8 @@ function readStoredDevApps(): JiaorongDevAppRecord[] {
 }
 
 /** 写浏览器存储并同步主进程内存镜像。 */
-async function writeStoredDevApps(apps: JiaorongDevAppRecord[]): Promise<void> {
-  localStorage.setItem(DEV_APPS_STORAGE_KEY, JSON.stringify(apps))
+async function writeStoredDevApps(apps: JiaorongDevAppRecord[], storageKey: string): Promise<void> {
+  localStorage.setItem(storageKey, JSON.stringify(apps))
   await window.jiaorongApps?.syncDevApps(apps)
 }
 
@@ -73,6 +84,8 @@ export function useJiaorongDevCenter() {
     // 已有打开在飞，不接新操作
     if (isBusy.value) return false
     lastError.value = null
+    /** 发起创建时的身份存储键，返回后必须仍使用同一身份。 */
+    const storageKey = resolveDevAppsStorageKey()
     /** 主进程创建结果。 */
     const result = await window.jiaorongApps?.createDevApp()
     if (!result) return false
@@ -82,13 +95,17 @@ export function useJiaorongDevCenter() {
       return false
     }
     if (result.record) {
+      if (resolveDevAppsStorageKey() !== storageKey) {
+        await refresh()
+        return false
+      }
       /** 当前存储名单。 */
-      const stored = readStoredDevApps()
+      const stored = readStoredDevApps(storageKey)
       // 同 id 时不新增第二条，而是替换本地调试目录，方便发布前反复换目录调试
-      await writeStoredDevApps([
-        ...stored.filter((item) => item.id !== result.record?.id),
-        result.record
-      ])
+      await writeStoredDevApps(
+        [...stored.filter((item) => item.id !== result.record?.id), result.record],
+        storageKey
+      )
     }
     await refresh()
     return true
@@ -101,7 +118,11 @@ export function useJiaorongDevCenter() {
     lastError.value = null
     removingId.value = app.id
     try {
-      await writeStoredDevApps(readStoredDevApps().filter((item) => item.id !== app.id))
+      const storageKey = resolveDevAppsStorageKey()
+      await writeStoredDevApps(
+        readStoredDevApps(storageKey).filter((item) => item.id !== app.id),
+        storageKey
+      )
       await refresh()
     } finally {
       removingId.value = ''
@@ -117,11 +138,18 @@ export function useJiaorongDevCenter() {
     if (isBusy.value) return false
     lastError.value = null
     /** 主进程发布结果。 */
-    const result = await window.jiaorongApps?.publishDevApp(
-      app.id,
-      payload.manifestJson,
-      payload.zipPath
-    )
+    let result: { ok: boolean; message?: string } | null | undefined = null
+    try {
+      result = await window.jiaorongApps?.publishDevApp(
+        app.id,
+        payload.manifestJson,
+        payload.zipPath
+      )
+    } catch (error) {
+      console.warn('[jiaorong-dev-center] publish failed', app.id, error)
+      lastError.value = { message: '发布失败，请稍后重试' }
+      return false
+    }
     if (!result) return false
     if (!result.ok) lastError.value = { message: result.message }
     return result.ok
@@ -175,9 +203,15 @@ export function useJiaorongDevCenter() {
     }
   }
 
-  /** 登录态或目录变化后刷新列表。 */
-  function requestRefresh(): void {
-    void refresh()
+  /** 登录态或目录变化后同步当前身份名单并刷新列表。 */
+  async function requestRefresh(): Promise<void> {
+    await window.jiaorongApps?.syncDevApps(readStoredDevApps(resolveDevAppsStorageKey()))
+    await refresh()
+  }
+
+  /** 登录态变化回调；保持稳定引用以便卸载时移除。 */
+  function onAuthSessionChanged(): void {
+    void requestRefresh()
   }
 
   /** 取消目录订阅。 */
@@ -186,16 +220,13 @@ export function useJiaorongDevCenter() {
   // 挂载：先把浏览器存储名单同步给主进程，再拉列表
   onMounted(() => {
     stopCatalogListener = window.jiaorongApps?.onCatalogChanged?.(requestRefresh)
-    window.addEventListener(JIAORONG_AUTH_SESSION_CHANGED_EVENT, requestRefresh)
-    void (async () => {
-      await window.jiaorongApps?.syncDevApps(readStoredDevApps())
-      await refresh()
-    })()
+    window.addEventListener(JIAORONG_AUTH_SESSION_CHANGED_EVENT, onAuthSessionChanged)
+    void requestRefresh()
   })
 
   onUnmounted(() => {
     stopCatalogListener?.()
-    window.removeEventListener(JIAORONG_AUTH_SESSION_CHANGED_EVENT, requestRefresh)
+    window.removeEventListener(JIAORONG_AUTH_SESSION_CHANGED_EVENT, onAuthSessionChanged)
   })
 
   return {
