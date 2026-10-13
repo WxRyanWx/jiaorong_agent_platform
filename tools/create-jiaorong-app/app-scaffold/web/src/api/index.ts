@@ -17,7 +17,12 @@ export type NodeClient = {
       intent: string
       data: Record<string, unknown>
     }): Promise<{ accepted: true }>
-  } // 打开另一个应用并携带一次性 Intent
+    emit(input: {
+      appId: string
+      type: string
+      data: Record<string, unknown>
+    }): Promise<{ accepted: true }>
+  } // 打开另一个应用携带一次性 Intent，或向已打开应用发实时消息
   agent: Record<string, (input?: unknown) => Promise<any>> // create / get / list
   session: Record<string, (input?: unknown) => Promise<any>> // create / send / stop / list 等
   catalog: Record<string, (input?: unknown) => Promise<any>> // slash / models / systemPrompts 等
@@ -103,11 +108,16 @@ export function createNodeClient(httpPort: number): NodeClient {
     // 事件只能在本页订阅：Node 订到的是它自己的回调，回不到页面
     on: (event, handler) => window.jiaorong?.on?.(event, handler) ?? (() => undefined),
     getContext: () =>
-      invoke('context.get', {}) as Promise<{ appDir?: string; [key: string]: unknown }>,
+      invoke('context.get', {}) as Promise<{
+        appDir?: string
+        clientVersion: string
+        [key: string]: unknown
+      }>,
     userinfo: () => invoke('userinfo.get', {}) as Promise<Record<string, unknown>>,
     respondToolInteraction: (input) => invoke('chat.respondToolInteraction', input),
     app: {
-      open: (input) => invoke('app.open', input) as Promise<{ accepted: true }>
+      open: (input) => invoke('app.open', input) as Promise<{ accepted: true }>,
+      emit: (input) => invoke('app.emit', input) as Promise<{ accepted: true }>
     },
     agent: sa.agent,
     session: sa.session,

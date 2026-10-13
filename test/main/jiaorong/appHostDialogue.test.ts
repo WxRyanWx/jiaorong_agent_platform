@@ -69,6 +69,7 @@ vi.mock('../../../src/jiaorong_src/appHost/main/protocol', async (importOriginal
 
 import { isJiaorongBridgeFailure } from '../../../src/jiaorong_src/appHost/bridgeErrors'
 import { handleAppBridgeInvoke, toOpenInfo } from '../../../src/jiaorong_src/appHost/main/bridge'
+import { createAppMessageEmitter } from '../../../src/jiaorong_src/appHost/main/appMessage'
 import {
   clearAppIntents,
   createAppIntentOpener,
@@ -121,6 +122,7 @@ describe('jiaorong app dialogue bridge', () => {
     clearAppIntents()
     unbindGuest(1)
     unbindGuest(2)
+    unbindGuest(3)
     fromId.mockReset()
     fromId.mockReturnValue(null)
     getAllWebContents.mockReset()
@@ -195,6 +197,113 @@ describe('jiaorong app dialogue bridge', () => {
         data: { orderId: 'order-1' }
       }
     })
+  })
+
+  it('emits a realtime app message with a host-owned source prefix', async () => {
+    const firstTargetContents: GuestWebContents = {
+      id: 2,
+      isDestroyed: () => false,
+      openDevTools: vi.fn(),
+      send: vi.fn()
+    }
+    const secondTargetContents: GuestWebContents = {
+      id: 3,
+      isDestroyed: () => false,
+      openDevTools: vi.fn(),
+      send: vi.fn()
+    }
+    getAllWebContents.mockReturnValue([firstTargetContents, secondTargetContents])
+    bindGuestAppId(2, 'target-workbench')
+    bindGuestAppId(3, 'target-workbench')
+    const appMessageEmitter = createAppMessageEmitter({
+      resolveTargetAppStatus: () => 'open'
+    })
+
+    const result = await handleAppBridgeInvoke(
+      deps({ appMessageEmitter }),
+      runtime,
+      'app.emit',
+      { appId: 'target-workbench', type: 'order-created', data: { orderId: 'order-1' } },
+      1
+    )
+
+    expect(result).toEqual({ accepted: true })
+    expect(firstTargetContents.send).toHaveBeenCalledWith('jiaorong-app:bridge-event', {
+      event: 'app.message',
+      payload: {
+        type: 'demo-workbench:order-created',
+        data: { orderId: 'order-1' }
+      }
+    })
+    expect(secondTargetContents.send).toHaveBeenCalledWith('jiaorong-app:bridge-event', {
+      event: 'app.message',
+      payload: {
+        type: 'demo-workbench:order-created',
+        data: { orderId: 'order-1' }
+      }
+    })
+  })
+
+  it('rejects realtime app messages when the target is missing or not open', async () => {
+    const appMessageEmitter = createAppMessageEmitter({
+      resolveTargetAppStatus: (targetAppId) =>
+        targetAppId === 'target-workbench' ? 'not_open' : 'not_found'
+    })
+
+    const notOpen = await handleAppBridgeInvoke(
+      deps({ appMessageEmitter }),
+      runtime,
+      'app.emit',
+      { appId: 'target-workbench', type: 'order-created', data: {} },
+      1
+    )
+    expect(isJiaorongBridgeFailure(notOpen)).toBe(true)
+    expect(notOpen).toMatchObject({ code: 'APP_NOT_READY' })
+
+    const missing = await handleAppBridgeInvoke(
+      deps({ appMessageEmitter }),
+      runtime,
+      'app.emit',
+      { appId: 'missing-app', type: 'order-created', data: {} },
+      1
+    )
+    expect(isJiaorongBridgeFailure(missing)).toBe(true)
+    expect(missing).toMatchObject({ code: 'APP_NOT_FOUND' })
+  })
+
+  it('rejects invalid or oversized realtime app messages before delivery', async () => {
+    const targetContents: GuestWebContents = {
+      id: 2,
+      isDestroyed: () => false,
+      openDevTools: vi.fn(),
+      send: vi.fn()
+    }
+    getAllWebContents.mockReturnValue([targetContents])
+    bindGuestAppId(2, 'target-workbench')
+    const appMessageEmitter = createAppMessageEmitter({
+      resolveTargetAppStatus: () => 'open'
+    })
+
+    const invalid = await handleAppBridgeInvoke(
+      deps({ appMessageEmitter }),
+      runtime,
+      'app.emit',
+      { appId: 'target-workbench', type: 'OrderCreated', data: {} },
+      1
+    )
+    expect(isJiaorongBridgeFailure(invalid)).toBe(true)
+    expect(invalid).toMatchObject({ code: 'VALIDATION_ERROR' })
+
+    const oversized = await handleAppBridgeInvoke(
+      deps({ appMessageEmitter }),
+      runtime,
+      'app.emit',
+      { appId: 'target-workbench', type: 'order-created', data: { text: '文'.repeat(32769) } },
+      1
+    )
+    expect(isJiaorongBridgeFailure(oversized)).toBe(true)
+    expect(oversized).toMatchObject({ code: 'VALIDATION_ERROR' })
+    expect(targetContents.send).not.toHaveBeenCalled()
   })
 
   it('keeps an app intent pending until the target registers a listener', async () => {

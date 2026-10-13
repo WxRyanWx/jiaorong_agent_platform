@@ -160,7 +160,8 @@ const jiaorong = {
   respondToolInteraction: call('chat.respondToolInteraction'), // 回答工具审批
   openDevTools: call('devtools.open'), // 打开应用 DevTools
   app: {
-    open: call('app.open') // 打开另一个应用并携带一次性 Intent
+    open: call('app.open'), // 打开另一个应用并携带一次性 Intent
+    emit: call('app.emit') // 向另一个已打开应用发送实时消息
   },
   notification: {
     show: call('notification.show') // 在主窗口右上角弹提示

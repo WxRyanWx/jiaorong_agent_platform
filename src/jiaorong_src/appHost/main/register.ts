@@ -62,6 +62,7 @@ import {
   publishDevApp
 } from '../devCenter/main/devCenter'
 import { getDevApps, syncDevApps } from '../devCenter/main/devApps'
+import { createAppMessageEmitter } from './appMessage'
 import {
   prepareSwitchDevAppToProduction,
   closeAllDevAppWindows,
@@ -412,6 +413,22 @@ async function broadcastContext(deps: JiaorongAppHostDeps): Promise<void> {
 export function startJiaorongAppHost(deps: JiaorongAppHostDeps): void {
   const hostDeps: JiaorongAppHostDeps = {
     ...deps,
+    appMessageEmitter: createAppMessageEmitter({
+      resolveTargetAppStatus: (targetAppId) => {
+        const target = findVisibleOpenableApp(listVisible(deps), targetAppId)
+        if (!target) return 'not_found'
+        return webContents
+          .getAllWebContents()
+          .some(
+            (contents) =>
+              !contents.isDestroyed() &&
+              (getBoundGuestAppId(contents.id) ?? readJiaorongAppHostname(contents.getURL())) ===
+                targetAppId
+          )
+          ? 'open'
+          : 'not_open'
+      }
+    }),
     openAppIntent: createAppIntentOpener({
       requestOpenApp: (targetAppId, sourceWebContentsId) =>
         requestAppIntentOpen(deps, targetAppId, sourceWebContentsId)

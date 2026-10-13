@@ -26,5 +26,5 @@
 
 ## 非目标
 
-- 不实现 `jr.app.emit` 实时通信。
+- 一期不实现 `jr.app.emit` 实时通信；二期见 `docs/features/app-realtime-communication/`。
 - 不做后台消息暂存邮箱。
