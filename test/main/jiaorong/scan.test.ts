@@ -1,6 +1,23 @@
-import { describe, expect, it } from 'vitest'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import os from 'node:os'
+import path from 'node:path'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+
+vi.unmock('fs')
+vi.unmock('node:fs')
+
+const debugLinkState = vi.hoisted(() => ({ appId: '', dir: '' }))
+
+vi.mock('../../../src/jiaorong_src/appHost/main/appManagerInstance', () => ({
+  sharedAppsManager: () => ({
+    isExternalAppLink: (appId: string) => appId === debugLinkState.appId,
+    getAppDir: (appId: string) => (appId === debugLinkState.appId ? debugLinkState.dir : null)
+  })
+}))
+
 import {
   compareAppVersion,
+  ensureJiaorongAppInstalled,
   findVisibleOpenableApp,
   isJiaorongSidebarMenuApp,
   pickRuntimeSlot
@@ -24,6 +41,54 @@ describe('scan compareAppVersion', () => {
     // 非三段式版本不判为有更新，避免每次启动都去下 zip
     expect(compareAppVersion('1.0.0', '1.0')).toBe(false)
     expect(compareAppVersion('1.0', '1.0.1')).toBe(false)
+  })
+})
+
+describe('ensureJiaorongAppInstalled', () => {
+  let tempRoot = ''
+
+  afterEach(async () => {
+    debugLinkState.appId = ''
+    debugLinkState.dir = ''
+    if (tempRoot) await rm(tempRoot, { recursive: true, force: true })
+  })
+
+  it('keeps an active debug link ahead of the builtin production directory', async () => {
+    tempRoot = await mkdtemp(path.join(os.tmpdir(), 'jiaorong-scan-'))
+    const debugDir = path.join(tempRoot, 'debug')
+    await mkdir(path.join(debugDir, 'web-ui'), { recursive: true })
+    await writeFile(
+      path.join(debugDir, 'app.json'),
+      JSON.stringify({
+        id: 'collaboration-platform',
+        name: '协同平台调试版',
+        version: '0.0.1',
+        entry: 'web-ui/debug.html'
+      }),
+      'utf8'
+    )
+    debugLinkState.appId = 'collaboration-platform'
+    debugLinkState.dir = debugDir
+
+    const runtime = {
+      id: 'collaboration-platform',
+      name: '协同平台',
+      version: '1.0.0',
+      slot: 'menu',
+      source: 'builtin',
+      enabled: true,
+      package: { kind: 'zip', downloadUrl: 'https://example.com/app.zip' },
+      visible: true,
+      installStatus: 'installed',
+      installedVersion: '1.0.0',
+      appDir: null,
+      entry: null
+    } satisfies JiaorongAppRuntime
+
+    const ensured = ensureJiaorongAppInstalled(runtime)
+    expect(ensured.appDir).toBe(debugDir)
+    expect(ensured.entry).toBe('web-ui/debug.html')
+    expect(ensured.installedVersion).toBe('0.0.1')
   })
 })
 

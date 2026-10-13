@@ -6,6 +6,7 @@ import {
   JIAORONG_APP_LEAVE_CHANNEL,
   JIAORONG_APP_LIST_CHANNEL,
   JIAORONG_APP_OPEN_CHANNEL,
+  JIAORONG_APP_OPEN_PREPARE_CHANNEL,
   JIAORONG_APP_OPEN_REQUEST_CHANNEL,
   JIAORONG_APP_INTENT_READY_CHANNEL,
   JIAORONG_APP_CATALOG_CHANGED_CHANNEL,
@@ -61,7 +62,15 @@ import {
   publishDevApp
 } from '../devCenter/main/devCenter'
 import { getDevApps, syncDevApps } from '../devCenter/main/devApps'
-import { openDevAppWindow } from '../devCenter/main/devAppWindow'
+import {
+  prepareSwitchDevAppToProduction,
+  closeAllDevAppWindows,
+  closeDevAppWindow,
+  isDevAppWindowOpen,
+  isDevAppHostContents,
+  openDevAppWindow,
+  switchDevAppToProduction
+} from '../devCenter/main/devAppWindow'
 import { installJiaorongDevToolsShortcut } from './devtoolsShortcut'
 import { registerJiaorongAppProtocolHandler } from './protocol'
 import { setRemoteAppCatalogChangedListener, startRemoteAppCatalogSync } from '../catalog'
@@ -97,6 +106,14 @@ function senderUrlOf(sender: IpcMainInvokeEvent['sender']): string {
     // WebContents 已销毁等情况，当作拿不到 URL
     return ''
   }
+}
+
+/**
+ * 判断这次打开信息是否来自开发者中心独立窗口。
+ * @param event IPC 事件
+ */
+function isDevAppOpenInfoRequest(event: IpcMainInvokeEvent): boolean {
+  return isDevAppHostContents(event.sender)
 }
 
 /**
@@ -165,6 +182,17 @@ function readAppIdInput(input: unknown): string {
   /** 入参里的 appId 字段。 */
   const appId = (input as { appId?: unknown }).appId
   return typeof appId === 'string' ? appId.trim() : ''
+}
+
+/**
+ * 读开发者中心打开入参。
+ * @param input IPC 原始值
+ */
+function readDevAppOpenInput(input: unknown): { appId: string } {
+  if (!input || typeof input !== 'object') return { appId: '' }
+  /** 原始字段表。 */
+  const record = input as { appId?: unknown }
+  return { appId: typeof record.appId === 'string' ? record.appId.trim() : '' }
 }
 
 /**
@@ -341,6 +369,8 @@ async function broadcastContext(deps: JiaorongAppHostDeps): Promise<void> {
   lastBroadcastUserKey = currentUser
   // 换人登录：所有应用子进程都要停，避免串数据
   if (userChanged) {
+    await closeAllDevAppWindows()
+    syncDevApps([])
     sharedAppsManager().stopAllRunningApps()
     clearAppIntents()
   }
@@ -395,6 +425,8 @@ export function startJiaorongAppHost(deps: JiaorongAppHostDeps): void {
   if (started) return
   started = true
   migrateLegacySystemAppsIfNeeded()
+  // 旧版把调试 link 长期落盘；新版只在调试窗口打开期间保留
+  sharedAppsManager().removeExternalAppLinks()
   // 记下当前登录用户，供后续判断是否换人
   lastBroadcastUserKey = readAuthUserKey(deps.getAuthSession())
   // 登录态变化时重广播 context
@@ -426,6 +458,14 @@ export function startJiaorongAppHost(deps: JiaorongAppHostDeps): void {
       .map((item) => toMenuAppItem(item))
   })
 
+  // 侧栏打开应用前检查调试窗口；需要切换时由主进程弹窗确认
+  ipcMain.handle(JIAORONG_APP_OPEN_PREPARE_CHANNEL, (_event, input: unknown) => {
+    /** 要打开的应用。 */
+    const { appId } = readDevAppOpenInput(input)
+    if (!appId) return { ok: false }
+    return prepareSwitchDevAppToProduction(appId)
+  })
+
   // 应用中心列表：先主动重拉 OSS 目录，再回远程应用 + 安装状态
   ipcMain.handle(JIAORONG_APP_CENTER_LIST_CHANNEL, async () => {
     await refreshJiaorongRemoteRuntimeConfig()
@@ -434,12 +474,18 @@ export function startJiaorongAppHost(deps: JiaorongAppHostDeps): void {
 
   // 应用中心安装 / 更新：下载 zip 校验后解压安装
   ipcMain.handle(JIAORONG_APP_CENTER_INSTALL_CHANNEL, async (_event, input: unknown) => {
-    return installAppCenterApp(deps, readAppIdInput(input))
+    const appId = readAppIdInput(input)
+    // 生产包更新前释放同 id 调试来源，避免更新落到临时 link 上
+    if (appId) await closeDevAppWindow(appId)
+    return installAppCenterApp(deps, appId)
   })
 
   // 应用中心卸载：仅开发者
-  ipcMain.handle(JIAORONG_APP_CENTER_UNINSTALL_CHANNEL, (_event, input: unknown) => {
-    return uninstallAppCenterApp(deps, readAppIdInput(input))
+  ipcMain.handle(JIAORONG_APP_CENTER_UNINSTALL_CHANNEL, async (_event, input: unknown) => {
+    const appId = readAppIdInput(input)
+    // 卸载生产包前先关闭调试窗口，避免只卸掉临时 link
+    if (appId) await closeDevAppWindow(appId)
+    return uninstallAppCenterApp(deps, appId)
   })
 
   // 开发者中心列表：本地登记应用
@@ -467,42 +513,44 @@ export function startJiaorongAppHost(deps: JiaorongAppHostDeps): void {
     return peekDevZipManifest(deps, readZipPathInput(input))
   })
 
-  // 渲染浏览器存储名单同步主进程：内存镜像 + link 登记（spawn / getAppDir 走源目录）
-  ipcMain.handle(JIAORONG_DEV_CENTER_SYNC_CHANNEL, (_event, input: unknown) => {
+  // 渲染浏览器存储名单同步主进程：只维护内存记录，调试 link 由打开动作临时创建
+  ipcMain.handle(JIAORONG_DEV_CENTER_SYNC_CHANNEL, async (_event, input: unknown) => {
     const user = readUserIdentityFromAuthSession(deps.getAuthSession())
     if (!isDeveloperIdentity(user)) return []
-    /** sync 前的登记 id，用于清理被移除的 link。 */
-    const previousIds = getDevApps().map((item) => item.id)
+    /** sync 前的登记，用于识别被移除或换目录的应用。 */
+    const previousRecords = getDevApps()
     /** sync 后的名单。 */
     const next = syncDevApps(input)
     /** 应用管理器。 */
     const manager = sharedAppsManager()
-    for (const record of next) {
-      // link 模式不复制目录；重复登记覆盖旧 link
-      const linked = manager.installAppFromPath(record.dir, { mode: 'link', overwrite: true })
-      // 登记失败＝清单不合规，spawn 起不来，留条日志好排查
-      if (!linked.success)
-        console.warn('[jiaorong-dev-center] link 登记失败', record.id, linked.message)
-    }
     /** 新名单 id 集合。 */
     const nextIds = new Set(next.map((item) => item.id))
-    for (const appId of previousIds) {
-      if (nextIds.has(appId)) continue
-      // 只清开发者中心登记的 link，不动正常安装
-      if (manager.isLinkedApp(appId)) manager.uninstallApp(appId, true)
+    for (const previous of previousRecords) {
+      if (nextIds.has(previous.id)) continue
+      // 移除登记时同步关闭调试窗口并清理临时 link，不动正常安装
+      await closeDevAppWindow(previous.id)
+    }
+    for (const record of next) {
+      const previous = previousRecords.find((item) => item.id === record.id)
+      // 同 id 换本地目录时关闭旧调试窗口，避免旧窗口继续跑旧目录
+      if (previous?.dir !== record.dir && isDevAppWindowOpen(record.id)) {
+        await closeDevAppWindow(record.id)
+      }
+      if (isDevAppWindowOpen(record.id)) continue
+      // 清理历史遗留或异常残留的调试 link
+      manager.removeExternalAppLink(record.id)
     }
     return next
   })
 
   // 开发者中心「打开」：每个应用一个独立窗口，关窗停 Node
-  ipcMain.handle(JIAORONG_DEV_APP_OPEN_WINDOW_CHANNEL, (_event, input: unknown) => {
+  ipcMain.handle(JIAORONG_DEV_APP_OPEN_WINDOW_CHANNEL, async (_event, input: unknown) => {
     const user = readUserIdentityFromAuthSession(deps.getAuthSession())
-    if (!isDeveloperIdentity(user)) return false
-    /** 要开独立窗口的应用 id。 */
-    const appId = readAppIdInput(input)
-    if (!appId) return false
-    openDevAppWindow(appId)
-    return true
+    if (!isDeveloperIdentity(user)) return { ok: false }
+    /** 要开独立窗口的应用。 */
+    const { appId } = readDevAppOpenInput(input)
+    if (!appId) return { ok: false }
+    return openDevAppWindow(appId)
   })
 
   // 打开应用：确保安装、spawn 子进程、返回 webview 参数
@@ -511,12 +559,22 @@ export function startJiaorongAppHost(deps: JiaorongAppHostDeps): void {
     const appId = readAppIdInput(input)
     // 入参缺 appId
     if (!appId) return null
+    if (!isDevAppOpenInfoRequest(event)) {
+      // 调试窗口打开期间点击生产入口：确认后关闭调试并恢复生产目录
+      const switchedToProduction = await switchDevAppToProduction(appId)
+      if (!switchedToProduction) return null
+    }
     /** 当前应用运行时。 */
     const runtime = findVisibleOpenableApp(listVisible(deps), appId)
     // 不可见或不可打开
     if (!runtime) return null
     /** 是否已安装守卫或协议。 */
     const installed = ensureJiaorongAppInstalled(runtime)
+    // 调试窗口打开期间本地 app.json.id 被改掉时，不再接管另一个应用 id
+    if (isDevAppOpenInfoRequest(event) && installed.appDir) {
+      const currentManifestId = readAppManifest(installed.appDir)?.id
+      if (currentManifestId !== appId) return null
+    }
     /** 应用管理器。 */
     const manager = sharedAppsManager()
     // 启停只认打开目录里的 app.json.id，文件夹名可以和 id 不同
@@ -537,6 +595,8 @@ export function startJiaorongAppHost(deps: JiaorongAppHostDeps): void {
     /** 打开信息。 */
     const info = toOpenInfo(installed)
     if (!info) return null
+    // 等待 spawn 探测期间调试窗口可能已接管，不能再返回旧生产信息
+    if (!isDevAppOpenInfoRequest(event) && isDevAppWindowOpen(appId)) return null
     // 有 spawn 时等一小会：EADDRINUSE 的进程几乎立刻退出，日志里也会写 address already in use
     if (manager.getApp(spawnId)?.spawn?.trim()) {
       if (!startedSpawn.success) {
@@ -569,6 +629,10 @@ export function startJiaorongAppHost(deps: JiaorongAppHostDeps): void {
     const spawnId = resolveSpawnAppId(appId, manager.getAppDir(appId))
     const windowId = senderBrowserWindowId(event)
     if (windowId !== null) forgetWindowSpawn(windowId, spawnId)
+    // 旧生产帧迟到 leave 时，调试 link 可能已接管同 id；不能停掉调试进程
+    if (manager.isExternalAppLink(spawnId) && !isDevAppOpenInfoRequest(event)) {
+      return { ok: true }
+    }
     manager.stopApp(spawnId)
     // 异步停生成，不阻塞侧栏跳转
     void abortAppGenerations(deps, spawnId)
@@ -628,6 +692,7 @@ export function stopJiaorongAppHost(): void {
   // 摘掉全部 IPC handler
   ipcMain.removeHandler(JIAORONG_APP_LIST_CHANNEL)
   ipcMain.removeHandler(JIAORONG_APP_OPEN_CHANNEL)
+  ipcMain.removeHandler(JIAORONG_APP_OPEN_PREPARE_CHANNEL)
   ipcMain.removeHandler(JIAORONG_APP_LEAVE_CHANNEL)
   ipcMain.removeHandler(JIAORONG_APP_BRIDGE_INVOKE_CHANNEL)
   ipcMain.removeHandler(JIAORONG_APP_INTENT_READY_CHANNEL)

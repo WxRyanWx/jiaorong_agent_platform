@@ -219,6 +219,20 @@ export type JiaorongDevCenterItem = {
   dir: string
 }
 
+/** 开发者中心打开本地调试应用的结果。 */
+export type JiaorongDevAppOpenResult = {
+  ok: boolean
+  /** 用户取消切换时为 true。 */
+  cancelled?: boolean
+  /** 失败原因。 */
+  message?: string
+}
+
+/** 打开生产应用前的运行来源检查结果。 */
+export type JiaorongAppOpenPrepareResult = {
+  ok: boolean
+}
+
 /** 打开应用时 Node spawn 的警告：页面仍打开，但后端没起来。 */
 export type JiaorongAppSpawnWarning = {
   /** 端口被其他已打开应用占用，或进程立刻退出。 */

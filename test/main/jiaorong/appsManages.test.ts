@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -176,6 +176,163 @@ describe('appsManages', () => {
     expect(uninstalled.success, uninstalled.message).toBe(true)
     expect(existsSync(appDir)).toBe(false)
     expect(manager.getApp('app-scaffold123')).toBeNull()
+  })
+
+  it('uses a debug link only while it exists and restores the installed directory after cleanup', async () => {
+    const appsRoot = await makeRoot()
+    const installRoot = path.join(appsRoot, 'apps')
+    const sourceRoot = path.join(appsRoot, 'sources')
+    const manifest = {
+      id: 'same-app',
+      name: 'Same App',
+      version: '1.0.0',
+      entry: 'web-ui/index.html',
+      slot: 'menu',
+      customField: 'keep-me'
+    }
+
+    for (const source of [path.join(sourceRoot, 'installed'), path.join(sourceRoot, 'debug')]) {
+      await mkdir(path.join(source, 'web-ui'), { recursive: true })
+      await writeFile(path.join(source, 'app.json'), JSON.stringify(manifest), 'utf8')
+      await writeFile(path.join(source, 'web-ui', 'index.html'), source, 'utf8')
+    }
+
+    const manager = new appsManages(installRoot)
+    expect(
+      manager.installAppFromPath(path.join(sourceRoot, 'installed'), {
+        mode: 'copy',
+        folderName: 'installed',
+        overwrite: true
+      }).success
+    ).toBe(true)
+    expect(manager.getAppDir('same-app')).toBe(path.join(installRoot, 'installed'))
+
+    expect(
+      manager.installAppFromPath(path.join(sourceRoot, 'debug'), {
+        mode: 'link',
+        overwrite: true
+      }).success
+    ).toBe(true)
+    expect(manager.getAppDir('same-app')).toBe(path.join(sourceRoot, 'debug'))
+
+    const rescanned = new appsManages(installRoot)
+    expect(rescanned.getAppDir('same-app')).toBe(path.join(sourceRoot, 'debug'))
+    expect(rescanned.isExternalAppLink('same-app')).toBe(true)
+
+    rescanned.removeExternalAppLinks()
+    expect(rescanned.getAppDir('same-app')).toBe(path.join(installRoot, 'installed'))
+    expect(rescanned.isExternalAppLink('same-app')).toBe(false)
+    expect(
+      JSON.parse(await readFile(path.join(sourceRoot, 'debug', 'app.json'), 'utf8')).customField
+    ).toBe('keep-me')
+  })
+
+  it('disables an installed copy even when its source folder is kept', async () => {
+    const appsRoot = await makeRoot()
+    const source = path.join(appsRoot, 'source-app')
+    await mkdir(path.join(source, 'web-ui'), { recursive: true })
+    await writeFile(
+      path.join(source, 'app.json'),
+      JSON.stringify({
+        id: 'kept-app',
+        name: 'Kept',
+        version: '1.0.0',
+        entry: 'web-ui/index.html',
+        slot: 'menu'
+      }),
+      'utf8'
+    )
+
+    const manager = new appsManages(path.join(appsRoot, 'apps'))
+    expect(manager.installAppFromPath(source, { mode: 'copy' }).success).toBe(true)
+    const installedDir = manager.getAppDir('kept-app')
+    expect(manager.uninstallApp('kept-app', true).success).toBe(true)
+    expect(installedDir && existsSync(installedDir)).toBe(true)
+
+    const rescanned = new appsManages(path.join(appsRoot, 'apps'))
+    expect(rescanned.listApps({ enabled: true }).some((app) => app.id === 'kept-app')).toBe(false)
+  })
+
+  it('rejects link ids that could escape the apps root', async () => {
+    const appsRoot = await makeRoot()
+    const source = path.join(appsRoot, 'escape-app')
+    await mkdir(path.join(source, 'web-ui'), { recursive: true })
+    await writeFile(
+      path.join(source, 'app.json'),
+      JSON.stringify({
+        id: '../escape',
+        name: 'Escape',
+        version: '1.0.0',
+        entry: 'web-ui/index.html',
+        slot: 'menu'
+      }),
+      'utf8'
+    )
+
+    const manager = new appsManages(path.join(appsRoot, 'apps'))
+    const linked = manager.installAppFromPath(source, { mode: 'link', overwrite: true })
+    expect(linked.success).toBe(false)
+    expect(existsSync(path.join(appsRoot, 'escape.app-link.json'))).toBe(false)
+  })
+
+  it('removes a debug link by registry id after the source manifest id changes', async () => {
+    const appsRoot = await makeRoot()
+    const source = path.join(appsRoot, 'source-app')
+    await mkdir(path.join(source, 'web-ui'), { recursive: true })
+    const writeManifest = (id: string) =>
+      writeFile(
+        path.join(source, 'app.json'),
+        JSON.stringify({
+          id,
+          name: 'Same App',
+          version: '1.0.0',
+          entry: 'web-ui/index.html',
+          slot: 'menu'
+        }),
+        'utf8'
+      )
+    await writeManifest('same-app')
+
+    const manager = new appsManages(path.join(appsRoot, 'apps'))
+    expect(manager.installAppFromPath(source, { mode: 'link', overwrite: true }).success).toBe(true)
+    await writeManifest('changed-app')
+    manager.refresh()
+    expect(manager.getAppDir('changed-app')).toBeNull()
+
+    expect(manager.removeExternalAppLink('same-app')).toBe(true)
+    expect(existsSync(path.join(appsRoot, 'apps', 'same-app.app-link.json'))).toBe(false)
+    expect(manager.getAppDir('changed-app')).toBeNull()
+  })
+
+  it('stops a process by working directory after the manifest id changes', async () => {
+    const appsRoot = await makeRoot()
+    const source = path.join(appsRoot, 'source-app')
+    await mkdir(path.join(source, 'web-ui'), { recursive: true })
+    const writeManifest = (id: string) =>
+      writeFile(
+        path.join(source, 'app.json'),
+        JSON.stringify({
+          id,
+          name: 'Runtime App',
+          version: '1.0.0',
+          entry: 'web-ui/index.html',
+          slot: 'menu',
+          spawn: 'node -e "setTimeout(()=>{}, 30000)"'
+        }),
+        'utf8'
+      )
+    await writeManifest('runtime-app')
+
+    const manager = new appsManages(path.join(appsRoot, 'apps'))
+    expect(manager.installAppFromPath(source, { mode: 'link', overwrite: true }).success).toBe(true)
+    const started = manager.startApp('runtime-app', { cwd: source })
+    expect(started.success, started.message).toBe(true)
+
+    await writeManifest('changed-runtime-app')
+    manager.refresh()
+    manager.stopAppsInDir(source)
+    expect(manager.isRunning('runtime-app')).toBe(false)
+    expect(manager.isRunning('changed-runtime-app')).toBe(false)
   })
 
   it('skips start when spawn is absent', async () => {

@@ -7,8 +7,12 @@ export const JIAORONG_APP_PROTOCOL = 'jiaorong-app'
 export const JIAORONG_APP_LIST_CHANNEL = 'jiaorong-app:list-visible'
 /** 取打开 webview 所需 src / partition / preload。 */
 export const JIAORONG_APP_OPEN_CHANNEL = 'jiaorong-app:get-open-info'
+/** 打开应用前的运行来源检查；需要切换时由主进程弹窗确认。 */
+export const JIAORONG_APP_OPEN_PREPARE_CHANNEL = 'jiaorong-app:open-prepare'
 /** 子应用请求主窗口打开另一个应用。 */
 export const JIAORONG_APP_OPEN_REQUEST_CHANNEL = 'jiaorong-app:open-request'
+/** 主进程要求渲染端移除某个生产应用 guest。 */
+export const JIAORONG_APP_CLOSE_REQUEST_CHANNEL = 'jiaorong-app:close-request'
 /** guest 告知主进程已注册 app.intent 监听。 */
 export const JIAORONG_APP_INTENT_READY_CHANNEL = 'jiaorong-app:intent-ready'
 /** 离开应用：停 spawn。 */

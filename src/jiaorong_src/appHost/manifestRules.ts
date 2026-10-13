@@ -9,6 +9,9 @@ export const APP_MANIFEST_SLOTS = ['menu', 'app-center'] as const
 /** 宽松 semver：三段数字 + 可选预发布 / 构建元数据。 */
 export const APP_MANIFEST_SEMVER = /^\d+\.\d+\.\d+(-[\w.]+)?(\+[\w.]+)?$/
 
+/** 应用 id 必须是单层 kebab-id，防止安装路径或 link 文件逃逸。 */
+export const APP_MANIFEST_ID_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
+
 /** 发布表单字段。 */
 export type AppManifestFormFields = {
   id: string
@@ -24,6 +27,7 @@ export type AppManifestFormFields = {
 /** 清单不合规原因。 */
 export type ManifestIssue =
   | { kind: 'required'; fields: string[] }
+  | { kind: 'id' }
   | { kind: 'slot' }
   | { kind: 'version' }
 
@@ -51,6 +55,7 @@ export function inspectManifestRecord(record: {
     (key) => readManifestString(record[key]) === ''
   )
   if (missing.length > 0) return { kind: 'required', fields: [...missing] }
+  if (!APP_MANIFEST_ID_RE.test(readManifestString(record.id))) return { kind: 'id' }
   /** 挂载位置。 */
   const slot = readManifestString(record.slot)
   if (!(APP_MANIFEST_SLOTS as readonly string[]).includes(slot)) return { kind: 'slot' }
@@ -64,6 +69,7 @@ export function inspectManifestRecord(record: {
  */
 export function manifestIssueMessage(issue: ManifestIssue): string {
   if (issue.kind === 'required') return `app.json 缺少必填字段：${issue.fields.join('、')}`
+  if (issue.kind === 'id') return 'app.json 的 id 只能使用小写字母、数字和中划线'
   if (issue.kind === 'slot') return 'app.json 的 slot 必须是 menu 或 app-center'
   return 'app.json 的 version 要用三段式版本号，例如 1.0.0'
 }

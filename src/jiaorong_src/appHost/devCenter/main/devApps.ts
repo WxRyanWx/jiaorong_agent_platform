@@ -2,6 +2,7 @@
 
 import fs from 'node:fs'
 import {
+  APP_MANIFEST_ID_RE,
   inspectManifestRecord,
   manifestIssueMessage,
   readManifestString
@@ -34,7 +35,7 @@ export function syncDevApps(input: unknown): JiaorongDevAppRecord[] {
     /** 插件文件夹。 */
     const dir = readString(record.dir)
     // id / dir 缺一即非法；同 id 只留第一条
-    if (!id || !dir || next.some((item) => item.id === id)) continue
+    if (!id || !APP_MANIFEST_ID_RE.test(id) || !dir || next.some((item) => item.id === id)) continue
     /** 清单图标：旧名单没存 icon 时回目录补读。 */
     const icon = readString(record.icon) || readAppManifest(dir)?.icon || ''
     next.push({

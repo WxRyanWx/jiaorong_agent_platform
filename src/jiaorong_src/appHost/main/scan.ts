@@ -418,6 +418,23 @@ function resolveDevRuntime(record: JiaorongAppCatalogRecord, appDir: string): Ji
  * @param runtime 目录扫出的运行时项
  */
 export function ensureJiaorongAppInstalled(runtime: JiaorongAppRuntime): JiaorongAppRuntime {
+  /** 调试窗口存活期间的外部 link；所有来源都必须优先使用，且不能被安装/更新覆盖。 */
+  const manager = sharedAppsManager()
+  if (manager.isExternalAppLink(runtime.id)) {
+    /** 调试目录。 */
+    const debugDir = manager.getAppDir(runtime.id)
+    /** 调试清单。 */
+    const debugManifest = debugDir ? readAppManifest(debugDir) : null
+    if (debugDir && debugManifest) {
+      return {
+        ...runtime,
+        appDir: debugDir,
+        installedVersion: debugManifest.version,
+        installStatus: 'installed',
+        entry: debugManifest.entry
+      }
+    }
+  }
   // 系统应用始终指向内置目录，不拷贝
   if (runtime.source === 'builtin') return bindSystemBundledDir(runtime)
   // 本地调试包本来就在用户目录里

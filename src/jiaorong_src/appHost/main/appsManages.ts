@@ -10,10 +10,11 @@ import * as path from 'node:path'
 import { randomBytes } from 'node:crypto'
 import { spawn, execSync, ChildProcess } from 'node:child_process'
 import { isSystemBundledApp } from '../systemApps'
+import { APP_MANIFEST_ID_RE } from '../manifestRules'
 import { getSystemAppDir, getSystemAppsRoot, isHiddenAppDirName, isPathInsideRoot } from './paths'
 
-/** 安装目录名必须是单层 kebab-id，防止 zip 清单把包装到 apps 目录外。 */
-const APP_FOLDER_ID_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
+/** 安装目录名规则与应用 id 一致，防止安装路径或 link 文件逃逸。 */
+const APP_FOLDER_ID_RE = APP_MANIFEST_ID_RE
 /** 刚 spawn 时还没 LISTEN，这段时间内允许复用，避免并发 getOpenInfo 把进程杀掉重拉。 */
 const SPAWN_REUSE_GRACE_MS = 5000
 const NODE_BIN_NAME = process.platform === 'win32' ? 'node.exe' : 'node'
@@ -643,25 +644,26 @@ class appsManages {
     this.appFolderMap.clear()
     this.appLinkMap.clear()
 
-    // 用户 apps 目录可能还没建
-    if (fs.existsSync(this.appsRootPath)) {
-      /** 根目录下的一档条目。 */
-      const entries = fs.readdirSync(this.appsRootPath, { withFileTypes: true })
-      for (const entry of entries) {
-        // 子文件夹：普通安装的应用
-        if (entry.isDirectory()) {
-          // 跳过 .temp_extract_* 等点目录，避免安装半成品被登记成应用
-          if (isHiddenAppDirName(entry.name)) continue
-          // 按目录里的 app.json.id 登记；文件夹名不参与身份判断
-          this.tryLoadFromDirectory(entry.name)
-        } else if (entry.isFile() && entry.name.endsWith('.app-link.json')) {
-          // 链接文件：link 模式安装的应用
-          this.tryLoadFromLink(entry.name)
-        }
+    /** 根目录下的一档条目；目录不存在时为空。 */
+    const entries = fs.existsSync(this.appsRootPath)
+      ? fs.readdirSync(this.appsRootPath, { withFileTypes: true })
+      : []
+    for (const entry of entries) {
+      // 子文件夹：普通安装的应用
+      if (!entry.isDirectory()) continue
+      // 跳过 .temp_extract_* 等点目录，避免安装半成品被登记成应用
+      if (isHiddenAppDirName(entry.name)) continue
+      // 按目录里的 app.json.id 登记；文件夹名不参与身份判断
+      this.tryLoadFromDirectory(entry.name)
+    }
+    // 系统应用先于调试 link 加载，调试窗口可临时覆盖同名系统应用
+    this.loadSystemBundledApps()
+    for (const entry of entries) {
+      // 链接文件：调试窗口打开期间临时接管运行目录
+      if (entry.isFile() && entry.name.endsWith('.app-link.json')) {
+        this.tryLoadFromLink(entry.name)
       }
     }
-    // 随客户端内置的系统应用单独登记
-    this.loadSystemBundledApps()
     console.log(`[appsManages] 扫描完成，共加载 ${this.appCache.size} 个应用`)
   }
 
@@ -780,6 +782,12 @@ class appsManages {
     const linkData = this.readJSON<AppLinkFile>(linkPath)
     // 链接文件损坏
     if (!linkData) return false
+    /** link 文件登记的应用 id。 */
+    const linkId = path.basename(linkFileName, '.app-link.json')
+    if (!APP_FOLDER_ID_RE.test(linkId)) return false
+    if (typeof linkData.sourcePath !== 'string' || !linkData.sourcePath.trim()) return false
+    if (!path.isAbsolute(linkData.sourcePath)) return false
+    if (linkData.manifestId !== linkId) return false
 
     const { sourcePath } = linkData
     /** 源目录下的清单路径。 */
@@ -792,8 +800,10 @@ class appsManages {
 
     /** 源清单。 */
     const manifest = this.readJSON<AppManifest>(manifestPath)
-    // 清单无效，或指向了系统应用
-    if (!manifest || isSystemBundledApp(manifest.id)) return false
+    // 清单无效不登记；系统应用允许被本地调试 link 临时覆盖
+    if (!manifest) return false
+    // 调试期间改 app.json.id 会让 link 失效，避免接管另一个 appId
+    if (manifest.id !== linkId) return false
 
     /** 完整配置。 */
     const config = this.buildFullConfig(manifest, {
@@ -1393,9 +1403,6 @@ class appsManages {
         this.stopApp(appId)
       }
 
-      // 先停用
-      this.setEnabled(appId, false)
-
       // 根据安装类型清理
       // link 模式：只删引用文件，源目录是开发者的工作区，不能动
       if (app.installType === AppInstallType.DEVELOPMENT && this.appLinkMap.has(appId)) {
@@ -1405,12 +1412,14 @@ class appsManages {
         // 文件可能已被手工删掉
         if (fs.existsSync(linkPath)) fs.unlinkSync(linkPath)
         this.appLinkMap.delete(appId)
-      } else if (!keepSource) {
+      } else {
+        this.setEnabled(appId, false)
+
         // copy/normal 模式：删除已登记的那份目录，文件夹名可以和 id 不同
         /** 应用文件夹名，缓存没有就按 app.json.id 回磁盘找。 */
         const folderName = this.appFolderMap.get(appId) ?? this.findAppFolderOnDisk(appId)
         // 找到目录才删
-        if (folderName) {
+        if (folderName && !keepSource) {
           /** 应用目录绝对路径。 */
           const appDir = path.join(this.appsRootPath, folderName)
           if (fs.existsSync(appDir)) {
@@ -1600,6 +1609,59 @@ class appsManages {
     return Boolean(
       app && app.installType === AppInstallType.DEVELOPMENT && this.appLinkMap.has(appId)
     )
+  }
+
+  /**
+   * 是否为用户 apps 根目录下的外部调试 link；系统内置引用不算。
+   * @param appId 应用 ID
+   */
+  isExternalAppLink(appId: string): boolean {
+    /** 应用配置。 */
+    const app = this.appCache.get(appId)
+    /** link 文件路径。 */
+    const linkPath = path.join(this.appsRootPath, `${appId}.app-link.json`)
+    return Boolean(app && app.installType === AppInstallType.DEVELOPMENT && fs.existsSync(linkPath))
+  }
+
+  /**
+   * 删除指定调试 link；即使源目录里的 app.json.id 已被改掉，也能按登记 id 清理。
+   * @param appId 开发者中心登记 id
+   */
+  removeExternalAppLink(appId: string): boolean {
+    if (!APP_FOLDER_ID_RE.test(appId)) return false
+    /** link 文件路径。 */
+    const linkPath = path.join(this.appsRootPath, `${appId}.app-link.json`)
+    if (!fs.existsSync(linkPath)) return false
+    try {
+      fs.unlinkSync(linkPath)
+    } catch (error) {
+      console.warn('[appsManages] Failed to remove app link', linkPath, error)
+      return false
+    }
+    this.refresh()
+    return true
+  }
+
+  /**
+   * 清理历史版本遗留的长期调试 link；新版调试 link 只在调试窗口打开期间存在。
+   */
+  removeExternalAppLinks(): void {
+    // 根目录不存在就没有 link
+    if (!fs.existsSync(this.appsRootPath)) return
+    // 是否清理过
+    let removed = false
+    for (const entry of fs.readdirSync(this.appsRootPath, { withFileTypes: true })) {
+      if (!entry.isFile() || !entry.name.endsWith('.app-link.json')) continue
+      // 链接文件路径
+      const linkPath = path.join(this.appsRootPath, entry.name)
+      try {
+        fs.unlinkSync(linkPath)
+        removed = true
+      } catch (error) {
+        console.warn('[appsManages] Failed to remove legacy app link', linkPath, error)
+      }
+    }
+    if (removed) this.refresh()
   }
 
   /**
@@ -2118,6 +2180,22 @@ class appsManages {
     }
   }
 
+  /**
+   * 停掉所有以指定目录为 cwd 的应用进程；调试期间 app.json.id 变化也能正确清理。
+   * @param appDir 应用工作目录
+   */
+  stopAppsInDir(appDir: string): void {
+    if (!appDir) return
+    /** 规范化后的目录。 */
+    const resolvedDir = path.resolve(appDir)
+    for (const appId of Array.from(this.runningProcesses.keys())) {
+      /** 当前进程工作目录。 */
+      const cwd = this.runningCwd.get(appId)
+      if (!cwd || path.resolve(cwd) !== resolvedDir) continue
+      this.stopApp(appId)
+    }
+  }
+
   /** 停掉所有已 spawn 的子进程。 */
   stopAllRunningApps(): void {
     // 先拷贝目录与键：stopApp 会在遍历中改动 runningProcesses
@@ -2435,6 +2513,9 @@ class appsManages {
     if (!manifest.name?.trim()) return { success: false, message: '应用 name 不能为空' }
     if (!manifest.version?.trim()) return { success: false, message: '应用 version 不能为空' }
     if (!manifest.entry?.trim()) return { success: false, message: '应用 entry 不能为空' }
+    if (!APP_FOLDER_ID_RE.test(manifest.id)) {
+      return { success: false, message: '应用 id 只能使用小写字母、数字和中划线' }
+    }
 
     // 版本号格式校验（semver 宽松检查）
     /** 宽松 semver 正则：允许预发布与构建元数据。 */

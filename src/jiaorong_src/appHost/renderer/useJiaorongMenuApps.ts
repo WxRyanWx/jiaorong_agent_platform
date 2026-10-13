@@ -50,7 +50,10 @@ export function useJiaorongMenuApps() {
    * 打开该应用页。
    * @param app 侧栏点中的应用
    */
-  async function open(app: JiaorongMenuAppItem) {
+  async function open(app: JiaorongMenuAppItem): Promise<void> {
+    /** 打开前运行来源检查；桥不存在时沿用旧路由行为。 */
+    const result = await window.jiaorongApps?.prepareOpenApp(app.id)
+    if (result && !result.ok) return
     await router.push({ name: 'jiaorong-app', params: { appId: app.id }, query: {} })
   }
 

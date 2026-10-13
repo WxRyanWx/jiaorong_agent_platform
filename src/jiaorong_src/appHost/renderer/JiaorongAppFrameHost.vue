@@ -34,12 +34,18 @@ const errorText = ref('')
 const loading = ref(false)
 /** 已挂过 `did-fail-load` 监听的 appId。 */
 const attached = new Set<string>()
+/** 正在请求打开信息的 appId 计数。 */
+const openingAppCounts = new Map<string, number>()
+/** 打开请求在返回前收到运行来源切换，需要丢弃的结果计数。 */
+const discardedOpenAppCounts = new Map<string, number>()
 /** 路由离开应用页后仍要显示的 appId，保持 webview 不闪。 */
 const parkedAppId = ref('')
 /** 取消目录订阅。 */
 let stopCatalogListener: (() => void) | undefined
 /** 取消应用间跳转请求订阅。 */
 let stopOpenAppListener: (() => void) | undefined
+/** 取消运行来源切换请求订阅。 */
+let stopCloseAppListener: (() => void) | undefined
 
 /** 当前路由对应的应用 id；不在应用路由上则为空串。 */
 const activeAppId = computed(() => {
@@ -111,11 +117,14 @@ async function ensureFrame(appId: string) {
   /** 打开信息 IPC。桥还没挂上时不能当成「应用不存在」。 */
   const getOpenInfo = window.jiaorongApps?.getOpenInfo
   if (!getOpenInfo) return
+  openingAppCounts.set(appId, (openingAppCounts.get(appId) ?? 0) + 1)
   if (!existed) loading.value = true
   errorText.value = ''
   try {
     /** 主进程返回的 webview 打开信息；列表页预热过就直接复用。 */
     const info = takeOpenInfo(appId) ?? (await getOpenInfo(appId))
+    // 打开请求在返回前被运行来源切换打断，不能再把旧生产帧挂回来
+    if (consumeDiscardedOpenResult(appId)) return
     // 拿不到 src：未安装或下载失败。已有帧（例如正在更新）继续显示，不踢回对话。
     if (!info?.src) {
       if (existed) return
@@ -132,11 +141,27 @@ async function ensureFrame(appId: string) {
     if (frames.value.some((item) => item.appId === appId)) return
     frames.value = [...frames.value, info]
   } catch (error) {
+    if (consumeDiscardedOpenResult(appId)) return
     console.error('[jiaorong-app] Failed to open app', error)
     if (!existed) await leaveUnavailableApp(appId)
   } finally {
+    const openingCount = (openingAppCounts.get(appId) ?? 0) - 1
+    if (openingCount > 0) openingAppCounts.set(appId, openingCount)
+    else openingAppCounts.delete(appId)
     loading.value = false
   }
+}
+
+/**
+ * 消费一条“打开结果已过期”标记；并发打开时每条请求只消费自己的那条。
+ * @param appId 应用 id
+ */
+function consumeDiscardedOpenResult(appId: string): boolean {
+  const discardedCount = discardedOpenAppCounts.get(appId) ?? 0
+  if (discardedCount <= 0) return false
+  if (discardedCount === 1) discardedOpenAppCounts.delete(appId)
+  else discardedOpenAppCounts.set(appId, discardedCount - 1)
+  return true
 }
 
 /**
@@ -187,6 +212,21 @@ function forgetGuestFrame(appId: string) {
   const nextSrc = { ...guestSrc.value }
   delete nextSrc[appId]
   guestSrc.value = nextSrc
+}
+
+/**
+ * 主进程确认切换到调试版后，移除生产 guest 并退出该应用路由。
+ * @param request 要移除的应用
+ */
+function closeAppFromRuntimeSwitch(request: { appId: string }): void {
+  const openingCount = openingAppCounts.get(request.appId) ?? 0
+  if (openingCount > 0) {
+    discardedOpenAppCounts.set(request.appId, openingCount)
+  }
+  forgetGuestFrame(request.appId)
+  frames.value = frames.value.filter((item) => item.appId !== request.appId)
+  if (parkedAppId.value === request.appId) parkedAppId.value = ''
+  if (activeAppId.value === request.appId) void router.replace({ name: 'chat' })
 }
 
 /** 给还没挂监听的帧补上 `did-fail-load`。 */
@@ -304,12 +344,14 @@ onMounted(() => {
       console.warn('[jiaorong-app] Failed to open app from intent', request.appId, error)
     })
   })
+  stopCloseAppListener = window.jiaorongApps?.onCloseApp?.(closeAppFromRuntimeSwitch)
 })
 
 // 卸载：退订，并通知主进程停掉所有应用子进程
 onUnmounted(() => {
   stopCatalogListener?.()
   stopOpenAppListener?.()
+  stopCloseAppListener?.()
   window.removeEventListener(JIAORONG_AUTH_SESSION_CHANGED_EVENT, onAuthSessionChanged)
   for (const frame of frames.value) {
     void window.jiaorongApps?.leave?.(frame.appId)

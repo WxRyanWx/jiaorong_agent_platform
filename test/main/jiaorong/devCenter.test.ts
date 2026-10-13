@@ -48,6 +48,16 @@ describe('dev center manifest validation', () => {
       })
     )
     expect(inspectDevAppDir('/tmp/demo')).toContain('version')
+    mockAppJson(
+      JSON.stringify({
+        id: '../escape',
+        name: 'Demo',
+        version: '1.0.0',
+        entry: 'web-ui/index.html',
+        slot: 'menu'
+      })
+    )
+    expect(inspectDevAppDir('/tmp/demo')).toContain('id')
     mockAppJson(JSON.stringify({ id: 'demo', name: 'Demo' }))
     expect(inspectDevAppDir('/tmp/demo')).toContain('必填字段')
     vi.mocked(fs.readFileSync).mockImplementation(() => {
@@ -65,6 +75,7 @@ describe('dev center registry sync', () => {
       { id: 'a', name: 'A2', version: '1.0.1', dir: '/tmp/a2', createdAt: 2 },
       { id: '', name: 'X', version: '1.0.0', dir: '/tmp/x', createdAt: 3 },
       { id: 'b', name: 'B', version: '1.0.0', dir: '', createdAt: 4 },
+      { id: '../escape', name: 'Escape', version: '1.0.0', dir: '/tmp/escape', createdAt: 5 },
       'nope'
     ])
     expect(synced.map((item) => item.id)).toEqual(['a'])

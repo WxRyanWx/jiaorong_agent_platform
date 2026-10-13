@@ -12,7 +12,6 @@ import {
   type AppManifestFormFields
 } from '../../manifestRules'
 import { readAppManifest } from '../../main/manifest'
-import { scanJiaorongApps } from '../../main/scan'
 import { readUserIdentityFromAuthSession } from '../../main/userIdentity'
 import type { JiaorongDevAppRecord, JiaorongDevCenterItem } from '../../types'
 import { getDevApps, inspectDevAppDir } from './devApps'
@@ -35,29 +34,35 @@ export function listDevCenterItems(deps: JiaorongAppHostDeps): JiaorongDevCenter
   /** 当前登录身份。 */
   const user = readUserIdentityFromAuthSession(deps.getAuthSession())
   if (!isDeveloperIdentity(user)) return []
-  /** 全量运行时（已并入开发者本地包）。 */
-  const runtimes = scanJiaorongApps(user)
-  /** 运行时索引。 */
-  const runtimeById = new Map(runtimes.map((item) => [item.id, item]))
   /** 卡片列表。 */
   const items: JiaorongDevCenterItem[] = []
 
   for (const record of getDevApps()) {
-    /** 本地包运行时；sync 之前可能还没并进 scan。 */
-    const runtime = runtimeById.get(record.id)
-    /** 已落盘可打开。 */
-    const onDisk = Boolean(
-      runtime &&
-      (runtime.installStatus === 'installed' || runtime.installStatus === 'update_available')
-    )
+    /** 本地目录清单。 */
+    const manifest = readAppManifest(record.dir)
+    /** 本地目录运行时，仅用于图标解析。 */
+    const localRuntime = {
+      ...record,
+      slot: 'app-center' as const,
+      source: 'local-debug' as const,
+      enabled: true,
+      auth: null,
+      provider: '',
+      package: { kind: 'dir' as const },
+      visible: true,
+      installStatus: manifest ? ('installed' as const) : ('error' as const),
+      installedVersion: manifest?.version ?? null,
+      appDir: record.dir,
+      entry: manifest?.entry ?? null
+    }
     items.push({
       id: record.id,
       name: record.name,
       ...(record.description ? { description: record.description } : {}),
-      iconSrc: runtime ? resolveAppIconSrc(runtime) : null,
+      iconSrc: resolveAppIconSrc(localRuntime),
       version: record.version,
-      installStatus: runtime?.installStatus ?? 'not_installed',
-      openable: onDisk,
+      installStatus: manifest ? 'installed' : 'error',
+      openable: Boolean(manifest),
       // 开发者中心里本地应用的提供方恒为自己，不再显示冗余文案
       provider: '',
       dir: record.dir
@@ -86,10 +91,6 @@ export async function createDevApp(deps: JiaorongAppHostDeps): Promise<DevCenter
   /** 目录清单。 */
   const manifest = readAppManifest(dir)
   if (!manifest) return { ok: false, message: 'app.json 解析失败' }
-  // 撞 id 会让 scan 把本地包丢掉（打开时读到别的目录），所以已存在的 id 一律拒绝
-  if (scanJiaorongApps(user).some((item) => item.id === manifest.id)) {
-    return { ok: false, message: `应用 ${manifest.id} 已存在，请修改 app.json 里的 id` }
-  }
   return {
     ok: true,
     record: {

@@ -1,8 +1,10 @@
 import type { DeepchatBridge } from '@shared/contracts/bridge'
 import type {
   JiaorongAppCenterItem,
+  JiaorongAppOpenPrepareResult,
   JiaorongDevAppRecord,
   JiaorongDevCenterItem,
+  JiaorongDevAppOpenResult,
   JiaorongAppOpenInfo,
   JiaorongMenuAppItem
 } from '@jiaorong/appHost/types'
@@ -55,10 +57,12 @@ declare global {
         }
       }>
       syncDevApps(apps: JiaorongDevAppRecord[]): Promise<JiaorongDevAppRecord[]>
-      openDevAppWindow(appId: string): Promise<boolean>
+      openDevAppWindow(appId: string): Promise<JiaorongDevAppOpenResult>
+      prepareOpenApp(appId: string): Promise<JiaorongAppOpenPrepareResult>
       getOpenInfo(appId: string): Promise<JiaorongAppOpenInfo | null>
       leave(appId: string): Promise<{ ok: boolean }>
       onOpenApp(handler: (request: { appId: string }) => void): () => void
+      onCloseApp(handler: (request: { appId: string }) => void): () => void
       onCatalogChanged(handler: () => void): () => void
     }
   }

@@ -8,6 +8,7 @@ import { sharedAppsManager } from './appManagerInstance'
 import { getSystemAppDir } from './paths'
 import { readAppManifest } from './manifest'
 import { compareAppVersion, scanJiaorongApps } from './scan'
+import { isDevAppWindowOpen } from '../devCenter/main/devAppWindow'
 import {
   peekJiaorongRemoteRuntimeConfig,
   refreshJiaorongRemoteRuntimeConfig
@@ -95,6 +96,13 @@ async function syncOne(runtime: JiaorongAppRuntime): Promise<boolean> {
     const expected = runtime.package.sha256?.trim().toLowerCase() || ''
     if (expected && downloaded.sha256 !== expected) {
       console.error('[jiaorong-app] system app sha256 mismatch', runtime.id)
+      return false
+    }
+    if (isDevAppWindowOpen(runtime.id)) {
+      console.info(
+        '[jiaorong-app] system app update skipped while debug runtime is open',
+        runtime.id
+      )
       return false
     }
     /** 解压安装到 Electron userData。 */

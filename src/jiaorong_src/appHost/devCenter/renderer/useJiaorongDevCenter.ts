@@ -84,9 +84,11 @@ export function useJiaorongDevCenter() {
     if (result.record) {
       /** 当前存储名单。 */
       const stored = readStoredDevApps()
-      if (!stored.some((item) => item.id === result.record?.id)) {
-        await writeStoredDevApps([...stored, result.record])
-      }
+      // 同 id 时不新增第二条，而是替换本地调试目录，方便发布前反复换目录调试
+      await writeStoredDevApps([
+        ...stored.filter((item) => item.id !== result.record?.id),
+        result.record
+      ])
     }
     await refresh()
     return true
@@ -161,9 +163,10 @@ export function useJiaorongDevCenter() {
     lastError.value = null
     openingId.value = app.id
     try {
-      /** 主进程是否成功创建 / 聚焦独立窗口。 */
-      const opened = await window.jiaorongApps?.openDevAppWindow(app.id)
-      if (!opened) lastError.value = { message: 'MISSING' }
+      /** 主进程返回的打开结果。 */
+      const result = await window.jiaorongApps?.openDevAppWindow(app.id)
+      if (result?.cancelled) return
+      if (!result?.ok) lastError.value = { message: result?.message || 'MISSING' }
     } catch (error) {
       console.warn('[jiaorong-dev-center] open failed', app.id, error)
       lastError.value = { message: 'MISSING' }
