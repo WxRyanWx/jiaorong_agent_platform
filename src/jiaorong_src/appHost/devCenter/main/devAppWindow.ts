@@ -145,21 +145,19 @@ export async function openDevAppWindow(appId: string): Promise<JiaorongDevAppOpe
   }
   /** 开发者中心登记记录。 */
   const record = getDevApps().find((item) => item.id === appId)
-  if (!record) return { ok: false }
+  if (!record) return { ok: false, message: '应用不存在或已被移除' }
   /** 本地目录校验结果。 */
   const manifestProblem = inspectDevAppDir(record.dir)
   if (manifestProblem) return { ok: false, message: manifestProblem }
   /** 本地目录清单。 */
   const manifest = readAppManifest(record.dir)
-  if (!manifest) return { ok: false }
+  if (!manifest) return { ok: false, message: 'app.json 解析失败' }
   if (manifest.id !== appId) {
     return { ok: false, message: '开发者中心登记 id 与 app.json id 不一致，请重新创建本地应用' }
   }
-  /** spawn 用清单 id，标题用清单名。 */
-  const manifestId = manifest.id
   /** 应用管理器。 */
   const manager = sharedAppsManager()
-  if (manager.isRunning(manifestId) || hasProductionGuest(manifestId)) {
+  if (manager.isRunning(appId) || hasProductionGuest(appId)) {
     const confirmed = await confirmSwitchRuntime(manifest.name, 'debug')
     if (!confirmed) return { ok: false, cancelled: true }
     // 弹窗期间另一个请求可能已打开调试窗口；此时只聚焦，不能再停进程
@@ -170,13 +168,15 @@ export async function openDevAppWindow(appId: string): Promise<JiaorongDevAppOpe
       return { ok: true }
     }
     /** 停止结果；失败时不能继续写调试 link，避免新旧进程同时占端口。 */
-    const stopped = manager.stopApp(manifestId)
+    const stopped = manager.stopApp(appId)
     if (!stopped.success) return { ok: false, message: stopped.message }
-    requestCloseProductionGuests(manifestId)
+    requestCloseProductionGuests(appId)
   }
   /** 弹窗等待期间登记目录或清单可能被修改，写 link 前重新校验。 */
   const currentRecord = getDevApps().find((item) => item.id === appId)
-  if (!currentRecord || currentRecord.dir !== record.dir) return { ok: false }
+  if (!currentRecord || currentRecord.dir !== record.dir) {
+    return { ok: false, message: '应用不存在或已被移除' }
+  }
   const currentProblem = inspectDevAppDir(currentRecord.dir)
   if (currentProblem) return { ok: false, message: currentProblem }
   const currentManifest = readAppManifest(currentRecord.dir)
@@ -188,7 +188,7 @@ export async function openDevAppWindow(appId: string): Promise<JiaorongDevAppOpe
     mode: 'link',
     overwrite: true
   })
-  if (!linked.success) return { ok: false }
+  if (!linked.success) return { ok: false, message: linked.message }
   const win = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -224,7 +224,7 @@ export async function openDevAppWindow(appId: string): Promise<JiaorongDevAppOpe
     // 调试窗口关闭即释放该 appId 的运行来源，主窗口若仍挂着旧 webview 也要停服务
     // 运行中清单 id 可能被开发者修改，按源目录停进程比按打开时 id 更稳
     manager.stopAppsInDir(record.dir)
-    deactivateDevAppLink(manifestId)
+    deactivateDevAppLink(appId)
   })
   void win.loadURL(resolveDevAppWindowUrl(appId))
   return { ok: true }
@@ -241,12 +241,12 @@ export async function switchDevAppToProduction(appId: string): Promise<boolean> 
     deactivateDevAppLink(appId)
     return true
   }
-  /** 本地目录清单。 */
-  const manifest = readAppManifest(record.dir)
   if (!isDevAppWindowOpen(appId)) {
     deactivateDevAppLink(appId)
     return true
   }
+  /** 本地目录清单；只在确有调试窗口、需要弹窗时才读盘。 */
+  const manifest = readAppManifest(record.dir)
   const confirmed = await confirmSwitchRuntime(manifest?.name || appId, 'production')
   if (!confirmed) return false
   await closeDevAppWindow(appId)

@@ -75,7 +75,7 @@ export function useJiaorongDevCenter() {
     } catch (error) {
       if (seq !== refreshSeq) return
       console.warn('[jiaorong-dev-center] Failed to list apps', error)
-      apps.value = []
+      // 拉取失败保留旧列表，避免一次瞬时 IPC 错误把已展示的卡片清空
     }
   }
 

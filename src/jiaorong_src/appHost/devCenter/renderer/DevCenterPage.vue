@@ -171,6 +171,8 @@ async function choosePublishZip(): Promise<void> {
     const fields = await peekZip(filePath)
     if (publishTarget.value !== target) return
     if (!fields) {
+      // 坏 zip（无 app.json）与 id 不匹配同样清掉已选路径，保持两条失败路径一致
+      publishZipPath.value = ''
       publishForm.value = { ...emptyManifestForm(), id: target.id }
       return
     }
