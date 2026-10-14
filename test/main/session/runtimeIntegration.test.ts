@@ -1115,9 +1115,11 @@ describe('Integration: createSession end-to-end', () => {
       expect.objectContaining({
         systemPrompt: 'You are a helpful assistant.',
         temperature: 0.7,
-        contextLength: 128000,
         maxTokens: 4096
       })
+    )
+    expect(sqlitePresenter.deepchatSessionsTable.create.mock.calls.at(-1)?.[4]).not.toHaveProperty(
+      'contextLength'
     )
 
     // 3. Messages created (user + assistant)

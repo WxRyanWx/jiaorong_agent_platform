@@ -4,8 +4,11 @@ import { describe, expect, it, vi } from 'vitest'
 import type { SessionGenerationSettings } from '@shared/types/agent-interface'
 import {
   buildPersistedGenerationSettingsPatch,
+  buildPersistedGenerationSettingsReplacement,
   mapPersistedGenerationPatch,
-  sanitizeGenerationSettings
+  omitInheritedContextLength,
+  sanitizeGenerationSettings,
+  withoutUnpersistedContextLength
 } from '@/agent/deepchat/runtime/generationSettings'
 import { resolveProviderModelRuntimeFacts } from '@/agent/deepchat/runtime/providerModelRuntimeFacts'
 
@@ -234,6 +237,66 @@ describe('generation settings policy', () => {
         providerModelFacts
       )
     ).rejects.toThrow('cannot be used')
+  })
+
+  it('keeps an explicit context length and drops an inherited one', () => {
+    const sanitized: SessionGenerationSettings = {
+      systemPrompt: 'kept',
+      temperature: 0.3,
+      contextLength: 16_000,
+      maxTokens: 2_000,
+      timeout: 60_000
+    }
+
+    expect(omitInheritedContextLength({ contextLength: 100_000 }, sanitized)).toBe(sanitized)
+    expect(omitInheritedContextLength({}, sanitized)).toEqual({
+      systemPrompt: 'kept',
+      temperature: 0.3,
+      maxTokens: 2_000,
+      timeout: 60_000
+    })
+  })
+
+  it('copies a stored context length and drops a resolved model default', () => {
+    const resolved: SessionGenerationSettings = {
+      systemPrompt: 'kept',
+      temperature: 0.3,
+      contextLength: 1_000_000,
+      maxTokens: 2_000,
+      timeout: 60_000
+    }
+
+    expect(withoutUnpersistedContextLength(resolved, { systemPrompt: 'kept' })).toEqual({
+      systemPrompt: 'kept',
+      temperature: 0.3,
+      maxTokens: 2_000,
+      timeout: 60_000
+    })
+    expect(withoutUnpersistedContextLength(resolved, { contextLength: 16_000 })).toMatchObject({
+      systemPrompt: 'kept',
+      contextLength: 16_000
+    })
+    expect(withoutUnpersistedContextLength(resolved, null)).toBe(resolved)
+    expect(withoutUnpersistedContextLength(resolved, undefined)).toBe(resolved)
+  })
+
+  it('does not rewrite context length when replacing generation settings', () => {
+    const sanitized: SessionGenerationSettings = {
+      systemPrompt: 'kept',
+      temperature: 0.3,
+      contextLength: 16_000,
+      maxTokens: 2_000,
+      timeout: 60_000
+    }
+
+    const persisted = buildPersistedGenerationSettingsReplacement(sanitized)
+    expect(persisted).toMatchObject({
+      systemPrompt: 'kept',
+      temperature: 0.3,
+      maxTokens: 2_000,
+      timeout: 60_000
+    })
+    expect(persisted).not.toHaveProperty('contextLength')
   })
 
   it('persists only fields present in the requested patch', () => {

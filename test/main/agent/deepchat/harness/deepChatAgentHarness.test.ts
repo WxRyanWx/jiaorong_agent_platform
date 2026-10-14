@@ -3118,9 +3118,11 @@ describe('DeepChatAgentHarness', () => {
         expect.objectContaining({
           systemPrompt: 'You are a helpful assistant.',
           temperature: 0.7,
-          contextLength: 128000,
           maxTokens: 4096
         })
+      )
+      expect(sqlitePresenter.deepchatSessionsTable.create.mock.calls[0]?.[4]).not.toHaveProperty(
+        'contextLength'
       )
 
       const state = await agent.getSessionState('s1')
@@ -3147,9 +3149,11 @@ describe('DeepChatAgentHarness', () => {
         expect.objectContaining({
           systemPrompt: 'You are a helpful assistant.',
           temperature: 0.7,
-          contextLength: 128000,
           maxTokens: 4096
         })
+      )
+      expect(sqlitePresenter.deepchatSessionsTable.create.mock.calls[0]?.[4]).not.toHaveProperty(
+        'contextLength'
       )
 
       const state = await agent.getSessionState('s1')

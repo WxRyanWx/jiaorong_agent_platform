@@ -16,7 +16,7 @@ import type { SessionSettingsStore } from '@/session/data/settings'
 import type { SessionTranscript } from '@/session/data/transcript'
 import type { SessionPendingInputs } from '@/session/data/pendingInputs'
 import type { CompactionRuntimeCoordinator } from './compactionRuntimeCoordinator'
-import { sanitizeGenerationSettings } from './generationSettings'
+import { omitInheritedContextLength, sanitizeGenerationSettings } from './generationSettings'
 import type { RunLifecycleCoordinator } from './runLifecycleCoordinator'
 import type { SessionIdentityService } from './sessionIdentityService'
 import type { SessionSettingsCoordinator } from './sessionSettingsCoordinator'
@@ -71,19 +71,20 @@ export class SessionLifecycleCoordinator {
     logger.info(
       `[DeepChatAgent] initSession id=${sessionId} provider=${config.providerId} model=${config.modelId} permission=${permissionMode} hasProjectDir=${projectDir !== null}`
     )
+    const requestedGenerationSettings = config.generationSettings ?? {}
     const generationSettings = await sanitizeGenerationSettings(
       this.deps.providerSettings,
       this.deps.promptSettings,
       config.providerId,
       config.modelId,
-      config.generationSettings ?? {}
+      requestedGenerationSettings
     )
     this.deps.sessionStore.create(
       sessionId,
       config.providerId,
       config.modelId,
       permissionMode,
-      generationSettings
+      omitInheritedContextLength(requestedGenerationSettings, generationSettings)
     )
     const instance = this.deps.registry.getOrHydrateScope(toAppSessionId(sessionId)).instance
     instance.setAgentId(

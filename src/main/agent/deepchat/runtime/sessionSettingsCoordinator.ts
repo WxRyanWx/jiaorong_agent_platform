@@ -115,11 +115,16 @@ export class SessionSettingsCoordinator {
     if (currentState?.status === 'generating') {
       throw new Error('Cannot switch model while session is generating.')
     }
+    const persistedContextLength = this.deps.sessionStore.get(sessionId)?.context_length
+    const generationSettings =
+      typeof persistedContextLength === 'number' && Number.isFinite(persistedContextLength)
+        ? { ...sanitized, contextLength: persistedContextLength }
+        : sanitized
     this.deps.sessionStore.updateSessionConfiguration(
       sessionId,
       nextProviderId,
       nextModelId,
-      buildPersistedGenerationSettingsReplacement(sanitized)
+      buildPersistedGenerationSettingsReplacement(generationSettings)
     )
 
     if (currentState) {
@@ -133,7 +138,7 @@ export class SessionSettingsCoordinator {
         permissionMode
       })
     }
-    scope.instance.setGenerationSettings(sanitized)
+    scope.instance.setGenerationSettings(generationSettings)
     scope.instance.invalidateToolProfileCache()
   }
 

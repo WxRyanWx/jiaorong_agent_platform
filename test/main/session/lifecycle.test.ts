@@ -121,6 +121,7 @@ function createHarness(initialSessions: SessionRecord[] = []) {
     ),
     get: vi.fn((sessionId: string) => records.get(sessionId) ?? null),
     getDisabledAgentTools: vi.fn((): string[] => []),
+    getPersistedGenerationSettings: vi.fn((): Partial<SessionGenerationSettings> | null => null),
     list: vi.fn((filters?: { agentId?: string; projectDir?: string }) =>
       [...records.values()].filter((session) => {
         if (filters?.agentId && session.agentId !== filters.agentId) return false
@@ -931,6 +932,117 @@ describe('SessionLifecycle', () => {
       disabledAgentTools: ['cronjob', 'custom-tool'],
       orchestrationPolicy: 'proactive'
     })
+  })
+
+  it('does not persist a resolved context length when the source session follows the model', async () => {
+    const harness = createHarness([createRecord({ id: 'source', title: 'Source' })])
+    harness.getRuntime('source').snapshot.mockResolvedValue({
+      status: 'idle',
+      providerId: 'openai',
+      modelId: 'model-1',
+      permissionMode: 'default'
+    })
+    harness.getRuntime('source').getGenerationSettings.mockResolvedValue({
+      systemPrompt: 'Keep this',
+      temperature: 0.2,
+      contextLength: 1_000_000,
+      maxTokens: 2048,
+      timeout: 60
+    })
+    harness.sessions.getPersistedGenerationSettings.mockReturnValue({ systemPrompt: 'Keep this' })
+
+    await harness.coordinator.forkSession('source', 'message-1')
+
+    expect(harness.getRuntime('session-1').initialize).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationSettings: {
+          systemPrompt: 'Keep this',
+          temperature: 0.2,
+          maxTokens: 2048,
+          timeout: 60
+        }
+      })
+    )
+  })
+
+  it('keeps a manually stored context length when forking', async () => {
+    const harness = createHarness([createRecord({ id: 'source', title: 'Source' })])
+    harness.getRuntime('source').snapshot.mockResolvedValue({
+      status: 'idle',
+      providerId: 'openai',
+      modelId: 'model-1',
+      permissionMode: 'default'
+    })
+    harness.getRuntime('source').getGenerationSettings.mockResolvedValue({
+      systemPrompt: 'Keep this',
+      temperature: 0.2,
+      contextLength: 16_000,
+      maxTokens: 2048,
+      timeout: 60
+    })
+    harness.sessions.getPersistedGenerationSettings.mockReturnValue({ contextLength: 16_000 })
+
+    await harness.coordinator.forkSession('source', 'message-1')
+
+    expect(harness.getRuntime('session-1').initialize).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationSettings: expect.objectContaining({ contextLength: 16_000 })
+      })
+    )
+  })
+
+  it('does not persist a resolved context length on a live-delegation child', async () => {
+    const harness = createHarness()
+    harness.sessions.getPersistedGenerationSettings.mockReturnValue({ systemPrompt: 'Parent' })
+
+    await harness.coordinator.createSubagentSession({
+      parentSessionId: 'parent',
+      agentId: 'deepchat',
+      slotId: 'worker',
+      displayName: 'Worker',
+      providerId: 'openai',
+      modelId: 'model-1',
+      permissionMode: 'default',
+      generationSettings: {
+        systemPrompt: 'Parent',
+        contextLength: 1_000_000,
+        maxTokens: 4096
+      }
+    })
+
+    expect(harness.getRuntime('session-1').initialize).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationSettings: {
+          systemPrompt: 'Parent',
+          maxTokens: 4096
+        }
+      })
+    )
+  })
+
+  it('keeps a manually stored context length on a child session', async () => {
+    const harness = createHarness()
+    harness.sessions.getPersistedGenerationSettings.mockReturnValue({ contextLength: 16_000 })
+
+    await harness.coordinator.createSubagentSession({
+      parentSessionId: 'parent',
+      agentId: 'deepchat',
+      slotId: 'worker',
+      displayName: 'Worker',
+      providerId: 'openai',
+      modelId: 'model-1',
+      permissionMode: 'default',
+      generationSettings: {
+        systemPrompt: 'Parent',
+        contextLength: 16_000
+      }
+    })
+
+    expect(harness.getRuntime('session-1').initialize).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationSettings: expect.objectContaining({ contextLength: 16_000 })
+      })
+    )
   })
 
   it('delegates tree deletion and publishes the transaction result in order', async () => {

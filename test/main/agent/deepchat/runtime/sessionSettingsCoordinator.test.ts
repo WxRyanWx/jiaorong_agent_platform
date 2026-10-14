@@ -162,6 +162,40 @@ describe('SessionSettingsCoordinator', () => {
     expect(replacement.getGenerationSettings()?.systemPrompt).toBe('Replacement prompt')
   })
 
+  it('keeps a stored context length when switching models', async () => {
+    const harness = createHarness()
+    harness.sessionStore.get.mockReturnValue({
+      provider_id: 'openai',
+      model_id: 'gpt-4',
+      permission_mode: 'default',
+      context_length: 64_000
+    })
+
+    await harness.coordinator.setModel(SESSION_ID, 'anthropic', 'claude-3-5-sonnet')
+
+    expect(harness.instance.getGenerationSettings()?.contextLength).toBe(64_000)
+    expect(harness.sessionStore.updateSessionConfiguration.mock.calls[0]?.[3]).not.toHaveProperty(
+      'contextLength'
+    )
+  })
+
+  it('follows the next model context length when the session has no override', async () => {
+    const harness = createHarness()
+    harness.sessionStore.get.mockReturnValue({
+      provider_id: 'openai',
+      model_id: 'gpt-4',
+      permission_mode: 'default',
+      context_length: null
+    })
+
+    await harness.coordinator.setModel(SESSION_ID, 'anthropic', 'claude-3-5-sonnet')
+
+    expect(harness.instance.getGenerationSettings()?.contextLength).toBe(128_000)
+    expect(harness.sessionStore.updateSessionConfiguration.mock.calls[0]?.[3]).not.toHaveProperty(
+      'contextLength'
+    )
+  })
+
   it('rechecks generating status before committing a model switch', async () => {
     const harness = createHarness()
     const prompt = deferred<string>()
@@ -279,11 +313,15 @@ describe('SessionSettingsCoordinator', () => {
       generationSettings
     })
 
+    const { contextLength: _contextLength, ...persistedGenerationSettings } = generationSettings
     expect(harness.sessionStore.updateSessionConfiguration).toHaveBeenCalledWith(
       SESSION_ID,
       'anthropic',
       'claude-3-5-sonnet',
-      expect.objectContaining(generationSettings)
+      expect.objectContaining(persistedGenerationSettings)
+    )
+    expect(harness.sessionStore.updateSessionConfiguration.mock.calls[0]?.[3]).not.toHaveProperty(
+      'contextLength'
     )
     expect(harness.instance.getRuntimeState()).toEqual({
       status: 'idle',

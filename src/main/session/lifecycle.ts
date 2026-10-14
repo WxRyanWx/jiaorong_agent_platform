@@ -36,6 +36,7 @@ import {
 } from '@shared/orchestration/policy'
 import type { SessionDeletionGatePort } from './deletionGate'
 import { normalizeToolModeOverride } from '@shared/toolMode'
+import { withoutUnpersistedContextLength } from '@/agent/deepchat/runtime/generationSettings'
 
 const SUBAGENT_SESSION_INIT_MAX_ATTEMPTS = 2
 
@@ -357,7 +358,10 @@ export class SessionLifecycle implements SessionLifecyclePort {
           modelId: runtimeConfig.modelId,
           projectDir,
           permissionMode: runtimeConfig.permissionMode,
-          generationSettings: runtimeConfig.generationSettings
+          generationSettings: withoutUnpersistedContextLength(
+            runtimeConfig.generationSettings,
+            this.dependencies.sessions.getPersistedGenerationSettings?.(parentSessionId)
+          )
         })
         if (runtimeConfig.activeSkills.length > 0) {
           await this.dependencies.skills.setActiveSkills(sessionId, runtimeConfig.activeSkills)
@@ -476,7 +480,10 @@ export class SessionLifecycle implements SessionLifecyclePort {
     const sourceRuntime = this.dependencies.runtime.resolveSession(toAppSessionId(sourceSessionId))
     const sourceState = await sourceRuntime.snapshot()
     if (!sourceState) throw new Error(`Session state not found: ${sourceSessionId}`)
-    const generationSettings = await sourceRuntime.getGenerationSettings()
+    const generationSettings = withoutUnpersistedContextLength(
+      await sourceRuntime.getGenerationSettings(),
+      this.dependencies.sessions.getPersistedGenerationSettings?.(sourceSessionId)
+    )
     const disabledAgentTools = this.dependencies.sessions.getDisabledAgentTools(sourceSessionId)
     const title = this.buildForkTitle(sourceSession.title, newTitle)
     const targetSessionId = this.dependencies.sessions.create(
@@ -498,7 +505,7 @@ export class SessionLifecycle implements SessionLifecyclePort {
         modelId: sourceState.modelId,
         projectDir: sourceSession.projectDir ?? null,
         permissionMode: sourceState.permissionMode,
-        generationSettings: generationSettings ?? undefined
+        generationSettings
       })
       await this.dependencies.transcript.forkSessionFromMessage(
         sourceSessionId,

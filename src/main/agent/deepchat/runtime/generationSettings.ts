@@ -194,6 +194,31 @@ export function buildPersistedGenerationSettingsPatch(
   return patch
 }
 
+export function omitInheritedContextLength(
+  requested: Partial<SessionGenerationSettings>,
+  sanitized: SessionGenerationSettings
+): Partial<SessionGenerationSettings> {
+  if (Object.prototype.hasOwnProperty.call(requested, 'contextLength')) {
+    return sanitized
+  }
+  const { contextLength: _contextLength, ...persisted } = sanitized
+  return persisted
+}
+
+export function withoutUnpersistedContextLength(
+  settings: Partial<SessionGenerationSettings> | null | undefined,
+  persisted: Partial<SessionGenerationSettings> | null | undefined
+): Partial<SessionGenerationSettings> | undefined {
+  if (!settings) return undefined
+  if (!persisted) return settings
+  if (Object.prototype.hasOwnProperty.call(persisted, 'contextLength')) {
+    return { ...settings, contextLength: persisted.contextLength }
+  }
+  if (!Object.prototype.hasOwnProperty.call(settings, 'contextLength')) return settings
+  const { contextLength: _contextLength, ...copied } = settings
+  return copied
+}
+
 export function buildPersistedGenerationSettingsReplacement(
   settings: SessionGenerationSettings
 ): Partial<SessionGenerationSettings> {
@@ -201,7 +226,6 @@ export function buildPersistedGenerationSettingsReplacement(
     systemPrompt: settings.systemPrompt,
     temperature: settings.temperature,
     topP: settings.topP,
-    contextLength: settings.contextLength,
     maxTokens: settings.maxTokens,
     timeout: settings.timeout,
     thinkingBudget: settings.thinkingBudget,

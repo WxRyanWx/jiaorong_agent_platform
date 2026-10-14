@@ -526,6 +526,7 @@ export interface SessionLifecycleStorePort {
   ): AppSessionId
   get(sessionId: string): SessionRecord | null
   getDisabledAgentTools(sessionId: string): string[]
+  getPersistedGenerationSettings?(sessionId: string): Partial<SessionGenerationSettings> | null
   list(filters?: SessionListFilters): SessionRecord[]
   delete(sessionId: string): void
 }

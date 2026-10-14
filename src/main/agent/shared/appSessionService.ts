@@ -5,6 +5,7 @@ import type { SessionDatabase } from '@/session/data/database'
 import type { ProjectDatabase } from '@/project/data/database'
 import type {
   DeepChatSubagentMeta,
+  SessionGenerationSettings,
   SessionKind,
   SessionMetadata,
   SessionPageCursor,
@@ -94,6 +95,10 @@ export class AppSessionService implements AppSessionReadPort {
     this.sqlitePresenter.newEnvironmentsTable.syncPath(projectDir)
     this.notifyEnvironmentProjectionChanged()
     return toAppSessionId(id)
+  }
+
+  getPersistedGenerationSettings(id: string): Partial<SessionGenerationSettings> | null {
+    return this.sessionDatabase.deepchatSessionsTable.getGenerationSettings(id)
   }
 
   get(id: string): SessionRecord | null {
