@@ -3,12 +3,11 @@ import { APP_ROUTE_DEFS, type AppRouteName } from './apps.meta'
 
 const appPageLoaders: Record<AppRouteName, () => Promise<unknown>> = {
   'jiaorong-app': () => import('../appHost/renderer/pages/AppHostPage.vue'),
-  'jiaorong-app-center': () => import('../appHost/appCenter/renderer/AppCenterPage.vue'),
-  'jiaorong-dev-center': () => import('../appHost/devCenter/renderer/DevCenterPage.vue')
+  'jiaorong-open-platform': () => import('../open-platform/renderer/OpenPlatformPage.vue')
 }
 
 export function createAppRoutes(): RouteRecordRaw[] {
-  return APP_ROUTE_DEFS.map((route) => {
+  const routes: RouteRecordRaw[] = APP_ROUTE_DEFS.map((route) => {
     const component = appPageLoaders[route.name]
     if (!component) {
       throw new Error(`[jiaorong] missing page loader for app route: ${route.name}`)
@@ -23,6 +22,8 @@ export function createAppRoutes(): RouteRecordRaw[] {
       }
     }
   })
+  routes.push({ path: '/dev-center', redirect: '/open-platform' })
+  return routes
 }
 
 export {

@@ -5,14 +5,9 @@ export const APP_ROUTE_DEFS = [
     titleKey: 'routes.embeddedApp' as const
   },
   {
-    name: 'jiaorong-app-center' as const,
-    path: '/app-center',
-    titleKey: 'routes.appCenter' as const
-  },
-  {
-    name: 'jiaorong-dev-center' as const,
-    path: '/dev-center',
-    titleKey: 'routes.devCenter' as const
+    name: 'jiaorong-open-platform' as const,
+    path: '/open-platform',
+    titleKey: 'routes.openPlatform' as const
   }
 ]
 
@@ -31,6 +26,5 @@ export function isAppRouteLocation(name: unknown, path: string): boolean {
     return true
   }
   if (path === '/apps' || path.startsWith('/apps/')) return true
-  if (path === '/app-center' || path.startsWith('/app-center/')) return true
-  return path === '/dev-center' || path.startsWith('/dev-center/')
+  return path === '/open-platform' || path.startsWith('/open-platform/')
 }

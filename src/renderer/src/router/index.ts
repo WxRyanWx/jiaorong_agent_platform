@@ -25,6 +25,10 @@ const router = createRouter({
       }
     },
     {
+      path: '/app-center',
+      redirect: { name: 'plugins-apps' }
+    },
+    {
       path: '/plugins',
       component: () => import('@/pages/plugins/PluginsHubPage.vue'),
       beforeEnter: () => {
@@ -38,6 +42,15 @@ const router = createRouter({
         icon: 'lucide:puzzle'
       },
       children: [
+        {
+          path: 'apps',
+          name: 'plugins-apps',
+          component: () => import('@jiaorong/appHost/appCenter/renderer/AppCenterPage.vue'),
+          meta: {
+            titleKey: 'routes.openPlatformTab_apps',
+            icon: 'lucide:layout-grid'
+          }
+        },
         {
           path: '',
           name: 'plugins',

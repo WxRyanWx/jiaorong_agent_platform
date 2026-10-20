@@ -40,7 +40,6 @@
 | `appCenter/renderer/AppCenterPage.vue` `AppCenterPage.less` | 应用中心卡片网格页 |
 | `renderer/useJiaorongMenuApps.ts` | 侧栏可见应用 |
 | `appCenter/renderer/useJiaorongAppCenter.ts` | 页数据源：列表 / 安装 / 卸载 / 打开 |
-| `appCenter/renderer/useJiaorongAppCenterAccess.ts` | 侧栏「应用中心」入口可见性与跳转 |
 | `devCenter/main/devApps.ts` | 开发者名单内存镜像 + app.json 必填校验 |
 | `devCenter/main/devCenter.ts` | 开发者中心列表 / 创建 / 发布占位 |
 | `devCenter/main/devAppWindow.ts` | 开发者中心每应用独立窗口，关窗停 Node |

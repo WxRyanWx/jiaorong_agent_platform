@@ -23,6 +23,10 @@ import type {
   McpServerStatusChangedPayload
 } from '@shared/types/core/mcp'
 import { isJiaorongKnowledgeBaseMcpServer } from '@jiaorong/knowledgeBase/mcp/knowledgeBaseMcpConstants'
+import {
+  listOpenPlatformMarketConnectors,
+  type OpenPlatformMarketMcpServer
+} from '@jiaorong/open-platform/renderer/openPlatformMarket'
 
 const ENABLED_MCP_TOOLS_KEY = 'input_enabledMcpTools'
 
@@ -54,6 +58,7 @@ export const useMcpStore = defineStore('mcp', () => {
   const serverAuthStatuses = ref<Record<string, McpServerAuthStatus>>({})
   const serverLoadingStates = ref<Record<string, boolean>>({})
   const configLoading = ref(false)
+  const openPlatformConnectors = ref<OpenPlatformMarketMcpServer[]>([])
   const serverLifecycleRevisions = new Map<string, number>()
   let nextServerLifecycleRevision = 0
 
@@ -505,9 +510,10 @@ export const useMcpStore = defineStore('mcp', () => {
       return aRank - bRank
     })
   })
-  const serverList = computed(() =>
-    allServerList.value.filter((server) => !isPluginOwnedServerConfig(server))
-  )
+  const serverList = computed(() => [
+    ...allServerList.value.filter((server) => !isPluginOwnedServerConfig(server)),
+    ...openPlatformConnectors.value.filter((server) => !config.value.mcpServers?.[server.name])
+  ])
   const pluginServerList = computed(() =>
     allServerList.value.filter((server) => isPluginOwnedServerConfig(server))
   )
@@ -580,6 +586,15 @@ export const useMcpStore = defineStore('mcp', () => {
       console.error(t('mcp.errors.loadConfigFailed'), error)
     } finally {
       configLoading.value = false
+    }
+  }
+
+  const loadOpenPlatformConnectors = async (): Promise<void> => {
+    try {
+      openPlatformConnectors.value = await listOpenPlatformMarketConnectors()
+    } catch (error) {
+      console.warn('[MCP] Failed to load open platform connectors', error)
+      openPlatformConnectors.value = []
     }
   }
 
@@ -1185,6 +1200,7 @@ export const useMcpStore = defineStore('mcp', () => {
     initEvents()
     await loadEnabledToolNames()
     await loadConfig()
+    await loadOpenPlatformConnectors()
 
     // 总是加载提示模板（包含config数据源）
     await loadPrompts()
@@ -1301,6 +1317,7 @@ export const useMcpStore = defineStore('mcp', () => {
     loadClients,
     loadPrompts,
     loadResources,
+    loadOpenPlatformConnectors,
     updateToolInput,
     isToolEnabled,
     setToolEnabled,

@@ -10,13 +10,15 @@ export function createSkillRoutes(): RouteRecordRaw[] {
   )
   const mcpMeta = SKILL_ROUTE_DEFS.find((route) => route.name === 'skills-mcp')
   const detailMeta = SKILL_ROUTE_DEFS.find((route) => route.name === 'skills-detail')
+  const appsMeta = SKILL_ROUTE_DEFS.find((route) => route.name === 'skills-apps')
   if (
     !listMeta ||
     !connectorsMeta ||
     !connectorOcrMeta ||
     !connectorDetailMeta ||
     !mcpMeta ||
-    !detailMeta
+    !detailMeta ||
+    !appsMeta
   ) {
     throw new Error('[jiaorong] plugin center route defs are incomplete')
   }
@@ -30,6 +32,15 @@ export function createSkillRoutes(): RouteRecordRaw[] {
         icon: 'lucide:puzzle'
       },
       children: [
+        {
+          path: 'apps',
+          name: appsMeta.name,
+          component: () => import('../appHost/appCenter/renderer/AppCenterPage.vue'),
+          meta: {
+            titleKey: appsMeta.titleKey,
+            icon: 'lucide:layout-grid'
+          }
+        },
         {
           path: '',
           name: listMeta.name,

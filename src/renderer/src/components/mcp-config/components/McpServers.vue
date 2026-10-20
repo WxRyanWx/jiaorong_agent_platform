@@ -655,11 +655,18 @@ defineExpose({
               enabled: getServerEnabled(server.name, Boolean(server.enabled))
             }"
             :is-built-in="isBuiltInServer(server.name)"
-            :is-managed="mcpStore.config.mcpServers[server.name]?.source === 'deepchat'"
+            :is-managed="
+              mcpStore.config.mcpServers[server.name]?.source === 'deepchat' ||
+              server.source === 'open-platform'
+            "
             :is-loading="
               mcpStore.serverLoadingStates[server.name] || props.serverLoadingOverrides[server.name]
             "
-            :disabled="mcpStore.configLoading || (props.agentScopedToggle && props.agentScopedBusy)"
+            :disabled="
+              mcpStore.configLoading ||
+              server.source === 'open-platform' ||
+              (props.agentScopedToggle && props.agentScopedBusy)
+            "
             :tools-count="getServerToolsCount(server.name)"
             :prompts-count="getServerPromptsCount(server.name)"
             :resources-count="getServerResourcesCount(server.name)"

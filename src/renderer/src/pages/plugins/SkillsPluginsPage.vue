@@ -16,6 +16,7 @@ import type { Agent } from '@shared/types/agent-interface'
 import type { UnifiedSkillItem } from '@shared/types/skillManagement'
 import type { SkillDetail } from '@shared/types/skillSync'
 import { notifyRenderer } from '@renderer-notifications/rendererNotificationPort'
+import { listOpenPlatformMarketSkills } from '@jiaorong/open-platform/renderer/openPlatformMarket'
 import { useGuidedOnboardingStep } from '@/composables/useGuidedOnboardingStep'
 import {
   persistGuidedOnboardingResumeIntent,
@@ -79,13 +80,21 @@ const loadPage = async (silent = false) => {
   const requestId = ++loadRequestId
   if (!silent) loading.value = true
   try {
-    const [nextSkills, nextAgents] = await Promise.all([
+    const [nextSkills, remoteSkills, nextAgents] = await Promise.all([
       skillClient.getAllSkills(),
+      listOpenPlatformMarketSkills().catch((error) => {
+        console.warn('[SkillsPluginsPage] Failed to load open platform skills', error)
+        return []
+      }),
       configClient.listAgents({ agentType: 'deepchat' })
     ])
     if (requestId !== loadRequestId) return
 
-    skills.value = nextSkills
+    const localSkillNames = new Set(nextSkills.map((skill) => skill.name))
+    skills.value = [
+      ...nextSkills,
+      ...remoteSkills.filter((skill) => !localSkillNames.has(skill.name))
+    ]
     agents.value = nextAgents.filter((agent) => (agent.agentType ?? agent.type) === 'deepchat')
     if (selectedSkill.value) {
       const refreshedSkill = nextSkills.find((skill) => skill.name === selectedSkill.value?.name)
@@ -106,6 +115,18 @@ const openSkill = async (skill: UnifiedSkillItem) => {
   const requestId = ++detailRequestId
   operationPending.value = true
   try {
+    if (skill.path.startsWith('open-platform://')) {
+      selectedSkill.value = skill
+      skillDetail.value = {
+        name: skill.name,
+        description: skill.description,
+        sourcePath: skill.path,
+        markdown: '',
+        mutable: false
+      }
+      detailDialogOpen.value = true
+      return
+    }
     const markdown = await skillClient.readSkillFile(skill.name)
     if (requestId !== detailRequestId) return
     selectedSkill.value = skill

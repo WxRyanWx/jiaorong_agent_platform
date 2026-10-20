@@ -72,7 +72,7 @@ watch(lastError, (error) => {
   <div class="app-center-page">
     <header class="app-center-page__header">
       <div>
-        <h1 class="app-center-page__title">{{ t('routes.appCenter') }}</h1>
+        <h1 class="app-center-page__title">{{ t('routes.openPlatformTab_apps') }}</h1>
         <p class="app-center-page__subtitle">{{ t('routes.appCenterPageSubtitle') }}</p>
       </div>
       <Button

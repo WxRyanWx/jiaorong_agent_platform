@@ -66,29 +66,41 @@ const { t } = useI18n()
 const route = useRoute()
 const agentStore = useAgentStore()
 
-const tabs = [
+type PluginTab = {
+  key: string
+  name: string
+  titleKey: string
+  icon: string
+}
+
+const baseTabs: PluginTab[] = [
+  {
+    key: 'apps',
+    name: 'plugins-apps',
+    titleKey: 'routes.openPlatformTab_apps',
+    icon: 'lucide:layout-grid'
+  },
   {
     key: 'plugins',
     name: 'plugins',
     titleKey: 'routes.plugins',
     icon: 'lucide:puzzle'
   },
-  // {
-  //   key: 'skills',
-  //   name: 'skills',
-  //   titleKey: 'routes.skills',
-  //   icon: 'lucide:wand-sparkles'
-  // },
   {
     key: 'mcp',
     name: 'plugins-mcp',
     titleKey: 'routes.settings-mcp',
     icon: 'lucide:server'
   }
-] as const
+]
+
+const tabs = baseTabs
 
 const activeTab = computed(() => {
   const routeName = String(route.name ?? '')
+  if (routeName === 'plugins-apps') {
+    return 'apps'
+  }
   if (routeName.includes('skills')) {
     return 'skills'
   }

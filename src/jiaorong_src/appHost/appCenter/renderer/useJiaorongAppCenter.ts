@@ -3,6 +3,7 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { JIAORONG_AUTH_SESSION_CHANGED_EVENT } from '@jiaorong/auth/host'
+import { listOpenPlatformMarketApps } from '@jiaorong/open-platform/renderer/openPlatformMarket'
 import { stashOpenInfo } from '../../renderer/openAppHandoff'
 import type { JiaorongAppCenterItem } from '../../types'
 
@@ -38,10 +39,17 @@ export function useJiaorongAppCenter() {
     isRefreshing.value = true
     try {
       /** 主进程返回的卡片列表。 */
-      const next = (await window.jiaorongApps?.listAppCenter()) ?? []
+      const [next, remoteApps] = await Promise.all([
+        window.jiaorongApps?.listAppCenter() ?? Promise.resolve([]),
+        listOpenPlatformMarketApps().catch((error) => {
+          console.warn('[jiaorong-app-center] Failed to list open platform apps', error)
+          return []
+        })
+      ])
       // 已有更新的刷新在飞，这份响应过期，丢弃
       if (seq !== refreshSeq) return
-      apps.value = next
+      const localIds = new Set(next.map((app) => app.id))
+      apps.value = [...next, ...remoteApps.filter((app) => !localIds.has(app.id))]
     } catch (error) {
       if (seq !== refreshSeq) return
       console.warn('[jiaorong-app-center] Failed to list apps', error)

@@ -123,6 +123,9 @@ const isLoginRoute = computed(() => route.name === 'login')
 const isDevCenterStandalone = resolveDevCenterStandalone()
 const isEmbeddedAppRoute = computed(() => isEmbeddedAppRouteLocation(route.name, route.path))
 const isPluginCenterShell = computed(() => isSkillRouteLocation(route.name, route.path))
+const isMenuShellRoute = computed(
+  () => isPluginCenterShell.value || route.name === 'jiaorong-open-platform'
+)
 
 watch(
   [() => themeStore.themeMode, () => themeStore.isDark, () => uiSettingsStore.fontSizeClass],
@@ -168,7 +171,7 @@ const showAppBack = computed(() => isEmbeddedAppRoute.value && embeddedFrom.valu
  * 返回列表。应用中心只切页，不关应用；开发者应用走独立窗口，不在主窗口内嵌。
  */
 function backFromEmbeddedApp(): void {
-  void router.push({ name: 'jiaorong-app-center' })
+  void router.push({ name: 'plugins-apps' })
 }
 
 const isStartupRouteReady = ref(false)
@@ -623,7 +626,7 @@ onBeforeUnmount(() => {
             data-testid="app-main"
             class="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
             :class="
-              isPluginCenterShell
+              isMenuShellRoute
                 ? 'bg-window-background'
                 : isEmbeddedAppRoute
                   ? 'bg-background'

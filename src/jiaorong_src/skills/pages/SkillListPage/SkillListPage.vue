@@ -7,6 +7,7 @@ import { Input } from '@shadcn/components/ui/input'
 import { useSkillsStore } from '@/stores/skillsStore'
 import type { SkillMetadata } from '@shared/types/skill'
 import { fetchSkillMarketCatalog, listSkillCategories } from '@jiaorong/api/skills'
+import { listOpenPlatformMarketSkillMetadata } from '@jiaorong/open-platform/renderer/openPlatformMarket'
 import {
   installSkillFromZipUrl,
   isSkillSwitchOn,
@@ -216,8 +217,14 @@ async function refreshMarket() {
         }
       }
     })
+    const openPlatformSkills = await listOpenPlatformMarketSkillMetadata().catch((error) => {
+      console.warn('[SkillListPage] Failed to load open platform skills', error)
+      return []
+    })
+    if (generation !== loadGeneration) return
+    const enrichedNames = new Set(enriched.map((skill) => skill.name))
     catalogSkills.value = hideLocalSlugDuplicatedByRemoteInstall(
-      enriched,
+      [...enriched, ...openPlatformSkills.filter((skill) => !enrichedNames.has(skill.name))],
       remoteInstalledLocalNames.value
     )
     await skillsStore.ensureSkillsLoaded()

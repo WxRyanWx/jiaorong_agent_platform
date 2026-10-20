@@ -4,6 +4,11 @@
  */
 export const SKILL_ROUTE_DEFS = [
   {
+    name: 'skills-apps' as const,
+    path: '/skills/apps',
+    titleKey: 'routes.openPlatformTab_apps' as const
+  },
+  {
     name: 'skills' as const,
     path: '/skills',
     titleKey: 'routes.plugins' as const

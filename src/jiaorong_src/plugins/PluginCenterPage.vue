@@ -4,6 +4,7 @@ import { RouterLink, RouterView, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { PLUGIN_CENTER_NAV_WIDTH_CLASS } from './layout'
 import { buildPluginCenterHideCss } from './hiddenItems'
+import appsIcon from '../assets/应用中心.svg?url'
 import skillsIcon from '../assets/技能.svg?url'
 import mcpIcon from '../assets/mcp.svg?url'
 import connectorsIcon from '../assets/连接器.svg?url'
@@ -12,6 +13,13 @@ const { t } = useI18n()
 const route = useRoute()
 
 const navItems = [
+  {
+    key: 'apps',
+    name: 'skills-apps',
+    titleKey: 'routes.openPlatformTab_apps',
+    iconSrc: appsIcon,
+    match: (name: string) => name === 'skills-apps'
+  },
   {
     key: 'skills',
     name: 'skills',

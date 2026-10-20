@@ -248,7 +248,7 @@ watch(watchDescription, () => {
             />
             <DropdownMenuSeparator v-if="canEdit && !isBuiltIn" />
             <DcDropdownActionItem
-              v-if="!isBuiltIn"
+              v-if="!isBuiltIn && canEdit"
               icon="lucide:trash-2"
               :label="t('settings.mcp.removeServer')"
               :disabled="disabled"
