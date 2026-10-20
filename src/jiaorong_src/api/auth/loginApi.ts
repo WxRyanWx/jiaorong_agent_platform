@@ -1,16 +1,16 @@
 import type { AxiosRequestConfig } from 'axios'
 import request from './interceptors'
 
-export const postLogin = (query: string, params: FormData) => {
-  return request.post(`/sys-auth/oauth/token?${query}`, params)
+export const postLogin = (params: { phone: string; password: string; captchaKey?: string }) => {
+  return request.post('/auth/login/phone', params)
 }
 
-export const postCode = (query: string, params: Record<string, string>) => {
-  return request.post(`/auth/login/sms_captcha/check?${query}`, params)
+export const postCode = (params: { phone: string; captchaCode: string; captchaKey: string }) => {
+  return request.post('/auth/login/sms_captcha/check', params)
 }
 
-export const getCaptcha = (query: string) => {
-  return request.get(`/auth/login/sms_captcha?${query}`)
+export const getCaptcha = (phone: string) => {
+  return request.get('/auth/login/sms_captcha', { params: { phone } })
 }
 
 export const getPasswordCaptcha = (query: string) => {
@@ -42,15 +42,12 @@ export function refreshAuthToken() {
   return request.post('/auth/token/refresh', null, config)
 }
 
-export function updatePwd(query: string, params: { newPwd: string; key: string }) {
-  return request.post(`/auth/login/init?${query}`, params)
+export function updatePwd(params: { newPwd: string; key: string }) {
+  return request.post('/auth/login/init', params)
 }
 
-export function retrievePwd(
-  query: string,
-  params: { captcha: string; key: string; phone: string; pwd: string }
-) {
-  return request.post(`/auth/login/credentials/reset?${query}`, params)
+export function retrievePwd(params: { captcha: string; key: string; phone: string; pwd: string }) {
+  return request.post('/auth/login/credentials/reset', params)
 }
 
 export function addUserUsageRecord(paramas: object, featureName: string, userId: string) {

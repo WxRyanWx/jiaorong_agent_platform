@@ -87,6 +87,7 @@
     "traceDebugEnabled": "Aufruf-Trace",
     "traceDebugEnabledDesc": "Speichert bei Aktivierung den Inhalt von Modellanfragen lokal. Authentifizierungsheader bekannter Anbieter und API-Schlüsselfelder werden maskiert, Prompts können jedoch sensible Daten enthalten.",
     "loggingEnabled": "Protokollierung aktivieren",
+    "signOut": "Abmelden",
     "loggingDialogTitle": "Änderung der Protokolleinstellung bestätigen",
     "loggingEnableDesc": "Das Aktivieren der Protokollierung hilft uns, Probleme zu diagnostizieren und die App zu verbessern. Protokolldateien können sensible Informationen enthalten.",
     "loggingDisableDesc": "Das Deaktivieren der Protokollierung beendet das Sammeln von App-Protokollen.",

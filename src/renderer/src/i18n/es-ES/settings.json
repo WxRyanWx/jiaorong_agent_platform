@@ -87,6 +87,7 @@
     "traceDebugEnabled": "Rastrear llamada",
     "traceDebugEnabledDesc": "Mientras está activado, guarda localmente el contenido de las solicitudes al modelo. Se ocultan los encabezados de autenticación de proveedores conocidos y los campos de clave de API, pero los prompts pueden contener datos confidenciales.",
     "loggingEnabled": "Habilitar registros",
+    "signOut": "Cerrar sesión",
     "loggingDialogTitle": "Confirmar cambio en los ajustes de registros",
     "loggingEnableDesc": "Habilitar los registros nos ayudará a diagnosticar problemas y mejorar la aplicación. Los archivos de registro pueden contener información confidencial.",
     "loggingDisableDesc": "Al deshabilitar los registros se dejarán de recopilar registros de la aplicación.",

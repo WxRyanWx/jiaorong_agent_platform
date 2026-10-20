@@ -80,6 +80,7 @@
     "contentProtectionRestartNotice": "Alterar esta configuração reiniciará o aplicativo. Deseja continuar?",
     "copyWithCotEnabled": "Copiar Detalhes COT",
     "loggingEnabled": "Habilitar Registro (Logging)",
+    "signOut": "Sair",
     "loggingDialogTitle": "Confirmar Mudança na Configuração de Registro",
     "loggingEnableDesc": "Habilitar o registro ajudará a diagnosticar problemas e melhorar o aplicativo. Os arquivos de registro podem conter informações confidenciais.",
     "loggingDisableDesc": "Desabilitar o registro interromperá a coleta de logs do aplicativo.",

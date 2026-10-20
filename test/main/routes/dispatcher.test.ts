@@ -5583,6 +5583,13 @@ describe('dispatchDeepchatRoute', () => {
       createRendererRouteContext(42, 7)
     )
 
+    const requestAuthLogoutResult = await dispatchDeepchatRoute(
+      runtime,
+      'window.requestAuthLogout',
+      {},
+      createRendererRouteContext(42, 7)
+    )
+
     const startGuidedOnboardingResult = await dispatchDeepchatRoute(
       runtime,
       'window.startGuidedOnboarding',
@@ -5628,7 +5635,7 @@ describe('dispatchDeepchatRoute', () => {
     expect(windowPresenter.getSettingsWindowId).toHaveBeenCalled()
     expect(windowPresenter.closeSettingsWindow).toHaveBeenCalled()
     expect(closeSettingsResult).toEqual({ closed: true })
-    expect(windowPresenter.focusMainWindow).toHaveBeenCalledTimes(3)
+    expect(windowPresenter.focusMainWindow).toHaveBeenCalledTimes(4)
     expect(focusMainResult).toEqual({ focused: true })
     expect(windowPresenter.notifySettingsReady).toHaveBeenCalledWith(42)
     expect(notifySettingsReadyResult).toEqual({ notified: true })
@@ -5653,6 +5660,15 @@ describe('dispatchDeepchatRoute', () => {
       payload: {}
     })
     expect(resumeGuidedOnboardingResult).toEqual({ requested: true, focused: true })
+    expect(windowPresenter.sendToMainWindow).toHaveBeenCalledWith('deepchat:event', {
+      name: 'appRuntime.authLogoutRequested',
+      payload: {}
+    })
+    expect(requestAuthLogoutResult).toEqual({
+      requested: true,
+      focused: true,
+      closed: true
+    })
     expect(windowPresenter.sendToAllWindows).toHaveBeenCalledWith('dev:start-guided-onboarding')
     expect(startGuidedOnboardingResult).toEqual({
       started: true,

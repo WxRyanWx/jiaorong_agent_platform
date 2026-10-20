@@ -29,7 +29,11 @@ import McpAppConsentDialog from '@/components/mcp/McpAppConsentDialog.vue'
 import CliApprovalDialog from '@/components/cli/CliApprovalDialog.vue'
 import { initAppStores, useMcpInstallDeeplinkHandler } from '@/lib/storeInitializer'
 import { ensureShellBootstrap } from '@/lib/shellBootstrap'
-import { getToken, useAuthLoginDeeplinkHandler } from '@jiaorong/auth/host'
+import {
+  getToken,
+  useAuthLoginDeeplinkHandler,
+  useAuthLogoutRequestedHandler
+} from '@jiaorong/auth/host'
 import { isEmbeddedAppRouteLocation, isSkillRouteLocation } from '@jiaorong/router'
 import { ensureIconsLoaded } from '@/lib/iconLoader'
 import { useFontManager } from '@/composables/useFontManager'
@@ -118,6 +122,8 @@ const toasterTheme = computed(() =>
 const { setup: setupMcpDeeplink, cleanup: cleanupMcpDeeplink } = useMcpInstallDeeplinkHandler()
 const { setup: setupAuthLoginDeeplink, cleanup: cleanupAuthLoginDeeplink } =
   useAuthLoginDeeplinkHandler()
+const { setup: setupAuthLogoutRequested, cleanup: cleanupAuthLogoutRequested } =
+  useAuthLogoutRequestedHandler()
 const isLoginRoute = computed(() => route.name === 'login')
 /** 开发者中心独立窗口：只渲染页面，不带主壳与主窗口启动副作用。 */
 const isDevCenterStandalone = resolveDevCenterStandalone()
@@ -539,6 +545,7 @@ onMounted(() => {
     })
   setupMcpDeeplink()
   setupAuthLoginDeeplink()
+  setupAuthLogoutRequested()
   setupAppIpcRuntime()
 
   watch(
@@ -570,6 +577,7 @@ onBeforeUnmount(() => {
   cleanupAppIpcRuntime()
   cleanupMcpDeeplink()
   cleanupAuthLoginDeeplink()
+  cleanupAuthLogoutRequested()
   cleanupSemanticNotifications?.()
   cleanupSemanticNotifications = undefined
   cleanupAppNotifications?.()

@@ -3,6 +3,7 @@ import {
   appRuntimeGuidedOnboardingResumeRequestedEvent,
   appRuntimeGuidedOnboardingStartRequestedEvent,
   appRuntimeAuthLoginRequestedEvent,
+  appRuntimeAuthLogoutRequestedEvent,
   appRuntimeMcpInstallRequestedEvent,
   appRuntimeShortcutRequestedEvent,
   appRuntimeStartDeeplinkRequestedEvent,
@@ -30,6 +31,10 @@ export function createAppRuntimeClient(bridge: DeepchatBridge = getDeepchatBridg
     listener: (payload: DeepchatEventPayload<'appRuntime.authLoginRequested'>) => void
   ) {
     return bridge.on(appRuntimeAuthLoginRequestedEvent.name, listener)
+  }
+
+  function onAuthLogoutRequested(listener: () => void) {
+    return bridge.on(appRuntimeAuthLogoutRequestedEvent.name, () => listener())
   }
 
   function onGuidedOnboardingStartRequested(listener: () => void) {
@@ -68,6 +73,7 @@ export function createAppRuntimeClient(bridge: DeepchatBridge = getDeepchatBridg
     onStartDeeplink,
     onMcpInstallRequested,
     onAuthLoginRequested,
+    onAuthLogoutRequested,
     onGuidedOnboardingStartRequested,
     onGuidedOnboardingResumeRequested,
     onWindowFocused,

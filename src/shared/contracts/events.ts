@@ -13,6 +13,7 @@ import {
   appRuntimeGuidedOnboardingResumeRequestedEvent,
   appRuntimeGuidedOnboardingStartRequestedEvent,
   appRuntimeAuthLoginRequestedEvent,
+  appRuntimeAuthLogoutRequestedEvent,
   appRuntimeMcpInstallRequestedEvent,
   appRuntimeShortcutRequestedEvent,
   appRuntimeStartDeeplinkRequestedEvent,
@@ -207,6 +208,7 @@ export const DEEPCHAT_EVENT_CATALOG = {
   [appRuntimeStartDeeplinkRequestedEvent.name]: appRuntimeStartDeeplinkRequestedEvent,
   [appRuntimeMcpInstallRequestedEvent.name]: appRuntimeMcpInstallRequestedEvent,
   [appRuntimeAuthLoginRequestedEvent.name]: appRuntimeAuthLoginRequestedEvent,
+  [appRuntimeAuthLogoutRequestedEvent.name]: appRuntimeAuthLogoutRequestedEvent,
   [appRuntimeGuidedOnboardingStartRequestedEvent.name]:
     appRuntimeGuidedOnboardingStartRequestedEvent,
   [appRuntimeGuidedOnboardingResumeRequestedEvent.name]:

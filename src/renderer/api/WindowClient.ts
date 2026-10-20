@@ -16,6 +16,7 @@ import {
   windowMinimizeCurrentRoute,
   windowNotifySettingsReadyRoute,
   windowPreviewFileRoute,
+  windowRequestAuthLogoutRoute,
   windowRequeuePendingSettingsProviderInstallRoute,
   windowResumeGuidedOnboardingRoute,
   windowStartGuidedOnboardingRoute,
@@ -86,6 +87,10 @@ export function createWindowClient(bridge: DeepchatBridge = getDeepchatBridge())
 
   async function resumeGuidedOnboarding() {
     return await bridge.invoke(windowResumeGuidedOnboardingRoute.name, {})
+  }
+
+  async function requestAuthLogout() {
+    return await bridge.invoke(windowRequestAuthLogoutRoute.name, {})
   }
 
   function onStateChanged(
@@ -177,6 +182,7 @@ export function createWindowClient(bridge: DeepchatBridge = getDeepchatBridge())
     requeuePendingSettingsProviderInstall,
     startGuidedOnboarding,
     resumeGuidedOnboarding,
+    requestAuthLogout,
     onStateChanged,
     onCurrentStateChanged,
     onSettingsNavigate,

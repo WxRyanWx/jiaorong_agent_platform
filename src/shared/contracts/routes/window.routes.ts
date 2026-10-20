@@ -141,3 +141,13 @@ export const windowResumeGuidedOnboardingRoute = defineRouteContract({
     focused: z.boolean()
   })
 })
+
+export const windowRequestAuthLogoutRoute = defineRouteContract({
+  name: 'window.requestAuthLogout',
+  input: z.object({}).default({}),
+  output: z.object({
+    requested: z.boolean(),
+    focused: z.boolean(),
+    closed: z.boolean()
+  })
+})

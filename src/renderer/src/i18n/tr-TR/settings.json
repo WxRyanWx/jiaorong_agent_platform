@@ -87,6 +87,7 @@
     "traceDebugEnabled": "Aramayı Takip Et",
     "traceDebugEnabledDesc": "Etkin olduğunda model isteği içeriğini yerel olarak saklar. Bilinen sağlayıcıların kimlik doğrulama başlıkları ve API anahtarı alanları maskelenir, ancak istemler hassas veriler içerebilir.",
     "loggingEnabled": "Günlük Kaydını Etkinleştir",
+    "signOut": "Oturumu kapat",
     "loggingDialogTitle": "Günlük Ayarı Değişikliğini Onayla",
     "loggingEnableDesc": "Günlüğe kaydetmeyi etkinleştirmek sorunları teşhis etmemize ve uygulamayı geliştirmemize yardımcı olacaktır. Günlük dosyaları hassas bilgiler içerebilir.",
     "loggingDisableDesc": "Günlük kaydının devre dışı bırakılması, uygulama günlüklerinin toplanmasını durduracaktır.",

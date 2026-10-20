@@ -197,6 +197,9 @@ export const lucideIconCollection = {
     code: {
       body: '<path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m16 18l6-6l-6-6M8 6l-6 6l6 6"/>'
     },
+    'code-xml': {
+      body: '<path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m18 16l4-4l-4-4M6 8l-4 4l4 4m8.5-12l-5 16"/>'
+    },
     coins: {
       body: '<g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M13.744 17.736a6 6 0 1 1-7.48-7.48M15 6h1v4"/><path d="m6.134 14.768l.866-.5l2 3.464"/><circle cx="16" cy="8" r="6"/></g>'
     },
@@ -758,6 +761,9 @@ export const lucideIconCollection = {
     },
     'check-circle-2': {
       parent: 'circle-check'
+    },
+    'code-2': {
+      parent: 'code-xml'
     },
     edit: {
       parent: 'square-pen'

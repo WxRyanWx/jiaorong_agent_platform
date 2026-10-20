@@ -4,6 +4,7 @@ import { RouterLink, RouterView, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { PLUGIN_CENTER_NAV_WIDTH_CLASS } from './layout'
 import { buildPluginCenterHideCss } from './hiddenItems'
+import { hydrateAppCenterAccess, isJiaorongAppCenterVisible } from '../config/appCenterAccess'
 import appsIcon from '../assets/应用中心.svg?url'
 import skillsIcon from '../assets/技能.svg?url'
 import mcpIcon from '../assets/mcp.svg?url'
@@ -12,7 +13,7 @@ import connectorsIcon from '../assets/连接器.svg?url'
 const { t } = useI18n()
 const route = useRoute()
 
-const navItems = [
+const baseNavItems = [
   {
     key: 'apps',
     name: 'skills-apps',
@@ -46,15 +47,20 @@ const navItems = [
   }
 ] as const
 
+const navItems = computed(() =>
+  baseNavItems.filter((item) => item.key !== 'apps' || isJiaorongAppCenterVisible())
+)
+
 const activeKey = computed(() => {
   const name = String(route.name ?? '')
-  return navItems.find((item) => item.match(name))?.key ?? 'skills'
+  return navItems.value.find((item) => item.match(name))?.key ?? 'skills'
 })
 
 const hideCss = buildPluginCenterHideCss()
 let hideStyleEl: HTMLStyleElement | null = null
 
 onMounted(() => {
+  hydrateAppCenterAccess()
   hideStyleEl = document.createElement('style')
   hideStyleEl.textContent = hideCss
   document.head.appendChild(hideStyleEl)

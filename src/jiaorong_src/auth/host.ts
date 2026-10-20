@@ -11,7 +11,7 @@ import { ensureSkillSwitchHydrated } from '../utils/skillSwitch'
 export { setupAuthGuard } from './lib/guard'
 export { setupAuthInterceptors } from './lib/setup'
 export { saveTokenFromUrl, getUrlToken } from './lib/auth-from-url'
-export { useAuthLoginDeeplinkHandler } from './lib/auth-deeplink'
+export { useAuthLoginDeeplinkHandler, useAuthLogoutRequestedHandler } from './lib/auth-deeplink'
 export {
   ensureAuthSessionValidated,
   forceRevalidateAuthSession,

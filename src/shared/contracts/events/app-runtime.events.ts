@@ -28,6 +28,11 @@ export const appRuntimeAuthLoginRequestedEvent = defineEventContract({
   })
 })
 
+export const appRuntimeAuthLogoutRequestedEvent = defineEventContract({
+  name: 'appRuntime.authLogoutRequested',
+  payload: EmptyPayloadSchema
+})
+
 export const appRuntimeGuidedOnboardingStartRequestedEvent = defineEventContract({
   name: 'appRuntime.guidedOnboardingStartRequested',
   payload: EmptyPayloadSchema

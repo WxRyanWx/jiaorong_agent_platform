@@ -81,6 +81,7 @@
     "contentProtectionRestartNotice": "La modification de ce paramètre redémarrera l'application. Voulez-vous continuer ?",
     "copyWithCotEnabled": "Copier les infos COT",
     "loggingEnabled": "Activer la journalisation",
+    "signOut": "Se déconnecter",
     "loggingDialogTitle": "Confirmer le changement de paramètre de journalisation",
     "loggingEnableDesc": "L'activation de la journalisation nous aidera à diagnostiquer les problèmes et à améliorer l'application. Les fichiers journaux peuvent contenir des informations sensibles.",
     "loggingDisableDesc": "La désactivation de la journalisation arrêtera la collecte des journaux d'application.",

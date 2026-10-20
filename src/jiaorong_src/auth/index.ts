@@ -11,6 +11,7 @@ export {
   saveTokenFromUrl,
   getUrlToken,
   useAuthLoginDeeplinkHandler,
+  useAuthLogoutRequestedHandler,
   ensureAuthSessionValidated,
   forceRevalidateAuthSession,
   scheduleAuthRevalidateOnMenuSwitch,

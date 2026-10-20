@@ -63,6 +63,7 @@
     "contentProtectionRestartNotice": "この設定を変更するとアプリケーションが再起動します。続行しますか？",
     "copyWithCotEnabled": "COT情報をコピー",
     "loggingEnabled": "ログを有効にする",
+    "signOut": "サインアウト",
     "loggingDialogTitle": "ログ設定の変更確認",
     "loggingEnableDesc": "ログを有効にすると、問題の診断とアプリケーションの改善に役立ちます。ログファイルには機密情報が含まれる可能性があります。",
     "loggingDisableDesc": "ログを無効にすると、アプリケーションログの収集が停止します。",

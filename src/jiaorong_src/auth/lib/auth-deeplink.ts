@@ -3,7 +3,7 @@ import { useRouter } from 'vue-router'
 import { createAppRuntimeClient } from '@api/AppRuntimeClient'
 import { setToken } from './local-user'
 import { persistAuthSession } from './persist'
-import { ensureAuthSessionValidated, resetAuthSessionValidation } from './session'
+import { clearAuthSession, ensureAuthSessionValidated, resetAuthSessionValidation } from './session'
 
 type AuthLoginDeeplinkPayload = {
   token?: string
@@ -49,6 +49,42 @@ export const useAuthLoginDeeplinkHandler = () => {
     const appRuntimeClient = createAppRuntimeClient()
     cleanupIpcListeners = appRuntimeClient.onAuthLoginRequested((payload) => {
       void handleAuthLogin(payload)
+    })
+  }
+
+  const cleanup = () => {
+    cleanupIpcListeners?.()
+    cleanupIpcListeners = null
+  }
+
+  return { setup, cleanup }
+}
+
+export const useAuthLogoutRequestedHandler = () => {
+  const router = useRouter()
+  let cleanupIpcListeners: (() => void) | null = null
+  let processing = false
+
+  const handleAuthLogout = async () => {
+    if (processing) return
+
+    processing = true
+    try {
+      await clearAuthSession()
+      await router.isReady()
+      if (router.currentRoute.value.name !== 'login') {
+        await router.replace({ name: 'login' })
+      }
+    } finally {
+      processing = false
+    }
+  }
+
+  const setup = () => {
+    cleanupIpcListeners?.()
+    const appRuntimeClient = createAppRuntimeClient()
+    cleanupIpcListeners = appRuntimeClient.onAuthLogoutRequested(() => {
+      void handleAuthLogout()
     })
   }
 

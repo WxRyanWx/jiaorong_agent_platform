@@ -56,10 +56,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { RouterLink, RouterView, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { Icon } from '@iconify/vue'
+import {
+  hydrateAppCenterAccess,
+  isJiaorongAppCenterVisible
+} from '@jiaorong/config/appCenterAccess'
 import { useAgentStore } from '@/stores/ui/agent'
 
 const { t } = useI18n()
@@ -94,7 +98,11 @@ const baseTabs: PluginTab[] = [
   }
 ]
 
-const tabs = baseTabs
+const tabs = computed(() =>
+  baseTabs.filter((tab) => tab.key !== 'apps' || isJiaorongAppCenterVisible())
+)
+
+onMounted(hydrateAppCenterAccess)
 
 const activeTab = computed(() => {
   const routeName = String(route.name ?? '')

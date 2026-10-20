@@ -87,6 +87,7 @@
     "traceDebugEnabled": "Jejaki panggilan",
     "traceDebugEnabledDesc": "Apabila didayakan, kandungan permintaan model disimpan secara setempat. Pengepala pengesahan penyedia yang diketahui dan medan kunci API ditopeng, tetapi gesaan mungkin mengandungi data sensitif.",
     "loggingEnabled": "Dayakan pengelogan",
+    "signOut": "Log keluar",
     "loggingDialogTitle": "Sahkan perubahan tetapan log",
     "loggingEnableDesc": "Mendayakan pengelogan akan membantu kami mendiagnosis masalah dan menambah baik aplikasi. Fail log mungkin mengandungi maklumat sensitif.",
     "loggingDisableDesc": "Melumpuhkan pengelogan akan menghentikan pengumpulan log aplikasi.",

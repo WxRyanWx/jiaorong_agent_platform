@@ -87,6 +87,7 @@
     "traceDebugEnabled": "Traccia chiamate",
     "traceDebugEnabledDesc": "Quando è attivo, salva localmente il contenuto delle richieste al modello. Le intestazioni di autenticazione dei provider noti e i campi delle chiavi API vengono mascherati, ma i prompt possono contenere dati sensibili.",
     "loggingEnabled": "Attiva log",
+    "signOut": "Esci",
     "loggingDialogTitle": "Conferma modifica impostazioni log",
     "loggingEnableDesc": "Attivare i log ci aiuta a diagnosticare problemi e migliorare l'applicazione. I file di log potrebbero contenere informazioni sensibili.",
     "loggingDisableDesc": "Disattivare i log interromperà la raccolta dei log applicativi.",

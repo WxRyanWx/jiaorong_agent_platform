@@ -1,6 +1,9 @@
 import { app, BrowserWindow } from 'electron'
 import { DEEPCHAT_EVENT_CHANNEL } from '@shared/contracts/channels'
-import { createDeepchatEventEnvelope } from '@shared/contracts/events'
+import {
+  appRuntimeAuthLogoutRequestedEvent,
+  createDeepchatEventEnvelope
+} from '@shared/contracts/events'
 import type {
   IShortcutPresenter,
   ITabPresenter,
@@ -56,6 +59,7 @@ import {
   windowMinimizeCurrentRoute,
   windowNotifySettingsReadyRoute,
   windowPreviewFileRoute,
+  windowRequestAuthLogoutRoute,
   windowRequeuePendingSettingsProviderInstallRoute,
   windowResumeGuidedOnboardingRoute,
   windowStartGuidedOnboardingRoute,
@@ -352,6 +356,22 @@ export function createDesktopRoutes(deps: {
             )
           : false
         return windowResumeGuidedOnboardingRoute.output.parse({ requested, focused })
+      }
+    ],
+    [
+      windowRequestAuthLogoutRoute.name,
+      async (rawInput) => {
+        windowRequestAuthLogoutRoute.input.parse(rawInput)
+        const focused = windowPresenter.focusMainWindow()
+        const requested = focused
+          ? await windowPresenter.sendToMainWindow(
+              DEEPCHAT_EVENT_CHANNEL,
+              createDeepchatEventEnvelope(appRuntimeAuthLogoutRequestedEvent.name, {})
+            )
+          : false
+        const closed = windowPresenter.getSettingsWindowId() != null
+        windowPresenter.closeSettingsWindow()
+        return windowRequestAuthLogoutRoute.output.parse({ requested, focused, closed })
       }
     ],
     [

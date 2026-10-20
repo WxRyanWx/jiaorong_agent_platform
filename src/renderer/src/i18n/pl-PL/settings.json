@@ -82,6 +82,7 @@
     "traceDebugEnabled": "Śledzenie połączenia",
     "traceDebugEnabledDesc": "Po włączeniu zawartość żądań modelu jest zapisywana lokalnie. Nagłówki uwierzytelniania znanych dostawców i pola kluczy API są maskowane, ale prompty mogą zawierać dane poufne.",
     "loggingEnabled": "Włącz rejestrowanie",
+    "signOut": "Wyloguj",
     "loggingDialogTitle": "Potwierdź zmianę ustawień rejestrowania",
     "loggingEnableDesc": "Włączenie logowania pomoże nam diagnozować problemy i ulepszać aplikację. Pliki dziennika mogą zawierać poufne informacje.",
     "loggingDisableDesc": "Wyłączenie rejestrowania spowoduje zatrzymanie gromadzenia dzienników aplikacji.",

@@ -448,7 +448,6 @@ import {
   FeatchLogin,
   sendCaptcha,
   checkCode,
-  FeatchUserInfo,
   FeatchUpdatePwd,
   FeatchRetrievePwd,
   FeatchUsageRecord
@@ -514,6 +513,8 @@ const rePsdInfo = reactive({
   password: '',
   password2: ''
 })
+
+const loginCaptchaKey = ref('')
 
 const codeInfo = reactive({
   phoneNumber: null as string | null,
@@ -674,6 +675,7 @@ const checkCaptcha = async (num: string, key: string, val: string) => {
     if (res.code === 8000000) {
       clearInter(codeInfo, 1)
       loading.value = false
+      loginCaptchaKey.value = res.data.key
       rePsdInfo.phoneNumber = res.data.phone
       rePsdInfo.key = res.data.key
       userInfo.phoneNumber = res.data.phone
@@ -693,24 +695,27 @@ const checkCaptcha = async (num: string, key: string, val: string) => {
 async function handLogin(values: Record<string, string>): Promise<void> {
   loading.value = true
   try {
-    const loginRes = await FeatchLogin(values.phoneNumber, values.password)
-    if (loginRes.code === 8000000) {
+    const loginRes = await FeatchLogin(
+      values.phoneNumber,
+      values.password,
+      values.captchaKey || loginCaptchaKey.value
+    )
+    if (loginRes.code === 8000000 && loginRes.data?.access_token) {
       Message.success('登录成功')
-      setToken(loginRes.access_token)
-      resName.value = loginRes.userName
+      const loginData = loginRes.data
+      setToken(loginData.access_token)
+      resName.value = loginData.userName
+      setUserInfoRecords(loginData)
 
-      if (localStorage.getItem('xkaitoken') && resName.value) {
-        const res1 = await FeatchUserInfo(resName.value)
-        setUserInfoRecords(res1.data)
-        resName.value = res1.data.userName
-        await persistAuthSession()
-        await FeatchUsageRecord({}, 'login', res1.data.id)
-        markAuthSessionValidated()
-        // 登录成功后触发默认技能补装（随后进 chat 路由也会再兜底）
-        void import('../../../skills/lib/ensureDefaultSkills')
-          .then((m) => m.scheduleEnsureDefaultSkills({ authWaitMs: 0 }))
-          .catch(() => undefined)
+      await persistAuthSession()
+      if (loginData.id) {
+        void FeatchUsageRecord({}, 'login', loginData.id).catch(() => undefined)
       }
+      markAuthSessionValidated()
+      // 登录成功后触发默认技能补装（随后进 chat 路由也会再兜底）
+      void import('../../../skills/lib/ensureDefaultSkills')
+        .then((m) => m.scheduleEnsureDefaultSkills({ authWaitMs: 0 }))
+        .catch(() => undefined)
       router.push('/chat')
     }
   } catch (err) {
@@ -762,7 +767,8 @@ const handleSubmitRePsd = async ({
       if (res.code === 8000000) {
         const params = {
           phoneNumber: values.phoneNumber,
-          password: values.password2
+          password: values.password2,
+          captchaKey: rePsdInfo.key
         }
         await handLogin(params)
         rePsdForm.value?.resetFields()
@@ -816,7 +822,8 @@ const handleSubmitCodePwd = async ({
     if (res.code === 8000000) {
       const params = {
         phoneNumber: values.phoneNumber!,
-        password: values.password2
+        password: values.password2,
+        captchaKey: values.captchaKey
       }
       await handLogin(params)
       clearInter(codePwdInfo, 0)

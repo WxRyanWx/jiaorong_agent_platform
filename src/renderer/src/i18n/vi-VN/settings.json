@@ -82,6 +82,7 @@
     "traceDebugEnabled": "Cuộc gọi theo dõi",
     "traceDebugEnabledDesc": "Khi bật, nội dung yêu cầu mô hình được lưu cục bộ. Các tiêu đề xác thực của nhà cung cấp đã biết và trường khóa API được che, nhưng lời nhắc vẫn có thể chứa dữ liệu nhạy cảm.",
     "loggingEnabled": "Bật ghi nhật ký",
+    "signOut": "Đăng xuất",
     "loggingDialogTitle": "Xác nhận thay đổi cài đặt ghi nhật ký",
     "loggingEnableDesc": "Việc bật ghi nhật ký sẽ giúp chúng tôi chẩn đoán sự cố và cải thiện ứng dụng. Tệp nhật ký có thể chứa thông tin nhạy cảm.",
     "loggingDisableDesc": "Việc tắt tính năng ghi nhật ký sẽ ngừng thu thập nhật ký ứng dụng.",
