@@ -1,4 +1,4 @@
-import { pwdEncrypt, initParams, getDecParams } from './utils/pwd'
+import { pwdEncrypt } from './utils/pwd'
 import {
   postCode,
   postLogin,
@@ -11,24 +11,17 @@ import {
 } from './loginApi'
 import type { AuthApiResponse, CaptchaCheckData, LoginSuccessData, UserInfoData } from './types'
 
-export const FeatchLogin = async (username: string, password: string) => {
-  const formData = new FormData()
-  formData.append('grant_type', 'password')
-  formData.append('scope', 'all')
-  formData.append('username', username || '')
-  formData.append('password', (await pwdEncrypt(password || '')) || '')
-  const flatObj = getDecParams({})
-  return postLogin(
-    initParams(flatObj.signParams as Record<string, string | number>),
-    formData
-  ) as unknown as Promise<AuthApiResponse<LoginSuccessData> & LoginSuccessData>
+export const FeatchLogin = async (phone: string, password: string, captchaKey?: string) => {
+  const params = {
+    phone: phone || '',
+    password: (await pwdEncrypt(password || '')) || '',
+    captchaKey
+  }
+  return postLogin(params) as unknown as Promise<AuthApiResponse<LoginSuccessData>>
 }
 
 export const sendCaptcha = async (phone: string) => {
-  const flatObj = getDecParams({ phone })
-  return getCaptcha(
-    initParams(flatObj.signParams as Record<string, string | number>)
-  ) as unknown as Promise<AuthApiResponse<string>>
+  return getCaptcha(phone) as unknown as Promise<AuthApiResponse<string>>
 }
 
 export const checkCode = async (phone: string, captchaKey: string, captchaValue: string) => {
@@ -37,11 +30,7 @@ export const checkCode = async (phone: string, captchaKey: string, captchaValue:
     captchaCode: captchaValue || '',
     captchaKey: captchaKey || ''
   }
-  const flatObj = getDecParams({})
-  return postCode(
-    initParams(flatObj.signParams as Record<string, string | number>),
-    paramas
-  ) as unknown as Promise<AuthApiResponse<CaptchaCheckData>>
+  return postCode(paramas) as unknown as Promise<AuthApiResponse<CaptchaCheckData>>
 }
 
 export const FeatchExit = async () => {
@@ -60,11 +49,7 @@ export const FeatchUpdatePwd = async (newPwd: string, key: string) => {
     newPwd: (await pwdEncrypt(newPwd || '')) || '',
     key
   }
-  const flatObj = getDecParams({})
-  return updatePwd(
-    initParams(flatObj.signParams as Record<string, string | number>),
-    paramas
-  ) as unknown as Promise<AuthApiResponse<unknown>>
+  return updatePwd(paramas) as unknown as Promise<AuthApiResponse<unknown>>
 }
 
 export const FeatchRetrievePwd = async (
@@ -79,11 +64,7 @@ export const FeatchRetrievePwd = async (
     phone,
     pwd: (await pwdEncrypt(newPwd || '')) || ''
   }
-  const flatObj = getDecParams({})
-  return retrievePwd(
-    initParams(flatObj.signParams as Record<string, string | number>),
-    paramas
-  ) as unknown as Promise<AuthApiResponse<unknown>>
+  return retrievePwd(paramas) as unknown as Promise<AuthApiResponse<unknown>>
 }
 
 export const FeatchUsageRecord = async (paramas: object, featureName: string, userId: string) => {

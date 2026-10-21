@@ -6,8 +6,10 @@ export type AuthApiResponse<T = unknown> = {
 }
 
 export type LoginSuccessData = {
+  id?: string
   access_token: string
   userName: string
+  userFullname?: string
 }
 
 export type CaptchaCheckData = {
