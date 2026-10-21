@@ -15,13 +15,6 @@ const route = useRoute()
 
 const baseNavItems = [
   {
-    key: 'apps',
-    name: 'skills-apps',
-    titleKey: 'routes.openPlatformTab_apps',
-    iconSrc: appsIcon,
-    match: (name: string) => name === 'skills-apps'
-  },
-  {
     key: 'skills',
     name: 'skills',
     titleKey: 'routes.pluginCenterSkills',
@@ -44,6 +37,13 @@ const baseNavItems = [
       name === 'skills-connectors' ||
       name === 'skills-connector-detail' ||
       name === 'skills-connector-ocr'
+  },
+  {
+    key: 'apps',
+    name: 'skills-apps',
+    titleKey: 'routes.openPlatformTab_apps',
+    iconSrc: appsIcon,
+    match: (name: string) => name === 'skills-apps'
   }
 ] as const
 

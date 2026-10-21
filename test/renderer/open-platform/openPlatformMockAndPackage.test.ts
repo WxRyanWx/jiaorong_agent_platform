@@ -191,6 +191,20 @@ describe('open platform mock api', () => {
     ])
   })
 
+  it('keeps organization names separate from organization ids', async () => {
+    const created = await client.publishApp({
+      manifest: { ...appManifest, id: 'org-name-app', name: '组织名称应用' },
+      auth: { orgs: [], orgNames: '信科集团', userIds: [], phones: [] }
+    })
+
+    expect(created.auth).toEqual({
+      orgs: [],
+      orgNames: '信科集团',
+      userIds: [],
+      phones: []
+    })
+  })
+
   it('keeps connector type and supports republish after unpublish', async () => {
     const metadata = {
       id: 'republish-mcp',

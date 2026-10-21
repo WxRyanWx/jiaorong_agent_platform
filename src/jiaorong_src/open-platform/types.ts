@@ -8,6 +8,7 @@ export type OpenPlatformScope = 'mine' | 'market'
 
 export type OpenPlatformAppAuth = {
   orgs: string[]
+  orgNames?: string
   userIds: string[]
   phones: string[]
 }

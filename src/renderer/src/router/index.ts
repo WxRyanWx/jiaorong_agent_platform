@@ -74,7 +74,7 @@ const router = createRouter({
           name: 'plugins-mcp',
           component: () => import('@/pages/plugins/McpPluginsPage.vue'),
           meta: {
-            titleKey: 'routes.settings-mcp',
+            titleKey: 'routes.pluginCenterMcp',
             icon: 'lucide:server'
           }
         },

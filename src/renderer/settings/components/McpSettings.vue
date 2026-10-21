@@ -24,9 +24,9 @@
       <div class="flex flex-col gap-3">
         <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div :dir="languageStore.dir" class="min-w-0">
-            <h1 class="text-lg font-semibold">{{ t('settings.mcp.center.title') }}</h1>
+            <h1 class="text-lg font-semibold">{{ pageTitle }}</h1>
             <p class="text-xs text-muted-foreground">
-              {{ t('settings.mcp.enabledDescription') }}
+              {{ pageDescription }}
             </p>
           </div>
           <div
@@ -296,6 +296,15 @@ const showMcpGuide = computed(() => mcpGuide.showGuide.value && Boolean(mcpActio
 
 const mcpEnabled = computed(() => mcpStore.mcpEnabled)
 const isMarketView = computed(() => route.query.view === 'market')
+const isPluginCenterMcpView = computed(() => route.name === 'plugins-mcp')
+const pageTitle = computed(() =>
+  isPluginCenterMcpView.value ? t('routes.pluginCenterMcp') : t('settings.mcp.center.title')
+)
+const pageDescription = computed(() =>
+  isPluginCenterMcpView.value
+    ? t('routes.pluginCenterMcpSubtitle')
+    : t('settings.mcp.enabledDescription')
+)
 const showMcpSkeleton = computed(() => mcpStore.configLoading && !mcpStore.config.ready)
 
 const npmRegistryStatus = ref<{

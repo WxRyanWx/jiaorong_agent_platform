@@ -1580,7 +1580,7 @@
     "managedServerReadOnly": "JiaorongAI 託管服務",
     "managedServerReadOnlyDesc": "請在對應外掛程式設定中管理啟用狀態和權限。",
     "center": {
-      "title": "MCP 中心",
+      "title": "連接器中心",
       "running": "運行中",
       "builtIn": "內置",
       "custom": "自訂",

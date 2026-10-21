@@ -101,10 +101,13 @@ function normalizeAuth(value: OpenPlatformAppAuth | null | undefined): OpenPlatf
   }
   const auth = {
     orgs: normalize(value.orgs),
+    orgNames: typeof value.orgNames === 'string' ? value.orgNames.trim() : '',
     userIds: normalize(value.userIds),
     phones: normalize(value.phones)
   }
-  if (!auth.orgs.length && !auth.userIds.length && !auth.phones.length) return null
+  if (!auth.orgs.length && !auth.orgNames && !auth.userIds.length && !auth.phones.length) {
+    return null
+  }
   return auth
 }
 

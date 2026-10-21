@@ -79,12 +79,6 @@ type PluginTab = {
 
 const baseTabs: PluginTab[] = [
   {
-    key: 'apps',
-    name: 'plugins-apps',
-    titleKey: 'routes.openPlatformTab_apps',
-    icon: 'lucide:layout-grid'
-  },
-  {
     key: 'plugins',
     name: 'plugins',
     titleKey: 'routes.plugins',
@@ -93,8 +87,14 @@ const baseTabs: PluginTab[] = [
   {
     key: 'mcp',
     name: 'plugins-mcp',
-    titleKey: 'routes.settings-mcp',
+    titleKey: 'routes.pluginCenterMcp',
     icon: 'lucide:server'
+  },
+  {
+    key: 'apps',
+    name: 'plugins-apps',
+    titleKey: 'routes.openPlatformTab_apps',
+    icon: 'lucide:layout-grid'
   }
 ]
 

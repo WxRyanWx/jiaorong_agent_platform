@@ -1732,7 +1732,7 @@
     "title": "MCP设置",
     "description": "管理和配置MCP（模型控制协议）服务器和工具",
     "enabledTitle": "启用MCP",
-    "enabledDescription": "启用或禁用MCP功能和工具",
+    "enabledDescription": "启用或禁用连接器功能和工具",
     "enableToAccess": "请先启用MCP以访问配置选项",
     "marketplace": "前往MCP市场一键安装",
     "marketMenu": {
@@ -1944,12 +1944,12 @@
     "managedServerReadOnly": "JiaorongAI 托管服务",
     "managedServerReadOnlyDesc": "请在对应插件设置中管理启用状态和权限。",
     "center": {
-      "title": "MCP 中心",
+      "title": "连接器中心",
       "running": "运行中",
       "builtIn": "内置",
       "custom": "自定义",
-      "searchPlaceholder": "搜索 MCP 服务器...",
-      "noResults": "没有匹配的 MCP 服务器",
+      "searchPlaceholder": "搜索连接器服务器...",
+      "noResults": "没有匹配的连接器服务器",
       "command": "命令 / URL",
       "filters": {
         "all": "全部",

@@ -80,7 +80,7 @@ const PUBLISH_FIELDS: PublishField[] = [
 const publishTarget = ref<OpenPlatformAppCard | null>(null)
 const publishForm = ref<AppManifestFormFields>(emptyManifestForm())
 const publishZipPath = ref('')
-const publishAuthJson = ref('{}')
+const publishOrgNames = ref('')
 const publishError = ref('')
 const isPublishConfirmVisible = ref(false)
 const pendingPublishRequest = ref<PendingPublishRequest | null>(null)
@@ -124,21 +124,17 @@ function publishFormIssueText(fields: AppManifestFormFields): string {
   return t('routes.devCenterPublishVersion')
 }
 
-function parseAuthJson(value: string): OpenPlatformAppAuth | null {
-  if (!value.trim()) return null
-  const parsed = JSON.parse(value) as unknown
-  if (parsed === null) return null
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    throw new Error(t('routes.openPlatformAuthInvalid'))
-  }
-  return parsed as OpenPlatformAppAuth
+function buildAuthFromOrgNames(value: string): OpenPlatformAppAuth | null {
+  const orgNames = value.trim()
+  if (!orgNames) return null
+  return { orgs: [], orgNames, userIds: [], phones: [] }
 }
 
 function openPublishDialog(app: OpenPlatformAppCard): void {
   if (isDialogBusy.value) return
   publishSequence += 1
   publishForm.value = { ...emptyManifestForm(), id: app.id }
-  publishAuthJson.value = app.serverAuth ? JSON.stringify(app.serverAuth, null, 2) : '{}'
+  publishOrgNames.value = app.serverAuth?.orgNames ?? ''
   publishZipPath.value = ''
   publishError.value = ''
   isPublishConfirmVisible.value = false
@@ -193,14 +189,7 @@ function createPendingPublishRequest(): PendingPublishRequest | null {
   const fields = { ...publishForm.value }
   publishError.value = publishFormIssueText(fields)
   if (publishError.value) return null
-  let auth: OpenPlatformAppAuth | null = null
-  try {
-    auth = parseAuthJson(publishAuthJson.value)
-  } catch (error) {
-    publishError.value =
-      error instanceof Error ? error.message : t('routes.openPlatformAuthInvalid')
-    return null
-  }
+  const auth = buildAuthFromOrgNames(publishOrgNames.value)
 
   return { target, fields, auth }
 }
@@ -473,7 +462,11 @@ watch(lastError, (error) => {
           </label>
           <label class="open-platform-pane__field">
             <span>{{ t('routes.openPlatformAuth') }}</span>
-            <Textarea v-model="publishAuthJson" class="open-platform-pane__auth-input" />
+            <Textarea
+              v-model="publishOrgNames"
+              class="open-platform-pane__auth-input"
+              :placeholder="t('routes.openPlatformAuthPlaceholder')"
+            />
           </label>
           <p v-if="publishError" class="open-platform-pane__error">{{ publishError }}</p>
         </div>
