@@ -1,5 +1,6 @@
 import logger from '@shared/logger'
 import {
+  createMainStartupStageTelemetry,
   mainLogger,
   reportMainStartupComponentFailure,
   reportNativeMainError,
@@ -525,6 +526,9 @@ export async function createMainProcessControl(dependencies: {
   const databaseSecurityService = dependencies.databaseSecurityService
   const startupWorkloadCoordinator = dependencies.startupWorkloadCoordinator
   const mainDatabase = dependencies.database
+  const { reportStartupStage, measureStartupStage } = createMainStartupStageTelemetry(
+    dependencies.startupRunId
+  )
   const fileWatcherService = new FileWatcherService()
   let windowPresenter: IWindowPresenter
   let providerSettings: ProviderSettings
@@ -2449,10 +2453,10 @@ export async function createMainProcessControl(dependencies: {
     }
     if (!skillInitializationPromise) {
       const initialization = (async () => {
-        await initializePlugins()
-        await skillService.initialize()
+        await measureStartupStage('plugin_host', async () => await initializePlugins())
+        await measureStartupStage('skill_service', async () => await skillService.initialize())
         logger.info('SkillService initialized')
-        await skillSyncService.initialize()
+        await measureStartupStage('skill_sync', async () => await skillSyncService.initialize())
       })()
       skillInitializationPromise = initialization
       void initialization.catch(() => {
@@ -3503,6 +3507,7 @@ export async function createMainProcessControl(dependencies: {
 
   dependencies.bindControl(control)
   registerRoutes()
+  const jiaorongAppHostStartedAt = readMonotonicNow()
   startJiaorongAppHost({
     publishAppNotification: createAppNotificationPublisher({ publish: publishDeepchatEvent }),
     getClientVersion: () => app.getVersion(),
@@ -3672,20 +3677,28 @@ export async function createMainProcessControl(dependencies: {
         )
     } as unknown as JiaorongAppDialoguePort
   })
+  reportStartupStage('jiaorong_app_host', jiaorongAppHostStartedAt)
   deeplinkService.init()
   setupApplicationListeners()
-  await runAcpRegistryMigration()
-  await runBuiltinMcpAllowlistCompatibilityMigration({
-    sqlitePresenter: sessionDataMigrationSQLite,
-    agentSettings
+  await measureStartupStage('acp_registry_migration', async () => await runAcpRegistryMigration())
+  await measureStartupStage('builtin_mcp_allowlist_migration', async () => {
+    await runBuiltinMcpAllowlistCompatibilityMigration({
+      sqlitePresenter: sessionDataMigrationSQLite,
+      agentSettings
+    })
   })
   // Migration must finish before any renderer or background runtime can read a manual Agent scope.
   // A failed migration is startup-fatal; continuing would persist an empty active-Skill selection.
   await initializeSkills()
-  await agentSettings.retryPendingDeletedAgentSkillCleanup()
+  await measureStartupStage('agent_skill_cleanup', async () => {
+    await agentSettings.retryPendingDeletedAgentSkillCleanup()
+  })
 
   if (windowPresenter.getAllWindows().length === 0) {
-    const windowId = await windowPresenter.createAppWindow({ initialRoute: 'chat' })
+    const windowId = await measureStartupStage(
+      'app_window',
+      async () => await windowPresenter.createAppWindow({ initialRoute: 'chat' })
+    )
     if (!windowId) {
       throw new Error('Failed to create initial app window')
     }
@@ -3697,15 +3710,18 @@ export async function createMainProcessControl(dependencies: {
   memoryService.startBackgroundMaintenance()
   appLifecycleState = 'running'
   try {
-    await artifactSpool.initialize()
-    await cliServer.start()
+    await measureStartupStage('artifact_spool', async () => await artifactSpool.initialize())
+    await measureStartupStage('cli_server', async () => await cliServer.start())
   } catch (error) {
     reportMainStartupComponentFailure(dependencies.startupRunId, 'cli_control', 'unknown')
     logger.error('[CLI] Failed to start local control server', error)
   }
   if (cliServer.getStatus().running) {
     try {
-      await cliLauncherService.ensureInstalled()
+      await measureStartupStage(
+        'cli_launcher',
+        async () => await cliLauncherService.ensureInstalled()
+      )
     } catch (error) {
       reportMainStartupComponentFailure(dependencies.startupRunId, 'cli_launcher', 'unknown')
       logger.warn('[CLI] Failed to install or refresh the command launcher', error)

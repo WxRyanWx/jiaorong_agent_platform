@@ -118,6 +118,15 @@
       font-size: 14px;
     }
   }
+
+  &__iframe {
+    flex: 1 1 auto;
+    width: 100%;
+    min-height: 0;
+    border: 1px solid var(--open-platform-border);
+    border-radius: 18px;
+    background: var(--open-platform-panel);
+  }
 }
 
 .open-platform-pane {
@@ -240,6 +249,17 @@
       width: 20px;
       height: 20px;
     }
+  }
+
+  &__app-icon {
+    display: block;
+    flex: none;
+    width: 42px;
+    height: 42px;
+    border: 1px solid rgba(0, 110, 255, 0.14);
+    border-radius: 12px;
+    background: #ffffff;
+    object-fit: contain;
   }
 
   &__name {

@@ -102,6 +102,8 @@
   "openPlatformTab_apps": "Jiaorong Apps",
   "openPlatformTab_skills": "Skills",
   "openPlatformTab_connectors": "Connectors",
+  "openPlatformTab_knowledge-center": "Knowledge Center",
+  "openPlatformKnowledgeCenterUnavailable": "Knowledge Center is unavailable. Sign in first or try again later.",
   "openPlatformHomePlaceholder": "Home content is pending product design",
   "openPlatformStatusPublished": "Published",
   "openPlatformStatusUnpublished": "Unpublished",

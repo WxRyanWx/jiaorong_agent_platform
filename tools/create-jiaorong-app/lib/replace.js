@@ -70,8 +70,6 @@ const buildRules = (config) => {
   const appNameInVue = toVueText(appName)
   /** 日志前缀，替换掉模板里的 `[app-scaffold]`。 */
   const logTag = `[${appId}]`
-  /** slot 对应的中文位置名。 */
-  const slotText = config.slot === 'menu' ? '侧栏菜单' : '应用中心'
   return [
     // 页面侧常量
     {
@@ -164,8 +162,8 @@ const buildRules = (config) => {
     { file: 'README.md', find: /^# .*$/m, to: `# ${appName}`, expect: 1 },
     {
       file: 'README.md',
-      find: /^改应用 id 和业务文案即可接入交融，默认挂在应用中心。.*$/m,
-      to: `由 create-jiaorong-app 生成，改业务文案即可接入交融，默认挂在${slotText}。目录结构与《快速开始》一致。`,
+      find: /^改应用 id 和业务文案即可接入交融，默认挂在应用市场。.*$/m,
+      to: `由 create-jiaorong-app 生成，改业务文案即可接入交融，默认挂在应用市场。目录结构与《快速开始》一致。`,
       expect: 1
     },
     { file: 'README.md', find: /^app-scaffold\/$/m, to: `${appId}/`, expect: 1 },

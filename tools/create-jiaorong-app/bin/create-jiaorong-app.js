@@ -22,7 +22,6 @@ import { scaffold } from '../lib/scaffold.js'
 const VALUE_FLAGS = {
   id: 'appId',
   name: 'appName',
-  slot: 'slot',
   version: 'version',
   description: 'description',
   'agent-key': 'agentKey',
@@ -54,7 +53,6 @@ create-jiaorong-app：生成交融应用目录
 选项
   --id <应用 id>          小写字母、数字、单个横线，例如 my-app
   --name <应用名称>        客户端里显示的名字
-  --slot <位置>           app-center（默认）或 menu
   --version <版本号>       默认 1.0.0
   --description <简介>     写进 app.json
   --agent-key <key>       智能体 key，默认 workbench
@@ -103,7 +101,7 @@ const parseArgs = (argv) => {
     else if (!arg.startsWith('--')) {
       if (!dirName) dirName = arg
     } else {
-      /** 参数名与内联值，支持 `--slot=menu` 这种写法。 */
+      /** 参数名与内联值，支持 `--id=my-app` 这种写法。 */
       const [rawKey, inlineValue] = arg.slice(2).split('=')
       // --no-xxx 关掉开关
       if (rawKey.startsWith('no-') && NEGATIVE_FLAGS[rawKey.slice(3)]) {

@@ -10,7 +10,6 @@ import {
   BRIDGE_PORT_MAX,
   DEFAULTS,
   PACKAGE_MANAGER_CHOICES,
-  SLOT_CHOICES,
   derivePorts,
   validateAgentKey,
   validateAgentName,
@@ -19,7 +18,6 @@ import {
   validateEntry,
   validatePackageKind,
   validatePort,
-  validateSlot,
   validateVersion
 } from './rules.js'
 
@@ -85,10 +83,8 @@ export const normalizeConfig = ({ answers, cliConfig }) => {
     appName,
     description: String(merged.description ?? appName).trim(),
     version: String(merged.version || DEFAULTS.version).trim(),
-    /** 枚举类字段：小写归一后再校验。 */
-    slot: String(merged.slot || DEFAULTS.slot)
-      .trim()
-      .toLowerCase(),
+    /** 固定挂载应用市场，不开放给用户选择。 */
+    slot: DEFAULTS.slot,
     entry: String(merged.entry || DEFAULTS.entry)
       .trim()
       .toLowerCase(),
@@ -106,7 +102,6 @@ export const normalizeConfig = ({ answers, cliConfig }) => {
     validateAppId(config.appId),
     validateAppName(config.appName),
     validateVersion(config.version),
-    validateSlot(config.slot),
     validateEntry(config.entry),
     validatePackageKind(config.packageManager),
     validateAgentKey(config.agentKey),
@@ -160,12 +155,7 @@ export const askConfig = async ({ cliConfig, dirName }) => {
   /** 按应用 id 派生的默认端口，让多个应用不会撞口。 */
   const ports = derivePorts(cliConfig.appId ?? answers.appId)
 
-  // 第二步：位置、功能开关、端口、智能体 key 与包管理器
-  answers.slot = await askOne({
-    name: 'slot',
-    cliConfig,
-    ask: () => askSelect({ message: '应用挂在哪儿', choices: SLOT_CHOICES, initial: 0 })
-  })
+  // 第二步：功能开关、端口、智能体 key 与包管理器
   answers.withUi = await askOne({
     name: 'withUi',
     cliConfig,

@@ -40,7 +40,8 @@ type PendingPublishRequest = {
   auth: OpenPlatformAppAuth | null
 }
 
-const DEV_DOCS_URL = 'https://c4ai.ccccltd.cn/xkforai/Examples/jiaorong-agent/started.html'
+const DEV_DOCS_URL =
+  'https://c4ai.ccccltd.cn/jiaorong-super-agent-doc/Examples/jiaorong-agent/jiaorong-app.html'
 
 const props = defineProps<{
   api: OpenPlatformClient
@@ -318,7 +319,13 @@ watch(lastError, (error) => {
       <div v-else class="open-platform-pane__grid">
         <article v-for="app in apps" :key="app.id" class="open-platform-pane__card">
           <div class="open-platform-pane__card-head">
-            <div class="open-platform-pane__icon">
+            <img
+              v-if="app.iconSrc"
+              :src="app.iconSrc"
+              alt=""
+              class="open-platform-pane__app-icon"
+            />
+            <div v-else class="open-platform-pane__icon">
               <Icon icon="lucide:layout-grid" />
             </div>
             <div>

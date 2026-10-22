@@ -9,15 +9,17 @@ import { getOpenPlatformClient } from '../api'
 import { createClientAppCapabilities } from './clientAppCapabilities'
 import AppsPane from './AppsPane.vue'
 import AssetPane from './AssetPane.vue'
+import { resolveKnowledgeCenterUrl } from './knowledgeCenter'
 import '../styles/open-platform.less'
 
-type OpenPlatformTab = 'home' | 'apps' | 'skills' | 'connectors'
+type OpenPlatformTab = 'home' | 'apps' | 'skills' | 'connectors' | 'knowledge-center'
 
 const TAB_STORAGE_KEY = 'jiaorong-open-platform-tab:v1'
-const VALID_TABS: OpenPlatformTab[] = ['home', 'apps', 'skills', 'connectors']
+const VALID_TABS: OpenPlatformTab[] = ['home', 'apps', 'skills', 'connectors', 'knowledge-center']
 
 const { t } = useI18n()
 const activeTab = ref<OpenPlatformTab>('home')
+const knowledgeCenterUrl = ref('')
 const api = getOpenPlatformClient()
 const capabilities = createClientAppCapabilities()
 
@@ -25,7 +27,8 @@ const TABS: Array<{ key: OpenPlatformTab; icon: string }> = [
   { key: 'home', icon: 'lucide:house' },
   { key: 'apps', icon: 'lucide:layout-grid' },
   { key: 'skills', icon: 'lucide:sparkles' },
-  { key: 'connectors', icon: 'lucide:plug' }
+  { key: 'connectors', icon: 'lucide:plug' },
+  { key: 'knowledge-center', icon: 'lucide:book-open' }
 ]
 
 function readStoredTab(): OpenPlatformTab {
@@ -39,6 +42,9 @@ onMounted(() => {
 
 watch(activeTab, (tab) => {
   localStorage.setItem(TAB_STORAGE_KEY, tab)
+  if (tab === 'knowledge-center') {
+    knowledgeCenterUrl.value = resolveKnowledgeCenterUrl()
+  }
 })
 </script>
 
@@ -74,7 +80,20 @@ watch(activeTab, (tab) => {
       </div>
       <AppsPane v-else-if="activeTab === 'apps'" :api="api" :capabilities="capabilities" />
       <AssetPane v-else-if="activeTab === 'skills'" :api="api" asset-type="skill" />
-      <AssetPane v-else :api="api" asset-type="connector" />
+      <AssetPane v-else-if="activeTab === 'connectors'" :api="api" asset-type="connector" />
+      <iframe
+        v-else-if="activeTab === 'knowledge-center' && knowledgeCenterUrl"
+        class="open-platform-page__iframe"
+        :src="knowledgeCenterUrl"
+        :title="t('routes.openPlatformTab_knowledge-center')"
+        allow="clipboard-read; clipboard-write"
+        referrerpolicy="no-referrer"
+        sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads"
+      />
+      <div v-else-if="activeTab === 'knowledge-center'" class="open-platform-page__placeholder">
+        <Icon icon="lucide:book-open" />
+        <p>{{ t('routes.openPlatformKnowledgeCenterUnavailable') }}</p>
+      </div>
     </main>
   </section>
 </template>

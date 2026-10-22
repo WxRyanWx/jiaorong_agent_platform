@@ -24,7 +24,7 @@ npx create-jiaorong-app my-app --yes
 
 只需要 Node 18 以上，不依赖 JiaorongAI 客户端。
 
-问答分三步：先定应用 id 与名称（后面的端口默认值按 id 派生），再选挂载位置、功能开关、端口与智能体 key，最后确认要不要立刻装依赖。命令行已经给出的项不再问；`Ctrl+C` 直接退出，不留半成品目录。
+问答分三步：先定应用 id 与名称（后面的端口默认值按 id 派生），再选功能开关、端口与智能体 key，最后确认要不要立刻装依赖。生成的应用固定挂载到应用市场。命令行已经给出的项不再问；`Ctrl+C` 直接退出，不留半成品目录。
 
 ## 选项
 
@@ -32,7 +32,6 @@ npx create-jiaorong-app my-app --yes
 | --- | --- | --- |
 | `--id <应用 id>` | 小写字母、数字、单个横线，例如 `my-app` | 目录名规范化后的值 |
 | `--name <应用名称>` | 客户端里显示的名字 | 同应用 id |
-| `--slot <位置>` | `app-center` 或 `menu` | `app-center` |
 | `--version <版本号>` | 三段式 | `1.0.0` |
 | `--description <简介>` | 写进 `app.json` | 同应用名称 |
 | `--agent-key <key>` | 智能体 key，同 key 重复创建复用同一条 | `workbench` |
@@ -51,7 +50,7 @@ npx create-jiaorong-app my-app --yes
 
 端口按应用 id 散列派生到 40000~49999 的偶数起点，同时打开多个应用不会撞口；客户端不探口、不管冲突，所以生成前会校验调试端口、桥端口、HTTP 端口三者互不相同。
 
-命令行给的值全部在生成前校验（应用 id、版本号、挂载位置、entry、包管理器、智能体 key、三个端口），任一项不合法就整条报错退出，不会生成出半成品目录。
+命令行给的值全部在生成前校验（应用 id、版本号、entry、包管理器、智能体 key、三个端口），任一项不合法就整条报错退出，不会生成出半成品目录。
 
 ## 退出码
 
@@ -73,7 +72,7 @@ npx create-jiaorong-app my-app --yes
 
 ```text
 my-app/
-  app.json          # id / name / entry / slot / spawn 已按问答写好
+  app.json          # id / name / entry / slot / spawn 已写好，slot 固定为 app-center
   icon.png
   web/              # Vue 源码，pnpm dev 起在 --dev-port
   node/             # 本机服务，spawn 拉起，业务代码在 node/service/

@@ -1,5 +1,9 @@
 import { createHash } from 'node:crypto'
 import { types as utilTypes } from 'node:util'
+import {
+  JIAORONG_STARTUP_STAGES,
+  type JiaorongStartupStage
+} from '@jiaorong/logging/startupTelemetry'
 import type { DatabaseRepairReason } from '@shared/notifications'
 import type { ExecutionRunKind, ExecutionRunOutcome } from '@/tape/domain/executionJournal'
 import { MAX_DIAGNOSTIC_DISTRIBUTION_SAMPLES } from '@/lib/boundedNumberRing'
@@ -84,6 +88,8 @@ export type MainLogStartupComponent =
   | 'sqlite_mainline_normalization'
   | 'tape_bootstrap_backfill'
   | 'usage_stats_backfill'
+
+export type MainLogStartupStage = JiaorongStartupStage
 
 export type MainLogJsonValue =
   | string
@@ -228,6 +234,11 @@ export interface MainLogEventInputMap {
   'app.startup.terminal': {
     startupRunId: string
   } & MainLogAppTerminalInput
+  'app.startup.stage': {
+    startupRunId: string
+    stage: MainLogStartupStage
+    durationMs: number
+  }
   'app.startup.component.failed': MainLogStartupComponentFailureInput
   'app.update.operation.failed': {
     operation: MainLogUpdateOperation
@@ -456,6 +467,7 @@ const STARTUP_COMPONENTS = [
   'tape_bootstrap_backfill',
   'usage_stats_backfill'
 ] as const satisfies readonly MainLogStartupComponent[]
+const STARTUP_STAGES = JIAORONG_STARTUP_STAGES
 const STARTUP_COMPONENT_ERROR_CATEGORIES = [
   'configuration',
   'persistence',
@@ -830,6 +842,15 @@ const EVENT_DEFINITIONS: MainLogEventDefinitions = {
         ...(error ? { error } : {})
       }
     }
+  },
+  'app.startup.stage': {
+    inputFields: ['startupRunId', 'stage', 'durationMs'],
+    level: 'info',
+    project: (input) => ({
+      startupRunId: identifier('startupRunId', input.startupRunId),
+      stage: oneOf('stage', input.stage, STARTUP_STAGES),
+      durationMs: duration('durationMs', input.durationMs)
+    })
   },
   'app.startup.component.failed': {
     inputFields: ['startupRunId', 'component', 'error'],

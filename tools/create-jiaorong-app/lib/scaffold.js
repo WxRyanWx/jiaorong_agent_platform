@@ -187,7 +187,7 @@ const printNextSteps = ({ projectDir, config, installed, built }) => {
 应用已生成：${target}
   应用 id     ${config.appId}
   应用名称    ${config.appName}
-  位置        ${config.slot}
+  位置        应用市场
   entry       ${entryText}
 ${webUiLine}  调试端口    ${config.devPort}（${pmCommand('run dev')} 的地址）
   本机服务    桥 ${config.bridgePort} / HTTP ${config.httpPort}

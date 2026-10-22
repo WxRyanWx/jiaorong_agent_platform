@@ -14,7 +14,12 @@ import { ensureRegularAppOnMac } from './lib/activateApp'
 import { startMainProcess, type MainProcessControl } from './app/mainProcess'
 import type { MainShutdownActionClaim } from './app/mainShutdownCoordinator'
 import logger from '@shared/logger'
-import { mainLogger, reportMainProcessFatal, reportNativeMainError } from './logging'
+import {
+  createMainStartupStageTelemetry,
+  mainLogger,
+  reportMainProcessFatal,
+  reportNativeMainError
+} from './logging'
 import { classifyMainLogError, type MainLogShutdownReason } from './logging/mainLogEvents'
 import { elapsedMonotonicMs, readMonotonicNow } from './lib/monotonicTime'
 
@@ -134,6 +139,7 @@ export function startApp(): void {
   const startupWorkloadCoordinator = new StartupWorkloadCoordinator()
   const mainStartupRunId = startupWorkloadCoordinator.createRun('main')
   const startupStartedAt = readMonotonicNow()
+  const { reportStartupStage } = createMainStartupStageTelemetry(mainStartupRunId)
   mainLogger.emit('app.startup.started', {
     startupRunId: mainStartupRunId,
     argumentCount: process.argv.length,
@@ -171,11 +177,13 @@ export function startApp(): void {
   }
 
   app.whenReady().then(async () => {
+    reportStartupStage('electron_ready', startupStartedAt)
     ensureRegularAppOnMac()
     try {
       mainProcess = await startMainProcess(
         startupWorkloadCoordinator,
         mainStartupRunId,
+        startupStartedAt,
         requestUpdateInstall
       )
       const durationMs = elapsedMonotonicMs(startupStartedAt)

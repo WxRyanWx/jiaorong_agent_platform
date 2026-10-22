@@ -39,6 +39,11 @@ describe('Main log event projection', () => {
         outcome: 'completed',
         durationMs: 10
       },
+      'app.startup.stage': {
+        startupRunId: 'startup_1',
+        stage: 'jiaorong_app_host',
+        durationMs: 12
+      },
       'app.startup.component.failed': {
         startupRunId: 'startup_1',
         component: 'legacy_import',
@@ -489,6 +494,47 @@ describe('Main log event projection', () => {
     })
     expect(JSON.stringify(projected)).not.toContain('SECRET_REMOTE_URL')
     expect(projected.context.error).not.toHaveProperty('retryable')
+  })
+
+  it('projects startup stage durations with fixed stage names', () => {
+    const projected = projectMainLogEvent('app.startup.stage', {
+      startupRunId: 'main:123:1',
+      stage: 'jiaorong_app_host',
+      durationMs: 25
+    })
+
+    expect(projected).toEqual({
+      level: 'info',
+      context: {
+        startupRunId: 'main:123:1',
+        stage: 'jiaorong_app_host',
+        durationMs: 25
+      }
+    })
+  })
+
+  it('projects the window visible elapsed checkpoint', () => {
+    const projected = projectMainLogEvent('app.startup.stage', {
+      startupRunId: 'main:123:1',
+      stage: 'app_window_visible',
+      durationMs: 58000
+    })
+
+    expect(projected.context).toEqual({
+      startupRunId: 'main:123:1',
+      stage: 'app_window_visible',
+      durationMs: 58000
+    })
+  })
+
+  it('rejects unknown startup stages', () => {
+    expect(() =>
+      projectMainLogEvent('app.startup.stage', {
+        startupRunId: 'main:123:1',
+        stage: 'windows_defender',
+        durationMs: 25
+      } as never)
+    ).toThrow(MainLogEventProjectionError)
   })
 
   it.each([

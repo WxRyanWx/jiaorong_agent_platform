@@ -1,17 +1,11 @@
 /**
  * 校验规则与默认值。
- * 应用 id 的正则与 slot 的取值必须和客户端一致，否则生成出来的目录在开发者中心会被判为无效：
- * id 见 `src/jiaorong_src/appHost/catalog.ts` 的 `APP_ID_RE`，slot 见 `src/jiaorong_src/appHost/manifestRules.ts`。
+ * 应用 id 的正则必须和客户端一致，否则生成出来的目录在开发者中心会被判为无效：
+ * id 见 `src/jiaorong_src/appHost/catalog.ts` 的 `APP_ID_RE`。
  */
 
 /** 应用 id：小写字母数字加单横线，不能以横线开头或结尾。 */
 export const APP_ID_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
-
-/** slot 选项：客户端只认这两个位置。 */
-export const SLOT_CHOICES = [
-  { title: '应用中心（app-center）', value: 'app-center' },
-  { title: '侧栏菜单（menu）', value: 'menu' }
-]
 
 /** entry 取值：构建产物，或前端调试地址。 */
 export const ENTRY_CHOICES = ['build', 'dev']
@@ -101,17 +95,6 @@ export const validateVersion = (value) => {
   const version = String(value || '').trim()
   if (!version) return '版本号不能为空'
   if (!VERSION_RE.test(version)) return '版本号要用三段式，例如 1.0.0'
-  return undefined
-}
-
-/**
- * 校验挂载位置。
- * @param value 用户输入
- * @returns 通过返回 undefined，否则返回原因
- */
-export const validateSlot = (value) => {
-  if (!SLOT_CHOICES.some((choice) => choice.value === value))
-    return '挂载位置只能是 app-center 或 menu'
   return undefined
 }
 

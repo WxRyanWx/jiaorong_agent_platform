@@ -33,7 +33,11 @@ const error = ref('')
 const isPublishing = ref(false)
 const isLoading = ref(false)
 
-const DEV_DOCS_URL = 'https://c4ai.ccccltd.cn/xkforai/Examples/jiaorong-agent/started.html'
+const DEV_DOCS_URLS: Record<'skill' | 'connector', string> = {
+  skill: 'https://c4ai.ccccltd.cn/jiaorong-super-agent-doc/Examples/jiaorong-agent/skills.html',
+  connector:
+    'https://c4ai.ccccltd.cn/jiaorong-super-agent-doc/Examples/jiaorong-agent/connectors.html'
+}
 const CREATE_LABELS: Record<'skill' | 'connector', string> = {
   skill: '创建技能',
   connector: '创建连接器'
@@ -299,7 +303,7 @@ async function submitUpdate(item: OpenPlatformAssetSummary): Promise<void> {
 onMounted(refresh)
 
 function openDocs(): void {
-  window.open(DEV_DOCS_URL, '_blank', 'noopener')
+  window.open(DEV_DOCS_URLS[props.assetType], '_blank', 'noopener')
 }
 </script>
 

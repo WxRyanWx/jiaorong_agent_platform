@@ -2,6 +2,11 @@ import { randomUUID } from 'node:crypto'
 import { is } from '@electron-toolkit/utils'
 import { app } from 'electron'
 import { originalConsole } from '@shared/logger'
+import {
+  createStartupStageTelemetry,
+  type JiaorongStartupStageTelemetry
+} from '@jiaorong/logging/startupTelemetry'
+import { elapsedMonotonicMs, readMonotonicNow } from '@/lib/monotonicTime'
 import { MainJsonlPersistence } from './mainJsonlPersistence'
 import { MainLogger, type MainLogInternalWarning } from './mainLogger'
 import type {
@@ -37,6 +42,17 @@ export const mainLogger = new MainLogger({
 
 export function setMainLoggingEnabled(enabled: boolean): void {
   mainLogger.setPersistenceEnabled(enabled)
+}
+
+export function createMainStartupStageTelemetry(
+  startupRunId: string
+): JiaorongStartupStageTelemetry {
+  return createStartupStageTelemetry({
+    startupRunId,
+    emitStage: (record) => mainLogger.emit('app.startup.stage', record),
+    readNow: readMonotonicNow,
+    elapsedSince: elapsedMonotonicMs
+  })
 }
 
 export function reportNativeMainError(message: string, error: unknown): void {
