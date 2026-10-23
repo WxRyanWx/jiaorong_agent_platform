@@ -66,7 +66,16 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import {
+  computed,
+  nextTick,
+  onActivated,
+  onBeforeUnmount,
+  onDeactivated,
+  onMounted,
+  ref,
+  watch
+} from 'vue'
 import type { Rectangle } from 'electron'
 import { useResizeObserver } from '@vueuse/core'
 import { Icon } from '@iconify/vue'
@@ -104,6 +113,7 @@ const currentUrl = ref('about:blank')
 const urlInput = ref('')
 const canGoBack = ref(false)
 const canGoForward = ref(false)
+const isComponentActive = ref(true)
 let lastSyncedBounds: Rectangle | null = null
 let visibilityRunId = 0
 let stopOpenRequestedListener: (() => void) | null = null
@@ -120,7 +130,9 @@ const showPlaceholder = computed(
 const isBrowserPanelVisible = computed(
   () => sidepanelStore.open && sidepanelStore.activeTab === 'browser'
 )
-const shouldAttachNativeView = computed(() => isBrowserPanelVisible.value && !isOccluded.value)
+const shouldAttachNativeView = computed(
+  () => isBrowserPanelVisible.value && isComponentActive.value && !isOccluded.value
+)
 
 const callBrowserAction = async <T>(action: string, run: () => Promise<T>): Promise<T | null> => {
   try {
@@ -513,6 +525,14 @@ onMounted(async () => {
   if (shouldAttachNativeView.value) {
     await ensureVisibleAttachment()
   }
+})
+
+onActivated(() => {
+  isComponentActive.value = true
+})
+
+onDeactivated(() => {
+  isComponentActive.value = false
 })
 
 onBeforeUnmount(() => {

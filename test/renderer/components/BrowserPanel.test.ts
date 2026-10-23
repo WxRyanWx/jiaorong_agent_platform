@@ -49,6 +49,7 @@ describe('BrowserPanel', () => {
     sessionId?: string
     browserStatus?: typeof defaultBrowserStatus
     sessions?: Array<{ id: string; status: string }>
+    keepAlive?: boolean
   }) => {
     vi.resetModules()
 
@@ -108,7 +109,7 @@ describe('BrowserPanel', () => {
     }))
 
     const BrowserPanel = (await import('@/components/sidepanel/BrowserPanel.vue')).default
-    const wrapper = mount(BrowserPanel, {
+    const mountOptions = {
       props: {
         sessionId: options?.sessionId ?? 'session-a'
       },
@@ -135,7 +136,19 @@ describe('BrowserPanel', () => {
           BrowserPlaceholder: true
         }
       }
-    })
+    }
+
+    const wrapper = options?.keepAlive
+      ? mount(
+          defineComponent({
+            components: { BrowserPanel },
+            data: () => ({ showPanel: true }),
+            template:
+              '<KeepAlive><BrowserPanel v-if="showPanel" session-id="session-a" /></KeepAlive>'
+          }),
+          mountOptions
+        )
+      : mount(BrowserPanel, mountOptions)
 
     await flushPromises()
     return { wrapper, browserClient, handlers }
@@ -273,5 +286,28 @@ describe('BrowserPanel', () => {
     )
     expect(browserClient.detach).toHaveBeenCalledWith('session-a')
     portal.remove()
+  })
+
+  it('hides the native browser view when the kept-alive chat route deactivates', async () => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(
+      makeRect(24, 48, 320, 480)
+    )
+
+    const { wrapper, browserClient } = await setup({ keepAlive: true })
+    await vi.advanceTimersByTimeAsync(160)
+    await flushPromises()
+    expect(browserClient.attachCurrentWindow).toHaveBeenCalledWith('session-a')
+    browserClient.updateCurrentWindowBounds.mockClear()
+    browserClient.detach.mockClear()
+
+    await wrapper.setData({ showPanel: false })
+    await flushPromises()
+
+    expect(browserClient.updateCurrentWindowBounds).toHaveBeenCalledWith(
+      'session-a',
+      expect.objectContaining({ width: 320, height: 480 }),
+      false
+    )
+    expect(browserClient.detach).toHaveBeenCalledWith('session-a')
   })
 })
