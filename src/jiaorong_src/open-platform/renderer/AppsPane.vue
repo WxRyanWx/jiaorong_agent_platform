@@ -44,6 +44,10 @@ type PendingPublishRequest = {
 
 const DEV_DOCS_URL =
   'https://c4ai.ccccltd.cn/jiaorong-super-agent-doc/Examples/jiaorong-agent/jiaorong-app.html'
+const MODULE_META = {
+  title: '交融智能体应用',
+  subtitle: '可独立分发的应用，面向终端用户场景'
+}
 
 const props = defineProps<{
   api: OpenPlatformClient
@@ -308,21 +312,29 @@ watch(lastError, (error) => {
 
 <template>
   <section class="open-platform-pane">
-    <div class="open-platform-pane__actions">
-      <Button type="text" size="small" class="open-platform-pane__link" @click="openDocs">
-        {{ t('routes.devCenterDocs') }}
-      </Button>
-      <Button
-        type="primary"
-        size="small"
-        :disabled="isBusy"
-        data-testid="open-platform-create-app"
-        @click="create()"
-      >
-        <Icon icon="lucide:folder-plus" />
-        {{ t('routes.devCenterCreate') }}
-      </Button>
-    </div>
+    <header class="open-platform-pane__head">
+      <div>
+        <h2>{{ MODULE_META.title }}</h2>
+        <p>
+          {{ MODULE_META.subtitle }}
+          <button type="button" class="open-platform-pane__intro-link" @click="openDocs">
+            了解更多
+          </button>
+        </p>
+      </div>
+      <div class="open-platform-pane__actions">
+        <Button
+          type="primary"
+          size="small"
+          :disabled="isBusy"
+          data-testid="open-platform-create-app"
+          @click="create()"
+        >
+          <Icon icon="lucide:folder-plus" />
+          {{ t('routes.devCenterCreate') }}
+        </Button>
+      </div>
+    </header>
 
     <div class="open-platform-pane__body">
       <div v-if="serverError" class="open-platform-pane__list-error">

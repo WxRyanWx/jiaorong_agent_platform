@@ -44,6 +44,16 @@ const CREATE_LABELS: Record<'skill' | 'connector', string> = {
   skill: '创建技能',
   connector: '创建连接器'
 }
+const MODULE_META: Record<'skill' | 'connector', { title: string; subtitle: string }> = {
+  skill: {
+    title: '技能',
+    subtitle: '将资产封装为可复用的技能，供用户直接调用'
+  },
+  connector: {
+    title: '连接器',
+    subtitle: '连接外部数据源或系统，提供数据 / 能力接入'
+  }
+}
 const UPDATE_LABELS: Record<'skill' | 'connector', string> = {
   skill: '更新技能',
   connector: '更新连接器'
@@ -338,28 +348,36 @@ function openDocs(): void {
 
 <template>
   <section class="open-platform-pane">
-    <div class="open-platform-pane__actions">
-      <input
-        ref="packageInput"
-        type="file"
-        accept=".zip"
-        class="open-platform-pane__file-input"
-        :data-testid="`open-platform-${assetType}-file`"
-        @change="choosePackage"
-      />
-      <Button type="text" size="small" class="open-platform-pane__link" @click="openDocs">
-        {{ t('routes.devCenterDocs') }}
-      </Button>
-      <Button
-        type="primary"
-        size="small"
-        :data-testid="`open-platform-create-${assetType}`"
-        @click="startCreate"
-      >
-        <Icon :icon="assetType === 'skill' ? 'lucide:sparkles' : 'lucide:plug'" />
-        {{ CREATE_LABELS[assetType] }}
-      </Button>
-    </div>
+    <header class="open-platform-pane__head">
+      <div>
+        <h2>{{ MODULE_META[assetType].title }}</h2>
+        <p>
+          {{ MODULE_META[assetType].subtitle }}
+          <button type="button" class="open-platform-pane__intro-link" @click="openDocs">
+            了解更多
+          </button>
+        </p>
+      </div>
+      <div class="open-platform-pane__actions">
+        <input
+          ref="packageInput"
+          type="file"
+          accept=".zip"
+          class="open-platform-pane__file-input"
+          :data-testid="`open-platform-${assetType}-file`"
+          @change="choosePackage"
+        />
+        <Button
+          type="primary"
+          size="small"
+          :data-testid="`open-platform-create-${assetType}`"
+          @click="startCreate"
+        >
+          <Icon :icon="assetType === 'skill' ? 'lucide:sparkles' : 'lucide:plug'" />
+          {{ CREATE_LABELS[assetType] }}
+        </Button>
+      </div>
+    </header>
 
     <div class="open-platform-pane__body">
       <p v-if="error" class="open-platform-pane__error">{{ error }}</p>

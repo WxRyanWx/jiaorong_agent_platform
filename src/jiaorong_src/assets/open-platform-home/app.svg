@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="570" viewBox="0 0 960 570">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F4F8FF"/><stop offset="1" stop-color="#E4EDFB"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="40%" r="55%">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity=".9"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="frame" x1="0" y1="0" x2=".6" y2="1">
+      <stop offset="0" stop-color="#3A4E8F"/><stop offset=".55" stop-color="#26346B"/><stop offset="1" stop-color="#1A2450"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2=".4" y2="1">
+      <stop offset="0" stop-color="#F4F8FF" stop-opacity=".97"/>
+      <stop offset="1" stop-color="#CBDBF5" stop-opacity=".93"/>
+    </linearGradient>
+    <linearGradient id="mint" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#9FE9DC"/><stop offset="1" stop-color="#3FC0AC"/>
+    </linearGradient>
+    <linearGradient id="amber" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFD79A"/><stop offset="1" stop-color="#E08F1F"/>
+    </linearGradient>
+    <linearGradient id="blueG" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5A88F5"/><stop offset="1" stop-color="#2B5BD8"/>
+    </linearGradient>
+    <filter id="sh" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="20" stdDeviation="24" flood-color="#132048" flood-opacity=".30"/>
+    </filter>
+    <filter id="sh2" x="-60%" y="-60%" width="220%" height="220%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#132048" flood-opacity=".22"/>
+    </filter>
+    <filter id="blur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="10"/></filter>
+  </defs>
+
+  <rect width="960" height="570" fill="url(#bg)"/>
+  <rect width="960" height="570" fill="url(#glow)"/>
+  <ellipse cx="470" cy="484" rx="215" ry="24" fill="#7E93C4" opacity=".26" filter="url(#blur)"/>
+
+  <g transform="translate(466,276) rotate(-4)" filter="url(#sh)">
+    <rect x="-224" y="-158" width="448" height="316" rx="36" fill="url(#frame)"/>
+    <rect x="-224" y="-158" width="448" height="128" rx="36" fill="#FFFFFF" opacity=".07"/>
+    <rect x="-202" y="-136" width="404" height="272" rx="26" fill="url(#glass)"/>
+    <rect x="-202" y="-136" width="404" height="272" rx="26" fill="none" stroke="#FFFFFF" stroke-opacity=".85" stroke-width="2.5"/>
+
+    <g fill="#8FA9D8">
+      <circle cx="-176" cy="-110" r="6.5"/><circle cx="-156" cy="-110" r="6.5"/><circle cx="-136" cy="-110" r="6.5"/>
+    </g>
+    <rect x="-108" y="-116" width="120" height="12" rx="6" fill="#C6D6EF"/>
+
+    <rect x="-176" y="-80" width="170" height="96" rx="20" fill="url(#blueG)"/>
+    <rect x="10" y="-80" width="170" height="96" rx="20" fill="url(#mint)"/>
+    <rect x="-176" y="32" width="170" height="96" rx="20" fill="#DCE8FA"/>
+    <rect x="10" y="32" width="170" height="96" rx="20" fill="#EAF0FB"/>
+
+    <g fill="#FFFFFF" opacity=".95">
+      <circle cx="-140" cy="-52" r="14"/>
+      <rect x="-140" y="-24" width="86" height="9" rx="4.5"/>
+    </g>
+    <g fill="#FFFFFF" opacity=".9">
+      <rect x="40" y="-60" width="34" height="34" rx="10"/>
+      <rect x="40" y="-16" width="96" height="9" rx="4.5"/>
+    </g>
+    <g fill="#8FA9D8">
+      <circle cx="-140" cy="60" r="14"/>
+      <rect x="-140" y="88" width="86" height="9" rx="4.5"/>
+    </g>
+    <g fill="#A9BCDD">
+      <rect x="40" y="52" width="34" height="34" rx="10"/>
+      <rect x="40" y="96" width="96" height="9" rx="4.5"/>
+    </g>
+  </g>
+
+  <g transform="translate(744,150) rotate(6)" filter="url(#sh2)">
+    <rect x="-54" y="-34" width="108" height="68" rx="20" fill="#FFFFFF" stroke="#DCE6F8" stroke-width="2"/>
+    <g stroke="#3A6CEA" stroke-width="6" stroke-linecap="round"><path d="M-30 0h24M-18 -12v24"/></g>
+    <rect x="4" y="-6" width="30" height="12" rx="6" fill="#C6D6EF"/>
+  </g>
+
+  <g transform="translate(238,152)" filter="url(#sh2)">
+    <circle r="24" fill="#CFE0FA"/><circle r="24" fill="none" stroke="#FFF" stroke-opacity=".9" stroke-width="3"/>
+  </g>
+  <g transform="translate(742,420)" filter="url(#sh2)">
+    <circle r="30" fill="url(#amber)"/><circle r="30" fill="none" stroke="#FFF" stroke-opacity=".5" stroke-width="3"/>
+    <path d="M0 -14l4.4 9 10 1.4-7.2 7 1.7 10-8.9-4.7-8.9 4.7 1.7-10-7.2-7 10-1.4z" fill="#FFFFFF" opacity=".92"/>
+  </g>
+</svg>

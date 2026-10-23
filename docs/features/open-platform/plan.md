@@ -73,7 +73,7 @@ GET /assets?type=connector&scope=market → 插件中心远程 MCP 列表
 
 ## 实现切片
 
-1. 建立开放平台闭环目录、tab 路由、持久化和首页占位。
+1. 建立开放平台闭环目录、tab 路由、持久化和首页原型版式。
 2. 建立 API client 与环境 capability adapter。
 3. 迁移交融应用页面，保留现有本地能力和交互。
 4. 接入交融应用列表合并、发布、更新、下架和 `auth` 表单。

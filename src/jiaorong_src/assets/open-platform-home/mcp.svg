@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="570" viewBox="0 0 960 570">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F4F8FF"/><stop offset="1" stop-color="#E4EDFB"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="40%" r="55%">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity=".9"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="frame" x1="0" y1="0" x2=".6" y2="1">
+      <stop offset="0" stop-color="#3A4E8F"/><stop offset=".55" stop-color="#26346B"/><stop offset="1" stop-color="#1A2450"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2=".4" y2="1">
+      <stop offset="0" stop-color="#F4F8FF" stop-opacity=".97"/>
+      <stop offset="1" stop-color="#CBDBF5" stop-opacity=".93"/>
+    </linearGradient>
+    <linearGradient id="mint" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#9FE9DC"/><stop offset="1" stop-color="#3FC0AC"/>
+    </linearGradient>
+    <linearGradient id="amber" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFD79A"/><stop offset="1" stop-color="#E08F1F"/>
+    </linearGradient>
+    <linearGradient id="blueG" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5A88F5"/><stop offset="1" stop-color="#2B5BD8"/>
+    </linearGradient>
+    <filter id="sh" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="20" stdDeviation="24" flood-color="#132048" flood-opacity=".30"/>
+    </filter>
+    <filter id="sh2" x="-60%" y="-60%" width="220%" height="220%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#132048" flood-opacity=".22"/>
+    </filter>
+    <filter id="blur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="10"/></filter>
+  </defs>
+
+  <rect width="960" height="570" fill="url(#bg)"/>
+  <rect width="960" height="570" fill="url(#glow)"/>
+  <ellipse cx="480" cy="486" rx="200" ry="24" fill="#7E93C4" opacity=".26" filter="url(#blur)"/>
+  <circle cx="480" cy="282" r="196" fill="none" stroke="#AFC7F0" stroke-width="3.5" stroke-dasharray="11 13" opacity=".85"/>
+
+  <path d="M286 282H356" stroke="#45C0AC" stroke-width="15" stroke-linecap="round"/>
+  <path d="M604 282H674" stroke="#45C0AC" stroke-width="15" stroke-linecap="round"/>
+
+  <g transform="translate(200,282) rotate(-8)" filter="url(#sh2)">
+    <rect x="-66" y="-66" width="132" height="132" rx="32" fill="url(#frame)"/>
+    <rect x="-50" y="-50" width="100" height="100" rx="24" fill="url(#glass)"/>
+    <g fill="#6F8FD0">
+      <rect x="-32" y="-26" width="64" height="9" rx="4.5"/>
+      <rect x="-32" y="-6" width="44" height="9" rx="4.5"/>
+      <rect x="-32" y="14" width="54" height="9" rx="4.5"/>
+    </g>
+  </g>
+
+  <g transform="translate(760,282) rotate(8)" filter="url(#sh2)">
+    <rect x="-66" y="-66" width="132" height="132" rx="32" fill="url(#frame)"/>
+    <rect x="-50" y="-50" width="100" height="100" rx="24" fill="url(#glass)"/>
+    <g fill="#4FC3B2">
+      <circle cx="-18" cy="-16" r="8"/><circle cx="18" cy="-16" r="8"/>
+      <circle cx="-18" cy="18" r="8"/><circle cx="18" cy="18" r="8"/>
+    </g>
+  </g>
+
+  <g transform="translate(480,282)" filter="url(#sh)">
+    <rect x="-124" y="-124" width="248" height="248" rx="58" fill="url(#frame)"/>
+    <rect x="-124" y="-124" width="248" height="124" rx="58" fill="#FFFFFF" opacity=".08"/>
+    <rect x="-100" y="-100" width="200" height="200" rx="44" fill="url(#glass)"/>
+    <rect x="-100" y="-100" width="200" height="200" rx="44" fill="none" stroke="#FFFFFF" stroke-opacity=".85" stroke-width="2.5"/>
+    <g fill="none" stroke="url(#mint)" stroke-width="13" stroke-linecap="round">
+      <circle cx="-24" cy="0" r="30"/>
+      <circle cx="24" cy="0" r="30"/>
+    </g>
+    <circle cx="0" cy="0" r="14" fill="url(#blueG)"/>
+  </g>
+
+  <g transform="translate(356,120)" filter="url(#sh2)">
+    <circle r="20" fill="#CFE0FA"/><circle r="20" fill="none" stroke="#FFF" stroke-opacity=".9" stroke-width="3"/>
+  </g>
+  <g transform="translate(648,436)" filter="url(#sh2)">
+    <circle r="26" fill="url(#amber)"/><circle r="26" fill="none" stroke="#FFF" stroke-opacity=".5" stroke-width="3"/>
+  </g>
+</svg>
