@@ -131,8 +131,10 @@ export type JiaorongAppRuntime = JiaorongAppCatalogRecord & {
 export type JiaorongAppUserIdentity = {
   /** 用户名。 */
   userName: string | null
-  /** 组织号。 */
+  /** 直属组织号。 */
   orgNos: string[]
+  /** 组织路径节点，来自 orgList[].pathNo 按 . 拆分。 */
+  orgPathNos?: string[]
   /** 手机号。 */
   phone: string | null
 }
@@ -169,6 +171,8 @@ export type JiaorongAppCenterItem = {
   installStatus: JiaorongAppInstallStatus
   /** 是否远程 zip 包（下载 / 更新走网络）。 */
   remotePackage: boolean
+  /** mock 期的本地 zip 路径；后端接入后为空。 */
+  localPackagePath?: string | null
   /** 当前用户是否可打开。 */
   openable: boolean
   /** 是否允许卸载（仅开发者）。 */

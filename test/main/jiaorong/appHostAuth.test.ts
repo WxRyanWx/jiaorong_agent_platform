@@ -3,6 +3,7 @@ import {
   isAppVisibleToUser,
   readUserIdentityFromUserInfo
 } from '../../../src/jiaorong_src/appHost/auth'
+import { readUserIdentityFromAuthSession } from '../../../src/jiaorong_src/appHost/main/userIdentity'
 import {
   ensureRemoteAppCatalog,
   loadBuiltinAppCatalog,
@@ -52,8 +53,80 @@ describe('jiaorong app catalog auth', () => {
     ).toEqual({
       userName: 'L20184974',
       orgNos: ['101641966'],
+      orgPathNos: ['101641966'],
       phone: '13800138000'
     })
+  })
+
+  it('reads exact organization path nodes from pathNo', () => {
+    expect(
+      readUserIdentityFromUserInfo({
+        userName: 'L20184974',
+        orgList: [
+          {
+            orgNo: '101641966',
+            pathNo: '.0.1..1047701.1047702.101231266.101641966.'
+          }
+        ]
+      })
+    ).toEqual({
+      userName: 'L20184974',
+      orgNos: ['101641966'],
+      orgPathNos: ['0', '1', '1047701', '1047702', '101231266', '101641966'],
+      phone: null
+    })
+  })
+
+  it('reads pathNo even when orgNo is missing', () => {
+    expect(
+      readUserIdentityFromUserInfo({
+        userName: 'L20184974',
+        orgList: [{ pathNo: '.1047701.1047702.' }]
+      })
+    ).toEqual({
+      userName: 'L20184974',
+      orgNos: [],
+      orgPathNos: ['1047701', '1047702'],
+      phone: null
+    })
+  })
+
+  it('matches any exact organization path node from pathNo', () => {
+    const pathUser = {
+      userName: 'L20184974',
+      orgNos: ['101641966'],
+      orgPathNos: ['0', '1', '1047701', '1047702', '101231266', '101641966'],
+      phone: '13800138000'
+    }
+
+    expect(isAppVisibleToUser({ orgs: ['1047702'], userIds: [], phones: [] }, pathUser)).toBe(true)
+    expect(isAppVisibleToUser({ orgs: ['10477'], userIds: [], phones: [] }, pathUser)).toBe(false)
+  })
+
+  it('reads organization path nodes from the persisted auth session', () => {
+    expect(
+      readUserIdentityFromAuthSession({
+        token: 'xk-token',
+        userFullInfo: JSON.stringify({
+          userName: 'L20184974',
+          orgList: [{ orgNo: '101641966', pathNo: '.1047701.1047702.101641966.' }]
+        })
+      })
+    ).toEqual({
+      userName: 'L20184974',
+      orgNos: ['101641966'],
+      orgPathNos: ['1047701', '1047702', '101641966'],
+      phone: null
+    })
+  })
+
+  it('falls back to orgNo when pathNo is missing', () => {
+    expect(
+      isAppVisibleToUser(
+        { orgs: ['101641966'], userIds: [], phones: [] },
+        { userName: 'L20184974', orgNos: ['101641966'], phone: null }
+      )
+    ).toBe(true)
   })
 
   it('lets store catalog override builtin auth and version', () => {

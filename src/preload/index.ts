@@ -13,6 +13,8 @@ import { createBridge } from './createBridge'
 import {
   JIAORONG_APP_CATALOG_CHANGED_CHANNEL,
   JIAORONG_APP_CENTER_INSTALL_CHANNEL,
+  JIAORONG_APP_CENTER_INSTALL_PACKAGE_CHANNEL,
+  JIAORONG_APP_CENTER_INSTALL_STATUSES_CHANNEL,
   JIAORONG_APP_CENTER_LIST_CHANNEL,
   JIAORONG_APP_CENTER_UNINSTALL_CHANNEL,
   JIAORONG_DEV_APP_OPEN_WINDOW_CHANNEL,
@@ -132,6 +134,10 @@ const jiaorongApps = Object.freeze({
   listAppCenter: () => ipcRenderer.invoke(JIAORONG_APP_CENTER_LIST_CHANNEL),
   installAppCenter: (appId: string) =>
     ipcRenderer.invoke(JIAORONG_APP_CENTER_INSTALL_CHANNEL, { appId }),
+  installAppCenterPackage: (appId: string, packagePath: string) =>
+    ipcRenderer.invoke(JIAORONG_APP_CENTER_INSTALL_PACKAGE_CHANNEL, { appId, packagePath }),
+  getAppCenterInstallStatuses: (appIds: string[]) =>
+    ipcRenderer.invoke(JIAORONG_APP_CENTER_INSTALL_STATUSES_CHANNEL, { appIds }),
   uninstallAppCenter: (appId: string) =>
     ipcRenderer.invoke(JIAORONG_APP_CENTER_UNINSTALL_CHANNEL, { appId }),
   listDevCenter: () => ipcRenderer.invoke(JIAORONG_DEV_CENTER_LIST_CHANNEL),

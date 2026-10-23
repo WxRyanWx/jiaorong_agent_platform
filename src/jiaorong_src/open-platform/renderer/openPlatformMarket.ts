@@ -1,6 +1,10 @@
 /** 开放平台市场列表展示层融合：远端 mock 只参与展示，不写入本地安装配置。 */
 
 import { getOpenPlatformClient } from '../api'
+import {
+  getOpenPlatformMockAppPackagePath,
+  isMockOpenPlatformClient
+} from '../api/mockOpenPlatformApi'
 import type { JiaorongAppCenterItem } from '../../appHost/types'
 import type { MCPServerConfig } from '@shared/types/mcp'
 import type { SkillMetadata } from '@shared/types/skill'
@@ -8,6 +12,7 @@ import type { UnifiedSkillItem } from '@shared/types/skillManagement'
 
 export type OpenPlatformMarketMcpServer = MCPServerConfig & {
   name: string
+  provider?: string | null
   isRunning: false
   lifecycleStatus: 'stopped'
   errorMessage: undefined
@@ -19,7 +24,11 @@ function createRemoteSkill(item: {
   id: string
   name: string
   description: string
+  provider?: string | null
 }): UnifiedSkillItem {
+  const metadata = item.provider
+    ? { displayName: item.name, provider: item.provider }
+    : { displayName: item.name }
   return {
     agentId: 'deepchat',
     name: item.id,
@@ -28,7 +37,7 @@ function createRemoteSkill(item: {
     skillRoot: `open-platform://${item.id}`,
     category: null,
     platforms: [],
-    metadata: { displayName: item.name },
+    metadata,
     allowedTools: [],
     canonicalPath: `open-platform://${item.id}/SKILL.md`,
     sourceType: 'url-install',
@@ -42,22 +51,34 @@ function createRemoteSkill(item: {
 }
 
 export async function listOpenPlatformMarketApps(): Promise<JiaorongAppCenterItem[]> {
-  const page = await getOpenPlatformClient().listApps('market')
-  return page.items
-    .filter((item) => item.status === 'published')
-    .map((item) => ({
+  const client = getOpenPlatformClient()
+  const page = await client.listApps('market')
+  const isMockClient = isMockOpenPlatformClient(client)
+  const publishedItems = page.items.filter((item) => item.status === 'published')
+  const installedItems = await window.jiaorongApps?.getAppCenterInstallStatuses(
+    publishedItems.map((item) => item.id)
+  )
+  const installedItemsById = new Map(
+    (installedItems ?? []).map((installedItem) => [installedItem.id, installedItem])
+  )
+  return publishedItems.map((item) => {
+    const installedItem = installedItemsById.get(item.id)
+    return {
       id: item.id,
       name: item.name,
       description: item.description,
-      iconSrc: item.iconUrl,
+      iconSrc: installedItem?.iconSrc ?? item.iconUrl,
       version: item.version ?? '0.0.0',
-      installStatus: 'not_installed',
-      remotePackage: false,
-      openable: false,
+      installedVersion: installedItem?.installedVersion ?? null,
+      installStatus: installedItem?.installStatus ?? 'not_installed',
+      remotePackage: !isMockClient && Boolean(item.latestRelease.downloadUrl.trim()),
+      localPackagePath: isMockClient ? getOpenPlatformMockAppPackagePath(item.id) || null : null,
+      openable: installedItem?.openable ?? false,
       canUninstall: false,
       developerOnly: false,
-      provider: '开放平台'
-    }))
+      provider: item.provider?.trim() || ''
+    }
+  })
 }
 
 export async function listOpenPlatformMarketSkills(): Promise<UnifiedSkillItem[]> {
@@ -77,7 +98,8 @@ export async function listOpenPlatformMarketSkillMetadata(): Promise<SkillMetada
       metadata: {
         displayName: item.name,
         remoteId: item.id,
-        openPlatform: true
+        openPlatform: true,
+        ...(item.provider ? { provider: item.provider } : {})
       }
     }))
 }
@@ -88,6 +110,7 @@ export async function listOpenPlatformMarketConnectors(): Promise<OpenPlatformMa
     .filter((item) => item.status === 'published')
     .map((item) => ({
       name: item.id,
+      ...(item.provider ? { provider: item.provider } : {}),
       command: '',
       args: [],
       env: {},

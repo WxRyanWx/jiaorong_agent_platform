@@ -367,10 +367,29 @@
     overflow: hidden;
   }
 
+  &__card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: auto;
+  }
+
+  &__card-provider {
+    min-width: 0;
+    margin-right: auto;
+    overflow: hidden;
+    font-size: 12px;
+    line-height: 20px;
+    color: var(--scp-text-new-secondary);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   &__card-actions {
     display: flex;
     justify-content: flex-end;
-    margin-top: auto;
+    flex: none;
   }
 
   &__action-btn {

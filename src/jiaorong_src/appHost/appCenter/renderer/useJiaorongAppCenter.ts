@@ -1,16 +1,19 @@
 /** 应用中心页数据源：列表、安装 / 更新、卸载、打开，并跟随目录与登录态刷新。 */
 
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { JIAORONG_AUTH_SESSION_CHANGED_EVENT } from '@jiaorong/auth/host'
 import { listOpenPlatformMarketApps } from '@jiaorong/open-platform/renderer/openPlatformMarket'
 import { stashOpenInfo } from '../../renderer/openAppHandoff'
+import { resolveAppCenterBackRouteName } from './navigation'
 import type { JiaorongAppCenterItem } from '../../types'
 
 /** 应用中心页状态与操作。 */
 export function useJiaorongAppCenter() {
   /** Vue Router。 */
   const router = useRouter()
+  /** 当前路由，用于记录从哪个插件中心壳打开。 */
+  const route = useRoute()
   /** 应用卡片列表。 */
   const apps = ref<JiaorongAppCenterItem[]>([])
   /** 正在安装 / 更新的应用 id。 */
@@ -39,17 +42,25 @@ export function useJiaorongAppCenter() {
     isRefreshing.value = true
     try {
       /** 主进程返回的卡片列表。 */
-      const [next, remoteApps] = await Promise.all([
-        window.jiaorongApps?.listAppCenter() ?? Promise.resolve([]),
+      const localAppsPromise: Promise<JiaorongAppCenterItem[]> =
+        window.jiaorongApps?.listAppCenter() ?? Promise.resolve([])
+      const remoteAppsPromise: Promise<JiaorongAppCenterItem[]> =
         listOpenPlatformMarketApps().catch((error) => {
           console.warn('[jiaorong-app-center] Failed to list open platform apps', error)
           return []
         })
-      ])
+      const [next, remoteApps] = await Promise.all([localAppsPromise, remoteAppsPromise])
       // 已有更新的刷新在飞，这份响应过期，丢弃
       if (seq !== refreshSeq) return
+      const remoteAppsById = new Map(remoteApps.map((app) => [app.id, app]))
       const localIds = new Set(next.map((app) => app.id))
-      apps.value = [...next, ...remoteApps.filter((app) => !localIds.has(app.id))]
+      apps.value = [
+        ...next.map((app) => {
+          const remoteApp = remoteAppsById.get(app.id)
+          return remoteApp ? { ...app, provider: remoteApp.provider } : app
+        }),
+        ...remoteApps.filter((app) => !localIds.has(app.id))
+      ]
     } catch (error) {
       if (seq !== refreshSeq) return
       console.warn('[jiaorong-app-center] Failed to list apps', error)
@@ -86,8 +97,10 @@ export function useJiaorongAppCenter() {
     lastError.value = null
     installingIds.value = [...installingIds.value, app.id]
     try {
-      /** 主进程安装结果。 */
-      const result = await window.jiaorongApps?.installAppCenter(app.id)
+      /** 主进程安装结果；mock 期走本地包，后端接入后走远程包。 */
+      const result = app.localPackagePath
+        ? await window.jiaorongApps?.installAppCenterPackage(app.id, app.localPackagePath)
+        : await window.jiaorongApps?.installAppCenter(app.id)
       // 主进程明确失败：透出消息供 toast
       if (result && result.ok === false) {
         lastError.value = { appId: app.id, message: result.message }
@@ -143,10 +156,12 @@ export function useJiaorongAppCenter() {
       }
       // 交给常驻宿主复用，省掉第二次打开 IPC
       stashOpenInfo(info)
+      /** 返回时回到来源插件中心的交融应用列表。 */
+      const backRouteName = resolveAppCenterBackRouteName(route.name)
       await router.push({
         name: 'jiaorong-app',
         params: { appId: app.id },
-        query: { from: 'app-center' }
+        query: { from: 'app-center', appCenterRoute: backRouteName }
       })
     } catch (error) {
       console.warn('[jiaorong-app-center] open failed', app.id, error)

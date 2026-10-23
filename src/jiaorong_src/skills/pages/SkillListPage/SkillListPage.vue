@@ -87,6 +87,11 @@ function getDownloadUrl(skill: SkillMetadata): string {
   return typeof url === 'string' ? url.trim() : ''
 }
 
+function getSkillProvider(skill: SkillMetadata): string {
+  const provider = skill.metadata?.provider
+  return typeof provider === 'string' && provider.trim() ? `由 ${provider.trim()} 提供` : ''
+}
+
 function getInstalledLocalName(skill: SkillMetadata): string {
   const fromMap = remoteInstalledLocalNames.value[skill.name]
   if (fromMap) return fromMap
@@ -604,35 +609,44 @@ onUnmounted(() => {
           <p class="skill-center-page__card-desc">
             {{ skill.description || '暂无描述' }}
           </p>
-          <div class="skill-center-page__card-actions" @click.stop>
-            <template v-if="isInstalled(skill)">
-              <Button
-                size="sm"
-                variant="outline"
-                v-if="isSkillDisabled(skill)"
-                class="skill-center-page__disabled-label"
-              >
-                已停用
-              </Button>
+          <div class="skill-center-page__card-footer">
+            <span
+              v-if="getSkillProvider(skill)"
+              class="skill-center-page__card-provider"
+              :data-testid="`skill-provider-${skill.name}`"
+            >
+              {{ getSkillProvider(skill) }}
+            </span>
+            <div class="skill-center-page__card-actions" @click.stop>
+              <template v-if="isInstalled(skill)">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  v-if="isSkillDisabled(skill)"
+                  class="skill-center-page__disabled-label"
+                >
+                  已停用
+                </Button>
+                <Button
+                  v-else
+                  size="sm"
+                  class="skill-center-page__action-btn"
+                  @click="handleUse(skill)"
+                >
+                  使用
+                </Button>
+              </template>
               <Button
                 v-else
                 size="sm"
+                variant="outline"
                 class="skill-center-page__action-btn"
-                @click="handleUse(skill)"
+                :disabled="isInstalling(skill)"
+                @click="handleInstall(skill)"
               >
-                使用
+                {{ isInstalling(skill) ? '安装中' : '安装' }}
               </Button>
-            </template>
-            <Button
-              v-else
-              size="sm"
-              variant="outline"
-              class="skill-center-page__action-btn"
-              :disabled="isInstalling(skill)"
-              @click="handleInstall(skill)"
-            >
-              {{ isInstalling(skill) ? '安装中' : '安装' }}
-            </Button>
+            </div>
           </div>
         </article>
       </div>

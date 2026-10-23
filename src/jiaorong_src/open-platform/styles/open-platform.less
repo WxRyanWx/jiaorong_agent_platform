@@ -359,6 +359,21 @@
     border-top: 1px solid rgba(24, 89, 153, 0.1);
   }
 
+  &__publish-meta {
+    display: flex;
+    flex: 1 1 auto;
+    min-width: 0;
+    align-items: center;
+    gap: 10px;
+  }
+
+  &__provider-input {
+    width: 180px;
+    height: 28px;
+    flex: none;
+    font-size: 12px;
+  }
+
   &__card-actions {
     display: flex;
     align-items: center;
@@ -438,6 +453,34 @@
     > span {
       color: var(--muted-foreground);
       font-weight: 500;
+    }
+  }
+
+  &__required-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+  }
+
+  &__required-star {
+    color: #f53f3f;
+    font-weight: 600;
+    line-height: 1;
+  }
+
+  &__provider-field {
+    display: flex;
+    flex: 1 1 auto;
+    min-width: 0;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    font-size: 12px;
+
+    > span {
+      color: var(--muted-foreground);
+      font-weight: 500;
+      white-space: nowrap;
     }
   }
 

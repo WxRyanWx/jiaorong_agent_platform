@@ -456,7 +456,6 @@ import { useRouter } from 'vue-router'
 import type { FormInstance } from '@arco-design/web-vue/es/form'
 import type { ValidatedError } from '@arco-design/web-vue/es/form/interface'
 import beforeLoginAuto from '../../lib/bootstrap-before'
-import { markAuthSessionValidated } from '../../lib/session'
 import { persistAuthSession } from '../../lib/persist'
 import { setToken, setUserInfoRecords } from '../../lib/local-user'
 import { useLoginPageScale } from '../../composables/useLoginPageScale'
@@ -711,7 +710,6 @@ async function handLogin(values: Record<string, string>): Promise<void> {
       if (loginData.id) {
         void FeatchUsageRecord({}, 'login', loginData.id).catch(() => undefined)
       }
-      markAuthSessionValidated()
       // 登录成功后触发默认技能补装（随后进 chat 路由也会再兜底）
       void import('../../../skills/lib/ensureDefaultSkills')
         .then((m) => m.scheduleEnsureDefaultSkills({ authWaitMs: 0 }))

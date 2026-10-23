@@ -6,7 +6,7 @@ import type { JiaorongDevAppRecord, JiaorongDevCenterItem } from '../../appHost/
 import { buildManifestJson, type AppManifestFormFields } from '../../appHost/manifestRules'
 import { readStoredUserInfo } from '../../config/storedUserInfo'
 import { resolveJiaorongIdentityValue } from '../../config/identityWhitelist'
-import type { OpenPlatformAppAuth, OpenPlatformClient } from '../types'
+import type { OpenPlatformAppAuth, OpenPlatformAppPublishInput, OpenPlatformClient } from '../types'
 import type { OpenPlatformAppCapabilities } from './clientAppCapabilities'
 
 const DEV_APPS_STORAGE_PREFIX = 'jiaorong-dev-apps'
@@ -15,7 +15,10 @@ export type OpenPlatformAppCard = JiaorongDevCenterItem & {
   serverStatus: 'published' | 'unpublished' | 'local'
   serverUpdatedAt: string
   serverAuth: OpenPlatformAppAuth | null
+  serverProvider: string | null
 }
+
+type OpenPlatformAppPublishRequest = OpenPlatformAppPublishInput & { packagePath?: string }
 
 function resolveDevAppsStorageKey(): string {
   const identity = readStoredUserInfo()
@@ -77,7 +80,8 @@ export function useOpenPlatformApps(input: {
           publishedVersion: server?.version ?? app.publishedVersion,
           serverStatus: (server?.status ?? 'local') as OpenPlatformAppCard['serverStatus'],
           serverUpdatedAt: server?.updatedAt ?? '',
-          serverAuth: server?.auth ?? null
+          serverAuth: server?.auth ?? null,
+          serverProvider: server?.provider ?? null
         }
       })
       for (const server of serverApps.values()) {
@@ -94,7 +98,8 @@ export function useOpenPlatformApps(input: {
           dir: '',
           serverStatus: server.status as OpenPlatformAppCard['serverStatus'],
           serverUpdatedAt: server.updatedAt,
-          serverAuth: server.auth
+          serverAuth: server.auth,
+          serverProvider: server.provider ?? null
         })
       }
       apps.value = merged
@@ -108,7 +113,8 @@ export function useOpenPlatformApps(input: {
         ...app,
         serverStatus: 'local',
         serverUpdatedAt: '',
-        serverAuth: null
+        serverAuth: null,
+        serverProvider: null
       }))
     } finally {
       if (sequence === refreshSequence) isServerListLoading.value = false
@@ -165,7 +171,12 @@ export function useOpenPlatformApps(input: {
 
   async function publish(
     app: OpenPlatformAppCard,
-    payload: { fields: AppManifestFormFields; zipPath: string; auth: OpenPlatformAppAuth | null }
+    payload: {
+      fields: AppManifestFormFields
+      zipPath: string
+      auth: OpenPlatformAppAuth | null
+      provider: string
+    }
   ): Promise<boolean> {
     if (isBusy.value) return false
     lastError.value = null
@@ -179,11 +190,14 @@ export function useOpenPlatformApps(input: {
       return false
     }
     try {
-      await api.publishApp({
+      const request: OpenPlatformAppPublishRequest = {
         id: app.serverStatus === 'local' ? undefined : app.id,
+        provider: payload.provider,
         manifest: payload.fields,
-        auth: payload.auth
-      })
+        auth: payload.auth,
+        packagePath: payload.zipPath
+      }
+      await api.publishApp(request)
       await refresh()
       return true
     } catch (error) {
@@ -244,11 +258,23 @@ export function useOpenPlatformApps(input: {
 
   async function publishRemote(
     app: OpenPlatformAppCard,
-    payload: { fields: AppManifestFormFields; auth: OpenPlatformAppAuth | null }
+    payload: {
+      fields: AppManifestFormFields
+      auth: OpenPlatformAppAuth | null
+      provider: string
+      zipPath: string
+    }
   ): Promise<boolean> {
     lastError.value = null
     try {
-      await api.publishApp({ id: app.id, manifest: payload.fields, auth: payload.auth })
+      const request: OpenPlatformAppPublishRequest = {
+        id: app.id,
+        provider: payload.provider,
+        manifest: payload.fields,
+        auth: payload.auth,
+        packagePath: payload.zipPath
+      }
+      await api.publishApp(request)
       await refresh()
       return true
     } catch (error) {

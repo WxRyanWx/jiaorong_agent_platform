@@ -48,11 +48,18 @@ function versionLabel(app: JiaorongAppCenterItem): string {
   return `v${app.version}`
 }
 
-/** 是否展示主操作（安装 / 更新）；本地手丢包没有远程安装，已装且无更新时只给打开。 */
+/** 是否展示主操作（安装 / 更新）；无安装来源时已装只给打开。 */
 function showPrimaryAction(app: JiaorongAppCenterItem): boolean {
   if (isInstalling(app)) return true
-  if (!app.remotePackage) return false
+  if (!app.remotePackage && !app.localPackagePath) return false
   return app.installStatus !== 'installed'
+}
+
+/** 卡片提供方文案；远端市场记录返回发布组织。 */
+function providerLabel(app: JiaorongAppCenterItem): string {
+  if (app.installStatus === 'error') return t('routes.appCenterStatusError')
+  if (!app.provider || app.provider === '本地') return ''
+  return `由 ${app.provider} 提供`
 }
 
 // 主进程返回的失败信息统一走 toast
@@ -117,7 +124,7 @@ watch(lastError, (error) => {
             class="app-center-card__provider"
             :class="{ 'is-error': app.installStatus === 'error' }"
           >
-            {{ app.installStatus === 'error' ? t('routes.appCenterStatusError') : app.provider }}
+            {{ providerLabel(app) }}
           </span>
           <div class="app-center-card__actions">
             <Button

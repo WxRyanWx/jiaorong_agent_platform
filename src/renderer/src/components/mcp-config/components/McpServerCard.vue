@@ -39,6 +39,7 @@ interface ServerInfo {
   authStatus?: McpServerAuthStatus
   source?: string
   sourceId?: string
+  provider?: string | null
 }
 
 interface Props {
@@ -89,6 +90,11 @@ const displayServerName = computed(() => {
   }
   return props.isBuiltIn ? getLocalizedServerName(props.server.name) : props.server.name
 })
+
+function serverProviderLabel(): string {
+  const provider = props.server.provider?.trim()
+  return provider ? `由 ${provider} 提供` : ''
+}
 
 const getLocalizedServerDesc = (serverName: string, fallbackDesc: string) => {
   return t(`mcp.inmemory.${serverName}.desc`, fallbackDesc)
@@ -218,6 +224,14 @@ watch(watchDescription, () => {
             {{ displayServerName }}
           </h3>
         </div>
+
+        <span
+          v-if="serverProviderLabel()"
+          class="max-w-[45%] shrink-0 truncate text-[11px] text-muted-foreground"
+          :data-testid="`mcp-provider-${server.name}`"
+        >
+          {{ serverProviderLabel() }}
+        </span>
 
         <!-- 操作菜单 -->
         <DropdownMenu>

@@ -25,6 +25,10 @@ export const JIAORONG_APP_BRIDGE_EVENT_CHANNEL = 'jiaorong-app:bridge-event'
 export const JIAORONG_APP_CENTER_LIST_CHANNEL = 'jiaorong-app-center:list'
 /** 应用中心安装 / 更新：下载 zip 并解压安装。 */
 export const JIAORONG_APP_CENTER_INSTALL_CHANNEL = 'jiaorong-app-center:install'
+/** 应用中心 mock 期安装：使用发布时选择的本地 zip。 */
+export const JIAORONG_APP_CENTER_INSTALL_PACKAGE_CHANNEL = 'jiaorong-app-center:install-package'
+/** 应用中心按 id 查询安装状态，供 mock 市场卡片合并本地安装结果。 */
+export const JIAORONG_APP_CENTER_INSTALL_STATUSES_CHANNEL = 'jiaorong-app-center:install-statuses'
 /** 应用中心卸载：仅开发者。 */
 export const JIAORONG_APP_CENTER_UNINSTALL_CHANNEL = 'jiaorong-app-center:uninstall'
 /** 开发者中心列出本地登记应用。 */

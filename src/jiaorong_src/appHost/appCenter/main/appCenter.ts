@@ -141,6 +141,27 @@ export function listAppCenterItems(deps: JiaorongAppHostDeps): JiaorongAppCenter
 }
 
 /**
+ * 按应用 id 查询安装状态：不过滤开发者中心登记项，供 mock 市场卡片合并本地状态。
+ * @param deps 超级智能体依赖（读登录态）
+ * @param appIds 请求的应用 id 列表
+ */
+export function listAppCenterItemsByIds(
+  deps: JiaorongAppHostDeps,
+  appIds: string[]
+): JiaorongAppCenterItem[] {
+  const user = readUserIdentityFromAuthSession(deps.getAuthSession())
+  if (!canAccessAppCenter(user)) return []
+  const requestedIds = Array.from(new Set(appIds.map((appId) => appId.trim()).filter(Boolean)))
+  if (requestedIds.length === 0) return []
+  const isDeveloper = isDeveloperIdentity(user)
+  const runtimesById = new Map(scanJiaorongApps(user).map((runtime) => [runtime.id, runtime]))
+  return requestedIds.flatMap((appId) => {
+    const runtime = runtimesById.get(appId)
+    return runtime ? [toAppCenterItem(runtime, { isDeveloper })] : []
+  })
+}
+
+/**
  * 安装 / 更新应用中心应用：远程 zip 下载校验后解压安装；无下载地址回落内置拷贝。
  * @param deps 超级智能体依赖
  * @param appId 目标应用 id
@@ -198,6 +219,31 @@ export async function installAppCenterApp(
     if (ensured.installStatus === 'error') return { ok: false, message: `install failed: ${appId}` }
   }
 
+  notifyRemoteAppCatalogChanged()
+  return { ok: true, item: listAppCenterItems(deps).find((item) => item.id === appId) }
+}
+
+/**
+ * 安装开放平台 mock 应用：使用发布时选择的本地 zip，按现有包安装器校验并注册。
+ * @param deps 超级智能体依赖
+ * @param appId 目标应用 id
+ * @param packagePath 本地 zip 路径
+ */
+export function installAppCenterAppFromPackage(
+  deps: JiaorongAppHostDeps,
+  appId: string,
+  packagePath: string
+): AppCenterMutationResult {
+  if (!appId) return { ok: false, message: 'missing appId' }
+  if (!packagePath.trim()) return { ok: false, message: 'missing package path' }
+  const user = readUserIdentityFromAuthSession(deps.getAuthSession())
+  if (!canAccessAppCenter(user)) return { ok: false, message: 'app center not available' }
+  if (!isDeveloperIdentity(user)) return { ok: false, message: 'developer only' }
+  const result = sharedAppsManager().installAppFromPackage(packagePath, {
+    overwrite: true,
+    expectedId: appId
+  })
+  if (!result.success) return { ok: false, message: result.message }
   notifyRemoteAppCatalogChanged()
   return { ok: true, item: listAppCenterItems(deps).find((item) => item.id === appId) }
 }

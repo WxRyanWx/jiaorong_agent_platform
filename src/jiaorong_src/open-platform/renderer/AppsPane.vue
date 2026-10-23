@@ -38,6 +38,8 @@ type PendingPublishRequest = {
   target: OpenPlatformAppCard
   fields: AppManifestFormFields
   auth: OpenPlatformAppAuth | null
+  provider: string
+  zipPath: string
 }
 
 const DEV_DOCS_URL =
@@ -82,6 +84,7 @@ const publishTarget = ref<OpenPlatformAppCard | null>(null)
 const publishForm = ref<AppManifestFormFields>(emptyManifestForm())
 const publishZipPath = ref('')
 const publishOrgNames = ref('')
+const publishProvider = ref('')
 const publishError = ref('')
 const isPublishConfirmVisible = ref(false)
 const pendingPublishRequest = ref<PendingPublishRequest | null>(null)
@@ -136,6 +139,7 @@ function openPublishDialog(app: OpenPlatformAppCard): void {
   publishSequence += 1
   publishForm.value = { ...emptyManifestForm(), id: app.id }
   publishOrgNames.value = app.serverAuth?.orgNames ?? ''
+  publishProvider.value = app.serverProvider ?? ''
   publishZipPath.value = ''
   publishError.value = ''
   isPublishConfirmVisible.value = false
@@ -190,9 +194,14 @@ function createPendingPublishRequest(): PendingPublishRequest | null {
   const fields = { ...publishForm.value }
   publishError.value = publishFormIssueText(fields)
   if (publishError.value) return null
+  const provider = publishProvider.value.trim()
+  if (!provider) {
+    publishError.value = t('routes.openPlatformPublishOrganizationRequired')
+    return null
+  }
   const auth = buildAuthFromOrgNames(publishOrgNames.value)
 
-  return { target, fields, auth }
+  return { target, fields, auth, provider, zipPath: publishZipPath.value }
 }
 
 function handlePublishConfirmVisible(visible: boolean): void {
@@ -212,20 +221,33 @@ async function submitPendingPublish(): Promise<void> {
   if (!request) return
   pendingPublishRequest.value = null
   isPublishConfirmVisible.value = false
-  await submitPublish(request.target, request.fields, request.auth)
+  await submitPublish(
+    request.target,
+    request.fields,
+    request.auth,
+    request.provider,
+    request.zipPath
+  )
 }
 
 async function submitPublish(
   target: OpenPlatformAppCard,
   fields: AppManifestFormFields,
-  auth: OpenPlatformAppAuth | null
+  auth: OpenPlatformAppAuth | null,
+  provider: string,
+  zipPath: string
 ): Promise<void> {
   const sequence = publishSequence
   isPublishing.value = true
   try {
     const ok = target.dir
-      ? await publish(target, { fields, zipPath: publishZipPath.value, auth })
-      : await publishRemote(target, { fields, auth })
+      ? await publish(target, {
+          fields,
+          zipPath: publishZipPath.value,
+          auth,
+          provider
+        })
+      : await publishRemote(target, { fields, auth, provider, zipPath })
     if (publishSequence !== sequence || publishTarget.value !== target) return
     if (!ok) return
     publishSequence += 1
@@ -440,7 +462,10 @@ watch(lastError, (error) => {
         </DialogHeader>
         <div class="open-platform-pane__form">
           <label class="open-platform-pane__field">
-            <span>{{ t('routes.devCenterPublishZipLabel') }}*</span>
+            <span class="open-platform-pane__required-label">
+              <span class="open-platform-pane__required-star">*</span>
+              {{ t('routes.devCenterPublishZipLabel') }}：
+            </span>
             <div class="open-platform-pane__zip-row">
               <Input :model-value="publishZipPath" readonly />
               <Button
@@ -454,7 +479,10 @@ watch(lastError, (error) => {
             </div>
           </label>
           <label v-for="field in PUBLISH_FIELDS" :key="field.key" class="open-platform-pane__field">
-            <span>{{ fieldLabel(field.key) }}</span>
+            <span :class="{ 'open-platform-pane__required-label': field.required }">
+              <span v-if="field.required" class="open-platform-pane__required-star">*</span>
+              {{ fieldLabel(field.key) }}：
+            </span>
             <Textarea
               v-if="field.kind === 'textarea'"
               v-model="publishForm.description"
@@ -465,6 +493,18 @@ watch(lastError, (error) => {
               v-model="publishForm[field.key]"
               :disabled="field.key === 'id'"
               :placeholder="field.placeholder"
+            />
+          </label>
+          <label class="open-platform-pane__field">
+            <span class="open-platform-pane__required-label">
+              <span class="open-platform-pane__required-star">*</span>
+              {{ t('routes.openPlatformPublishOrganization') }}：
+            </span>
+            <Input
+              v-model="publishProvider"
+              :disabled="isDialogBusy"
+              :data-testid="`open-platform-app-provider-${publishTarget?.id}`"
+              :placeholder="t('routes.openPlatformPublishOrganizationPlaceholder')"
             />
           </label>
           <label class="open-platform-pane__field">

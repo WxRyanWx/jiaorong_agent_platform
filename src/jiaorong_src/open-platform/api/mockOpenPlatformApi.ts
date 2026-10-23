@@ -18,12 +18,14 @@ const STORAGE_KEY = 'jiaorong-open-platform-mock:v1'
 const APP_ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 const APP_VERSION_PATTERN = /^\d+\.\d+\.\d+(?:-[\w.]+)?(?:\+[\w.]+)?$/
 const SKILL_NAME_PATTERN = /^[a-z0-9][a-z0-9._-]*$/
+const MOCK_CLIENT_MARKER = Symbol('jiaorong-open-platform-mock-client')
 
 type MockAsset = {
   type: 'app' | 'skill' | 'connector'
   id: string
   name: string
   description: string
+  provider?: string
   version: string | null
   status: 'published' | 'unpublished' | 'draft'
   createdAt: string
@@ -32,6 +34,7 @@ type MockAsset = {
   slot?: 'menu' | 'app-center'
   auth?: OpenPlatformAppAuth | null
   connectorType?: 'stdio' | 'http' | 'sse'
+  packagePath?: string
 }
 
 type MockStore = {
@@ -111,9 +114,16 @@ function normalizeAuth(value: OpenPlatformAppAuth | null | undefined): OpenPlatf
   return auth
 }
 
+function readMockPackagePath(input: OpenPlatformAppPublishInput): string {
+  const packagePath = (input as { packagePath?: unknown }).packagePath
+  return typeof packagePath === 'string' ? packagePath.trim() : ''
+}
+
 function emptyStore(): MockStore {
   return { assets: [], releaseSequence: 0 }
 }
+
+type MockPlatformClient = OpenPlatformClient & { [MOCK_CLIENT_MARKER]?: true }
 
 function loadStore(): MockStore {
   try {
@@ -144,6 +154,7 @@ function toAssetSummary(asset: MockAsset): OpenPlatformAssetSummary {
     id: asset.id,
     name: asset.name,
     description: asset.description,
+    provider: asset.provider ?? null,
     version: asset.version,
     status: asset.status,
     iconUrl: null,
@@ -185,6 +196,12 @@ function requireAsset(store: MockStore, type: MockAsset['type'], id: string): Mo
 
 function normalizeAppInput(input: OpenPlatformAppPublishInput): MockAsset {
   const manifest = input.manifest
+  const provider = input.provider?.trim() ?? ''
+  if (!provider) {
+    throw createApiError('INVALID_REQUEST', '发布组织不能为空', [
+      { field: 'provider', message: '发布组织不能为空' }
+    ])
+  }
   if (!APP_ID_PATTERN.test(manifest.id)) {
     throw createApiError('INVALID_REQUEST', '应用 ID 只能使用小写字母、数字和中划线', [
       { field: 'manifest.id', message: '应用 ID 不合法' }
@@ -198,18 +215,29 @@ function normalizeAppInput(input: OpenPlatformAppPublishInput): MockAsset {
     id: manifest.id,
     name: manifest.name.trim(),
     description: manifest.description.trim(),
+    provider,
     version: manifest.version.trim(),
     status: 'published',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     source: 'store',
     slot: manifest.slot === 'menu' ? 'menu' : 'app-center',
-    auth: normalizeAuth(input.auth)
+    auth: normalizeAuth(input.auth),
+    packagePath: readMockPackagePath(input) || undefined
   }
 }
 
-function normalizeSkillInput(input: OpenPlatformSkillPublishInput): MockAsset {
+function normalizeSkillInput(
+  input: OpenPlatformSkillPublishInput,
+  options: { requireProvider: boolean }
+): MockAsset {
   const metadata = input.metadata
+  const provider = input.provider?.trim() ?? ''
+  if (options.requireProvider && !provider) {
+    throw createApiError('INVALID_REQUEST', '发布组织不能为空', [
+      { field: 'provider', message: '发布组织不能为空' }
+    ])
+  }
   if (!SKILL_NAME_PATTERN.test(metadata.name)) {
     throw createApiError('INVALID_REQUEST', '技能名只能包含小写字母、数字、点、下划线和中划线')
   }
@@ -219,6 +247,7 @@ function normalizeSkillInput(input: OpenPlatformSkillPublishInput): MockAsset {
     id: metadata.name,
     name: metadata.displayName.trim() || metadata.name,
     description: metadata.description.trim(),
+    ...(provider ? { provider } : {}),
     version: null,
     status: 'published',
     createdAt: new Date().toISOString(),
@@ -226,14 +255,24 @@ function normalizeSkillInput(input: OpenPlatformSkillPublishInput): MockAsset {
   }
 }
 
-function normalizeConnectorInput(input: OpenPlatformConnectorPublishInput): MockAsset {
+function normalizeConnectorInput(
+  input: OpenPlatformConnectorPublishInput,
+  options: { requireProvider: boolean }
+): MockAsset {
   const metadata = input.metadata
+  const provider = input.provider?.trim() ?? ''
+  if (options.requireProvider && !provider) {
+    throw createApiError('INVALID_REQUEST', '发布组织不能为空', [
+      { field: 'provider', message: '发布组织不能为空' }
+    ])
+  }
   if (!metadata.id.trim()) throw createApiError('INVALID_REQUEST', 'MCP 服务名不能为空')
   return {
     type: 'connector',
     id: metadata.id.trim(),
     name: metadata.id.trim(),
     description: metadata.description.trim(),
+    ...(provider ? { provider } : {}),
     version: null,
     status: 'published',
     createdAt: new Date().toISOString(),
@@ -261,6 +300,7 @@ function publishAsset(
         throw createApiError('VERSION_NOT_INCREASED', `新版本必须大于 ${current.version}`)
       }
     }
+    if (!nextAsset.packagePath && current.packagePath) nextAsset.packagePath = current.packagePath
     Object.assign(current, nextAsset, {
       createdAt: current.createdAt,
       updatedAt: new Date().toISOString(),
@@ -299,8 +339,13 @@ function removeAsset(type: MockAsset['type'], id: string): void {
   })
 }
 
+export function getOpenPlatformMockAppPackagePath(appId: string): string {
+  const asset = loadStore().assets.find((item) => item.type === 'app' && item.id === appId)
+  return asset?.packagePath?.trim() || ''
+}
+
 export function createMockOpenPlatformClient(): OpenPlatformClient {
-  return {
+  const client: MockPlatformClient = {
     async listApps(scope: OpenPlatformScope) {
       const store = loadStore()
       const items = store.assets
@@ -325,10 +370,15 @@ export function createMockOpenPlatformClient(): OpenPlatformClient {
       return createPage(items)
     },
     async createSkill(input: OpenPlatformSkillPublishInput) {
-      return createDraftAsset(normalizeSkillInput(input))
+      return createDraftAsset(normalizeSkillInput(input, { requireProvider: false }))
     },
     async publishSkill(input: OpenPlatformSkillPublishInput) {
-      return publishAsset(input.id, normalizeSkillInput(input)) as OpenPlatformAssetSummary
+      return publishAsset(
+        input.id,
+        normalizeSkillInput(input, {
+          requireProvider: true
+        })
+      ) as OpenPlatformAssetSummary
     },
     async unpublishSkill(id: string) {
       return unpublishAsset('skill', id) as OpenPlatformAssetSummary
@@ -344,10 +394,15 @@ export function createMockOpenPlatformClient(): OpenPlatformClient {
       return createPage(items)
     },
     async createConnector(input: OpenPlatformConnectorPublishInput) {
-      return createDraftAsset(normalizeConnectorInput(input))
+      return createDraftAsset(normalizeConnectorInput(input, { requireProvider: false }))
     },
     async publishConnector(input: OpenPlatformConnectorPublishInput) {
-      return publishAsset(input.id, normalizeConnectorInput(input)) as OpenPlatformAssetSummary
+      return publishAsset(
+        input.id,
+        normalizeConnectorInput(input, {
+          requireProvider: true
+        })
+      ) as OpenPlatformAssetSummary
     },
     async unpublishConnector(id: string) {
       return unpublishAsset('connector', id) as OpenPlatformAssetSummary
@@ -356,6 +411,12 @@ export function createMockOpenPlatformClient(): OpenPlatformClient {
       removeAsset('connector', id)
     }
   }
+  client[MOCK_CLIENT_MARKER] = true
+  return client
+}
+
+export function isMockOpenPlatformClient(client: OpenPlatformClient): boolean {
+  return Boolean((client as MockPlatformClient)[MOCK_CLIENT_MARKER])
 }
 
 export function unwrapResponse<T>(response: OpenPlatformResponse<T>): T {

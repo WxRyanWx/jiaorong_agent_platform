@@ -59,7 +59,7 @@ export function isAppAuthOpen(auth: JiaorongAppAuth | null | undefined): boolean
 
 /**
  * 当前登录用户是否看得见该应用。
- * 用户名、任一组织 orgNo、手机号三者命中其一即可见。
+ * 用户名、手机号、任一组织路径节点命中其一即可见；无路径节点时兼容 orgNo。
  * @param auth 目录 auth
  * @param user 当前用户身份
  */
@@ -77,14 +77,15 @@ export function isAppVisibleToUser(
   const phone = user.phone?.trim() || ''
   // 命中手机号白名单
   if (phone && auth?.phones?.includes(phone)) return true
-  /** 用户所属组织号集合。 */
-  const orgSet = new Set(user.orgNos.map((orgNo) => orgNo.trim()).filter(Boolean))
+  const pathNos = user.orgPathNos ?? []
+  const sourceOrgNos = pathNos.length > 0 ? pathNos : user.orgNos
+  const orgSet = new Set(sourceOrgNos.map((orgNo) => orgNo.trim()).filter(Boolean))
   // 目录组织号任一命中即可见
   return Boolean(auth?.orgs?.some((orgNo) => orgSet.has(orgNo)))
 }
 
 /**
- * 从超级智能体本地 userInfo JSON 抽出 userName / orgNos / phone。
+ * 从超级智能体本地 userInfo JSON 抽出 userName / orgNos / orgPathNos / phone。
  * @param raw `userInfo` 或 `userFullInfo` 解析结果
  */
 export function readUserIdentityFromUserInfo(raw: unknown): JiaorongAppUserIdentity {
@@ -102,8 +103,8 @@ export function readUserIdentityFromUserInfo(raw: unknown): JiaorongAppUserIdent
   )
   /** trim 后的手机号。 */
   const phone = typeof phoneRaw === 'string' ? phoneRaw.trim() : ''
-  /** 组织号列表。 */
   const orgNos: string[] = []
+  const orgPathNos: string[] = []
   // orgList 可能缺失或不是数组
   if (Array.isArray(record.orgList)) {
     /** 单条组织。 */
@@ -112,15 +113,24 @@ export function readUserIdentityFromUserInfo(raw: unknown): JiaorongAppUserIdent
       if (!org || typeof org !== 'object') continue
       /** 单条组织的 orgNo。 */
       const orgNo = (org as { orgNo?: unknown }).orgNo
-      // 只收非空组织号
-      if (typeof orgNo === 'string' && orgNo.trim()) {
-        orgNos.push(orgNo.trim())
-      }
+      const trimmedOrgNo = typeof orgNo === 'string' ? orgNo.trim() : ''
+      if (trimmedOrgNo) orgNos.push(trimmedOrgNo)
+      const pathNo = (org as { pathNo?: unknown }).pathNo
+      const pathOrgNos =
+        typeof pathNo === 'string'
+          ? pathNo
+              .split('.')
+              .map((item) => item.trim())
+              .filter(Boolean)
+          : []
+      if (pathOrgNos.length > 0) orgPathNos.push(...pathOrgNos)
+      else if (trimmedOrgNo) orgPathNos.push(trimmedOrgNo)
     }
   }
   return {
     userName: userName || null,
     orgNos,
+    orgPathNos: [...new Set(orgPathNos)],
     phone: phone || null
   }
 }

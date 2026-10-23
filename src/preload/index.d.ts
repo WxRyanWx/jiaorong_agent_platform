@@ -33,6 +33,11 @@ declare global {
       installAppCenter(
         appId: string
       ): Promise<{ ok: boolean; message?: string; item?: JiaorongAppCenterItem }>
+      installAppCenterPackage(
+        appId: string,
+        packagePath: string
+      ): Promise<{ ok: boolean; message?: string; item?: JiaorongAppCenterItem }>
+      getAppCenterInstallStatuses(appIds: string[]): Promise<JiaorongAppCenterItem[]>
       uninstallAppCenter(appId: string): Promise<{ ok: boolean; message?: string }>
       listDevCenter(): Promise<JiaorongDevCenterItem[]>
       createDevApp(): Promise<{ ok: boolean; message?: string; record?: JiaorongDevAppRecord }>

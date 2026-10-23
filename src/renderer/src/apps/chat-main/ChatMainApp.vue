@@ -43,6 +43,7 @@ import { useDeviceVersion } from '@/composables/useDeviceVersion'
 import WindowSideBar from '@/components/WindowSideBar.vue'
 import JiaorongAppFrameHost from '@jiaorong/appHost/renderer/JiaorongAppFrameHost.vue'
 import JiaorongDevAppRail from '@jiaorong/appHost/devCenter/renderer/DevAppWindowRail.vue'
+import { resolveAppCenterBackRouteName } from '@jiaorong/appHost/appCenter/renderer/navigation'
 import SpotlightOverlay from '@/components/spotlight/SpotlightOverlay.vue'
 import { useSpotlightStore } from '@/stores/ui/spotlight'
 import { useSidepanelStore } from '@/stores/ui/sidepanel'
@@ -172,12 +173,16 @@ const embeddedFrom = computed(() => {
 })
 /** 应用中心打开的应用显示返回；侧栏 menu 进的不加。 */
 const showAppBack = computed(() => isEmbeddedAppRoute.value && embeddedFrom.value === 'app-center')
+/** 记录打开应用前所在的插件中心壳。 */
+const appCenterBackRouteName = computed(() =>
+  resolveAppCenterBackRouteName(route.query.appCenterRoute)
+)
 
 /**
  * 返回列表。应用中心只切页，不关应用；开发者应用走独立窗口，不在主窗口内嵌。
  */
 function backFromEmbeddedApp(): void {
-  void router.push({ name: 'plugins-apps' })
+  void router.push({ name: appCenterBackRouteName.value })
 }
 
 const isStartupRouteReady = ref(false)

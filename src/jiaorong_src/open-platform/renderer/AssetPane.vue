@@ -5,6 +5,7 @@ import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Icon } from '@iconify/vue'
 import { Button } from '@arco-design/web-vue'
+import { Input } from '@shadcn/components/ui/input'
 import { useToast } from '@/components/use-toast'
 import ConfirmAction from './ConfirmAction.vue'
 import type { OpenPlatformAssetSummary, OpenPlatformClient } from '../types'
@@ -25,6 +26,7 @@ type ParsedPackage = {
 const { t } = useI18n()
 const { toast } = useToast()
 const items = ref<OpenPlatformAssetSummary[]>([])
+const publishProviders = ref<Record<string, string>>({})
 const updateTarget = ref<OpenPlatformAssetSummary | null>(null)
 const pendingUpdatePackage = ref<ParsedPackage | null>(null)
 const isUpdateConfirmVisible = ref(false)
@@ -55,6 +57,9 @@ async function refresh(): Promise<void> {
         ? await props.api.listSkills()
         : await props.api.listConnectors('mine')
     items.value = page.items
+    publishProviders.value = Object.fromEntries(
+      page.items.map((item) => [item.id, item.provider ?? ''])
+    )
   } catch (loadError) {
     error.value =
       loadError instanceof Error ? loadError.message : t('routes.openPlatformListFailed')
@@ -121,12 +126,15 @@ async function parsePackage(file: File): Promise<ParsedPackage> {
 
 async function publishDraft(item: OpenPlatformAssetSummary): Promise<void> {
   if (item.status !== 'draft' || isPublishing.value) return
+  const provider = readPublishProvider(item)
+  if (!provider) return
   isPublishing.value = true
   error.value = ''
   try {
     if (props.assetType === 'skill') {
       await props.api.publishSkill({
         id: item.id,
+        provider,
         metadata: {
           name: item.id,
           displayName: item.name,
@@ -136,6 +144,7 @@ async function publishDraft(item: OpenPlatformAssetSummary): Promise<void> {
     } else {
       await props.api.publishConnector({
         id: item.id,
+        provider,
         metadata: {
           id: item.id,
           name: item.name,
@@ -159,12 +168,15 @@ async function updatePackage(
   parsedPackage: ParsedPackage
 ): Promise<void> {
   if (isPublishing.value) return
+  const provider = readPublishProvider(item)
+  if (!provider) return
   isPublishing.value = true
   error.value = ''
   try {
     if (props.assetType === 'skill') {
       await props.api.publishSkill({
         id: item.id,
+        provider,
         metadata: {
           name: parsedPackage.name,
           displayName: parsedPackage.displayName,
@@ -174,6 +186,7 @@ async function updatePackage(
     } else {
       await props.api.publishConnector({
         id: item.id,
+        provider,
         metadata: {
           id: parsedPackage.name,
           name: parsedPackage.name,
@@ -229,12 +242,15 @@ async function remove(item: OpenPlatformAssetSummary): Promise<void> {
 
 async function republish(item: OpenPlatformAssetSummary): Promise<void> {
   if (item.status !== 'unpublished' || isPublishing.value) return
+  const provider = readPublishProvider(item)
+  if (!provider) return
   isPublishing.value = true
   error.value = ''
   try {
     if (props.assetType === 'skill') {
       await props.api.publishSkill({
         id: item.id,
+        provider,
         metadata: {
           name: item.id,
           displayName: item.name,
@@ -244,6 +260,7 @@ async function republish(item: OpenPlatformAssetSummary): Promise<void> {
     } else {
       await props.api.publishConnector({
         id: item.id,
+        provider,
         metadata: {
           id: item.id,
           name: item.name,
@@ -273,6 +290,10 @@ function startCreate(): void {
 
 function startUpdate(item: OpenPlatformAssetSummary): void {
   if (isPublishing.value) return
+  if (!readPublishProvider(item)) {
+    error.value = t('routes.openPlatformPublishOrganizationRequired')
+    return
+  }
   updateTarget.value = item
   pendingUpdatePackage.value = null
   isUpdateConfirmVisible.value = false
@@ -298,6 +319,14 @@ async function submitUpdate(item: OpenPlatformAssetSummary): Promise<void> {
   pendingUpdatePackage.value = null
   isUpdateConfirmVisible.value = false
   await updatePackage(item, parsedPackage)
+}
+
+function readPublishProvider(item: OpenPlatformAssetSummary): string {
+  return publishProviders.value[item.id]?.trim() ?? ''
+}
+
+function isPublishProviderReady(item: OpenPlatformAssetSummary): boolean {
+  return Boolean(readPublishProvider(item))
 }
 
 onMounted(refresh)
@@ -362,15 +391,31 @@ function openDocs(): void {
           </div>
           <p class="open-platform-pane__desc">{{ item.description }}</p>
           <footer>
-            <span class="open-platform-pane__status" :class="`is-${item.status}`">
-              {{
-                item.status === 'published'
-                  ? t('routes.openPlatformStatusPublished')
-                  : item.status === 'unpublished'
-                    ? t('routes.openPlatformStatusUnpublished')
-                    : '未发布'
-              }}
-            </span>
+            <div class="open-platform-pane__publish-meta">
+              <span class="open-platform-pane__status" :class="`is-${item.status}`">
+                {{
+                  item.status === 'published'
+                    ? t('routes.openPlatformStatusPublished')
+                    : item.status === 'unpublished'
+                      ? t('routes.openPlatformStatusUnpublished')
+                      : '未发布'
+                }}
+              </span>
+              <div class="open-platform-pane__provider-field">
+                <span class="open-platform-pane__required-label">
+                  <span class="open-platform-pane__required-star">*</span>
+                  {{ t('routes.openPlatformPublishOrganization') }}：
+                </span>
+                <Input
+                  v-model="publishProviders[item.id]"
+                  class="open-platform-pane__provider-input"
+                  :disabled="isPublishing"
+                  :data-testid="`open-platform-${assetType}-provider-${item.id}`"
+                  :placeholder="t('routes.openPlatformPublishOrganizationPlaceholder')"
+                  @click.stop
+                />
+              </div>
+            </div>
             <div class="open-platform-pane__card-actions">
               <ConfirmAction
                 v-if="item.status === 'published'"
@@ -378,7 +423,7 @@ function openDocs(): void {
                 :description="`将使用新 zip 包更新「${item.name}」。`"
                 confirm-label="确认更新"
                 variant="default"
-                :disabled="isPublishing"
+                :disabled="isPublishing || !isPublishProviderReady(item)"
                 :test-id="`open-platform-${assetType}-update-${item.id}`"
                 :popup-visible="updateTarget?.id === item.id && isUpdateConfirmVisible"
                 @update:popup-visible="(visible) => handleUpdateVisible(item, visible)"
@@ -401,7 +446,7 @@ function openDocs(): void {
                 description="发布后市场将展示该内容。"
                 confirm-label="确认发布"
                 variant="default"
-                :disabled="isPublishing"
+                :disabled="isPublishing || !isPublishProviderReady(item)"
                 :test-id="`open-platform-${assetType}-publish-${item.id}`"
                 @confirm="publishDraft(item)"
               />
@@ -411,7 +456,7 @@ function openDocs(): void {
                 description="重新发布后市场将恢复展示该内容。"
                 confirm-label="确认发布"
                 variant="default"
-                :disabled="isPublishing"
+                :disabled="isPublishing || !isPublishProviderReady(item)"
                 :test-id="`open-platform-${assetType}-republish-${item.id}`"
                 @confirm="republish(item)"
               />

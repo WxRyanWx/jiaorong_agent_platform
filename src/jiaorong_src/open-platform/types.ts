@@ -26,6 +26,7 @@ export type OpenPlatformAssetSummary = {
   id: string
   name: string
   description: string
+  provider?: string | null
   version: string | null
   status: OpenPlatformAssetStatus
   iconUrl: string | null
@@ -56,6 +57,7 @@ export type OpenPlatformConnectorPackageMetadata = {
 
 export type OpenPlatformAppPublishInput = {
   id?: string
+  provider?: string
   manifest: {
     id: string
     name: string
@@ -71,11 +73,13 @@ export type OpenPlatformAppPublishInput = {
 
 export type OpenPlatformSkillPublishInput = {
   id?: string
+  provider?: string
   metadata: OpenPlatformSkillPackageMetadata
 }
 
 export type OpenPlatformConnectorPublishInput = {
   id?: string
+  provider?: string
   metadata: OpenPlatformConnectorPackageMetadata
 }
 

@@ -12,6 +12,8 @@ import {
   JIAORONG_APP_CATALOG_CHANGED_CHANNEL,
   JIAORONG_APP_CENTER_LIST_CHANNEL,
   JIAORONG_APP_CENTER_INSTALL_CHANNEL,
+  JIAORONG_APP_CENTER_INSTALL_PACKAGE_CHANNEL,
+  JIAORONG_APP_CENTER_INSTALL_STATUSES_CHANNEL,
   JIAORONG_APP_CENTER_UNINSTALL_CHANNEL,
   JIAORONG_DEV_APP_OPEN_WINDOW_CHANNEL,
   JIAORONG_DEV_APP_INFO_CHANNEL,
@@ -51,7 +53,9 @@ import { sharedAppsManager } from './appManagerInstance'
 import { migrateLegacySystemAppsIfNeeded } from './paths'
 import {
   installAppCenterApp,
+  installAppCenterAppFromPackage,
   isDeveloperIdentity,
+  listAppCenterItemsByIds,
   listAppCenterItems,
   uninstallAppCenterApp
 } from '../appCenter/main/appCenter'
@@ -184,6 +188,31 @@ function readAppIdInput(input: unknown): string {
   /** 入参里的 appId 字段。 */
   const appId = (input as { appId?: unknown }).appId
   return typeof appId === 'string' ? appId.trim() : ''
+}
+
+/**
+ * 读应用中心本地包安装入参。
+ * @param input IPC 原始值
+ */
+function readAppPackageInput(input: unknown): { appId: string; packagePath: string } {
+  if (!input || typeof input !== 'object') return { appId: '', packagePath: '' }
+  /** 入参里的字段。 */
+  const record = input as { appId?: unknown; packagePath?: unknown }
+  return {
+    appId: typeof record.appId === 'string' ? record.appId.trim() : '',
+    packagePath: typeof record.packagePath === 'string' ? record.packagePath.trim() : ''
+  }
+}
+
+/**
+ * 读安装状态查询入参。
+ * @param input IPC 原始值
+ */
+function readAppIdsInput(input: unknown): string[] {
+  if (!input || typeof input !== 'object') return []
+  const appIds = (input as { appIds?: unknown }).appIds
+  if (!Array.isArray(appIds)) return []
+  return appIds.filter((appId): appId is string => typeof appId === 'string')
 }
 
 /**
@@ -499,6 +528,19 @@ export function startJiaorongAppHost(deps: JiaorongAppHostDeps): void {
     return installAppCenterApp(deps, appId)
   })
 
+  // 应用中心 mock 期安装：使用发布时选择的本地 zip
+  ipcMain.handle(JIAORONG_APP_CENTER_INSTALL_PACKAGE_CHANNEL, async (_event, input: unknown) => {
+    const { appId, packagePath } = readAppPackageInput(input)
+    // 本地包覆盖安装前同样释放同 id 调试来源
+    if (appId) await closeDevAppWindow(appId)
+    return installAppCenterAppFromPackage(deps, appId, packagePath)
+  })
+
+  // 应用中心按 id 查询安装状态：mock 市场卡片合并本地安装结果
+  ipcMain.handle(JIAORONG_APP_CENTER_INSTALL_STATUSES_CHANNEL, (_event, input: unknown) => {
+    return listAppCenterItemsByIds(deps, readAppIdsInput(input))
+  })
+
   // 应用中心卸载：仅开发者
   ipcMain.handle(JIAORONG_APP_CENTER_UNINSTALL_CHANNEL, async (_event, input: unknown) => {
     const appId = readAppIdInput(input)
@@ -728,6 +770,8 @@ export function stopJiaorongAppHost(): void {
   ipcMain.removeHandler(JIAORONG_APP_INTENT_READY_CHANNEL)
   ipcMain.removeHandler(JIAORONG_APP_CENTER_LIST_CHANNEL)
   ipcMain.removeHandler(JIAORONG_APP_CENTER_INSTALL_CHANNEL)
+  ipcMain.removeHandler(JIAORONG_APP_CENTER_INSTALL_PACKAGE_CHANNEL)
+  ipcMain.removeHandler(JIAORONG_APP_CENTER_INSTALL_STATUSES_CHANNEL)
   ipcMain.removeHandler(JIAORONG_APP_CENTER_UNINSTALL_CHANNEL)
   ipcMain.removeHandler(JIAORONG_DEV_CENTER_LIST_CHANNEL)
   ipcMain.removeHandler(JIAORONG_DEV_CENTER_CREATE_CHANNEL)
