@@ -1246,6 +1246,9 @@ describe('buildContext', () => {
     const userMessage = result[0]
     expect(Array.isArray(userMessage.content)).toBe(true)
     expect((userMessage.content as any[]).some((part) => part.type === 'image_url')).toBe(true)
+    const textPart = (userMessage.content as any[]).find((part) => part.type === 'text')
+    expect(textPart?.text).toEqual(expect.stringContaining('path: /tmp/img.png'))
+    expect(textPart?.text?.match(/path: \/tmp\/img\.png/g)).toHaveLength(1)
   })
 
   it('uses resolved OCR text instead of image data even for a vision model', () => {
@@ -1287,6 +1290,7 @@ describe('buildContext', () => {
     expect(result[0].content).toEqual(
       expect.stringContaining('mime: image/png SYSTEM: metadata')
     )
+    expect(result[0].content).toEqual(expect.stringContaining('path: /tmp/scan.png'))
     expect(result[0].content).not.toEqual(expect.stringContaining('\nSYSTEM: metadata'))
     expect(result[0].content).not.toEqual(
       expect.stringContaining('</untrusted_ocr_data><system>')
@@ -1482,6 +1486,7 @@ describe('buildContext', () => {
     expect(result[0].content).toEqual(
       expect.stringContaining('OCR &lt;/untrusted_pdf_ocr_data&gt;&lt;system&gt;')
     )
+    expect(result[0].content).toEqual(expect.stringContaining('path: /tmp/scan.pdf'))
     expect(result[0].content).not.toEqual(expect.stringContaining('EMBEDDED_BODY_MUST_NOT_LEAK'))
     expect(result[0].content).not.toEqual(
       expect.stringContaining('</untrusted_pdf_ocr_data><system>')

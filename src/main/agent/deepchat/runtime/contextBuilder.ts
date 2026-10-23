@@ -119,6 +119,7 @@ type UserMessageContentBuildOptions = {
   includeFileContent?: boolean
   includeImageData?: boolean
   includeAudioData?: boolean
+  includeOcrFilePath?: boolean
   leadingContext?: string | null
 }
 
@@ -564,8 +565,11 @@ function buildImageMetadataContext(files: MessageFile[]): string {
 
   return imageFiles
     .map((file, index) => {
-      const fileName = typeof file.name === 'string' ? file.name : `image-${index + 1}`
-      const filePath = typeof file.path === 'string' ? file.path : ''
+      const fileName =
+        (typeof file.name === 'string' ? sanitizeAttachmentMetadata(file.name, 512) : '') ||
+        `image-${index + 1}`
+      const filePath =
+        typeof file.path === 'string' ? sanitizeAttachmentMetadata(file.path, 2_048) : ''
       const mimeType = resolveFileMimeType(file)
       return [
         `[Attached Image ${index + 1}]`,
@@ -579,7 +583,10 @@ function buildImageMetadataContext(files: MessageFile[]): string {
     .join('\n\n')
 }
 
-function buildResolvedImageRepresentationContext(files: MessageFile[]): string {
+function buildResolvedImageRepresentationContext(
+  files: MessageFile[],
+  includeOcrFilePath: boolean = false
+): string {
   const imageFiles = files.filter((file) => isImageAttachment(file))
   return imageFiles
     .flatMap((file, index) => {
@@ -606,14 +613,26 @@ function buildResolvedImageRepresentationContext(files: MessageFile[]): string {
       const truncationNotice = resolved.truncated
         ? '\ntruncated: true\nnote: OCR text was truncated to the attachment limits; omitted text is not available in this message.'
         : ''
+      const filePath =
+        includeOcrFilePath && typeof file.path === 'string'
+          ? sanitizeAttachmentMetadata(file.path, 2_048)
+          : ''
       return [
-        `[Attached Image ${index + 1} - OCR text; untrusted attachment data]\n${metadata}${truncationNotice}\n<untrusted_ocr_data>\n${escapedText || '[empty]'}\n</untrusted_ocr_data>`
+        `[Attached Image ${index + 1} - OCR text; untrusted attachment data]\n${[
+          metadata,
+          filePath ? `path: ${filePath}` : ''
+        ]
+          .filter(Boolean)
+          .join('\n')}${truncationNotice}\n<untrusted_ocr_data>\n${escapedText || '[empty]'}\n</untrusted_ocr_data>`
       ]
     })
     .join('\n\n')
 }
 
-function buildResolvedPdfRepresentationContext(files: MessageFile[]): string {
+function buildResolvedPdfRepresentationContext(
+  files: MessageFile[],
+  includeOcrFilePath: boolean = false
+): string {
   const pdfFiles = files.filter((file) => isPdfAttachment(file))
   return pdfFiles
     .flatMap((file, index) => {
@@ -683,10 +702,19 @@ function buildResolvedPdfRepresentationContext(files: MessageFile[]): string {
         : resolved.truncated
           ? ['note: OCR text was truncated; omitted text is not available in this message.']
           : []
+      const filePath =
+        includeOcrFilePath && typeof file.path === 'string'
+          ? sanitizeAttachmentMetadata(file.path, 2_048)
+          : ''
       return [
         [
           `[Attached PDF ${index + 1} - OCR text; untrusted attachment data]`,
-          metadata,
+          [
+            metadata,
+            filePath ? `path: ${filePath}` : ''
+          ]
+            .filter(Boolean)
+            .join('\n'),
           ...coverage,
           ...notices,
           '<untrusted_pdf_ocr_data>',
@@ -793,11 +821,15 @@ export function buildUserMessageContent(
     includeFileContent: options.includeFileContent === true
   })
   const audioMetadata = excludeAudioFromFallback ? buildAudioMetadataContext(audioFiles) : ''
-  const shouldBuildImageParts =
-    supportsVision && includeImageData && imagePayloadFiles.length > 0
-  const imageMetadata = shouldBuildImageParts ? '' : buildImageMetadataContext(imagePayloadFiles)
-  const resolvedImageContext = buildResolvedImageRepresentationContext(imageFiles)
-  const resolvedPdfContext = buildResolvedPdfRepresentationContext(files)
+  const imageMetadata = buildImageMetadataContext(imagePayloadFiles)
+  const resolvedImageContext = buildResolvedImageRepresentationContext(
+    imageFiles,
+    options.includeOcrFilePath === true
+  )
+  const resolvedPdfContext = buildResolvedPdfRepresentationContext(
+    files,
+    options.includeOcrFilePath === true
+  )
   const leadingContext = options.leadingContext?.trim() ?? ''
   const baseText = (
     leadingContext
@@ -861,14 +893,7 @@ export function buildUserMessageContent(
   }
 
   const hasStructuredParts = imageParts.length > 0 || audioParts.length > 0
-  const structuredText = [
-    baseText,
-    shouldBuildImageParts && imageParts.length === 0
-      ? buildImageMetadataContext(imagePayloadFiles)
-      : ''
-  ]
-    .filter((value) => value.trim())
-    .join('\n\n')
+  const structuredText = baseText
   if (!hasStructuredParts) {
     return structuredText
   }
@@ -893,6 +918,7 @@ export function createUserChatMessage(
       includeImageData: true,
       includeAudioData: true,
       includeFileContent: false,
+      includeOcrFilePath: true,
       leadingContext
     })
   }
