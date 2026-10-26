@@ -1418,14 +1418,11 @@ describe('WindowSideBar agent switch', () => {
   )
 
   it(
-    'toggles spotlight from the expanded sidebar search command',
+    'hides the expanded sidebar global search command',
     async () => {
-      const { wrapper, spotlightStore } = await setup()
+      const { wrapper } = await setup()
 
-      await wrapper.get('[data-testid="app-search-command-button"]').trigger('click')
-      await flushPromises()
-
-      expect(spotlightStore.toggleSpotlight).toHaveBeenCalledTimes(1)
+      expect(wrapper.find('[data-testid="app-search-command-button"]').exists()).toBe(false)
     },
     TEST_TIMEOUT_MS
   )
@@ -1844,7 +1841,7 @@ describe('WindowSideBar agent switch', () => {
       expect(wrapper.get('[data-testid="window-sidebar-session-column"]').classes()).toContain(
         'window-no-drag-region'
       )
-      expect(wrapper.get('[data-testid="app-search-command-button"]').exists()).toBe(true)
+      expect(wrapper.find('[data-testid="app-search-command-button"]').exists()).toBe(false)
       expect(wrapper.get('[data-testid="app-plugins-button"]').exists()).toBe(true)
     },
     TEST_TIMEOUT_MS
@@ -1860,20 +1857,16 @@ describe('WindowSideBar agent switch', () => {
   )
 
   it(
-    'toggles spotlight from the rail search button',
+    'hides the rail search button',
     async () => {
-      const { wrapper, spotlightStore } = await setup()
+      const { wrapper } = await setup()
 
       const buttons = wrapper.findAll('button')
       const spotlightButton = buttons.find((button) =>
         button.attributes('title')?.includes('chat.spotlight.placeholder')
       )
 
-      expect(spotlightButton).toBeTruthy()
-
-      await spotlightButton!.trigger('click')
-
-      expect(spotlightStore.toggleSpotlight).toHaveBeenCalledTimes(1)
+      expect(spotlightButton).toBeUndefined()
     },
     TEST_TIMEOUT_MS
   )

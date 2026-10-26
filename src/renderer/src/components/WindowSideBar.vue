@@ -172,6 +172,7 @@
           <Icon icon="lucide:code-2" class="w-4 h-4 text-foreground/80" />
         </DcButton>
 
+        <!-- 临时隐藏侧边栏搜索入口
         <DcButton
           size="icon"
           icon="lucide:search"
@@ -188,6 +189,7 @@
           "
           @click="spotlightStore.toggleSpotlight()"
         />
+        -->
 
         <DcButton
           v-if="showRemoteControlButton"
@@ -296,6 +298,7 @@
               <span class="min-w-0 flex-1 truncate">{{ t('common.newChat') }}</span>
             </button>
 
+            <!-- 临时隐藏侧边栏全局搜索按钮
             <button
               data-testid="app-search-command-button"
               type="button"
@@ -305,6 +308,7 @@
               <Icon icon="lucide:search" class="size-4 shrink-0 text-muted-foreground" />
               <span class="min-w-0 flex-1 truncate">{{ t('chat.sidebar.searchCommand') }}</span>
             </button>
+            -->
 
             <button
               v-if="showPluginsButton"

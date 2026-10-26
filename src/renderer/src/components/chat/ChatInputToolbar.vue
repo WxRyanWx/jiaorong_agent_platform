@@ -17,6 +17,7 @@
     </div>
 
     <div class="flex items-center gap-1">
+      <!-- 临时隐藏新对话搜索入口
       <DcButton
         v-if="showSearch"
         data-testid="chat-search-toggle"
@@ -36,6 +37,7 @@
         :disabled="isPreparingAttachments"
         @click="emit('toggle-search')"
       />
+      -->
 
       <!-- Mic button -->
       <DcButton

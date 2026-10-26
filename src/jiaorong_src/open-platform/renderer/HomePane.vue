@@ -71,10 +71,10 @@ const ecoItems = computed(() => [
   },
   {
     key: 'app' as const,
-    label: '交融智能体应用',
-    tag: '交融智能体应用',
+    label: '交融应用',
+    tag: '交融应用',
     slogan: '打造专属应用，沉淀行业智慧',
-    body: '构建专属交融智能体应用，将行业经验、专业数据与业务流程封装成完整场景，开箱即用。',
+    body: '构建专属交融应用，将行业经验、专业数据与业务流程封装成完整场景，开箱即用。',
     art: appArt,
     pending: false
   },
@@ -422,7 +422,7 @@ onBeforeUnmount(() => {
       </div>
     </section>
 
-    <section class="open-platform-home__cta">
+    <!-- <section class="open-platform-home__cta">
       <p>交融超级智能体客户端</p>
       <h3>从创建到发布，同一个工作台</h3>
       <p>调试、版本与分发，都在客户端内完成。下载后，创建第一个能力。</p>
@@ -439,6 +439,6 @@ onBeforeUnmount(() => {
           <path d="M4 12h15M13 6l6 6-6 6" />
         </svg>
       </button>
-    </section>
+    </section> -->
   </section>
 </template>

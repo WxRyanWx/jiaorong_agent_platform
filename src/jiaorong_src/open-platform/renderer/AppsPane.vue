@@ -45,7 +45,7 @@ type PendingPublishRequest = {
 const DEV_DOCS_URL =
   'https://c4ai.ccccltd.cn/jiaorong-super-agent-doc/Examples/jiaorong-agent/jiaorong-app.html'
 const MODULE_META = {
-  title: '交融智能体应用',
+  title: '交融应用',
   subtitle: '可独立分发的应用，面向终端用户场景'
 }
 

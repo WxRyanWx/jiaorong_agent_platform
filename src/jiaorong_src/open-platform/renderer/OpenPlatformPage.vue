@@ -42,7 +42,7 @@ const TABS: Array<{ key: OpenPlatformTab; label: string }> = [
   { key: 'skills', label: '技能' },
   { key: 'expert', label: '专家' },
   { key: 'connectors', label: '连接器 MCP' },
-  { key: 'apps', label: '交融智能体应用' },
+  { key: 'apps', label: '交融应用' },
   { key: 'hardware', label: '硬件（待开放）' },
   { key: 'knowledge-center', label: '知识中心' }
 ]
@@ -85,7 +85,7 @@ watch(activeTab, (tab) => {
         >
           开发文档
         </a>
-        <button class="open-platform-page__download-button" type="button">下载客户端</button>
+        <!-- <button class="open-platform-page__download-button" type="button">下载客户端</button> -->
       </div>
     </header>
     <nav class="open-platform-page__tabs" aria-label="open platform tabs">
