@@ -9,6 +9,7 @@ import mcpArt from '../../assets/open-platform-home/mcp.svg?url'
 import pagentArt from '../../assets/open-platform-home/pagent.webp?url'
 import skillArt from '../../assets/open-platform-home/skill.webp?url'
 import webagentArt from '../../assets/open-platform-home/webagent.webp?url'
+import { useRefreshOnReactivate } from './useRefreshOnReactivate'
 import '../styles/open-platform-home.less'
 
 defineOptions({ name: 'OpenPlatformHomePane' })
@@ -247,6 +248,11 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', drawBaseLines)
+})
+
+useRefreshOnReactivate(async () => {
+  await nextTick()
+  drawBaseLines()
 })
 </script>
 

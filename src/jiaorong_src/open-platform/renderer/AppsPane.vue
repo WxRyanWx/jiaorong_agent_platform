@@ -26,6 +26,7 @@ import type { OpenPlatformAppAuth, OpenPlatformClient } from '@jiaorong/api/open
 import type { OpenPlatformAppCapabilities } from './clientAppCapabilities'
 import ConfirmAction from './ConfirmAction.vue'
 import { useOpenPlatformApps, type OpenPlatformAppCard } from './useOpenPlatformApps'
+import { useRefreshOnReactivate } from './useRefreshOnReactivate'
 
 type PublishField = {
   key: keyof AppManifestFormFields
@@ -63,6 +64,7 @@ const {
   isBusy,
   isServerListLoading,
   refresh,
+  requestRefresh,
   serverError,
   create,
   remove,
@@ -72,6 +74,8 @@ const {
   open,
   unpublish
 } = useOpenPlatformApps({ api: props.api, capabilities: props.capabilities })
+
+useRefreshOnReactivate(() => requestRefresh({ silent: true }))
 
 const PUBLISH_FIELDS: PublishField[] = [
   { key: 'id', required: true, kind: 'input' },
@@ -331,7 +335,7 @@ watch(lastError, (error) => {
     <div class="open-platform-pane__body">
       <div v-if="serverError" class="open-platform-pane__list-error">
         <span>{{ t('routes.openPlatformListFailed') }}</span>
-        <Button type="outline" size="small" @click="refresh">
+        <Button type="outline" size="small" @click="refresh()">
           {{ t('routes.openPlatformRetry') }}
         </Button>
       </div>

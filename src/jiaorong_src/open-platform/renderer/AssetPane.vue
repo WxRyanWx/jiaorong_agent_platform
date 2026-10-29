@@ -38,6 +38,7 @@ import {
   isAssetActionInFlight,
   runExclusiveAssetAction
 } from './assetActionLock'
+import { useRefreshOnReactivate } from './useRefreshOnReactivate'
 
 const props = defineProps<{
   api: OpenPlatformClient
@@ -155,9 +156,10 @@ const confirmDescription = computed(() => {
   return `将使用创建时上传的 zip 包发布「${state.details.name}」的 ${version} 版本。`
 })
 
-async function refresh(): Promise<void> {
+/** `silent` 用于保活回到页面时的后台同步：保留已有卡片，不切加载态、不丢滚动位置。 */
+async function refresh(options: { silent?: boolean } = {}): Promise<void> {
   const sequence = ++refreshSequence
-  isLoading.value = true
+  if (!options.silent) isLoading.value = true
   error.value = ''
   try {
     const page =
@@ -558,6 +560,11 @@ onMounted(() => {
   void ensureSkillCategories()
 })
 
+useRefreshOnReactivate(async () => {
+  await refresh({ silent: true })
+  await ensureSkillCategories()
+})
+
 function openDocs(): void {
   window.open(DEV_DOCS_URLS[props.assetType], '_blank', 'noopener')
 }
@@ -599,7 +606,7 @@ function openDocs(): void {
     <div class="open-platform-pane__body">
       <p v-if="error" class="open-platform-pane__error">{{ error }}</p>
       <div v-if="items.length === 0 && error" class="open-platform-pane__list-error">
-        <Button type="outline" size="small" @click="refresh">
+        <Button type="outline" size="small" @click="refresh()">
           {{ t('routes.openPlatformRetry') }}
         </Button>
       </div>

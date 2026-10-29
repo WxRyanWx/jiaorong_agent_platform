@@ -1,7 +1,7 @@
 <script setup lang="ts">
 defineOptions({ name: 'OpenPlatformPage' })
 
-import { onMounted, ref, watch } from 'vue'
+import { onActivated, onMounted, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import { getOpenPlatformClient } from '@jiaorong/api/openPlatform'
 import { createClientAppCapabilities } from './clientAppCapabilities'
@@ -58,10 +58,23 @@ onMounted(() => {
 
 watch(activeTab, (tab) => {
   localStorage.setItem(TAB_STORAGE_KEY, tab)
-  if (tab === 'knowledge-center') {
-    knowledgeCenterUrl.value = resolveKnowledgeCenterUrl()
-  }
+  if (tab === 'knowledge-center') syncKnowledgeCenterUrl()
 })
+
+onActivated(() => {
+  // 从其它菜单保活回来：登录态可能已换新，仅在 token 变化时重载 iframe
+  if (activeTab.value === 'knowledge-center') syncKnowledgeCenterUrl()
+})
+
+/**
+ * 只在 URL 真正变化（首次进入或 token 换新）时赋值。
+ * 重复赋同一个 src 会让浏览器整页重载 iframe，问答状态随之丢失。
+ */
+function syncKnowledgeCenterUrl(): void {
+  const nextUrl = resolveKnowledgeCenterUrl()
+  if (nextUrl === knowledgeCenterUrl.value) return
+  knowledgeCenterUrl.value = nextUrl
+}
 </script>
 
 <template>
@@ -121,8 +134,10 @@ watch(activeTab, (tab) => {
         description="暂未发布"
         icon='<path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z"/><path d="M14 3v5h5"/>'
       />
+      <!-- 知识中心常驻挂载，切走只隐藏不销毁，返回时保留 iframe 内部会话 -->
       <iframe
-        v-else-if="activeTab === 'knowledge-center' && knowledgeCenterUrl"
+        v-if="knowledgeCenterUrl"
+        v-show="activeTab === 'knowledge-center'"
         class="open-platform-page__iframe"
         :src="knowledgeCenterUrl"
         title="知识中心"
@@ -130,7 +145,10 @@ watch(activeTab, (tab) => {
         referrerpolicy="no-referrer"
         sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads"
       />
-      <div v-else-if="activeTab === 'knowledge-center'" class="open-platform-page__placeholder">
+      <div
+        v-if="activeTab === 'knowledge-center' && !knowledgeCenterUrl"
+        class="open-platform-page__placeholder"
+      >
         <Icon icon="lucide:book-open" />
         <p>知识中心暂不可用，请先登录或稍后再试</p>
       </div>

@@ -98,10 +98,11 @@ export function useOpenPlatformApps(input: {
     return openingId.value === app.id
   }
 
-  async function refresh(): Promise<void> {
+  /** `silent` 用于保活回到页面时的后台同步：保留已有卡片，不切加载态、不丢滚动位置。 */
+  async function refresh(options: { silent?: boolean } = {}): Promise<void> {
     const sequence = ++refreshSequence
     serverError.value = ''
-    isServerListLoading.value = true
+    if (!options.silent) isServerListLoading.value = true
     try {
       const [localApps, serverPage] = await Promise.all([
         capabilities.listLocalApps(),
@@ -311,9 +312,14 @@ export function useOpenPlatformApps(input: {
     }
   }
 
-  async function requestRefresh(): Promise<void> {
-    await capabilities.syncLocalApps(readStoredDevApps(resolveDevAppsStorageKey()))
-    await refresh()
+  async function requestRefresh(options: { silent?: boolean } = {}): Promise<void> {
+    try {
+      await capabilities.syncLocalApps(readStoredDevApps(resolveDevAppsStorageKey()))
+    } catch (error) {
+      // 本地目录同步失败不该挡服务端列表，页面保活期间也可能是后台事件触发
+      console.warn('[open-platform] sync local apps failed', error)
+    }
+    await refresh(options)
   }
 
   function onAuthSessionChanged(): void {
@@ -323,7 +329,10 @@ export function useOpenPlatformApps(input: {
   let stopLocalAppsChanged: (() => void) | undefined
 
   onMounted(() => {
-    stopLocalAppsChanged = capabilities.onLocalAppsChanged(requestRefresh)
+    // 页面保活后该监听在切走时仍然存活，后台事件用静默刷新，避免回来看到加载态
+    stopLocalAppsChanged = capabilities.onLocalAppsChanged(
+      () => void requestRefresh({ silent: true })
+    )
     window.addEventListener(JIAORONG_AUTH_SESSION_CHANGED_EVENT, onAuthSessionChanged)
     void requestRefresh()
   })
@@ -340,6 +349,7 @@ export function useOpenPlatformApps(input: {
     isBusy,
     isServerListLoading,
     refresh,
+    requestRefresh,
     isOpening,
     create,
     remove,
