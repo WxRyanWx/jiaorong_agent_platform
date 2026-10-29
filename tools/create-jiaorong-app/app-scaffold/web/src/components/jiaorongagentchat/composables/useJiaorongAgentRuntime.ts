@@ -735,14 +735,17 @@ export function useJiaorongAgentRuntime(options: {
     }
   }
 
-  /** 拉一次模型目录并缓存；列表页或已有缓存则跳过。 */
-  async function ensureModels() {
-    // 列表页不需要模型；已有缓存则不再打 catalog
-    if (!client || isListSurface() || models.value.length > 0) return
+  /**
+   * 拉模型目录；默认复用缓存，force 时强制刷新。
+   * @param force 是否忽略缓存（客户端可能刚换过模型）
+   */
+  async function ensureModels(force = false) {
+    // 列表页不需要模型；非强制且已有缓存则不再打 catalog
+    if (!client || isListSurface() || (!force && models.value.length > 0)) return
     try {
       models.value = (await client.catalog.models()).models
     } catch {
-      models.value = []
+      // 刷新失败保留现有目录，避免下拉被清空
     }
   }
 
@@ -916,15 +919,10 @@ export function useJiaorongAgentRuntime(options: {
     return client
   }
 
-  /** 创建会话时带的模型：用户 pending > 交融默认 > 目录第一项。 */
+  /** 创建会话时带的模型：用户 pending > 客户端默认（宿主把默认模型排在目录首位）。 */
   function resolveCreateModel() {
     if (pendingModel.value) return pendingModel.value // 用户已在新会话里选过模型
-    const defaultModel =
-      models.value.find(
-        (item) => item.providerId === 'jiaorong' && item.modelId === 'jiaorong-deepseek-V4.1-flash'
-      ) ??
-      models.value.find((item) => item.providerId === 'jiaorong') ??
-      models.value[0]
+    const defaultModel = models.value[0]
     if (!defaultModel) return null // catalog 还没回来：create 不带模型字段
     return { providerId: defaultModel.providerId, modelId: defaultModel.modelId }
   }

@@ -3516,25 +3516,62 @@ export async function createMainProcessControl(dependencies: {
     getLocale: () => desktopSettings.getLanguage(),
     getTheme: () => (desktopSettings.getCurrentThemeIsDark() ? 'dark' : 'light'),
     listEnabledModels: () => {
-      const models: Array<{
+      /** 读设置里的模型选择；两个字段都齐全才算有效。 */
+      const readSelection = (value: unknown): { providerId: string; modelId: string } | null => {
+        if (!value || typeof value !== 'object') return null
+        const record = value as Record<string, unknown>
+        const providerId = typeof record.providerId === 'string' ? record.providerId.trim() : ''
+        const modelId = typeof record.modelId === 'string' ? record.modelId.trim() : ''
+        return providerId && modelId ? { providerId, modelId } : null
+      }
+      /** 候选默认模型：主界面切换写 preferredModel，设置里的默认模型写 defaultModel。 */
+      const selections = [
+        readSelection(dependencies.settingsStore.get('preferredModel')),
+        readSelection(dependencies.settingsStore.get('defaultModel'))
+      ].filter((item): item is { providerId: string; modelId: string } => item !== null)
+      /** 按 provider 分组收集启用模型，保持原有顺序。 */
+      const groups: Array<{
         providerId: string
-        modelId: string
-        name: string
-        providerName?: string
+        items: Array<{ providerId: string; modelId: string; name: string; providerName?: string }>
       }> = []
       for (const provider of providerSettings.getProviders()) {
         if (!provider.enable) continue
+        const items: (typeof groups)[number]['items'] = []
         for (const model of providerSettings.getProviderModels(provider.id)) {
           if (model.enabled === false) continue
           const modelId = model.id?.trim()
           if (!modelId) continue
-          models.push({
+          items.push({
             providerId: provider.id,
             modelId,
             name: model.name?.trim() || modelId,
             providerName: provider.name?.trim() || provider.id
           })
         }
+        if (items.length > 0) groups.push({ providerId: provider.id, items })
+      }
+      /** 真正可用的默认模型：候选里第一个仍然启用的。 */
+      const preferred =
+        selections.find((selection) =>
+          groups.some(
+            (group) =>
+              group.providerId === selection.providerId &&
+              group.items.some((item) => item.modelId === selection.modelId)
+          )
+        ) ?? null
+      if (preferred) {
+        // 提到所属供应商首位：老脚手架按供应商取首项时也能命中
+        const group = groups.find((item) => item.providerId === preferred.providerId)
+        const index = group?.items.findIndex((item) => item.modelId === preferred.modelId) ?? -1
+        if (group && index > 0) group.items.unshift(...group.items.splice(index, 1))
+      }
+      const models = groups.flatMap((group) => group.items)
+      if (preferred) {
+        // 提到目录首位：应用侧统一取 models[0]
+        const index = models.findIndex(
+          (item) => item.providerId === preferred.providerId && item.modelId === preferred.modelId
+        )
+        if (index > 0) models.unshift(...models.splice(index, 1))
       }
       return models
     },

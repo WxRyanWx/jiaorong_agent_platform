@@ -710,7 +710,7 @@ defineExpose({
                 @toggle-tool="(name) => void runtime.toggleAgentTool(name)"
                 @open-settings="void runtime.loadAdvancedPanel()"
                 @open-collab="void runtime.loadGenerationSettings()"
-                @open-models="void runtime.ensureModels()"
+                @open-models="void runtime.ensureModels(true)"
               />
             </div>
           </div>

@@ -23,8 +23,6 @@ import duihuaIcon from '../assets/duihua.png'
 
 /** 默认供应商 id，未选中时回退到这里 */
 const DEFAULT_PROVIDER_ID = 'jiaorong'
-/** 默认模型 id，未选中时回退到这里 */
-const DEFAULT_MODEL_ID = 'jiaorong-deepseek-V4.1-flash'
 /** 推理力度取值对应的中文标签 */
 const REASONING_LABELS: Record<string, string> = {
   none: '关闭',
@@ -159,24 +157,14 @@ const modelSearch = shallowRef('')
 const rootEl = shallowRef<HTMLElement | null>(null)
 /** 是否开启主动协作 */
 const collaboration = computed(() => props.orchestration === 'proactive')
-/** 未指定模型时的回退：优先默认 id，再同供应商，再目录第一项 */
-const fallbackModel = computed(() => {
-  const selected = props.models.find(
-    (item) => item.providerId === DEFAULT_PROVIDER_ID && item.modelId === DEFAULT_MODEL_ID
-  )
-  if (selected) return selected
-  return (
-    props.models.find((item) => item.providerId === DEFAULT_PROVIDER_ID) ?? props.models[0] ?? null
-  )
-})
+/** 未指定模型时的回退：客户端默认模型（宿主排在目录首位） */
+const fallbackModel = computed(() => props.models[0] ?? null)
 /** 实际展示 / 选中的供应商 */
 const resolvedProviderId = computed(
   () => props.providerId?.trim() || fallbackModel.value?.providerId || DEFAULT_PROVIDER_ID
 )
 /** 实际展示 / 选中的模型 */
-const resolvedModelId = computed(
-  () => props.modelId?.trim() || fallbackModel.value?.modelId || DEFAULT_MODEL_ID
-)
+const resolvedModelId = computed(() => props.modelId?.trim() || fallbackModel.value?.modelId || '')
 /** 触发器上显示的模型 id */
 const displayModel = computed(() => resolvedModelId.value)
 /** 触发器图标种类 */
