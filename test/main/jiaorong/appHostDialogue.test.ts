@@ -645,8 +645,8 @@ describe('jiaorong app dialogue bridge', () => {
       name: '示例工作台助手',
       enabled: true,
       config: {
-        assistantModel: { providerId: 'jiaorong', modelId: 'jiaorong-deepseek-v4-pro' },
-        defaultModelPreset: { providerId: 'jiaorong', modelId: 'jiaorong-deepseek-v4-pro' },
+        assistantModel: { providerId: 'jiaorong', modelId: 'jiaorong-deepseek-V4.1-flash' },
+        defaultModelPreset: { providerId: 'jiaorong', modelId: 'jiaorong-deepseek-V4.1-flash' },
         jiaorongAppId: 'demo-workbench',
         jiaorongAppKey: 'unit-test-agent'
       }
@@ -809,8 +809,8 @@ describe('jiaorong app dialogue bridge', () => {
     expect(createDeepChatAgent).toHaveBeenCalledWith(
       expect.objectContaining({
         config: expect.objectContaining({
-          assistantModel: { providerId: 'jiaorong', modelId: 'jiaorong-deepseek-v4-pro' },
-          defaultModelPreset: { providerId: 'jiaorong', modelId: 'jiaorong-deepseek-v4-pro' },
+          assistantModel: { providerId: 'jiaorong', modelId: 'jiaorong-deepseek-V4.1-flash' },
+          defaultModelPreset: { providerId: 'jiaorong', modelId: 'jiaorong-deepseek-V4.1-flash' },
           jiaorongAppId: 'demo-workbench',
           jiaorongAppKey: 'inherit-model'
         })
@@ -834,8 +834,8 @@ describe('jiaorong app dialogue bridge', () => {
       config: {
         systemPrompt: 'new prompt',
         enabledSkillNames: ['app.demo-workbench.contract-review'],
-        assistantModel: { providerId: 'jiaorong', modelId: 'jiaorong-deepseek-v4-pro' },
-        defaultModelPreset: { providerId: 'jiaorong', modelId: 'jiaorong-deepseek-v4-pro' },
+        assistantModel: { providerId: 'jiaorong', modelId: 'jiaorong-deepseek-V4.1-flash' },
+        defaultModelPreset: { providerId: 'jiaorong', modelId: 'jiaorong-deepseek-V4.1-flash' },
         jiaorongAppId: 'demo-workbench',
         jiaorongAppKey: 'workbench'
       }
@@ -1089,7 +1089,11 @@ describe('jiaorong app dialogue bridge', () => {
       deps({
         getAuthSession: () => ({ token: 'tok-1' }),
         listEnabledModels: () => [
-          { providerId: 'jiaorong', modelId: 'jiaorong-deepseek-v4-pro', name: 'DeepSeek V4 Pro' }
+          {
+            providerId: 'jiaorong',
+            modelId: 'jiaorong-deepseek-V4.1-flash',
+            name: 'DeepSeek V4 Pro'
+          }
         ]
       }),
       runtime,
@@ -1099,7 +1103,7 @@ describe('jiaorong app dialogue bridge', () => {
     )
     expect(result).toEqual({
       models: [
-        { providerId: 'jiaorong', modelId: 'jiaorong-deepseek-v4-pro', name: 'DeepSeek V4 Pro' }
+        { providerId: 'jiaorong', modelId: 'jiaorong-deepseek-V4.1-flash', name: 'DeepSeek V4 Pro' }
       ]
     })
   })
@@ -1123,7 +1127,7 @@ describe('jiaorong app dialogue bridge', () => {
       updatedAt: 1,
       status: 'idle',
       providerId: 'jiaorong',
-      modelId: 'jiaorong-deepseek-v4-pro'
+      modelId: 'jiaorong-deepseek-V4.1-flash'
     })
     const result = await handleAppBridgeInvoke(
       deps({
@@ -1166,16 +1170,16 @@ describe('jiaorong app dialogue bridge', () => {
         appId: 'demo-workbench',
         sessionId: 's-1',
         providerId: 'jiaorong',
-        modelId: 'jiaorong-deepseek-v4-pro'
+        modelId: 'jiaorong-deepseek-V4.1-flash'
       },
       1
     )
-    expect(setSessionModel).toHaveBeenCalledWith('s-1', 'jiaorong', 'jiaorong-deepseek-v4-pro')
+    expect(setSessionModel).toHaveBeenCalledWith('s-1', 'jiaorong', 'jiaorong-deepseek-V4.1-flash')
     expect(result).toMatchObject({
       session: expect.objectContaining({
         id: 's-1',
         providerId: 'jiaorong',
-        modelId: 'jiaorong-deepseek-v4-pro'
+        modelId: 'jiaorong-deepseek-V4.1-flash'
       })
     })
   })

@@ -18,7 +18,10 @@ export const ARTIFACTS_FOOTER = `Generated with ${APP_NAME} | All page content i
 
 /** 超级智能体未指定模型时的默认服务商与模型，与 CLI、内置 Provider 启用模型一致。 */
 export const JIAORONG_DEFAULT_PROVIDER_ID = 'jiaorong'
-export const JIAORONG_DEFAULT_MODEL_ID = 'jiaorong-deepseek-v4-pro'
+export const JIAORONG_DEFAULT_MODEL_ID = 'jiaorong-deepseek-V4.1-flash'
+
+/** 历史默认模型，仅用于升级迁移识别，不再作为运行时默认值。 */
+export const JIAORONG_LEGACY_DEFAULT_MODEL_ID = 'jiaorong-deepseek-v4-pro'
 
 export {
   FORCED_THEME_MODE,

@@ -29,6 +29,8 @@ export type DevCenterMutationResult = {
   message?: string
   record?: JiaorongDevAppRecord
   fields?: AppManifestFormFields
+  /** 校验并回写 app.json 后的发布包（base64），供渲染进程上传开放平台。 */
+  zipBase64?: string
 }
 
 /** 选 zip 返回。 */
@@ -37,6 +39,9 @@ export type DevCenterPickResult = {
   message?: string
   filePath?: string
 }
+
+/** 发布包上限；base64 走 IPC，超过就不传，与技能安装侧口径一致。 */
+const MAX_PUBLISH_ZIP_BYTES = 200 * 1024 * 1024
 
 /**
  * 从运行时应用目录找已发布应用。
@@ -146,14 +151,20 @@ export function peekDevZipManifest(
 }
 
 /**
- * 发布：校验表单、把确认后的 app.json 写入临时 zip，再连同清单提交后管。
- * 服务端接口未接入时本地占位成功。
+ * 发布：校验表单，把确认后的 app.json 写回临时 zip。
+ * 返回回写后的 zip（base64），由渲染进程上传到开放平台。
  * @param deps 超级智能体依赖
  * @param input 弹窗确认结果
  */
 export async function publishDevApp(
   deps: JiaorongAppHostDeps,
-  input: { appId: string; manifestJson: string; zipPath: string }
+  input: {
+    appId: string
+    manifestJson: string
+    zipPath: string
+    /** 服务端卡片（本机没登记目录）发布时置真，跳过本地登记校验。 */
+    allowUnregistered?: boolean
+  }
 ): Promise<DevCenterMutationResult> {
   /** 当前登录身份。 */
   const user = readUserIdentityFromAuthSession(deps.getAuthSession())
@@ -184,7 +195,10 @@ export async function publishDevApp(
   const fields = formFieldsFromRecord(record)
   /** 当前登记项；发布只能从开发者中心已有卡片发起。 */
   const currentRecord = getDevApps().find((item) => item.id === appId)
-  if (!currentRecord) return { ok: false, message: '应用不存在或已被移除' }
+  // 开放平台的服务端卡片本机没有登记目录，由调用方显式放行
+  if (!currentRecord && !input.allowUnregistered) {
+    return { ok: false, message: '应用不存在或已被移除' }
+  }
   /** 当前登记项对应的线上应用；存在时本卡片处于更新模式。 */
   const publishedForCurrentApp = findPublishedAppRecord(appId)
   if (fields.id !== appId) return { ok: false, message: '应用 ID 不能修改' }
@@ -203,12 +217,21 @@ export async function publishDevApp(
     return { ok: false, message: patched.message || '写入 zip 失败' }
   }
   try {
-    fs.rmSync(patched.zipPath, { force: true })
-  } catch (error) {
-    console.warn('[jiaorong-dev-center] Failed to cleanup publish zip', patched.zipPath, error)
+    /** 临时包大小；超过上限不做 base64，避免 IPC 传巨串。 */
+    const size = fs.statSync(patched.zipPath).size
+    if (size > MAX_PUBLISH_ZIP_BYTES) {
+      return { ok: false, message: 'zip 包超过 200MB 上限，请精简后重新打包' }
+    }
+    return { ok: true, zipBase64: fs.readFileSync(patched.zipPath).toString('base64') }
+  } catch {
+    return { ok: false, message: '读取 zip 失败' }
+  } finally {
+    try {
+      fs.rmSync(patched.zipPath, { force: true })
+    } catch (error) {
+      console.warn('[jiaorong-dev-center] Failed to cleanup publish zip', patched.zipPath, error)
+    }
   }
-  // 接口未给：本地完成校验后返回成功占位，不保留临时包
-  return { ok: true, message: '发布接口待接入，本次仅本地记录' }
 }
 
 /**

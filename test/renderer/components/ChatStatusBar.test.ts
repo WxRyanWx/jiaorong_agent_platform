@@ -1135,15 +1135,15 @@ describe('ChatStatusBar model and session panels', () => {
       hasActiveSession: true,
       isAdmin: true,
       activeProviderId: 'jiaorong',
-      activeModelId: 'jiaorong-deepseek-v4-pro',
-      defaultModel: { providerId: 'jiaorong', modelId: 'jiaorong-deepseek-v4-pro' },
-      preferredModel: { providerId: 'jiaorong', modelId: 'jiaorong-deepseek-v4-pro' },
+      activeModelId: 'jiaorong-deepseek-V4.1-flash',
+      defaultModel: { providerId: 'jiaorong', modelId: 'jiaorong-deepseek-V4.1-flash' },
+      preferredModel: { providerId: 'jiaorong', modelId: 'jiaorong-deepseek-V4.1-flash' },
       extraModelGroups: [
         {
           providerId: 'jiaorong',
           providerName: 'Jiaorong',
           apiType: 'openai-completions',
-          models: [{ id: 'jiaorong-deepseek-v4-pro', name: 'jiaorong-deepseek-v4-pro' }]
+          models: [{ id: 'jiaorong-deepseek-V4.1-flash', name: 'jiaorong-deepseek-V4.1-flash' }]
         }
       ]
     })

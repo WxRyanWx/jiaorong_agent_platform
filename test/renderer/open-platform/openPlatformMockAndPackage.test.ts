@@ -2,13 +2,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { strToU8, zipSync } from 'fflate'
 import { defineComponent } from 'vue'
 import { flushPromises, mount } from '@vue/test-utils'
-import { createMockOpenPlatformClient } from '@jiaorong/open-platform/api/mockOpenPlatformApi'
-import { setOpenPlatformClient } from '@jiaorong/open-platform/api'
+import { createMockOpenPlatformClient } from './helpers/mockOpenPlatformClient'
+import { setOpenPlatformClient } from '@jiaorong/api/openPlatform'
 import {
   listOpenPlatformMarketApps,
   listOpenPlatformMarketConnectors,
   listOpenPlatformMarketSkills
-} from '@jiaorong/open-platform/renderer/openPlatformMarket'
+} from '@jiaorong/plugins/market/openPlatformMarket'
 import {
   parseConnectorPackage,
   parseSkillPackage
@@ -19,7 +19,7 @@ import {
   type OpenPlatformAppCard
 } from '@jiaorong/open-platform/renderer/useOpenPlatformApps'
 import type { OpenPlatformAppCapabilities } from '@jiaorong/open-platform/renderer/clientAppCapabilities'
-import type { OpenPlatformClient } from '@jiaorong/open-platform/types'
+import type { OpenPlatformClient } from '@jiaorong/api/openPlatform/types'
 
 vi.mock('@jiaorong/auth/host', () => ({
   JIAORONG_AUTH_SESSION_CHANGED_EVENT: 'jiaorong-auth-session-changed'
@@ -88,17 +88,89 @@ describe('open platform mock api', () => {
     expect(market.items).toHaveLength(0)
   })
 
-  it('publishes and updates skills without version checks', async () => {
+  it('requires an increased version when publishing and updating skills', async () => {
     const metadata = {
       name: 'my-skill',
       displayName: '我的技能',
       description: '技能描述'
     }
-    await client.publishSkill({ provider: PUBLISH_PROVIDER, metadata })
-    await client.publishSkill({ id: 'my-skill', provider: PUBLISH_PROVIDER, metadata })
-    const skills = await client.listSkills()
+    await expect(
+      client.publishSkill({ provider: PUBLISH_PROVIDER, metadata })
+    ).rejects.toMatchObject({ code: 'INVALID_REQUEST' })
+    await expect(
+      client.publishSkill({ provider: PUBLISH_PROVIDER, version: '1.0', metadata })
+    ).rejects.toMatchObject({ code: 'INVALID_REQUEST' })
+    await client.publishSkill({ provider: PUBLISH_PROVIDER, version: '1.0.0', metadata })
+    await expect(
+      client.publishSkill({
+        id: 'my-skill',
+        provider: PUBLISH_PROVIDER,
+        version: '1.0.0',
+        metadata
+      })
+    ).rejects.toMatchObject({ code: 'VERSION_NOT_INCREASED' })
+    await client.publishSkill({
+      id: 'my-skill',
+      provider: PUBLISH_PROVIDER,
+      version: '1.0.1',
+      metadata
+    })
+    const skills = await client.listSkills('mine')
     expect(skills.items).toHaveLength(1)
     expect(skills.items[0]?.name).toBe('我的技能')
+    expect(skills.items[0]?.version).toBe('1.0.1')
+  })
+
+  it('keeps skill and connector drafts versionless until publish', async () => {
+    const draft = await client.createSkill({
+      metadata: { name: 'draft-ver', displayName: '草稿', description: '草稿描述' }
+    })
+    expect(draft.version).toBeNull()
+    const published = await client.publishSkill({
+      id: 'draft-ver',
+      provider: PUBLISH_PROVIDER,
+      version: '0.1.0',
+      metadata: { name: 'draft-ver', displayName: '草稿', description: '草稿描述' }
+    })
+    expect(published.version).toBe('0.1.0')
+  })
+
+  it('stores the skill categoryId on publish and lists built-in categories', async () => {
+    const categories = await client.listSkillCategories()
+    expect(categories).toEqual([
+      { id: 'bidding', categoryName: '经营投标' },
+      { id: 'engineering', categoryName: '工程建设' },
+      { id: 'legal', categoryName: '合约法务' },
+      { id: 'office', categoryName: '综合办公' },
+      { id: 'rd', categoryName: '软件研发' }
+    ])
+
+    const metadata = { name: 'cat-skill', displayName: '分类技能', description: '描述' }
+    const published = await client.publishSkill({
+      provider: PUBLISH_PROVIDER,
+      version: '1.0.0',
+      categoryId: 'rd',
+      metadata
+    })
+    expect(published.categoryId).toBe('rd')
+
+    // 更新发布不带 categoryId 时沿用已存分类
+    const updated = await client.publishSkill({
+      id: 'cat-skill',
+      provider: PUBLISH_PROVIDER,
+      version: '1.0.1',
+      metadata
+    })
+    expect(updated.categoryId).toBe('rd')
+
+    // 连接器不受 categoryId 影响
+    await client.publishConnector({
+      provider: PUBLISH_PROVIDER,
+      version: '1.0.0',
+      metadata: { id: 'cat-connector', name: 'cat-connector', description: '描述', type: 'http' }
+    })
+    const connectors = await client.listConnectors('mine')
+    expect(connectors.items[0]?.categoryId).toBeUndefined()
   })
 
   it('requires a publish provider for all asset types', async () => {
@@ -135,7 +207,7 @@ describe('open platform mock api', () => {
     expect(connector.status).toBe('draft')
 
     const nextClient = createMockOpenPlatformClient()
-    await expect(nextClient.listSkills()).resolves.toMatchObject({
+    await expect(nextClient.listSkills('mine')).resolves.toMatchObject({
       items: [{ id: 'draft-skill', status: 'draft' }]
     })
     await expect(nextClient.listConnectors('mine')).resolves.toMatchObject({
@@ -149,9 +221,10 @@ describe('open platform mock api', () => {
     await nextClient.publishSkill({
       id: 'draft-skill',
       provider: PUBLISH_PROVIDER,
+      version: '1.0.0',
       metadata: skillMetadata
     })
-    await expect(nextClient.listSkills()).resolves.toMatchObject({
+    await expect(nextClient.listSkills('mine')).resolves.toMatchObject({
       items: [{ id: 'draft-skill', status: 'published' }]
     })
     await nextClient.removeConnector('draft-mcp')
@@ -170,24 +243,48 @@ describe('open platform mock api', () => {
     })
   })
 
-  it('requires app version to increase when republishing after unpublish', async () => {
+  it('keeps the same version when republishing an unpublished app', async () => {
     const manifest = { ...appManifest, id: 'republish-app', version: '1.0.0' }
     await client.publishApp({ provider: PUBLISH_PROVIDER, manifest })
     await client.unpublishApp('republish-app')
-    await expect(
-      client.publishApp({ id: 'republish-app', provider: PUBLISH_PROVIDER, manifest })
-    ).rejects.toMatchObject({
-      code: 'VERSION_NOT_INCREASED'
-    })
-    await client.publishApp({
-      id: 'republish-app',
-      provider: PUBLISH_PROVIDER,
-      manifest: { ...manifest, version: '1.0.1' }
-    })
+    await client.publishApp({ id: 'republish-app', provider: PUBLISH_PROVIDER, manifest })
 
     await expect(client.listApps('mine')).resolves.toMatchObject({
-      items: [{ id: 'republish-app', status: 'published', version: '1.0.1' }]
+      items: [{ id: 'republish-app', status: 'published', version: '1.0.0' }]
     })
+  })
+
+  it('rejects a lower version when republishing an unpublished app', async () => {
+    const manifest = { ...appManifest, id: 'republish-downgrade-app', version: '1.1.0' }
+    await client.publishApp({ provider: PUBLISH_PROVIDER, manifest })
+    await client.unpublishApp('republish-downgrade-app')
+
+    await expect(
+      client.publishApp({
+        id: 'republish-downgrade-app',
+        provider: PUBLISH_PROVIDER,
+        manifest: { ...manifest, version: '1.0.9' }
+      })
+    ).rejects.toMatchObject({ code: 'VERSION_NOT_INCREASED' })
+  })
+
+  it('requires a higher app version when republishing with a new package', async () => {
+    const manifest = { ...appManifest, id: 'republish-zip-app', version: '1.0.0' }
+    await client.publishApp({
+      provider: PUBLISH_PROVIDER,
+      manifest,
+      packagePath: '/tmp/republish-zip-app-old.zip'
+    } as MockAppPublishRequest)
+    await client.unpublishApp('republish-zip-app')
+
+    await expect(
+      client.publishApp({
+        id: 'republish-zip-app',
+        provider: PUBLISH_PROVIDER,
+        manifest,
+        packagePath: '/tmp/republish-zip-app-new.zip'
+      } as MockAppPublishRequest)
+    ).rejects.toMatchObject({ code: 'VERSION_NOT_INCREASED' })
   })
 
   it('removes unpublished apps from the mine list', async () => {
@@ -206,6 +303,7 @@ describe('open platform mock api', () => {
     await client.publishApp({ provider: PUBLISH_PROVIDER, manifest: appManifest })
     await client.publishSkill({
       provider: PUBLISH_PROVIDER,
+      version: '1.0.0',
       metadata: {
         name: 'market-skill',
         displayName: '市场技能',
@@ -214,6 +312,7 @@ describe('open platform mock api', () => {
     })
     await client.publishConnector({
       provider: PUBLISH_PROVIDER,
+      version: '1.0.0',
       metadata: {
         id: 'market-mcp',
         name: 'market-mcp',
@@ -234,7 +333,13 @@ describe('open platform mock api', () => {
       }
     ])
     await expect(listOpenPlatformMarketConnectors()).resolves.toMatchObject([
-      { name: 'market-mcp', source: 'open-platform', enabled: false, provider: PUBLISH_PROVIDER }
+      {
+        name: 'market-mcp',
+        source: 'open-platform',
+        enabled: false,
+        provider: PUBLISH_PROVIDER,
+        sourceVersion: '1.0.0'
+      }
     ])
   })
 
@@ -260,6 +365,7 @@ describe('open platform mock api', () => {
           openable: true,
           canUninstall: true,
           developerOnly: false,
+          visibleToCurrentUser: true,
           provider: ''
         }
       ])
@@ -280,27 +386,59 @@ describe('open platform mock api', () => {
     }
   })
 
-  it('maps mock app package paths for local installation', async () => {
+  it('hides builtin apps from the app center market list', async () => {
     setOpenPlatformClient(client)
-    const request: MockAppPublishRequest = {
-      provider: PUBLISH_PROVIDER,
-      manifest: { ...appManifest, id: 'local-package-app' },
-      packagePath: '/tmp/local-package-app.zip'
-    }
-    await client.publishApp(request)
     await client.publishApp({
-      id: 'local-package-app',
       provider: PUBLISH_PROVIDER,
-      manifest: { ...appManifest, id: 'local-package-app', version: '0.0.2' }
+      manifest: { ...appManifest, id: 'builtin-menu-app', source: 'builtin' }
+    })
+    await client.publishApp({
+      provider: PUBLISH_PROVIDER,
+      manifest: { ...appManifest, id: 'store-market-app' }
     })
 
-    await expect(listOpenPlatformMarketApps()).resolves.toMatchObject([
-      {
-        id: 'local-package-app',
-        localPackagePath: '/tmp/local-package-app.zip',
-        remotePackage: false
-      }
-    ])
+    const apps = await listOpenPlatformMarketApps()
+    expect(apps.map((item) => item.id)).toEqual(['store-market-app'])
+  })
+
+  it('hides market cards the current user has no permission for', async () => {
+    setOpenPlatformClient(client)
+    await client.publishApp({
+      provider: PUBLISH_PROVIDER,
+      manifest: { ...appManifest, id: 'restricted-app' }
+    })
+    await client.publishApp({
+      provider: PUBLISH_PROVIDER,
+      manifest: { ...appManifest, id: 'catalog-missing-app' }
+    })
+    const originalJiaorongApps = window.jiaorongApps
+    window.jiaorongApps = {
+      getAppCenterInstallStatuses: vi.fn(async () => [
+        {
+          id: 'restricted-app',
+          name: '受限应用',
+          version: '0.0.1',
+          installedVersion: null,
+          installStatus: 'not_installed',
+          remotePackage: true,
+          localPackagePath: null,
+          openable: false,
+          canUninstall: false,
+          developerOnly: true,
+          visibleToCurrentUser: false,
+          provider: ''
+        }
+      ])
+    } as unknown as typeof window.jiaorongApps
+
+    try {
+      const apps = await listOpenPlatformMarketApps()
+      // auth 未过的卡片直接不展示；目录里查不到的条目按可见处理，避免整页被清空
+      expect(apps.map((item) => item.id)).toEqual(['catalog-missing-app'])
+      expect(apps[0]?.visibleToCurrentUser).toBe(true)
+    } finally {
+      window.jiaorongApps = originalJiaorongApps
+    }
   })
 
   it('passes the selected zip path when updating a remote app', async () => {
@@ -319,7 +457,7 @@ describe('open platform mock api', () => {
       syncLocalApps: vi.fn(async () => undefined),
       listLocalApps: vi.fn(async () => []),
       createLocalApp: vi.fn(async () => ({ ok: true })),
-      publishLocalApp: vi.fn(async () => ({ ok: true })),
+      publishLocalApp: vi.fn(async () => ({ ok: true, zipBase64: 'UEsDBBQ=' })),
       pickZip: vi.fn(async () => null),
       peekZip: vi.fn(async () => null),
       openApp: vi.fn(async () => ({ ok: true })),
@@ -352,7 +490,7 @@ describe('open platform mock api', () => {
     )
     await flushPromises()
 
-    await center?.publishRemote(app, {
+    await center?.publish(app, {
       fields: { ...appManifest, id: 'remote-app' },
       auth: null,
       provider: '信科集团',
@@ -362,7 +500,7 @@ describe('open platform mock api', () => {
     expect(publishApp).toHaveBeenCalledWith(
       expect.objectContaining({
         id: 'remote-app',
-        packagePath: '/tmp/remote-app-new.zip'
+        package: expect.any(Blob)
       })
     )
     wrapper.unmount()
@@ -432,6 +570,28 @@ describe('open platform mock api', () => {
     ])
   })
 
+  it('hides auth-restricted apps until the logged-in identity is stored', async () => {
+    setOpenPlatformClient(client)
+    await client.publishApp({
+      provider: PUBLISH_PROVIDER,
+      manifest: { ...appManifest, id: 'identity-gated-app', name: '身份校验应用' },
+      auth: { orgs: [], userIds: [], phones: ['13000000000'] }
+    })
+
+    // 已登录但 userInfo 还没落盘：带权限的应用不能闪现
+    localStorage.setItem('xkaitoken', 'token')
+    const beforeIdentity = await listOpenPlatformMarketApps()
+    expect(beforeIdentity.some((app) => app.id === 'identity-gated-app')).toBe(false)
+
+    // 身份落盘且手机号命中后可见
+    localStorage.setItem(
+      'userInfo',
+      JSON.stringify({ userName: 'tester', phone: '13000000000', orgList: [] })
+    )
+    const afterIdentity = await listOpenPlatformMarketApps()
+    expect(afterIdentity.some((app) => app.id === 'identity-gated-app')).toBe(true)
+  })
+
   it('keeps organization names separate from organization ids', async () => {
     const created = await client.publishApp({
       provider: PUBLISH_PROVIDER,
@@ -447,23 +607,49 @@ describe('open platform mock api', () => {
     })
   })
 
-  it('keeps connector type and supports republish after unpublish', async () => {
+  it('keeps connector type and version when republishing after unpublish', async () => {
     const metadata = {
       id: 'republish-mcp',
       name: 'republish-mcp',
       description: '重新发布连接器',
       type: 'sse' as const
     }
-    await client.publishConnector({ provider: PUBLISH_PROVIDER, metadata })
+    await client.publishConnector({ provider: PUBLISH_PROVIDER, version: '1.0.0', metadata })
     await client.unpublishConnector('republish-mcp')
-    await client.publishConnector({ id: 'republish-mcp', provider: PUBLISH_PROVIDER, metadata })
+    await client.publishConnector({
+      id: 'republish-mcp',
+      provider: PUBLISH_PROVIDER,
+      version: '1.0.0',
+      metadata
+    })
 
     const connectors = await client.listConnectors('market')
     expect(connectors.items[0]).toMatchObject({
       id: 'republish-mcp',
       status: 'published',
-      connectorType: 'sse'
+      connectorType: 'sse',
+      version: '1.0.0'
     })
+  })
+
+  it('rejects a lower connector version when republishing after unpublish', async () => {
+    const metadata = {
+      id: 'republish-downgrade-mcp',
+      name: 'republish-downgrade-mcp',
+      description: '降版本重新发布连接器',
+      type: 'sse' as const
+    }
+    await client.publishConnector({ provider: PUBLISH_PROVIDER, version: '2.0.0', metadata })
+    await client.unpublishConnector('republish-downgrade-mcp')
+
+    await expect(
+      client.publishConnector({
+        id: 'republish-downgrade-mcp',
+        provider: PUBLISH_PROVIDER,
+        version: '1.9.9',
+        metadata
+      })
+    ).rejects.toMatchObject({ code: 'VERSION_NOT_INCREASED' })
   })
 
   it('removes unpublished skills and connectors from the mine list', async () => {
@@ -474,14 +660,22 @@ describe('open platform mock api', () => {
       description: '移除连接器',
       type: 'http' as const
     }
-    await client.publishSkill({ provider: PUBLISH_PROVIDER, metadata: skillMetadata })
-    await client.publishConnector({ provider: PUBLISH_PROVIDER, metadata: connectorMetadata })
+    await client.publishSkill({
+      provider: PUBLISH_PROVIDER,
+      version: '1.0.0',
+      metadata: skillMetadata
+    })
+    await client.publishConnector({
+      provider: PUBLISH_PROVIDER,
+      version: '1.0.0',
+      metadata: connectorMetadata
+    })
     await client.unpublishSkill('remove-skill')
     await client.unpublishConnector('remove-mcp')
     await client.removeSkill('remove-skill')
     await client.removeConnector('remove-mcp')
 
-    await expect(client.listSkills()).resolves.toMatchObject({ items: [] })
+    await expect(client.listSkills('mine')).resolves.toMatchObject({ items: [] })
     await expect(client.listConnectors('mine')).resolves.toMatchObject({ items: [] })
   })
 })

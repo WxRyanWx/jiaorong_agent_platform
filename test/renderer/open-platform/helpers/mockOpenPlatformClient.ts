@@ -1,4 +1,4 @@
-/** 开放平台 mock API：接口形状对齐后端契约，后端接入后替换实现即可。 */
+/** 开放平台接口替身：形状对齐后端契约，仅供渲染层单测注入，生产代码不再引用。 */
 
 import type {
   OpenPlatformApiError,
@@ -7,18 +7,31 @@ import type {
   OpenPlatformAppPublishInput,
   OpenPlatformAssetSummary,
   OpenPlatformClient,
+  OpenPlatformConnectorConfig,
+  OpenPlatformConnectorListItem,
   OpenPlatformConnectorPublishInput,
   OpenPlatformPage,
-  OpenPlatformResponse,
   OpenPlatformScope,
+  OpenPlatformSkillCategory,
   OpenPlatformSkillPublishInput
-} from '../types'
+} from '@jiaorong/api/openPlatform/types'
+import {
+  compareOpenPlatformVersions,
+  isValidOpenPlatformVersion
+} from '@jiaorong/api/openPlatform/version'
 
 const STORAGE_KEY = 'jiaorong-open-platform-mock:v1'
 const APP_ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
-const APP_VERSION_PATTERN = /^\d+\.\d+\.\d+(?:-[\w.]+)?(?:\+[\w.]+)?$/
 const SKILL_NAME_PATTERN = /^[a-z0-9][a-z0-9._-]*$/
 const MOCK_CLIENT_MARKER = Symbol('jiaorong-open-platform-mock-client')
+/** 与测试环境 `skillCategory/list` 实测返回一致的内置分类，仅供 mock / 单测使用。 */
+const MOCK_SKILL_CATEGORIES: readonly OpenPlatformSkillCategory[] = [
+  { id: 'bidding', categoryName: '经营投标' },
+  { id: 'engineering', categoryName: '工程建设' },
+  { id: 'legal', categoryName: '合约法务' },
+  { id: 'office', categoryName: '综合办公' },
+  { id: 'rd', categoryName: '软件研发' }
+]
 
 type MockAsset = {
   type: 'app' | 'skill' | 'connector'
@@ -35,6 +48,8 @@ type MockAsset = {
   auth?: OpenPlatformAppAuth | null
   connectorType?: 'stdio' | 'http' | 'sse'
   packagePath?: string
+  config?: OpenPlatformConnectorConfig
+  categoryId?: string
 }
 
 type MockStore = {
@@ -53,42 +68,21 @@ function createApiError(
   return error
 }
 
-function parseVersionParts(version: string): { core: number[]; pre: string[] } | null {
-  const matched = /^(\d+)\.(\d+)\.(\d+)(?:-([\w.]+))?(?:\+[\w.]+)?$/.exec(version.trim())
-  if (!matched) return null
-  return {
-    core: [Number(matched[1]), Number(matched[2]), Number(matched[3])],
-    pre: matched[4] ? matched[4].split('.') : []
+/** 发布（非草稿）时版本号必填且必须是 semver 三段式。 */
+function requirePublishVersion(input: { version?: string }, requireVersion: boolean): string {
+  const version = input.version?.trim() ?? ''
+  if (!requireVersion) return version
+  if (!version) {
+    throw createApiError('INVALID_REQUEST', '版本号不能为空', [
+      { field: 'version', message: '版本号不能为空' }
+    ])
   }
-}
-
-function compareVersion(a: string, b: string): number {
-  const left = parseVersionParts(a)
-  const right = parseVersionParts(b)
-  if (!left || !right) return 0
-  for (let index = 0; index < 3; index += 1) {
-    if (left.core[index] !== right.core[index]) {
-      return left.core[index] > right.core[index] ? 1 : -1
-    }
+  if (!isValidOpenPlatformVersion(version)) {
+    throw createApiError('INVALID_REQUEST', '版本号要用三段式版本号，例如 1.0.0', [
+      { field: 'version', message: '版本号格式不合法' }
+    ])
   }
-  if (left.pre.length === 0 && right.pre.length === 0) return 0
-  if (left.pre.length === 0) return 1
-  if (right.pre.length === 0) return -1
-  const length = Math.max(left.pre.length, right.pre.length)
-  for (let index = 0; index < length; index += 1) {
-    const leftPart = left.pre[index]
-    const rightPart = right.pre[index]
-    if (leftPart === undefined) return -1
-    if (rightPart === undefined) return 1
-    if (leftPart === rightPart) continue
-    const leftNumber = /^\d+$/.test(leftPart) ? Number(leftPart) : null
-    const rightNumber = /^\d+$/.test(rightPart) ? Number(rightPart) : null
-    if (leftNumber !== null && rightNumber !== null) return leftNumber > rightNumber ? 1 : -1
-    if (leftNumber !== null) return -1
-    if (rightNumber !== null) return 1
-    return leftPart > rightPart ? 1 : -1
-  }
-  return 0
+  return version
 }
 
 function normalizeAuth(value: OpenPlatformAppAuth | null | undefined): OpenPlatformAppAuth | null {
@@ -149,6 +143,7 @@ function mutateStore<T>(mutate: (store: MockStore) => T): T {
 }
 
 function toAssetSummary(asset: MockAsset): OpenPlatformAssetSummary {
+  const downloadUrl = `https://mock.jiaorong.ai/${asset.type}/${encodeURIComponent(asset.id)}.zip`
   return {
     type: asset.type,
     id: asset.id,
@@ -163,11 +158,17 @@ function toAssetSummary(asset: MockAsset): OpenPlatformAssetSummary {
     latestRelease: {
       version: asset.version,
       releaseId: `mock_${asset.type}_${asset.id}`,
-      downloadUrl: `https://mock.jiaorong.ai/${asset.type}/${encodeURIComponent(asset.id)}.zip`,
+      downloadUrl,
       sha256: `${asset.type}-${asset.id}-${asset.updatedAt}`,
       publishedAt: asset.updatedAt
     },
-    connectorType: asset.connectorType
+    // 与 http client 契约一致：顶层下载地址恒有值
+    downloadUrl,
+    connectorType: asset.connectorType,
+    ...(asset.categoryId ? { categoryId: asset.categoryId } : {}),
+    // mock 里的技能 / 连接器都相当于开放平台发布项；
+    // 应用的新旧标识走 `source: builtin | store`，不复用该字段
+    ...(asset.type === 'app' ? {} : { assetSource: 'open-platform' as const })
   }
 }
 
@@ -177,6 +178,16 @@ function toAppSummary(asset: MockAsset): OpenPlatformAppAssetSummary {
     source: asset.source ?? 'store',
     slot: asset.slot ?? 'app-center',
     auth: asset.auth ?? null
+  }
+}
+
+/** 市场条目按契约附带客户端可直接使用的 MCP 配置；旧 mock 数据没有 config 时由消费端降级。 */
+function toConnectorMarketItem(asset: MockAsset): OpenPlatformConnectorListItem {
+  return {
+    ...toAssetSummary(asset),
+    ...(asset.config ? { config: asset.config } : {}),
+    source: 'open-platform',
+    sourceId: asset.id
   }
 }
 
@@ -207,7 +218,7 @@ function normalizeAppInput(input: OpenPlatformAppPublishInput): MockAsset {
       { field: 'manifest.id', message: '应用 ID 不合法' }
     ])
   }
-  if (!APP_VERSION_PATTERN.test(manifest.version)) {
+  if (!isValidOpenPlatformVersion(manifest.version)) {
     throw createApiError('INVALID_REQUEST', '版本号要用三段式版本号，例如 1.0.0')
   }
   return {
@@ -220,7 +231,7 @@ function normalizeAppInput(input: OpenPlatformAppPublishInput): MockAsset {
     status: 'published',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-    source: 'store',
+    source: manifest.source === 'builtin' ? 'builtin' : 'store',
     slot: manifest.slot === 'menu' ? 'menu' : 'app-center',
     auth: normalizeAuth(input.auth),
     packagePath: readMockPackagePath(input) || undefined
@@ -238,20 +249,23 @@ function normalizeSkillInput(
       { field: 'provider', message: '发布组织不能为空' }
     ])
   }
+  const version = requirePublishVersion(input, options.requireProvider)
   if (!SKILL_NAME_PATTERN.test(metadata.name)) {
     throw createApiError('INVALID_REQUEST', '技能名只能包含小写字母、数字、点、下划线和中划线')
   }
   if (!metadata.description.trim()) throw createApiError('INVALID_REQUEST', '技能简介不能为空')
+  const categoryId = input.categoryId?.trim() ?? ''
   return {
     type: 'skill',
     id: metadata.name,
     name: metadata.displayName.trim() || metadata.name,
     description: metadata.description.trim(),
     ...(provider ? { provider } : {}),
-    version: null,
+    version: version || null,
     status: 'published',
     createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
+    updatedAt: new Date().toISOString(),
+    ...(categoryId ? { categoryId } : {})
   }
 }
 
@@ -266,6 +280,7 @@ function normalizeConnectorInput(
       { field: 'provider', message: '发布组织不能为空' }
     ])
   }
+  const version = requirePublishVersion(input, options.requireProvider)
   if (!metadata.id.trim()) throw createApiError('INVALID_REQUEST', 'MCP 服务名不能为空')
   return {
     type: 'connector',
@@ -273,12 +288,37 @@ function normalizeConnectorInput(
     name: metadata.id.trim(),
     description: metadata.description.trim(),
     ...(provider ? { provider } : {}),
-    version: null,
+    version: version || null,
     status: 'published',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-    connectorType: metadata.type
+    connectorType: metadata.type,
+    ...(input.packageConfig ? { config: input.packageConfig } : {})
   }
+}
+
+/** 本次发布是否携带新制品：应用传 zip 路径，连接器传解析后的包配置。 */
+function hasIncomingPackage(nextAsset: MockAsset): boolean {
+  return Boolean(nextAsset.packagePath || nextAsset.config)
+}
+
+/**
+ * 发布版本号校验分两种场景：
+ * - 提交新制品（更新已上架内容，或下架后重新上传新包）：版本号必须严格递增，
+ *   与 npm、VS Code Marketplace、Chrome Web Store 一致，避免同一版本号对应多份内容。
+ * - 仅恢复可见性（下架后重新上架、沿用原包）：沿用原版本号，只拒绝降版本，
+ *   与 JetBrains Marketplace 的 hidden / unhide 语义一致。
+ * 旧数据 `version` 为 null 时首次发布跳过校验。
+ */
+function assertPublishVersion(current: MockAsset, nextAsset: MockAsset): void {
+  if (!current.version) return
+  const delta = compareOpenPlatformVersions(nextAsset.version ?? '', current.version)
+  const isRelist = current.status === 'unpublished' && !hasIncomingPackage(nextAsset)
+  if (isRelist ? delta >= 0 : delta > 0) return
+  const message = isRelist
+    ? `重新上架的版本号不能低于 ${current.version}`
+    : `新版本必须大于 ${current.version}`
+  throw createApiError('VERSION_NOT_INCREASED', message)
 }
 
 function publishAsset(
@@ -295,12 +335,11 @@ function publishAsset(
     if (inputId !== nextAsset.id)
       throw createApiError('INVALID_REQUEST', '包内 ID 与目标 ID 不一致')
     if (!current) throw createApiError('ASSET_NOT_FOUND', '记录不存在')
-    if (current.type === 'app') {
-      if (current.version && compareVersion(nextAsset.version ?? '', current.version) <= 0) {
-        throw createApiError('VERSION_NOT_INCREASED', `新版本必须大于 ${current.version}`)
-      }
-    }
+    // 必须在继承 packagePath / config 之前校验：校验要看本次是否真的提交了新制品，
+    // 顺序调换会让下架后重新上架被误判为「提交新制品」，重新要求抬版本号。
+    assertPublishVersion(current, nextAsset)
     if (!nextAsset.packagePath && current.packagePath) nextAsset.packagePath = current.packagePath
+    if (!nextAsset.config && current.config) nextAsset.config = current.config
     Object.assign(current, nextAsset, {
       createdAt: current.createdAt,
       updatedAt: new Date().toISOString(),
@@ -339,6 +378,19 @@ function removeAsset(type: MockAsset['type'], id: string): void {
   })
 }
 
+/** 重新上架：只恢复可见性，沿用原制品与原版本号，与后端 `action=republish` 一致。 */
+function republishAsset(type: MockAsset['type'], id: string): OpenPlatformAssetSummary {
+  return mutateStore((store) => {
+    const asset = requireAsset(store, type, id)
+    if (asset.status !== 'unpublished') {
+      throw createApiError('INVALID_REQUEST', '仅已下架记录可重新上架')
+    }
+    asset.status = 'published'
+    asset.updatedAt = new Date().toISOString()
+    return toAssetSummary(asset)
+  })
+}
+
 export function getOpenPlatformMockAppPackagePath(appId: string): string {
   const asset = loadStore().assets.find((item) => item.type === 'app' && item.id === appId)
   return asset?.packagePath?.trim() || ''
@@ -363,9 +415,10 @@ export function createMockOpenPlatformClient(): OpenPlatformClient {
     async removeApp(id: string) {
       removeAsset('app', id)
     },
-    async listSkills() {
+    async listSkills(scope: OpenPlatformScope) {
       const items = loadStore()
         .assets.filter((asset) => asset.type === 'skill')
+        .filter((asset) => scope === 'mine' || asset.status === 'published')
         .map(toAssetSummary)
       return createPage(items)
     },
@@ -383,6 +436,9 @@ export function createMockOpenPlatformClient(): OpenPlatformClient {
     async unpublishSkill(id: string) {
       return unpublishAsset('skill', id) as OpenPlatformAssetSummary
     },
+    async republishSkill(id: string) {
+      return republishAsset('skill', id)
+    },
     async removeSkill(id: string) {
       removeAsset('skill', id)
     },
@@ -390,7 +446,7 @@ export function createMockOpenPlatformClient(): OpenPlatformClient {
       const items = loadStore()
         .assets.filter((asset) => asset.type === 'connector')
         .filter((asset) => scope === 'mine' || asset.status === 'published')
-        .map(toAssetSummary)
+        .map((asset) => (scope === 'market' ? toConnectorMarketItem(asset) : toAssetSummary(asset)))
       return createPage(items)
     },
     async createConnector(input: OpenPlatformConnectorPublishInput) {
@@ -407,8 +463,14 @@ export function createMockOpenPlatformClient(): OpenPlatformClient {
     async unpublishConnector(id: string) {
       return unpublishAsset('connector', id) as OpenPlatformAssetSummary
     },
+    async republishConnector(id: string) {
+      return republishAsset('connector', id)
+    },
     async removeConnector(id: string) {
       removeAsset('connector', id)
+    },
+    async listSkillCategories() {
+      return [...MOCK_SKILL_CATEGORIES]
     }
   }
   client[MOCK_CLIENT_MARKER] = true
@@ -417,9 +479,4 @@ export function createMockOpenPlatformClient(): OpenPlatformClient {
 
 export function isMockOpenPlatformClient(client: OpenPlatformClient): boolean {
   return Boolean((client as MockPlatformClient)[MOCK_CLIENT_MARKER])
-}
-
-export function unwrapResponse<T>(response: OpenPlatformResponse<T>): T {
-  if (response.code !== 0) throw createApiError('INVALID_REQUEST', response.message)
-  return response.data
 }

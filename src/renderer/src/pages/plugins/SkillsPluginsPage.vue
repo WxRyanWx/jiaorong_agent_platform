@@ -16,7 +16,7 @@ import type { Agent } from '@shared/types/agent-interface'
 import type { UnifiedSkillItem } from '@shared/types/skillManagement'
 import type { SkillDetail } from '@shared/types/skillSync'
 import { notifyRenderer } from '@renderer-notifications/rendererNotificationPort'
-import { listOpenPlatformMarketSkills } from '@jiaorong/open-platform/renderer/openPlatformMarket'
+import { listOpenPlatformMarketSkills } from '@jiaorong/plugins/market/openPlatformMarket'
 import { useGuidedOnboardingStep } from '@/composables/useGuidedOnboardingStep'
 import {
   persistGuidedOnboardingResumeIntent,

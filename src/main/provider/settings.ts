@@ -40,6 +40,11 @@ import {
 } from '@/provider/providerModelHelper'
 import { stripDerivedProviderModelFields } from '@/provider/providerModelFacts'
 import { DEFAULT_SYSTEM_PROMPT } from '@/agent/promptSettings'
+import {
+  JIAORONG_DEFAULT_MODEL_ID,
+  JIAORONG_DEFAULT_PROVIDER_ID,
+  JIAORONG_LEGACY_DEFAULT_MODEL_ID
+} from '@jiaorong/brand'
 import type { ProviderDatabase } from './data/database'
 import type { SettingsKey, SettingsSnapshotValues } from '@shared/contracts/routes'
 import type { DeepchatEventPayload, DeepchatEventPublisher } from '@shared/contracts/events'
@@ -413,6 +418,34 @@ export class ProviderSettings implements ProviderSettingsPort {
     if (newProviders.length > 0) {
       this.setProviders([...existingProviders, ...newProviders])
     }
+
+    // 默认对话模型切换到 V4.1 Flash：升级用户需要把旧的默认模型启用状态迁走。
+    this.migrateLegacyJiaorongDefaultModelStatus()
+  }
+
+  private migrateLegacyJiaorongDefaultModelStatus(): void {
+    const isLegacyDefaultEnabled = this.modelStatusHelper.getModelStatus(
+      JIAORONG_DEFAULT_PROVIDER_ID,
+      JIAORONG_LEGACY_DEFAULT_MODEL_ID
+    )
+    if (!isLegacyDefaultEnabled) return
+
+    const isNewDefaultEnabled = this.modelStatusHelper.getModelStatus(
+      JIAORONG_DEFAULT_PROVIDER_ID,
+      JIAORONG_DEFAULT_MODEL_ID
+    )
+    if (isNewDefaultEnabled) return
+
+    this.modelStatusHelper.setModelStatus(
+      JIAORONG_DEFAULT_PROVIDER_ID,
+      JIAORONG_LEGACY_DEFAULT_MODEL_ID,
+      false
+    )
+    this.modelStatusHelper.setModelStatus(
+      JIAORONG_DEFAULT_PROVIDER_ID,
+      JIAORONG_DEFAULT_MODEL_ID,
+      true
+    )
   }
 
   cleanupLegacyProviderJsonForDatabaseEncryption(): number {

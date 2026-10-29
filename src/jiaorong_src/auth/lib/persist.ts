@@ -4,10 +4,7 @@ import {
   JIAORONG_AUTH_SESSION_SETTING_KEY
 } from './sessionEvents'
 
-export {
-  JIAORONG_AUTH_SESSION_CHANGED_EVENT,
-  JIAORONG_AUTH_SESSION_SETTING_KEY
-}
+export { JIAORONG_AUTH_SESSION_CHANGED_EVENT, JIAORONG_AUTH_SESSION_SETTING_KEY }
 
 /** token 签发时间戳的 localStorage 键，续期判断与会话读写共用 */
 export const TOKEN_ISSUED_AT_STORAGE_KEY = 'xkaitokenIssuedAt'

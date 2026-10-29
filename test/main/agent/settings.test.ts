@@ -265,6 +265,79 @@ describe('AgentSettings migrations', () => {
     expect(store.set).not.toHaveBeenCalledWith('unifiedAgentsMigrationVersion', 3)
   })
 
+  it('migrates legacy jiaorong default model selections to V4.1 flash', () => {
+    const legacySelection = createModelSelection('jiaorong', 'jiaorong-deepseek-v4-pro')
+    const nextSelection = createModelSelection('jiaorong', 'jiaorong-deepseek-V4.1-flash')
+    const visionSelection = createModelSelection('jiaorong', 'jiaorong-qwen3-vl-32b-instruct')
+    const repository = {
+      listAgents: vi.fn(() => [{ id: BUILTIN_DEEPCHAT_AGENT_ID }, { id: 'deepchat-app' }]),
+      getDeepChatAgentConfig: vi.fn((agentId: string) => ({
+        defaultModelPreset: agentId === BUILTIN_DEEPCHAT_AGENT_ID ? legacySelection : nextSelection,
+        assistantModel: agentId === BUILTIN_DEEPCHAT_AGENT_ID ? null : legacySelection,
+        visionModel: visionSelection
+      })),
+      updateDeepChatAgent: vi.fn()
+    }
+    const settings = Object.assign(Object.create(AgentSettings.prototype), {
+      repository
+    }) as AgentSettings
+
+    ;(settings as any).migrateLegacyDefaultModelSelections()
+
+    expect(repository.updateDeepChatAgent).toHaveBeenCalledTimes(2)
+    expect(repository.updateDeepChatAgent).toHaveBeenCalledWith(BUILTIN_DEEPCHAT_AGENT_ID, {
+      config: { defaultModelPreset: nextSelection }
+    })
+    expect(repository.updateDeepChatAgent).toHaveBeenCalledWith('deepchat-app', {
+      config: { assistantModel: nextSelection }
+    })
+  })
+
+  it('runs once and records its own migration version key', () => {
+    const migrateLegacyDefaultModelSelections = vi.fn()
+    const store = { get: vi.fn(() => undefined), set: vi.fn() }
+    const settings = Object.assign(Object.create(AgentSettings.prototype), {
+      settings: store,
+      migrateLegacyDefaultModelSelections
+    }) as AgentSettings
+
+    ;(settings as any).migrateLegacyDefaultModelSelectionsIfNeeded()
+
+    expect(migrateLegacyDefaultModelSelections).toHaveBeenCalledOnce()
+    expect(store.set).toHaveBeenCalledWith('jiaorongDefaultModelMigrationVersion', 1)
+  })
+
+  it('keeps running the default model migration when the unified version is already ahead', () => {
+    const migrateLegacyDefaultModelSelections = vi.fn()
+    const store = {
+      get: vi.fn((key: string) => (key === 'unifiedAgentsMigrationVersion' ? 4 : undefined)),
+      set: vi.fn()
+    }
+    const settings = Object.assign(Object.create(AgentSettings.prototype), {
+      settings: store,
+      migrateLegacyDefaultModelSelections
+    }) as AgentSettings
+
+    ;(settings as any).migrateLegacyDefaultModelSelectionsIfNeeded()
+
+    expect(migrateLegacyDefaultModelSelections).toHaveBeenCalledOnce()
+    expect(store.set).toHaveBeenCalledWith('jiaorongDefaultModelMigrationVersion', 1)
+  })
+
+  it('skips the default model migration when its own version key is current', () => {
+    const migrateLegacyDefaultModelSelections = vi.fn()
+    const store = { get: vi.fn(() => 1), set: vi.fn() }
+    const settings = Object.assign(Object.create(AgentSettings.prototype), {
+      settings: store,
+      migrateLegacyDefaultModelSelections
+    }) as AgentSettings
+
+    ;(settings as any).migrateLegacyDefaultModelSelectionsIfNeeded()
+
+    expect(migrateLegacyDefaultModelSelections).not.toHaveBeenCalled()
+    expect(store.set).not.toHaveBeenCalled()
+  })
+
   it('clears a stale app default model when the legacy builtin Agent has none', () => {
     const sequence: string[] = []
     const store = {

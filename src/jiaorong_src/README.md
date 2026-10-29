@@ -11,6 +11,7 @@ jiaorong_src/
   api/               # 调用自有后端（与登录同域）
     auth/            # 扫码/账号登录 HTTP
     skills/          # 技能市场 API（占位）
+    openPlatform/    # 开放平台资产接口 + mock；客户端只读市场列表，契约见 types.ts
   auth/              # 扫码登录 UI + 门禁/会话 lib
     pages/LoginPage/
     components/      # CodeLogin / UserCompact
@@ -29,6 +30,10 @@ jiaorong_src/
     pages/SkillListPage/ SkillDetailPage/
   utils/ runtime/
   appHost/           # 嵌入应用平台：目录、扫描、权限、协议、preload、window.jiaorong
+  plugins/           # 插件中心私有目录
+    mcp/             # 预置 MCP 触点
+    market/          # 远端资产 → 插件中心模型的映射、连接器落地与下架对账
+  open-platform/     # 开放平台页面（上传 / 发布 / 管理），可整体迁出
 ```
 
 ## 约定
@@ -37,6 +42,9 @@ jiaorong_src/
 2. **新模块**：建 `xxx/module.ts`（侧栏等贡献）并在 `runtime/modules.ts` 登记；**路由只加 `router/`**，子模块不写 routes。
 3. **调自有后端**：放 `api/`，地址在 `api/auth/config.ts` 按 Vite mode 全自动选择（dev/test→测试服，production→正式服）。
 4. **改开源主仓**：必须记入 `HOST_TOUCHPOINTS.md`。
+5. **开放平台边界**：插件中心要用的东西（接口 client、契约类型、市场映射、连接器落地）
+   一律放 `api/openPlatform/` 与 `plugins/market/`，**不要写进 `open-platform/`**；
+   `open-platform/` 只放平台自身页面与上传解析，保证该目录整体迁走后客户端照常编译运行。
 
 ## 引用
 

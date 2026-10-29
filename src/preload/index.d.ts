@@ -37,6 +37,11 @@ declare global {
         appId: string,
         packagePath: string
       ): Promise<{ ok: boolean; message?: string; item?: JiaorongAppCenterItem }>
+      installAppCenterRemotePackage(
+        appId: string,
+        downloadUrl: string,
+        sha256?: string | null
+      ): Promise<{ ok: boolean; message?: string; item?: JiaorongAppCenterItem }>
       getAppCenterInstallStatuses(appIds: string[]): Promise<JiaorongAppCenterItem[]>
       uninstallAppCenter(appId: string): Promise<{ ok: boolean; message?: string }>
       listDevCenter(): Promise<JiaorongDevCenterItem[]>
@@ -44,8 +49,9 @@ declare global {
       publishDevApp(
         appId: string,
         manifestJson: string,
-        zipPath: string
-      ): Promise<{ ok: boolean; message?: string }>
+        zipPath: string,
+        allowUnregistered?: boolean
+      ): Promise<{ ok: boolean; message?: string; zipBase64?: string }>
       pickDevZip(): Promise<{ ok: boolean; message?: string; filePath?: string }>
       peekDevZip(zipPath: string): Promise<{
         ok: boolean
@@ -56,6 +62,7 @@ declare global {
           version: string
           entry: string
           slot: string
+          source: string
           icon: string
           description: string
           spawn: string

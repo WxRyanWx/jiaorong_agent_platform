@@ -167,6 +167,7 @@ describe('publish manifest form', () => {
       version: '1.0.0',
       entry: 'web-ui/index.html',
       slot: 'menu',
+      source: 'store',
       description: 'hello'
     })
   })

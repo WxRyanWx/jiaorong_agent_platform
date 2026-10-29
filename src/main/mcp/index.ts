@@ -110,6 +110,8 @@ export class McpService implements McpServicePort {
   private readonly onRegistryChanged: () => void
   private shutdownPromise: Promise<void> | null = null
   private addMcpServerTail: Promise<void> = Promise.resolve()
+  /** 更新同样串行：读-改-写之间有 await，并发更新不同服务器会互相覆盖丢配置。 */
+  private updateMcpServerTail: Promise<void> = Promise.resolve()
   private readonly pluginRuntimeSupervisor: PluginRuntimeSupervisor
   private readonly mcpAppSandboxRegistry?: McpAppSandboxRegistry
   private pendingSamplingRequests = new Map<
@@ -850,6 +852,18 @@ export class McpService implements McpServicePort {
 
   // Update MCP server configuration
   async updateMcpServer(serverName: string, config: Partial<MCPServerConfig>): Promise<void> {
+    const result = this.updateMcpServerTail.then(() => this.updateMcpServerOnce(serverName, config))
+    this.updateMcpServerTail = result.then(
+      () => undefined,
+      () => undefined
+    )
+    await result
+  }
+
+  private async updateMcpServerOnce(
+    serverName: string,
+    config: Partial<MCPServerConfig>
+  ): Promise<void> {
     const servers = await this.mcpSettings.getMcpServers()
     if (
       this.pluginRuntimeSupervisor.ownsServer(serverName) ||

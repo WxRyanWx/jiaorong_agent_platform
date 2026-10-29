@@ -22,7 +22,7 @@ import {
   inspectManifestRecord,
   type AppManifestFormFields
 } from '../../appHost/manifestRules'
-import type { OpenPlatformAppAuth, OpenPlatformClient } from '../types'
+import type { OpenPlatformAppAuth, OpenPlatformClient } from '@jiaorong/api/openPlatform/types'
 import type { OpenPlatformAppCapabilities } from './clientAppCapabilities'
 import ConfirmAction from './ConfirmAction.vue'
 import { useOpenPlatformApps, type OpenPlatformAppCard } from './useOpenPlatformApps'
@@ -67,7 +67,6 @@ const {
   create,
   remove,
   publish,
-  publishRemote,
   pickZip,
   peekZip,
   open,
@@ -244,14 +243,7 @@ async function submitPublish(
   const sequence = publishSequence
   isPublishing.value = true
   try {
-    const ok = target.dir
-      ? await publish(target, {
-          fields,
-          zipPath: publishZipPath.value,
-          auth,
-          provider
-        })
-      : await publishRemote(target, { fields, auth, provider, zipPath })
+    const ok = await publish(target, { fields, zipPath, auth, provider })
     if (publishSequence !== sequence || publishTarget.value !== target) return
     if (!ok) return
     publishSequence += 1

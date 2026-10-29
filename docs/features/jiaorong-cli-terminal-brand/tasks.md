@@ -4,7 +4,7 @@
 2. [x] 更新 launcher 测试并补升级用例
 3. [x] 中文化技能与 `docs/guides/cli.md`，新增用户文档并挂索引
 4. [x] 更新 H114；跑 format / lint / typecheck / 相关测试
-5. [x] `model invoke` / `agent run` 默认 `jiaorong` + `jiaorong-deepseek-v4-pro`，允许覆盖
+5. [x] `model invoke` / `agent run` 默认 `jiaorong` + `jiaorong-deepseek-V4.1-flash`，允许覆盖
 6. [x] 卸载/重置同时清理新旧命令路径；迁移时异常 `jiaorong` 报冲突不抛错
 7. [x] 补双文件卸载、unowned 保留、Windows 升级、directory-at-jiaorong 测试
 8. [x] 不同 hash 双文件仍可升级；安装失败回滚 marker；重置在 unowned-command 时仍卸载 owned 入口

@@ -49,9 +49,7 @@ function toFiniteNumber(value: unknown): number | null {
 }
 
 /** 目录接口走 queryDirectory，其余走 query。 */
-function hostMethodForPath(
-  path: string
-): 'knowledgeBase.query' | 'knowledgeBase.queryDirectory' {
+function hostMethodForPath(path: string): 'knowledgeBase.query' | 'knowledgeBase.queryDirectory' {
   if (path.replace(/^\//, '') === 'knowledge-base/queryDirectory') {
     return 'knowledgeBase.queryDirectory'
   }

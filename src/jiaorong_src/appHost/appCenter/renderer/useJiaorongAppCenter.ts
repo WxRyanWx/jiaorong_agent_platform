@@ -3,10 +3,46 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { JIAORONG_AUTH_SESSION_CHANGED_EVENT } from '@jiaorong/auth/host'
-import { listOpenPlatformMarketApps } from '@jiaorong/open-platform/renderer/openPlatformMarket'
+import {
+  listOpenPlatformMarketApps,
+  resolveMarketInstallStatus,
+  UNKNOWN_OPEN_PLATFORM_VERSION
+} from '@jiaorong/plugins/market/openPlatformMarket'
 import { stashOpenInfo } from '../../renderer/openAppHandoff'
 import { resolveAppCenterBackRouteName } from './navigation'
 import type { JiaorongAppCenterItem } from '../../types'
+
+/**
+ * 本地安装卡叠加开放平台市场信息。
+ * 主进程扫盘只认本地目录与 OSS 目录版本，市场版本、远端包地址与校验和都要从市场卡带过来，
+ * 否则已装应用永远不会出现「更新」，点了也没有可下载的包。
+ * @param localApp 主进程扫盘得到的卡片
+ * @param remoteApp 同 id 的开放平台市场卡片
+ */
+function mergeRemoteAppCard(
+  localApp: JiaorongAppCenterItem,
+  remoteApp: JiaorongAppCenterItem
+): JiaorongAppCenterItem {
+  /** 市场版本；legacy 存量资产没有版本号（占位 0.0.0），此时沿用本地目录版本。 */
+  const remoteVersion = remoteApp.version
+  const marketVersion =
+    remoteVersion && remoteVersion !== UNKNOWN_OPEN_PLATFORM_VERSION
+      ? remoteVersion
+      : localApp.version
+  return {
+    ...localApp,
+    provider: remoteApp.provider || localApp.provider,
+    version: marketVersion,
+    downloadUrl: remoteApp.downloadUrl ?? localApp.downloadUrl ?? null,
+    packageSha256: remoteApp.packageSha256 ?? localApp.packageSha256 ?? null,
+    remotePackage: localApp.remotePackage || remoteApp.remotePackage,
+    installStatus: resolveMarketInstallStatus(
+      localApp.installStatus,
+      localApp.installedVersion,
+      marketVersion
+    )
+  }
+}
 
 /** 应用中心页状态与操作。 */
 export function useJiaorongAppCenter() {
@@ -32,7 +68,11 @@ export function useJiaorongAppCenter() {
   /** 页面是否被占用：打开 / 安装 / 卸载期间锁住全部操作按钮，避免并发改状态。 */
   const isBusy = computed(
     () =>
-      openingId.value !== '' || installingIds.value.length > 0 || uninstallingIds.value.length > 0
+      openingId.value !== '' ||
+      installingIds.value.length > 0 ||
+      uninstallingIds.value.length > 0 ||
+      // 主进程侧的安装任务（切走再切回时本地 loading 已丢）同样要锁住整页
+      apps.value.some((app) => app.installStatus === 'installing')
   )
 
   /** 重新拉应用中心列表。 */
@@ -57,14 +97,14 @@ export function useJiaorongAppCenter() {
       apps.value = [
         ...next.map((app) => {
           const remoteApp = remoteAppsById.get(app.id)
-          return remoteApp ? { ...app, provider: remoteApp.provider } : app
+          return remoteApp ? mergeRemoteAppCard(app, remoteApp) : app
         }),
         ...remoteApps.filter((app) => !localIds.has(app.id))
       ]
     } catch (error) {
       if (seq !== refreshSeq) return
+      // 瞬时 IPC / 网络异常时保留上一次成功列表，避免整页被清空
       console.warn('[jiaorong-app-center] Failed to list apps', error)
-      apps.value = []
     } finally {
       // 只由最新一次刷新收尾，避免过期响应提前停掉转圈
       if (seq === refreshSeq) isRefreshing.value = false
@@ -76,7 +116,8 @@ export function useJiaorongAppCenter() {
    * @param app 卡片项
    */
   function isInstalling(app: JiaorongAppCenterItem): boolean {
-    return installingIds.value.includes(app.id)
+    // 本地点击态 + 主进程上报的安装中，两者任一成立即算在装
+    return installingIds.value.includes(app.id) || app.installStatus === 'installing'
   }
 
   /**
@@ -97,10 +138,20 @@ export function useJiaorongAppCenter() {
     lastError.value = null
     installingIds.value = [...installingIds.value, app.id]
     try {
-      /** 主进程安装结果；mock 期走本地包，后端接入后走远程包。 */
-      const result = app.localPackagePath
-        ? await window.jiaorongApps?.installAppCenterPackage(app.id, app.localPackagePath)
-        : await window.jiaorongApps?.installAppCenter(app.id)
+      /** 主进程安装结果。 */
+      let result: { ok: boolean; message?: string } | undefined
+      // 优先级：本地包 > 开放平台远端包（需鉴权，主进程下载）> OSS 目录远端包
+      if (app.localPackagePath) {
+        result = await window.jiaorongApps?.installAppCenterPackage(app.id, app.localPackagePath)
+      } else if (app.downloadUrl) {
+        result = await window.jiaorongApps?.installAppCenterRemotePackage(
+          app.id,
+          app.downloadUrl,
+          app.packageSha256
+        )
+      } else {
+        result = await window.jiaorongApps?.installAppCenter(app.id)
+      }
       // 主进程明确失败：透出消息供 toast
       if (result && result.ok === false) {
         lastError.value = { appId: app.id, message: result.message }
@@ -115,7 +166,7 @@ export function useJiaorongAppCenter() {
   }
 
   /**
-   * 卸载：仅开发者，主进程删用户安装目录。
+   * 卸载：已安装的商店应用即可卸载（不做身份门槛），主进程删用户安装目录。
    * @param app 卡片项
    */
   async function uninstall(app: JiaorongAppCenterItem): Promise<void> {

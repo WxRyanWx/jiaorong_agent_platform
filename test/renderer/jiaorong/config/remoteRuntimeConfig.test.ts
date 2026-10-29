@@ -21,21 +21,21 @@ describe('jiaorong remote runtime config', () => {
     vi.restoreAllMocks()
   })
 
-  it('parses admins and apps and drops empty or duplicate ids', () => {
+  it('parses admins and drops empty or duplicate ids', () => {
     expect(
       parseJiaorongRemoteRuntimeConfig({
         schemaVersion: 1,
         admins: [' 13039619789 ', 'L20184974', '', 'L20184974', 12],
         appCenterVisiblePhones: [' 15557190927 ', '', '15557190927'],
         developerPhones: ['13039619789', 12],
+        // OSS 的 apps 已弃用（应用目录改走接口），解析时必须被忽略
         apps: [{ id: 'demo-workbench' }]
       })
     ).toEqual({
       schemaVersion: 1,
       admins: ['13039619789', 'L20184974'],
       appCenterVisiblePhones: ['15557190927'],
-      developerPhones: ['13039619789'],
-      apps: [{ id: 'demo-workbench' }]
+      developerPhones: ['13039619789']
     })
   })
 
@@ -46,8 +46,7 @@ describe('jiaorong remote runtime config', () => {
       schemaVersion: 1,
       admins: [],
       appCenterVisiblePhones: null,
-      developerPhones: [],
-      apps: []
+      developerPhones: []
     })
     expect(
       parseJiaorongRemoteRuntimeConfig({ appCenterVisiblePhones: [] }).appCenterVisiblePhones
@@ -138,8 +137,7 @@ describe('jiaorong remote runtime config', () => {
         schemaVersion: 1,
         admins: [],
         appCenterVisiblePhones: null,
-        developerPhones: [],
-        apps: []
+        developerPhones: []
       }
     ])
   })

@@ -9,9 +9,11 @@ export type { AuthResponseCallback, AuthAwareRequestConfig } from './interceptor
 export {
   DEFAULT_AUTH_API_ORIGIN,
   DEFAULT_AUTH_API_PRODUCT_ID,
+  isJiaorongPrivateApiUrl,
   listJiaorongPrivateApiCorsUrls,
   resolveAuthApiBaseUrl,
   resolveAuthApiOrigin,
   resolveAuthProductId
 } from './config'
+export { resolveJiaorongPrivateApiHeaders } from './privateApiHeaders'
 export * from './loginService'

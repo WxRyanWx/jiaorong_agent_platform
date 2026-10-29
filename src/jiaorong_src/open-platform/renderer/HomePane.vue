@@ -110,7 +110,7 @@ const ossItems = computed(() => [
     title: '超级智能体研发框架',
     body: '提供代码级开源的企业级智能体研发框架，支持构建高级智能体，助力各业务线快速研发专属智能体。',
     art: pagentArt,
-    badge: '管放'
+    badge: ''
   },
   {
     title: '系统智能体',

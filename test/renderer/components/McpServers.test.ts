@@ -177,10 +177,12 @@ const setup = async (options: SetupOptions = {}) => {
     resources: [],
     visibleResources: [],
     serverLoadingStates: {},
+    connectorUpdatesAvailable: {},
     addServer: vi.fn().mockResolvedValue({ status: 'added' }),
     updateServer: vi.fn().mockResolvedValue(true),
     removeServer: vi.fn().mockResolvedValue(true),
     toggleServer: vi.fn().mockResolvedValue(true),
+    updateOpenPlatformConnector: vi.fn().mockResolvedValue(true),
     startServerAuth: vi.fn().mockResolvedValue({
       serverName: 'running-server',
       state: 'authenticating',

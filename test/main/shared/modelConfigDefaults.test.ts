@@ -50,7 +50,7 @@ describe('resolveModelMaxTokens', () => {
 describe('applyBuiltInModelCapabilityOverrides', () => {
   it('applies jiaorong default model limits', () => {
     expect(
-      applyBuiltInModelCapabilityOverrides('jiaorong', 'jiaorong-deepseek-v4-pro', {
+      applyBuiltInModelCapabilityOverrides('jiaorong', 'jiaorong-deepseek-V4.1-flash', {
         contextLength: 16000,
         maxTokens: 4096
       })

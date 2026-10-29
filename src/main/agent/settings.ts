@@ -20,6 +20,11 @@ import type {
 import { DEFAULT_DISABLED_AGENT_TOOLS } from '@shared/agentTools'
 import { normalizeDeepChatSubagentConfig } from '@shared/lib/deepchatSubagents'
 import { resolveAcpAgentAlias } from '@shared/utils/acpAgentAlias'
+import {
+  JIAORONG_DEFAULT_MODEL_ID,
+  JIAORONG_DEFAULT_PROVIDER_ID,
+  JIAORONG_LEGACY_DEFAULT_MODEL_ID
+} from '@jiaorong/brand'
 import type { SettingsStore } from '@/config/settingsStore'
 import { AcpCatalogSettings } from '@/agent/acp/catalog/settings'
 import { AcpRegistryService } from '@/agent/acp/catalog/acpRegistryService'
@@ -32,6 +37,8 @@ import { AgentRepository, BUILTIN_DEEPCHAT_AGENT_ID } from '@/agent/repository'
 import type { AgentLifecycleGatePort } from '@/agent/lifecycleGate'
 
 const UNIFIED_AGENTS_MIGRATION_VERSION = 3
+const JIAORONG_DEFAULT_MODEL_MIGRATION_KEY = 'jiaorongDefaultModelMigrationVersion'
+const JIAORONG_DEFAULT_MODEL_MIGRATION_VERSION = 1
 const PENDING_AGENT_SKILL_CLEANUP_KEY = 'pendingAgentSkillCleanupIds'
 const DEPRECATED_BUILTIN_PROVIDER_IDS = ['qwenlm', 'laoshi'] as const
 const MEMORY_MAINTENANCE_TRIGGER_CONFIG_KEYS: readonly (keyof DeepChatAgentConfig)[] = [
@@ -210,6 +217,7 @@ export class AgentSettings implements AgentSettingsPort {
         logger.warn('[AgentSettings] Failed to reconcile legacy Agent selections.', { error })
       }
     }
+    this.migrateLegacyDefaultModelSelectionsIfNeeded()
     this.cleanupDeprecatedBuiltinAgentSelections()
     if (needsIndependentConfigMigration) {
       try {
@@ -234,6 +242,51 @@ export class AgentSettings implements AgentSettingsPort {
       .catch((error) => {
         console.error('[ACP] Failed to initialize registry service:', error)
       })
+  }
+
+  private migrateLegacyDefaultModelSelectionsIfNeeded(): void {
+    const migratedVersion = this.settings.get<number>(JIAORONG_DEFAULT_MODEL_MIGRATION_KEY) ?? 0
+    if (migratedVersion >= JIAORONG_DEFAULT_MODEL_MIGRATION_VERSION) return
+
+    try {
+      this.migrateLegacyDefaultModelSelections()
+    } catch (error) {
+      logger.warn('[AgentSettings] Failed to migrate legacy default model selections.', { error })
+      return
+    }
+    this.settings.set(
+      JIAORONG_DEFAULT_MODEL_MIGRATION_KEY,
+      JIAORONG_DEFAULT_MODEL_MIGRATION_VERSION
+    )
+  }
+
+  private migrateLegacyDefaultModelSelections(): void {
+    const isLegacyDefaultSelection = (value: unknown): value is ModelSelection =>
+      Boolean(value) &&
+      typeof value === 'object' &&
+      !Array.isArray(value) &&
+      (value as ModelSelection).providerId === JIAORONG_DEFAULT_PROVIDER_ID &&
+      (value as ModelSelection).modelId === JIAORONG_LEGACY_DEFAULT_MODEL_ID
+
+    for (const agent of this.repository.listAgents({ agentType: 'deepchat' })) {
+      const config = this.repository.getDeepChatAgentConfig(agent.id) ?? {}
+      const updates: Partial<DeepChatAgentConfig> = {}
+      if (isLegacyDefaultSelection(config.defaultModelPreset)) {
+        updates.defaultModelPreset = {
+          ...config.defaultModelPreset,
+          modelId: JIAORONG_DEFAULT_MODEL_ID
+        }
+      }
+      if (isLegacyDefaultSelection(config.assistantModel)) {
+        updates.assistantModel = {
+          ...config.assistantModel,
+          modelId: JIAORONG_DEFAULT_MODEL_ID
+        }
+      }
+      if (Object.keys(updates).length > 0) {
+        this.repository.updateDeepChatAgent(agent.id, { config: updates })
+      }
+    }
   }
 
   async getAcpEnabled(): Promise<boolean> {

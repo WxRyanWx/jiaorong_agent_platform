@@ -265,7 +265,8 @@
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
-    margin-bottom: 18px;
+    // 另外 14px 让给 body 的上内边距，卡片位置不变
+    margin-bottom: 4px;
 
     h2 {
       margin: 0;
@@ -329,7 +330,9 @@
     overflow-y: auto;
     overscroll-behavior: contain;
     scrollbar-gutter: stable;
-    padding: 0;
+    // 上下各留 14px：滚动容器会裁掉溢出内容，
+    // 没有这段留白时首张卡片 hover 的上侧阴影（blur 24px、上移 1px）会被切平
+    padding: 14px 0;
 
     &::-webkit-scrollbar {
       width: 8px;
@@ -477,6 +480,7 @@
 
   &__status {
     display: inline-flex;
+    flex: none;
     align-items: center;
     gap: 6px;
     padding: 2px 8px;
@@ -515,21 +519,6 @@
   &__card footer {
     padding-top: 13px;
     border-top: 1px solid rgba(24, 89, 153, 0.1);
-  }
-
-  &__publish-meta {
-    display: flex;
-    flex: 1 1 auto;
-    min-width: 0;
-    align-items: center;
-    gap: 10px;
-  }
-
-  &__provider-input {
-    width: 180px;
-    height: 28px;
-    flex: none;
-    font-size: 12px;
   }
 
   &__card-actions {
@@ -576,6 +565,44 @@
 
   &__dialog {
     max-width: 560px;
+  }
+
+  &__dialog-body {
+    // arco Select 的下拉挂在这个容器里（popup-container），需要定位上下文
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-width: 0;
+  }
+
+  // 弹窗被 teleport 到 body，取不到 .open-platform-page 上的私有变量，颜色用字面量
+  &__detail-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px 14px;
+    border: 1px solid #e5e9f5;
+    border-radius: 10px;
+    background: #f7f9fd;
+  }
+
+  &__detail-row {
+    display: grid;
+    grid-template-columns: 108px minmax(0, 1fr);
+    gap: 12px;
+    font-size: 13px;
+    line-height: 20px;
+
+    > span:first-child {
+      color: var(--muted-foreground);
+      font-weight: 500;
+    }
+
+    > span:last-child {
+      color: var(--foreground);
+      word-break: break-all;
+    }
   }
 
   &__confirm-action {
@@ -626,25 +653,19 @@
     line-height: 1;
   }
 
-  &__provider-field {
-    display: flex;
-    flex: 1 1 auto;
-    min-width: 0;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 6px;
-    font-size: 12px;
-
-    > span {
-      color: var(--muted-foreground);
-      font-weight: 500;
-      white-space: nowrap;
-    }
-  }
-
   &__zip-row {
     display: flex;
     gap: 8px;
+  }
+
+  &__select,
+  &__select .arco-select-view-single {
+    width: 100%;
+  }
+
+  &__select .arco-select-view-single {
+    height: 36px;
+    font-size: 13px;
   }
 
   &__desc-input,

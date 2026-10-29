@@ -1,5 +1,6 @@
 import type { SkillMetadata } from '@shared/types/skill'
 import { createSkillClient } from '@api/SkillClient'
+import { readSkillAssetSource, type SkillAssetSource } from './skillAssetSource'
 
 export type RemoteSkillListItem = {
   id: string
@@ -10,6 +11,17 @@ export type RemoteSkillListItem = {
   alias?: string
   /** 远程分类 id（与 skillCategory/list 的 id 对齐） */
   categoryId?: string
+  /** 发布组织；后端补齐 provider 回显后自动展示 */
+  provider?: string
+  /**
+   * 市场版本号；有值时列表页据此判定是否显示「更新」。
+   * 落到 metadata 时改名 `remoteVersion`，与包内 SKILL.md 自带的 `metadata.version` 区分开。
+   */
+  version?: string
+  /** 该条目来自开放平台资产接口；更新判定只认开放平台资产 */
+  openPlatform?: boolean
+  /** 新旧来源标识，取自接口的 `skillSource`；落到 metadata 时存为 `source` */
+  source?: SkillAssetSource
 }
 
 export type SkillMarketCatalogResult = {
@@ -61,7 +73,11 @@ export function mergeSkillMarketCatalog(
         displayName: key,
         remoteId: item.id,
         downloadUrl: item.downloadUrl,
-        ...(item.categoryId ? { categoryId: item.categoryId } : {})
+        ...(item.categoryId ? { categoryId: item.categoryId } : {}),
+        ...(item.provider ? { provider: item.provider } : {}),
+        ...(item.version ? { remoteVersion: item.version } : {}),
+        ...(item.openPlatform ? { openPlatform: true } : {}),
+        ...(item.source ? { source: item.source } : {})
       }
     })
   }
@@ -76,6 +92,8 @@ export function mergeSkillMarketCatalog(
     const prevMeta = prev.metadata ?? {}
     const itemMeta = item.metadata ?? {}
     const localDisplay = typeof itemMeta.displayName === 'string' ? itemMeta.displayName.trim() : ''
+    /** 远程来源标识；本地包 frontmatter 里同名的 `source` 不参与判定。 */
+    const remoteSource = readSkillAssetSource(prevMeta)
     byName.set(item.name, {
       ...item,
       // 市场列表优先接口 desc，没有再用本地 SKILL.md description
@@ -95,7 +113,19 @@ export function mergeSkillMarketCatalog(
           ? { categoryId: prevMeta.categoryId.trim() }
           : typeof itemMeta.categoryId === 'string' && itemMeta.categoryId.trim()
             ? { categoryId: itemMeta.categoryId.trim() }
-            : {})
+            : {}),
+        // 市场版本与来源标记属于远程事实，本地 frontmatter 不得覆盖，否则更新按钮会消失。
+        // 这里只认 `remoteVersion`：本地包 SKILL.md 里的 `metadata.version` 是包自带版本，
+        // 拿它当市场版本会让刚装好的技能立刻出现「更新」。
+        ...(typeof prevMeta.provider === 'string' && prevMeta.provider.trim()
+          ? { provider: prevMeta.provider.trim() }
+          : {}),
+        ...(typeof prevMeta.remoteVersion === 'string' && prevMeta.remoteVersion.trim()
+          ? { remoteVersion: prevMeta.remoteVersion.trim() }
+          : {}),
+        ...(prevMeta.openPlatform === true ? { openPlatform: true } : {}),
+        // 来源标识同属远程事实：包内 frontmatter 里同名的 `source` 不得覆盖
+        ...(remoteSource ? { source: remoteSource } : {})
       }
     })
   }

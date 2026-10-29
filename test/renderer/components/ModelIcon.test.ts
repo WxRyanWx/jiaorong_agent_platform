@@ -85,7 +85,7 @@ describe('ModelIcon', () => {
     const ModelIcon = (await import('@/components/icons/ModelIcon.vue')).default
     const wrapper = mount(ModelIcon, {
       props: {
-        modelId: 'jiaorong-deepseek-v4-pro',
+        modelId: 'jiaorong-deepseek-V4.1-flash',
         customClass: 'w-3.5 h-3.5 shrink-0'
       }
     })
@@ -122,7 +122,7 @@ describe('ModelIcon', () => {
     })
     const modelId = mount(ModelIcon, {
       props: {
-        modelId: 'jiaorong-deepseek-v4-pro'
+        modelId: 'jiaorong-deepseek-V4.1-flash'
       }
     })
 

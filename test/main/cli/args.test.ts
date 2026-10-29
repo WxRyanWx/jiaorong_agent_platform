@@ -210,7 +210,7 @@ describe('CLI argument grammar', () => {
     expect(parseCliArguments(['model', 'invoke', '--prompt', 'hello'], {})).toMatchObject({
       params: {
         providerId: 'jiaorong',
-        modelId: 'jiaorong-deepseek-v4-pro',
+        modelId: 'jiaorong-deepseek-V4.1-flash',
         messages: [
           { role: 'system', content: expect.stringContaining('交融超级智能体') },
           { role: 'user', content: 'hello' }
@@ -230,7 +230,7 @@ describe('CLI argument grammar', () => {
     expect(
       parseCliArguments(['model', 'invoke', '--provider', 'openai', '--prompt', 'hello'], {})
     ).toMatchObject({
-      params: { providerId: 'openai', modelId: 'jiaorong-deepseek-v4-pro' }
+      params: { providerId: 'openai', modelId: 'jiaorong-deepseek-V4.1-flash' }
     })
     expect(
       parseCliArguments(['model', 'invoke', '--model', 'other-model', '--prompt', 'hello'], {})
@@ -243,12 +243,12 @@ describe('CLI argument grammar', () => {
       params: {
         prompt: 'Inspect the project',
         providerId: 'jiaorong',
-        modelId: 'jiaorong-deepseek-v4-pro'
+        modelId: 'jiaorong-deepseek-V4.1-flash'
       }
     })
     expect(formatCliHelp({ domain: 'model', verb: 'invoke' })).toContain('[--provider <id>]')
     expect(formatCliHelp({ domain: 'model', verb: 'invoke' })).toContain(
-      'default: jiaorong-deepseek-v4-pro'
+      'default: jiaorong-deepseek-V4.1-flash'
     )
     expect(formatCliHelp({ domain: 'model', verb: 'invoke' })).toContain(
       'default: Jiaorong identity prompt'
@@ -264,7 +264,7 @@ describe('CLI argument grammar', () => {
       verb: 'invoke',
       params: {
         providerId: 'jiaorong',
-        modelId: 'jiaorong-deepseek-v4-pro',
+        modelId: 'jiaorong-deepseek-V4.1-flash',
         messages: [
           { role: 'system', content: expect.stringContaining('交融超级智能体') },
           { role: 'user', content: '你是谁' }
@@ -349,7 +349,7 @@ describe('CLI argument grammar', () => {
       readStdin: true,
       params: {
         providerId: 'jiaorong',
-        modelId: 'jiaorong-deepseek-v4-pro'
+        modelId: 'jiaorong-deepseek-V4.1-flash'
       }
     })
     expect(() => parseCliArguments(['agent', 'run', '--prompt', 'hello', '--stdin'], {})).toThrow(

@@ -26,7 +26,7 @@ export type JiaorongSkillItem = SkillMetadata & {
 
 export const JIAORONG_SKILL_STORAGE_KEY = 'jiaorongSkill'
 export const JIAORONG_SKILL_SOURCE_MAP_KEY = 'jiaorongSkillSourceMap'
-/** 远程市场展示名 → 安装后本地目录名 */
+/** 远程市场展示名 → 安装后本地目录名（开放平台技能可携带已装版本号） */
 export const JIAORONG_REMOTE_INSTALL_MAP_KEY = 'jiaorongRemoteInstalledMap'
 
 /**
@@ -148,38 +148,93 @@ export function getRememberedSkillSource(skillName: string): SkillSource | undef
   return readSourceMap()[skillName]
 }
 
-function readRemoteInstallMap(): Record<string, string> {
+/** 远程安装记录：本地目录名 + 可选的已装版本号（开放平台技能更新判定用）。 */
+export type RemoteInstallEntry = { localName: string; version?: string }
+
+function normalizeRemoteInstallEntry(value: unknown): RemoteInstallEntry | null {
+  // 兼容旧格式：值直接是本地目录名字符串。
+  if (typeof value === 'string') {
+    const localName = value.trim()
+    return localName ? { localName } : null
+  }
+  if (value && typeof value === 'object') {
+    const record = value as { localName?: unknown; version?: unknown }
+    const localName = typeof record.localName === 'string' ? record.localName.trim() : ''
+    if (!localName) return null
+    const version = typeof record.version === 'string' ? record.version.trim() : ''
+    return version ? { localName, version } : { localName }
+  }
+  return null
+}
+
+function readRemoteInstallEntries(): Record<string, RemoteInstallEntry> {
   try {
     const raw = localStorage.getItem(JIAORONG_REMOTE_INSTALL_MAP_KEY)
     if (!raw) return {}
     const parsed = JSON.parse(raw) as Record<string, unknown>
-    const map: Record<string, string> = {}
+    const entries: Record<string, RemoteInstallEntry> = {}
     for (const [key, value] of Object.entries(parsed)) {
-      if (typeof value === 'string' && value.trim()) {
-        map[key] = value.trim()
-      }
+      const entry = normalizeRemoteInstallEntry(value)
+      if (entry) entries[key] = entry
     }
-    return map
+    return entries
   } catch {
     return {}
   }
 }
 
-function writeRemoteInstallMap(map: Record<string, string>): void {
-  localStorage.setItem(JIAORONG_REMOTE_INSTALL_MAP_KEY, JSON.stringify(map))
+function writeRemoteInstallEntries(entries: Record<string, RemoteInstallEntry>): void {
+  // 无版本的条目保持旧的字符串形状，存储结构对旧读取方兼容。
+  const storable: Record<string, unknown> = Object.fromEntries(
+    Object.entries(entries).map(([market, entry]) => [
+      market,
+      entry.version ? { localName: entry.localName, version: entry.version } : entry.localName
+    ])
+  )
+  localStorage.setItem(JIAORONG_REMOTE_INSTALL_MAP_KEY, JSON.stringify(storable))
+}
+
+function toRemoteLocalNameMap(entries: Record<string, RemoteInstallEntry>): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(entries).map(([market, entry]) => [market, entry.localName])
+  )
 }
 
 export function loadRemoteInstallMap(): Record<string, string> {
-  return readRemoteInstallMap()
+  return toRemoteLocalNameMap(readRemoteInstallEntries())
 }
 
-export function rememberRemoteInstall(marketName: string, localSkillName: string): void {
+/** 市场名 → 已装版本号；只含记录过版本的条目（开放平台安装链路写入）。 */
+export function loadRemoteInstallVersions(): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(readRemoteInstallEntries())
+      .filter(([, entry]) => Boolean(entry.version))
+      .map(([market, entry]) => [market, entry.version as string])
+  )
+}
+
+export function rememberRemoteInstall(
+  marketName: string,
+  localSkillName: string,
+  version?: string,
+  remoteId?: string
+): void {
   const market = marketName.trim()
   const local = localSkillName.trim()
   if (!market || !local) return
-  const map = readRemoteInstallMap()
-  map[market] = local
-  writeRemoteInstallMap(map)
+  const entries = readRemoteInstallEntries()
+  // 未显式传版本时保留已记录的版本，避免普通市场重装冲掉开放平台版本追踪。
+  const nextVersion = version?.trim() || entries[market]?.version || ''
+  entries[market] = nextVersion ? { localName: local, version: nextVersion } : { localName: local }
+  // 后端 publish 会用包内 name 覆盖资产展示名，市场卡的键会跟着变；
+  // 同时按资产 id 落一份键，重命名后已装关联与更新判定不丢。
+  const assetId = remoteId?.trim() ?? ''
+  if (assetId && assetId !== market) {
+    entries[assetId] = nextVersion
+      ? { localName: local, version: nextVersion }
+      : { localName: local }
+  }
+  writeRemoteInstallEntries(entries)
 }
 
 /**
@@ -189,19 +244,19 @@ export function rememberRemoteInstall(marketName: string, localSkillName: string
 export function forgetRemoteInstall(skillNameOrMarketName: string): void {
   const key = skillNameOrMarketName.trim()
   if (!key) return
-  const map = readRemoteInstallMap()
+  const map = readRemoteInstallEntries()
   let changed = false
   if (key in map) {
     delete map[key]
     changed = true
   }
-  for (const [market, local] of Object.entries(map)) {
-    if (local === key) {
+  for (const [market, entry] of Object.entries(map)) {
+    if (entry.localName === key) {
       delete map[market]
       changed = true
     }
   }
-  if (changed) writeRemoteInstallMap(map)
+  if (changed) writeRemoteInstallEntries(map)
 }
 
 /**
@@ -213,16 +268,16 @@ export function pruneRemoteInstallMap(
   const existing = new Set(
     [...existingLocalNames].map((name) => name.trim()).filter((name) => name.length > 0)
   )
-  const map = readRemoteInstallMap()
+  const map = readRemoteInstallEntries()
   let changed = false
-  for (const [market, local] of Object.entries(map)) {
-    if (!existing.has(local)) {
+  for (const [market, entry] of Object.entries(map)) {
+    if (!existing.has(entry.localName)) {
       delete map[market]
       changed = true
     }
   }
-  if (changed) writeRemoteInstallMap(map)
-  return map
+  if (changed) writeRemoteInstallEntries(map)
+  return toRemoteLocalNameMap(map)
 }
 
 /** 卸载时一并清理来源与远程安装映射 */

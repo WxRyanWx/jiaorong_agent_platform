@@ -7,7 +7,7 @@ import { Input } from '@shadcn/components/ui/input'
 import { useSkillsStore } from '@/stores/skillsStore'
 import type { SkillMetadata } from '@shared/types/skill'
 import { fetchSkillMarketCatalog, listSkillCategories } from '@jiaorong/api/skills'
-import { listOpenPlatformMarketSkillMetadata } from '@jiaorong/open-platform/renderer/openPlatformMarket'
+import { needsOpenPlatformVersionSync } from '@jiaorong/api/openPlatform/version'
 import {
   installSkillFromZipUrl,
   isSkillSwitchOn,
@@ -21,6 +21,7 @@ import {
   getRememberedSkillSource,
   isSkillVisibleInMarket,
   loadRemoteInstallMap,
+  loadRemoteInstallVersions,
   pruneRemoteInstallMap,
   rememberRemoteInstall,
   rememberSkillSource,
@@ -78,6 +79,8 @@ const catalogRemoteError = ref('')
 const installingNames = ref(new Set<string>())
 /** 远程卡片 name → 安装后本地技能名（zip 目录名可能与展示名不同） */
 const remoteInstalledLocalNames = ref<Record<string, string>>(loadRemoteInstallMap())
+/** 远程卡片 name → 已装版本号（开放平台技能更新判定用） */
+const remoteInstalledVersions = ref<Record<string, string>>(loadRemoteInstallVersions())
 
 let loadGeneration = 0
 let defaultInstallEventHandler: ((event: Event) => void) | null = null
@@ -92,8 +95,64 @@ function getSkillProvider(skill: SkillMetadata): string {
   return typeof provider === 'string' && provider.trim() ? `由 ${provider.trim()} 提供` : ''
 }
 
+/** 市场版本号；只认远程资产写入的 `remoteVersion`，包内 SKILL.md 的 `version` 不参与更新判定。 */
+function getSkillMarketVersion(skill: SkillMetadata): string {
+  const version = skill.metadata?.remoteVersion
+  return typeof version === 'string' ? version.trim() : ''
+}
+
+/**
+ * 市场卡对应的 remoteInstallMap 键。
+ * 现在统一用市场展示名；早期版本用资产 id 或本地目录名写入过，
+ * 依次按 remoteId、本地目录名（按值反查）兜底命中，避免已装卡退回未安装态、更新按钮消失。
+ */
+function resolveRemoteInstallKey(skill: SkillMetadata): string {
+  const installedMap = remoteInstalledLocalNames.value
+  if (installedMap[skill.name]) return skill.name
+  const remoteId = skill.metadata?.remoteId
+  if (typeof remoteId === 'string') {
+    const trimmed = remoteId.trim()
+    if (trimmed && installedMap[trimmed]) return trimmed
+  }
+  const installedName = skill.metadata?.installedSkillName
+  const localName = typeof installedName === 'string' ? installedName.trim() : ''
+  if (localName) {
+    const matchedKey = Object.keys(installedMap).find((key) => installedMap[key] === localName)
+    if (matchedKey) return matchedKey
+  }
+  return skill.name
+}
+
+/** 开放平台技能已安装且市场版本更新（或已装未记录版本）→ 显示「更新」。 */
+function hasSkillUpdate(skill: SkillMetadata): boolean {
+  if (skill.metadata?.openPlatform !== true) return false
+  // 没有本地目录就是未安装卡，只显示「安装」
+  if (!skill.skillRoot) return false
+  const installKey = resolveRemoteInstallKey(skill)
+  const installedVersion =
+    remoteInstalledVersions.value[installKey] ??
+    (typeof skill.metadata?.installedVersion === 'string'
+      ? skill.metadata.installedVersion
+      : undefined)
+  return needsOpenPlatformVersionSync(getSkillMarketVersion(skill), installedVersion)
+}
+
+/**
+ * 市场卡对应的本地安装目录名。
+ * 先查映射；映射丢失（老记录、清过 localStorage）时按资产 id 兜底，
+ * 资产 id 与安装目录名一致是开放平台技能的常规形态。
+ */
+function resolveInstalledLocalName(skill: SkillMetadata, local: SkillMetadata[]): string {
+  const mapped = remoteInstalledLocalNames.value[resolveRemoteInstallKey(skill)]
+  if (mapped) return mapped
+  const remoteId = skill.metadata?.remoteId
+  const trimmed = typeof remoteId === 'string' ? remoteId.trim() : ''
+  if (trimmed && local.some((item) => item.name === trimmed)) return trimmed
+  return ''
+}
+
 function getInstalledLocalName(skill: SkillMetadata): string {
-  const fromMap = remoteInstalledLocalNames.value[skill.name]
+  const fromMap = remoteInstalledLocalNames.value[resolveRemoteInstallKey(skill)]
   if (fromMap) return fromMap
   const fromMeta = skill.metadata?.installedSkillName
   if (typeof fromMeta === 'string' && fromMeta.trim()) return fromMeta.trim()
@@ -129,11 +188,34 @@ function hideLocalSlugDuplicatedByRemoteInstall(
 }
 
 /** 仅更新单个远程技能为已安装，避免整表刷新 */
-function markRemoteSkillInstalled(marketName: string, localSkillName: string) {
-  rememberRemoteInstall(marketName, localSkillName)
+function markRemoteSkillInstalled(
+  marketName: string,
+  localSkillName: string,
+  version?: string,
+  remoteId?: string
+) {
+  rememberRemoteInstall(marketName, localSkillName, version, remoteId)
   remoteInstalledLocalNames.value = {
     ...remoteInstalledLocalNames.value,
     [marketName]: localSkillName
+  }
+  if (version) {
+    remoteInstalledVersions.value = {
+      ...remoteInstalledVersions.value,
+      [marketName]: version
+    }
+  }
+  if (remoteId?.trim()) {
+    remoteInstalledLocalNames.value = {
+      ...remoteInstalledLocalNames.value,
+      [remoteId.trim()]: localSkillName
+    }
+    if (version) {
+      remoteInstalledVersions.value = {
+        ...remoteInstalledVersions.value,
+        [remoteId.trim()]: version
+      }
+    }
   }
 
   const updated = catalogSkills.value.map((item) => {
@@ -155,6 +237,44 @@ function markRemoteSkillInstalled(marketName: string, localSkillName: string) {
   )
 }
 
+/** 远程资产已安装但目录名与市场名不一致时，凭 remoteInstallMap 把本地安装信息挂到市场卡。 */
+function attachLocalInstall(skill: SkillMetadata, local: SkillMetadata[]): SkillMetadata {
+  const localName = resolveInstalledLocalName(skill, local)
+  if (!localName) return skill
+  const localMeta = local.find((item) => item.name === localName)
+  if (!localMeta) {
+    return skill
+  }
+  return {
+    ...localMeta,
+    // 卡片身份保持市场 name（唯一键）；调用技能仍用 installedSkillName / 本地目录名
+    name: skill.name,
+    // 接口 desc 优先，没有再用本地文档 description
+    description: skill.description || localMeta.description,
+    path: localMeta.path,
+    skillRoot: localMeta.skillRoot,
+    category: skill.category ?? localMeta.category,
+    metadata: {
+      ...localMeta.metadata,
+      ...skill.metadata,
+      displayName:
+        (typeof skill.metadata?.displayName === 'string' && skill.metadata.displayName) ||
+        skill.name,
+      installedSkillName: localName,
+      // 显式钉住远程字段，避免被本地 frontmatter 冲掉
+      ...(typeof skill.metadata?.remoteId === 'string' && skill.metadata.remoteId.trim()
+        ? { remoteId: skill.metadata.remoteId }
+        : {}),
+      ...(typeof skill.metadata?.downloadUrl === 'string' && skill.metadata.downloadUrl.trim()
+        ? { downloadUrl: skill.metadata.downloadUrl }
+        : {}),
+      ...(typeof skill.metadata?.categoryId === 'string' && skill.metadata.categoryId.trim()
+        ? { categoryId: skill.metadata.categoryId.trim() }
+        : {})
+    }
+  }
+}
+
 /** 进入页面 / 上传成功后刷新列表与分类 */
 async function refreshMarket() {
   const generation = ++loadGeneration
@@ -162,6 +282,7 @@ async function refreshMarket() {
   catalogRemoteError.value = ''
   // 详情页卸载可能已清 localStorage，回到列表时同步内存映射
   remoteInstalledLocalNames.value = loadRemoteInstallMap()
+  remoteInstalledVersions.value = loadRemoteInstallVersions()
 
   // 分类与列表解耦：列表失败时仍尽量刷新 pill
   const categoryPromise = listSkillCategories().catch((e) => {
@@ -185,53 +306,20 @@ async function refreshMarket() {
     const { local, merged } = catalog
     // 磁盘上手删后 map 会过期：只保留扫盘仍存在的本地名
     remoteInstalledLocalNames.value = pruneRemoteInstallMap(local.map((item) => item.name))
-    // 远程已装但目录名与市场 name 不一致时，凭 remoteInstallMap 把本地挂到市场卡，并隐藏本地 slug 卡
-    const enriched = merged.map((skill) => {
-      const localName = remoteInstalledLocalNames.value[skill.name]
-      if (!localName) return skill
-      const localMeta = local.find((item) => item.name === localName)
-      if (!localMeta) {
-        return skill
+    remoteInstalledVersions.value = loadRemoteInstallVersions()
+
+    // 远程源已收敛为开放平台资产，merged 即完整市场列表，不再追加第二份（否则每条技能出现两张卡）。
+    // 远程已装但目录名与市场 name 不一致时，凭 remoteInstallMap 把本地挂到市场卡，并隐藏本地 slug 卡。
+    const enriched = merged.map((skill) => attachLocalInstall(skill, local))
+    // 映射缺失但已按资产 id 挂上本地目录时，去重也要认这份有效映射，避免出现两张卡
+    const effectiveInstallMap = { ...remoteInstalledLocalNames.value }
+    for (const skill of enriched) {
+      const installedName = skill.metadata?.installedSkillName
+      if (typeof installedName === 'string' && installedName && installedName !== skill.name) {
+        effectiveInstallMap[skill.name] = installedName
       }
-      return {
-        ...localMeta,
-        // 卡片身份保持市场 name（唯一键）；调用技能仍用 installedSkillName / 本地目录名
-        name: skill.name,
-        // 接口 desc 优先，没有再用本地文档 description
-        description: skill.description || localMeta.description,
-        path: localMeta.path,
-        skillRoot: localMeta.skillRoot,
-        category: skill.category ?? localMeta.category,
-        metadata: {
-          ...localMeta.metadata,
-          ...skill.metadata,
-          displayName:
-            (typeof skill.metadata?.displayName === 'string' && skill.metadata.displayName) ||
-            skill.name,
-          installedSkillName: localName,
-          // 显式钉住远程字段，避免被本地 frontmatter 冲掉
-          ...(typeof skill.metadata?.remoteId === 'string' && skill.metadata.remoteId.trim()
-            ? { remoteId: skill.metadata.remoteId }
-            : {}),
-          ...(typeof skill.metadata?.downloadUrl === 'string' && skill.metadata.downloadUrl.trim()
-            ? { downloadUrl: skill.metadata.downloadUrl }
-            : {}),
-          ...(typeof skill.metadata?.categoryId === 'string' && skill.metadata.categoryId.trim()
-            ? { categoryId: skill.metadata.categoryId.trim() }
-            : {})
-        }
-      }
-    })
-    const openPlatformSkills = await listOpenPlatformMarketSkillMetadata().catch((error) => {
-      console.warn('[SkillListPage] Failed to load open platform skills', error)
-      return []
-    })
-    if (generation !== loadGeneration) return
-    const enrichedNames = new Set(enriched.map((skill) => skill.name))
-    catalogSkills.value = hideLocalSlugDuplicatedByRemoteInstall(
-      [...enriched, ...openPlatformSkills.filter((skill) => !enrichedNames.has(skill.name))],
-      remoteInstalledLocalNames.value
-    )
+    }
+    catalogSkills.value = hideLocalSlugDuplicatedByRemoteInstall(enriched, effectiveInstallMap)
     await skillsStore.ensureSkillsLoaded()
   } catch (e) {
     if (generation !== loadGeneration) return
@@ -407,7 +495,12 @@ const handleInstall = async (skill: JiaorongSkillItem) => {
       return
     }
     rememberSkillSource(result.skillName, SkillSource.RemoteApi)
-    markRemoteSkillInstalled(skill.name, result.skillName)
+    markRemoteSkillInstalled(
+      skill.name,
+      result.skillName,
+      getSkillMarketVersion(skill) || undefined,
+      typeof skill.metadata?.remoteId === 'string' ? skill.metadata.remoteId : undefined
+    )
   } finally {
     const done = new Set(installingNames.value)
     done.delete(skill.name)
@@ -467,6 +560,7 @@ onMounted(() => {
     // 以默认安装队列为准（勿用 next.size：可能还含用户手动安装项）
     if (getDefaultSkillsInstallingNames().length === 0) {
       remoteInstalledLocalNames.value = loadRemoteInstallMap()
+      remoteInstalledVersions.value = loadRemoteInstallVersions()
       void refreshMarket()
     }
   }
@@ -618,6 +712,17 @@ onUnmounted(() => {
               {{ getSkillProvider(skill) }}
             </span>
             <div class="skill-center-page__card-actions" @click.stop>
+              <Button
+                v-if="hasSkillUpdate(skill)"
+                size="sm"
+                variant="outline"
+                class="skill-center-page__action-btn"
+                :disabled="isInstalling(skill)"
+                :data-testid="`skill-update-${skill.name}`"
+                @click="handleInstall(skill)"
+              >
+                {{ isInstalling(skill) ? '更新中' : '更新' }}
+              </Button>
               <template v-if="isInstalled(skill)">
                 <Button
                   size="sm"

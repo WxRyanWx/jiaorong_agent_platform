@@ -47,7 +47,8 @@ vi.mock('../../../src/jiaorong_src/appHost/main/scan', () => ({
 }))
 
 vi.mock('../../../src/jiaorong_src/appHost/main/userIdentity', () => ({
-  readUserIdentityFromAuthSession: vi.fn(() => ({ mobile: '13000000000' }))
+  readUserIdentityFromAuthSession: vi.fn(() => ({ mobile: '13000000000' })),
+  readAuthToken: vi.fn(() => null)
 }))
 
 import { syncCollaborationPlatform } from '../../../src/jiaorong_src/appHost/main/systemAppUpdate'

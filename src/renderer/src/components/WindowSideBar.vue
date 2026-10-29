@@ -861,7 +861,7 @@ import {
 import { createSettingsClient } from '@api/SettingsClient'
 import { isJiaorongExclusiveChromeRoute, listJiaorongSidebarItems } from '@jiaorong/runtime/sidebar'
 import { useJiaorongMenuApps } from '@jiaorong/appHost/renderer/useJiaorongMenuApps'
-import { useOpenPlatformAccess } from '@jiaorong/open-platform/renderer/useOpenPlatformAccess'
+import { useOpenPlatformAccess } from '@jiaorong/router/useOpenPlatformAccess'
 import type { JiaorongMenuAppItem } from '@jiaorong/appHost/types'
 import type { JiaorongSidebarItem } from '@jiaorong/runtime/types'
 import { partitionSidebarAgents } from '@shared/sidebarAgents'

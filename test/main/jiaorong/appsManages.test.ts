@@ -58,20 +58,65 @@ describe('appsManages', () => {
     const installed = manager.installAppFromPath(source, { mode: 'copy', overwrite: true })
     expect(installed.success, installed.message).toBe(true)
 
-    const started = manager.startApp('hello-app')
+    const started = await manager.startApp('hello-app')
     expect(started.success).toBe(true)
     expect(started.data?.pid).toBeGreaterThan(0)
     expect(manager.isRunning('hello-app')).toBe(true)
 
-    const reused = manager.startApp('hello-app')
+    const reused = await manager.startApp('hello-app')
     expect(reused.success).toBe(true)
     expect(reused.data?.pid).toBe(started.data?.pid)
 
-    const skipped = manager.startApp('missing')
+    const skipped = await manager.startApp('missing')
     expect(skipped.success).toBe(false)
 
     manager.stopApp('hello-app')
     expect(manager.isRunning('hello-app')).toBe(false)
+  })
+
+  it('restarts spawn when the opened directory changes', async () => {
+    const appsRoot = await makeRoot()
+    /** 建一份带 spawn 的应用源目录。 */
+    const makeSource = async (dirName: string) => {
+      const source = path.join(appsRoot, dirName)
+      await mkdir(path.join(source, 'web-ui'), { recursive: true })
+      await writeFile(
+        path.join(source, 'app.json'),
+        JSON.stringify({
+          id: 'cwd-app',
+          name: 'Cwd',
+          version: '1.0.0',
+          entry: 'web-ui/index.html',
+          slot: 'menu',
+          spawn: 'node -e "setTimeout(()=>{}, 30000)"'
+        }),
+        'utf8'
+      )
+      await writeFile(path.join(source, 'web-ui', 'index.html'), '<html></html>', 'utf8')
+      return source
+    }
+    const dirA = await makeSource('src-a')
+    const dirB = await makeSource('src-b')
+
+    const manager = new appsManages(path.join(appsRoot, 'apps'))
+    const startedA = await manager.startApp('cwd-app', { cwd: dirA })
+    expect(startedA.success, startedA.message).toBe(true)
+    const pidA = startedA.data?.pid
+    expect(pidA).toBeGreaterThan(0)
+
+    // 同目录重复打开：复用在跑进程
+    const reused = await manager.startApp('cwd-app', { cwd: dirA })
+    expect(reused.success).toBe(true)
+    expect(reused.data?.pid).toBe(pidA)
+
+    // 换关联目录：旧进程服务的是旧代码，必须杀掉按新目录重拉
+    const startedB = await manager.startApp('cwd-app', { cwd: dirB })
+    expect(startedB.success, startedB.message).toBe(true)
+    expect(startedB.data?.cwd).toBe(dirB)
+    expect(startedB.data?.pid).not.toBe(pidA)
+
+    manager.stopApp('cwd-app')
+    expect(manager.isRunning('cwd-app')).toBe(false)
   })
 
   it('does not register hidden extract directories as apps', async () => {
@@ -114,7 +159,7 @@ describe('appsManages', () => {
 
     const manager = new appsManages(path.join(appsRoot, 'apps'))
     expect(manager.installAppFromPath(source, { mode: 'reference' }).success).toBe(true)
-    const started = manager.startApp('ref-app', { cwd: source })
+    const started = await manager.startApp('ref-app', { cwd: source })
     expect(started.success, started.message).toBe(true)
     expect(manager.isRunning('ref-app')).toBe(true)
 
@@ -163,7 +208,7 @@ describe('appsManages', () => {
     expect(manager.getApp('app-scaffold123')?.id).toBe('app-scaffold123')
 
     const appDir = path.join(appsRoot, 'apps', folderName)
-    const started = manager.startApp('app-scaffold123', { cwd: appDir })
+    const started = await manager.startApp('app-scaffold123', { cwd: appDir })
     expect(started.success, started.message).toBe(true)
     expect(started.data?.cwd).toBe(appDir)
     expect(started.data?.pid).toBeGreaterThan(0)
@@ -325,7 +370,7 @@ describe('appsManages', () => {
 
     const manager = new appsManages(path.join(appsRoot, 'apps'))
     expect(manager.installAppFromPath(source, { mode: 'link', overwrite: true }).success).toBe(true)
-    const started = manager.startApp('runtime-app', { cwd: source })
+    const started = await manager.startApp('runtime-app', { cwd: source })
     expect(started.success, started.message).toBe(true)
 
     await writeManifest('changed-runtime-app')
@@ -352,7 +397,7 @@ describe('appsManages', () => {
     )
     const manager = new appsManages(path.join(appsRoot, 'apps'))
     expect(manager.installAppFromPath(source, { mode: 'copy', overwrite: true }).success).toBe(true)
-    const started = manager.startApp('plain-app')
+    const started = await manager.startApp('plain-app')
     expect(started.success).toBe(true)
     expect(started.data?.pid).toBe(0)
     expect(manager.isRunning('plain-app')).toBe(false)

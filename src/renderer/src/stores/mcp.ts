@@ -4,6 +4,7 @@ import { createMcpClient } from '@api/McpClient'
 import { createConfigClient } from '../../api/ConfigClient'
 import { useIpcQuery } from '@/composables/useIpcQuery'
 import { useIpcMutation } from '@/composables/useIpcMutation'
+import { notifyRenderer } from '@renderer-notifications/rendererNotificationPort'
 import { useI18n } from 'vue-i18n'
 import { useQuery, type UseMutationReturn, type UseQueryReturn } from '@pinia/colada'
 import type { Prompt } from '@shared/types/prompt'
@@ -24,9 +25,19 @@ import type {
 } from '@shared/types/core/mcp'
 import { isJiaorongKnowledgeBaseMcpServer } from '@jiaorong/knowledgeBase/mcp/knowledgeBaseMcpConstants'
 import {
+  canEnableOpenPlatformConnector,
   listOpenPlatformMarketConnectors,
   type OpenPlatformMarketMcpServer
-} from '@jiaorong/open-platform/renderer/openPlatformMarket'
+} from '@jiaorong/plugins/market/openPlatformMarket'
+import {
+  collectInstalledConnectorSourceIds,
+  findRevokedConnectorServerNames,
+  findOutdatedConnectorServers,
+  isOpenPlatformConnectorConfig,
+  resolveConnectorServerName,
+  toInstallableConnectorConfig,
+  toUpdatableConnectorConfig
+} from '@jiaorong/plugins/market/openPlatformConnectorInstall'
 
 const ENABLED_MCP_TOOLS_KEY = 'input_enabledMcpTools'
 
@@ -488,17 +499,30 @@ export const useMcpStore = defineStore('mcp', () => {
 
   // 服务器列表
   const allServerList = computed(() => {
-    const servers = Object.entries(config.value.mcpServers ?? {}).map(([name, serverConfig]) => ({
-      name,
-      ...serverConfig,
-      isRunning: serverStatuses.value[name] || false,
-      lifecycleStatus:
-        serverLifecycleStatuses.value[name] ??
-        (serverStatuses.value[name] ? 'connected' : 'stopped'),
-      errorMessage: serverStatusMessages.value[name],
-      authStatus: serverAuthStatuses.value[name],
-      isLoading: serverLoadingStates.value[name] || false
-    }))
+    // 老版本落地的开放平台连接器没写 provider，按 sourceId 从市场卡补一次，避免提供组织空着
+    const marketProviderBySourceId = new Map(
+      openPlatformConnectors.value
+        .filter((connector) => connector.provider?.trim())
+        .map((connector) => [connector.sourceId ?? connector.name, connector.provider as string])
+    )
+    const servers = Object.entries(config.value.mcpServers ?? {}).map(([name, serverConfig]) => {
+      const legacyProvider = serverConfig.provider?.trim()
+      const marketProvider = serverConfig.sourceId
+        ? marketProviderBySourceId.get(serverConfig.sourceId)?.trim()
+        : ''
+      return {
+        name,
+        ...serverConfig,
+        ...(legacyProvider || marketProvider ? { provider: legacyProvider || marketProvider } : {}),
+        isRunning: serverStatuses.value[name] || false,
+        lifecycleStatus:
+          serverLifecycleStatuses.value[name] ??
+          (serverStatuses.value[name] ? 'connected' : 'stopped'),
+        errorMessage: serverStatusMessages.value[name],
+        authStatus: serverAuthStatuses.value[name],
+        isLoading: serverLoadingStates.value[name] || false
+      }
+    })
 
     // Sort enabled servers first, then keep built-in servers ahead within each state.
     return servers.sort((a, b) => {
@@ -510,9 +534,27 @@ export const useMcpStore = defineStore('mcp', () => {
       return aRank - bRank
     })
   })
+  // 已落地的开放平台连接器按 sourceId 去重，重名追加后缀后市场条目不会重复展示。
+  const installedConnectorSourceIds = computed(() =>
+    collectInstalledConnectorSourceIds(config.value.mcpServers ?? {})
+  )
+
+  // 市场版本高于本地 sourceVersion 的已落地连接器：serverName → 市场条目。
+  const connectorUpdatesAvailable = computed(() =>
+    Object.fromEntries(
+      findOutdatedConnectorServers(config.value.mcpServers ?? {}, openPlatformConnectors.value)
+    )
+  )
+
   const serverList = computed(() => [
     ...allServerList.value.filter((server) => !isPluginOwnedServerConfig(server)),
-    ...openPlatformConnectors.value.filter((server) => !config.value.mcpServers?.[server.name])
+    ...openPlatformConnectors.value.filter(
+      // sourceId 命中说明已通过开放平台落地；name 命中说明用户手动加过同名服务器，
+      // 两者都要排除，否则列表会出现同名卡片并撞上 McpServers 的 :key="server.name"。
+      (server) =>
+        !installedConnectorSourceIds.value.has(server.sourceId ?? server.name) &&
+        !config.value.mcpServers?.[server.name]
+    )
   ])
   const pluginServerList = computed(() =>
     allServerList.value.filter((server) => isPluginOwnedServerConfig(server))
@@ -589,13 +631,79 @@ export const useMcpStore = defineStore('mcp', () => {
     }
   }
 
-  const loadOpenPlatformConnectors = async (): Promise<void> => {
-    try {
-      openPlatformConnectors.value = await listOpenPlatformMarketConnectors()
-    } catch (error) {
-      console.warn('[MCP] Failed to load open platform connectors', error)
-      openPlatformConnectors.value = []
+  let connectorSyncPromise: Promise<void> | null = null
+
+  /** 远端下架或删除的连接器需要从本地移除，重新上架后才会再次出现在市场列表里。 */
+  const removeRevokedConnectors = async (
+    connectors: OpenPlatformMarketMcpServer[]
+  ): Promise<void> => {
+    const marketSourceIds = new Set(
+      connectors
+        .map((connector) => connector.sourceId)
+        .filter((sourceId): sourceId is string => Boolean(sourceId))
+    )
+    const revokedNames = findRevokedConnectorServerNames(
+      config.value.mcpServers ?? {},
+      marketSourceIds
+    )
+    if (revokedNames.length === 0) {
+      return
     }
+
+    const removedNames: string[] = []
+    for (const serverName of revokedNames) {
+      if (await removeServer(serverName)) {
+        removedNames.push(serverName)
+      }
+    }
+    if (removedNames.length === 0) {
+      return
+    }
+
+    notifyRenderer({
+      kind: 'info',
+      code: 'settings.mcp.openPlatformConnectorRevoked',
+      title: t('settings.mcp.openPlatformConnectorRevoked'),
+      description: t('settings.mcp.openPlatformConnectorRevokedDesc', {
+        names: removedNames.join(', ')
+      })
+    })
+  }
+
+  const syncOpenPlatformConnectors = async (): Promise<void> => {
+    /** 市场快照；拉取失败时直接返回，不清空已在展示的市场列表。 */
+    let connectors: OpenPlatformMarketMcpServer[]
+    try {
+      connectors = await listOpenPlatformMarketConnectors()
+    } catch (error) {
+      // 拉取失败时保留上一次成功的市场快照：清空会让已展示的卡片与更新按钮一起消失。
+      console.warn('[MCP] Failed to load open platform connectors', error)
+      return
+    }
+
+    openPlatformConnectors.value = connectors
+    // 只在成功拿到非空市场列表后对账。
+    // 列表为空可能是数据源异常（后端未就绪、本地 mock 数据被清），
+    // 删除不可逆，此时保留本地配置，避免把用户已启用的连接器一次性删光。
+    if (connectors.length === 0) {
+      console.warn('[MCP] Open platform connector market is empty, skip revoke reconciliation')
+      return
+    }
+    try {
+      await removeRevokedConnectors(connectors)
+    } catch (error) {
+      // 对账只负责清理本地，失败不得连带清掉刚拿到的市场快照
+      console.warn('[MCP] Failed to reconcile revoked open platform connectors', error)
+    }
+  }
+
+  const loadOpenPlatformConnectors = async (): Promise<void> => {
+    if (!connectorSyncPromise) {
+      connectorSyncPromise = syncOpenPlatformConnectors().finally(() => {
+        connectorSyncPromise = null
+      })
+    }
+    return connectorSyncPromise
   }
 
   // 设置MCP启用状态
@@ -878,6 +986,101 @@ export const useMcpStore = defineStore('mcp', () => {
     } finally {
       serverLoadingStates.value[serverName] = false
     }
+  }
+
+  type ConnectorInstallResult = {
+    status: 'started' | 'unsupported' | 'failed'
+    serverName: string
+  }
+
+  const connectorInstallTasks = new Map<string, Promise<ConnectorInstallResult>>()
+
+  /**
+   * 启用未落地的开放平台连接器：先写入本地 MCP 配置，再复用既有 toggleServer 链路启动。
+   * 落地后该服务器与普通自定义服务器完全一致，启用、停用、编辑、删除均走现有逻辑。
+   */
+  const runInstallOpenPlatformConnector = async (
+    server: MCPServerConfig & { name: string }
+  ): Promise<ConnectorInstallResult> => {
+    const serverName = resolveConnectorServerName(server.name, config.value.mcpServers ?? {})
+    if (!serverName || !canEnableOpenPlatformConnector(server)) {
+      return { status: 'unsupported', serverName }
+    }
+
+    const addResult = await addServer(serverName, toInstallableConnectorConfig(server))
+    if (addResult.status === 'duplicate') {
+      // 同名服务器已在本地配置中：已启用则直接复用，未启用才补一次启动，避免把开启的服务器关掉。
+      await runQuery(configQuery, { force: true })
+      /** 撞名的既有服务器。 */
+      const existingServer = config.value.mcpServers?.[serverName]
+      // 配置快照过期时可能撞上用户手动添加的同名服务器，它不是开放平台连接器，不能替用户启用
+      if (!existingServer || !isOpenPlatformConnectorConfig(existingServer)) {
+        return { status: 'failed', serverName }
+      }
+      if (existingServer.enabled) return { status: 'started', serverName }
+      const started = await toggleServer(serverName)
+      return { status: started ? 'started' : 'failed', serverName }
+    }
+    if (addResult.status !== 'added') {
+      return { status: 'failed', serverName }
+    }
+
+    const started = await toggleServer(serverName)
+    return { status: started ? 'started' : 'failed', serverName }
+  }
+
+  /**
+   * 同一个连接器在写入完成前被重复点击时复用同一次安装任务。
+   * 否则第二次调用看到的仍是旧配置，会解析出 `-2` 后缀并装出重复服务器。
+   */
+  const installOpenPlatformConnector = (
+    server: MCPServerConfig & { name: string }
+  ): Promise<ConnectorInstallResult> => {
+    const taskKey = server.sourceId || server.name
+    if (!taskKey) {
+      return runInstallOpenPlatformConnector(server)
+    }
+
+    const pendingTask = connectorInstallTasks.get(taskKey)
+    if (pendingTask) {
+      return pendingTask
+    }
+
+    const task = runInstallOpenPlatformConnector(server).finally(() => {
+      connectorInstallTasks.delete(taskKey)
+    })
+    connectorInstallTasks.set(taskKey, task)
+    return task
+  }
+
+  /**
+   * 把已落地连接器同步到市场最新版本：只覆盖远端提供的连接参数并刷新 sourceVersion，
+   * enabled 与 authorization 由主进程 {...current, ...config} 合并语义保留。
+   * 连接参数变化会抬升 configGeneration，主进程据此重启服务并清掉旧的 OAuth 凭据，
+   * 需要重新认证的服务器由卡片上既有的认证按钮兜底。
+   */
+  const updateOpenPlatformConnector = async (serverName: string): Promise<boolean> => {
+    const marketServer = connectorUpdatesAvailable.value[serverName]
+    if (!marketServer) return false
+
+    const updated = await updateServer(serverName, toUpdatableConnectorConfig(marketServer))
+    if (!updated) {
+      notifyRenderer({
+        kind: 'error',
+        code: 'settings.mcp.openPlatformConnectorUpdateFailed',
+        title: t('settings.mcp.openPlatformConnectorUpdateFailed'),
+        description: t('common.error.requestFailed')
+      })
+      return false
+    }
+
+    notifyRenderer({
+      kind: 'info',
+      code: 'settings.mcp.openPlatformConnectorUpdated',
+      title: t('settings.mcp.openPlatformConnectorUpdated'),
+      description: t('settings.mcp.openPlatformConnectorUpdatedDesc', { name: serverName })
+    })
+    return true
   }
 
   const startServerAuth = async (serverName: string): Promise<McpServerAuthStatus | null> => {
@@ -1200,7 +1403,10 @@ export const useMcpStore = defineStore('mcp', () => {
     initEvents()
     await loadEnabledToolNames()
     await loadConfig()
-    await loadOpenPlatformConnectors()
+    // 开放平台市场属于外部依赖，不能阻塞提示词 / 工具 / 客户端加载：
+    // 后端不可达时 axios 超时是 150s，串行等待会让对话里长时间没有任何 MCP 工具。
+    // 进入连接器页时 McpPluginsPage 会再拉一次，loadOpenPlatformConnectors 内部已做单飞去重。
+    void loadOpenPlatformConnectors()
 
     // 总是加载提示模板（包含config数据源）
     await loadPrompts()
@@ -1297,6 +1503,7 @@ export const useMcpStore = defineStore('mcp', () => {
     toolCount,
     hasTools,
     clients,
+    connectorUpdatesAvailable,
 
     // 服务器管理方法
     loadConfig,
@@ -1306,6 +1513,8 @@ export const useMcpStore = defineStore('mcp', () => {
     updateServer,
     removeServer,
     toggleServer,
+    installOpenPlatformConnector,
+    updateOpenPlatformConnector,
     updateServerAuthStatus,
     startServerAuth,
     completeServerAuthFromCallbackUrl,

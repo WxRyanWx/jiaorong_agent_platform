@@ -51,6 +51,8 @@ interface Props {
   toolsCount?: number
   promptsCount?: number
   resourcesCount?: number
+  updateAvailable?: boolean
+  isUpdating?: boolean
 }
 
 interface Emits {
@@ -64,6 +66,7 @@ interface Emits {
   (e: 'viewResources'): void
   (e: 'authenticate'): void
   (e: 'diagnostics'): void
+  (e: 'update'): void
 }
 
 const props = defineProps<Props>()
@@ -309,6 +312,19 @@ watch(watchDescription, () => {
 
         <!-- 开关 -->
         <div class="flex shrink-0 items-center gap-2" @click.stop @keydown.stop>
+          <DcButton
+            v-if="updateAvailable"
+            variant="outline"
+            size="sm"
+            class="h-6 px-2 text-[11px]"
+            :disabled="disabled || isUpdating"
+            :data-testid="`mcp-update-${server.name}`"
+            @click.stop="$emit('update')"
+          >
+            <Spinner v-if="isUpdating" class="size-3" data-icon="inline-start" />
+            <Icon v-else icon="lucide:arrow-up-circle" class="size-3" data-icon="inline-start" />
+            {{ t('settings.mcp.updateAvailable') }}
+          </DcButton>
           <DcButton
             v-if="showAuthenticateButton"
             variant="outline"

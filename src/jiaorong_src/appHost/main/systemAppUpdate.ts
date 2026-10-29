@@ -1,4 +1,4 @@
-/** 系统应用：OSS zip 装到 Electron userData，启动自动更新。不进用户 apps。 */
+/** 系统应用：应用列表接口给出的 zip 装到 Electron userData，启动自动更新。不进用户 apps。 */
 
 import fs from 'node:fs'
 import type { JiaorongAppRuntime } from '../types'
@@ -13,7 +13,8 @@ import {
   peekJiaorongRemoteRuntimeConfig,
   refreshJiaorongRemoteRuntimeConfig
 } from '../../config/remoteRuntimeConfig'
-import { readUserIdentityFromAuthSession } from './userIdentity'
+import { isJiaorongPrivateApiUrl, resolveAuthProductId } from '../../api/auth/config'
+import { readAuthToken, readUserIdentityFromAuthSession } from './userIdentity'
 
 /** 正在更新的系统应用 id。 */
 let updatingAppId: string | null = null
@@ -63,16 +64,17 @@ async function runSync(deps: JiaorongAppHostDeps): Promise<boolean> {
   )
   let anyOk = false
   for (const runtime of runtimes) {
-    if (await syncOne(runtime)) anyOk = true
+    if (await syncOne(deps, runtime)) anyOk = true
   }
   return anyOk
 }
 
 /**
  * 同步单个系统应用。
+ * @param deps 超级智能体依赖（读登录凭据）
  * @param runtime 目录项
  */
-async function syncOne(runtime: JiaorongAppRuntime): Promise<boolean> {
+async function syncOne(deps: JiaorongAppHostDeps, runtime: JiaorongAppRuntime): Promise<boolean> {
   const downloadUrl = runtime.package.downloadUrl?.trim() || ''
   if (!downloadUrl) return false
 
@@ -86,10 +88,18 @@ async function syncOne(runtime: JiaorongAppRuntime): Promise<boolean> {
   /** 下载结果。 */
   let zipPath = ''
   try {
-    const downloaded = await downloadAppZip(downloadUrl).catch((error) => {
-      console.error('[jiaorong-app] system app download failed', runtime.id, error)
-      return null
-    })
+    // 私有 API 包地址必须带登录凭据；公开 OSS 直链保持匿名
+    const token = readAuthToken(deps.getAuthSession())
+    const headers =
+      token && isJiaorongPrivateApiUrl(downloadUrl)
+        ? { 'Fusion-Auth': token, 'Product-Id': resolveAuthProductId() }
+        : undefined
+    const downloaded = await downloadAppZip(downloadUrl, headers ? { headers } : {}).catch(
+      (error) => {
+        console.error('[jiaorong-app] system app download failed', runtime.id, error)
+        return null
+      }
+    )
     if (!downloaded) return false
     zipPath = downloaded.zipPath
     /** 目录声明的校验和。 */
@@ -106,7 +116,7 @@ async function syncOne(runtime: JiaorongAppRuntime): Promise<boolean> {
       return false
     }
     /** 解压安装到 Electron userData。 */
-    const result = sharedAppsManager().installSystemAppFromPackage(downloaded.zipPath)
+    const result = await sharedAppsManager().installSystemAppFromPackage(downloaded.zipPath)
     if (!result.success) {
       console.error('[jiaorong-app] system app install failed', runtime.id, result.message)
       return false

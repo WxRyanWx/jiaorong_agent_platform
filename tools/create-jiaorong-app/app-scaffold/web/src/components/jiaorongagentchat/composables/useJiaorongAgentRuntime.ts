@@ -921,7 +921,7 @@ export function useJiaorongAgentRuntime(options: {
     if (pendingModel.value) return pendingModel.value // 用户已在新会话里选过模型
     const defaultModel =
       models.value.find(
-        (item) => item.providerId === 'jiaorong' && item.modelId === 'jiaorong-deepseek-v4-pro'
+        (item) => item.providerId === 'jiaorong' && item.modelId === 'jiaorong-deepseek-V4.1-flash'
       ) ??
       models.value.find((item) => item.providerId === 'jiaorong') ??
       models.value[0]

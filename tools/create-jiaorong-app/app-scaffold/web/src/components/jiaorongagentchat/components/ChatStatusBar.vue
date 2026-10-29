@@ -24,7 +24,7 @@ import duihuaIcon from '../assets/duihua.png'
 /** 默认供应商 id，未选中时回退到这里 */
 const DEFAULT_PROVIDER_ID = 'jiaorong'
 /** 默认模型 id，未选中时回退到这里 */
-const DEFAULT_MODEL_ID = 'jiaorong-deepseek-v4-pro'
+const DEFAULT_MODEL_ID = 'jiaorong-deepseek-V4.1-flash'
 /** 推理力度取值对应的中文标签 */
 const REASONING_LABELS: Record<string, string> = {
   none: '关闭',

@@ -6,8 +6,13 @@ import type { JiaorongDevAppRecord, JiaorongDevCenterItem } from '../../appHost/
 import { buildManifestJson, type AppManifestFormFields } from '../../appHost/manifestRules'
 import { readStoredUserInfo } from '../../config/storedUserInfo'
 import { resolveJiaorongIdentityValue } from '../../config/identityWhitelist'
-import type { OpenPlatformAppAuth, OpenPlatformAppPublishInput, OpenPlatformClient } from '../types'
+import type {
+  OpenPlatformAppAuth,
+  OpenPlatformAppPublishInput,
+  OpenPlatformClient
+} from '@jiaorong/api/openPlatform/types'
 import type { OpenPlatformAppCapabilities } from './clientAppCapabilities'
+import { buildAssetActionKey, runExclusiveAssetAction } from './assetActionLock'
 
 const DEV_APPS_STORAGE_PREFIX = 'jiaorong-dev-apps'
 
@@ -17,8 +22,6 @@ export type OpenPlatformAppCard = JiaorongDevCenterItem & {
   serverAuth: OpenPlatformAppAuth | null
   serverProvider: string | null
 }
-
-type OpenPlatformAppPublishRequest = OpenPlatformAppPublishInput & { packagePath?: string }
 
 function resolveDevAppsStorageKey(): string {
   const identity = readStoredUserInfo()
@@ -37,6 +40,37 @@ function readStoredDevApps(storageKey: string): JiaorongDevAppRecord[] {
   }
 }
 
+/** 主进程回写的发布包是 base64，转成 Blob 才能塞进 multipart。 */
+function base64ToZipBlob(base64: string): Blob {
+  const binary = atob(base64)
+  const bytes = new Uint8Array(binary.length)
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index)
+  }
+  return new Blob([bytes], { type: 'application/zip' })
+}
+
+/**
+ * 让主进程校验表单并把确认后的 app.json 写回 zip，拿到可上传的包体。
+ * @param capabilities 客户端能力
+ * @param input 应用 id、最终版清单、用户选的 zip、是否服务端卡片
+ */
+async function buildUploadPackage(
+  capabilities: OpenPlatformAppCapabilities,
+  input: {
+    appId: string
+    manifestJson: string
+    zipPath: string
+    allowUnregistered?: boolean
+  }
+): Promise<{ ok: true; blob: Blob } | { ok: false; message: string }> {
+  const result = await capabilities.publishLocalApp(input)
+  if (!result.ok || !result.zipBase64) {
+    return { ok: false, message: result.message || '生成发布包失败' }
+  }
+  return { ok: true, blob: base64ToZipBlob(result.zipBase64) }
+}
+
 async function writeStoredDevApps(apps: JiaorongDevAppRecord[], storageKey: string): Promise<void> {
   localStorage.setItem(storageKey, JSON.stringify(apps))
   await window.jiaorongApps?.syncDevApps(apps)
@@ -50,12 +84,15 @@ export function useOpenPlatformApps(input: {
   const apps = ref<OpenPlatformAppCard[]>([])
   const openingId = ref('')
   const removingId = ref('')
+  const publishingId = ref('')
   const lastError = ref<{ message?: string } | null>(null)
   const serverError = ref('')
   const isServerListLoading = ref(false)
   let refreshSequence = 0
 
-  const isBusy = computed(() => openingId.value !== '' || removingId.value !== '')
+  const isBusy = computed(
+    () => openingId.value !== '' || removingId.value !== '' || publishingId.value !== ''
+  )
 
   function isOpening(app: OpenPlatformAppCard): boolean {
     return openingId.value === app.id
@@ -153,7 +190,11 @@ export function useOpenPlatformApps(input: {
     lastError.value = null
     removingId.value = app.id
     try {
-      if (app.serverStatus === 'unpublished') await api.removeApp(app.id)
+      if (app.serverStatus === 'unpublished') {
+        await runExclusiveAssetAction(buildAssetActionKey('app', app.id), () =>
+          api.removeApp(app.id)
+        )
+      }
       const storageKey = resolveDevAppsStorageKey()
       if (app.dir) {
         await writeStoredDevApps(
@@ -180,30 +221,39 @@ export function useOpenPlatformApps(input: {
   ): Promise<boolean> {
     if (isBusy.value) return false
     lastError.value = null
-    const localResult = await capabilities.publishLocalApp({
-      appId: app.id,
-      manifestJson: buildManifestJson(payload.fields),
-      zipPath: payload.zipPath
-    })
-    if (!localResult.ok) {
-      lastError.value = { message: localResult.message }
-      return false
-    }
+    publishingId.value = app.id
+    /** 主进程校验并回写后的发布包。 */
     try {
-      const request: OpenPlatformAppPublishRequest = {
+      const uploadPackage = await buildUploadPackage(capabilities, {
+        appId: app.id,
+        manifestJson: buildManifestJson(payload.fields),
+        zipPath: payload.zipPath,
+        // 服务端已存在、本机没有登记目录的卡片，允许用临时包补齐 app.json
+        allowUnregistered: !app.dir
+      })
+      if (!uploadPackage.ok) {
+        lastError.value = { message: uploadPackage.message }
+        return false
+      }
+      const request: OpenPlatformAppPublishInput = {
         id: app.serverStatus === 'local' ? undefined : app.id,
         provider: payload.provider,
         manifest: payload.fields,
         auth: payload.auth,
-        packagePath: payload.zipPath
+        package: uploadPackage.blob
       }
-      await api.publishApp(request)
+      // 面板切走即卸载，本地 busy 会丢；锁放在模块级，重复点击不会再发一份发布请求
+      await runExclusiveAssetAction(buildAssetActionKey('app', app.id), () =>
+        api.publishApp(request)
+      )
       await refresh()
       return true
     } catch (error) {
       const message = error instanceof Error ? error.message : '发布失败，请稍后重试'
       lastError.value = { message }
       return false
+    } finally {
+      publishingId.value = ''
     }
   }
 
@@ -244,42 +294,20 @@ export function useOpenPlatformApps(input: {
   }
 
   async function unpublish(app: OpenPlatformAppCard): Promise<boolean> {
-    if (app.serverStatus !== 'published') return false
+    if (isBusy.value || app.serverStatus !== 'published') return false
     lastError.value = null
+    publishingId.value = app.id
     try {
-      await api.unpublishApp(app.id)
+      await runExclusiveAssetAction(buildAssetActionKey('app', app.id), () =>
+        api.unpublishApp(app.id)
+      )
       await refresh()
       return true
     } catch (error) {
       lastError.value = { message: error instanceof Error ? error.message : '下架失败' }
       return false
-    }
-  }
-
-  async function publishRemote(
-    app: OpenPlatformAppCard,
-    payload: {
-      fields: AppManifestFormFields
-      auth: OpenPlatformAppAuth | null
-      provider: string
-      zipPath: string
-    }
-  ): Promise<boolean> {
-    lastError.value = null
-    try {
-      const request: OpenPlatformAppPublishRequest = {
-        id: app.id,
-        provider: payload.provider,
-        manifest: payload.fields,
-        auth: payload.auth,
-        packagePath: payload.zipPath
-      }
-      await api.publishApp(request)
-      await refresh()
-      return true
-    } catch (error) {
-      lastError.value = { message: error instanceof Error ? error.message : '发布失败' }
-      return false
+    } finally {
+      publishingId.value = ''
     }
   }
 
@@ -319,7 +347,6 @@ export function useOpenPlatformApps(input: {
     pickZip,
     peekZip,
     open,
-    unpublish,
-    publishRemote
+    unpublish
   }
 }

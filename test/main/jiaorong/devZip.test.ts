@@ -82,6 +82,7 @@ describe('dev zip manifest peek and patch', () => {
       version: '1.0.1',
       entry: 'web-ui/index.html',
       slot: 'menu',
+      source: 'store',
       icon: 'icon.png',
       description: 'hello',
       spawn: ''
@@ -98,6 +99,7 @@ describe('dev zip manifest peek and patch', () => {
       version: '1.0.1',
       entry: 'web-ui/index.html',
       slot: 'menu',
+      source: 'store',
       extra: 'keep-me',
       icon: 'icon.png',
       description: 'hello'

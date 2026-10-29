@@ -2,7 +2,7 @@
 
 import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { hydrateAppCenterAccess, isJiaorongDeveloper } from '../../config/appCenterAccess'
+import { hydrateAppCenterAccess, isJiaorongDeveloper } from '../config/appCenterAccess'
 
 export function useOpenPlatformAccess() {
   const router = useRouter()

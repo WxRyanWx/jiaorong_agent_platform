@@ -37,7 +37,7 @@ allowedTools:
 
 ## 发现与模型调用
 
-`model invoke` 和 `agent run` 未传 `--provider` / `--model` 时，默认使用内置服务商 `jiaorong` 和模型 `jiaorong-deepseek-v4-pro`。用户指定了 ID 时以用户为准。图片、视频、语音命令仍必须显式传入服务商和模型。`model invoke` 未传 `--system` 时使用默认交融系统提示词；用户传了 `--system` 则以用户为准。
+`model invoke` 和 `agent run` 未传 `--provider` / `--model` 时，默认使用内置服务商 `jiaorong` 和模型 `jiaorong-deepseek-V4.1-flash`。用户指定了 ID 时以用户为准。图片、视频、语音命令仍必须显式传入服务商和模型。`model invoke` 未传 `--system` 时使用默认交融系统提示词；用户传了 `--system` 则以用户为准。
 
 ```text
 jiaorong system status --json

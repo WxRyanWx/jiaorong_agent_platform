@@ -3,18 +3,32 @@
 import { strFromU8, unzipSync } from 'fflate'
 import { parse as parseYaml } from 'yaml'
 import type {
+  OpenPlatformConnectorConfig,
   OpenPlatformConnectorPackageMetadata,
   OpenPlatformSkillPackageMetadata
-} from '../types'
+} from '@jiaorong/api/openPlatform/types'
 
 export type ParsedSkillPackage = OpenPlatformSkillPackageMetadata
 
-export type ParsedConnectorPackage = OpenPlatformConnectorPackageMetadata
+export type ParsedConnectorPackage = OpenPlatformConnectorPackageMetadata & {
+  config: OpenPlatformConnectorConfig
+}
 
 const VALID_CONNECTOR_TYPES = new Set<'stdio' | 'http' | 'sse'>(['stdio', 'http', 'sse'])
 
 async function readFileBytes(file: File): Promise<Uint8Array> {
   return new Uint8Array(await file.arrayBuffer())
+}
+
+/**
+ * 只解压根目录的目标文件。
+ * 200MB 的包全量 `unzipSync` 会同步冻住渲染进程，解压后内存还要翻几倍；
+ * 这里只需要 `SKILL.md` / `mcp.json` 一个小文件。
+ * @param bytes zip 字节
+ * @param fileName 根目录文件名
+ */
+function unzipRootFile(bytes: Uint8Array, fileName: string): Record<string, Uint8Array> {
+  return unzipSync(bytes, { filter: (file) => file.name === fileName })
 }
 
 function readRootText(entries: Record<string, Uint8Array>, fileName: string): string {
@@ -34,11 +48,85 @@ function parseFrontmatter(content: string): Record<string, unknown> {
   }
 }
 
+function readTrimmedString(record: Record<string, unknown>, ...keys: string[]): string {
+  for (const key of keys) {
+    const value = record[key]
+    if (typeof value === 'string' && value.trim()) return value.trim()
+  }
+  return ''
+}
+
+/** mcp.json 里 args、env、headers 的值可能被写成数字或布尔，统一按标量转字符串，避免静默丢参。 */
+function toScalarString(value: unknown): string {
+  if (typeof value === 'string') return value.trim()
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value)
+  if (typeof value === 'boolean') return String(value)
+  return ''
+}
+
+function readStringArray(record: Record<string, unknown>, key: string): string[] {
+  const value = record[key]
+  if (!Array.isArray(value)) return []
+  return value.map(toScalarString).filter((item) => item.length > 0)
+}
+
+function readStringRecord(
+  record: Record<string, unknown>,
+  key: string
+): Record<string, string> | undefined {
+  const value = record[key]
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
+  const entries = Object.entries(value as Record<string, unknown>)
+    .map(([name, item]) => [name, toScalarString(item)] as const)
+    .filter(([, item]) => item.length > 0)
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined
+}
+
+function readInheritEnv(record: Record<string, unknown>): 'minimal' | 'legacy' | undefined {
+  const value = record.inheritEnv
+  return value === 'minimal' || value === 'legacy' ? value : undefined
+}
+
+/**
+ * 主进程只认 baseUrl，mcp.json 里习惯写 url，解析阶段统一归一化。
+ * 优先级与 McpServerForm 的 JSON 导入保持一致，避免同一个包在两条路径下解析出不同地址。
+ */
+function readConnectorBaseUrl(record: Record<string, unknown>): string {
+  return readTrimmedString(record, 'url', 'baseUrl')
+}
+
+function createConnectorConfig(
+  record: Record<string, unknown>,
+  type: 'stdio' | 'http' | 'sse'
+): OpenPlatformConnectorConfig {
+  const baseUrl = readConnectorBaseUrl(record)
+  const command = readTrimmedString(record, 'command')
+  if (type === 'stdio' && !command) throw new Error('stdio 连接器必须提供 command')
+  if (type !== 'stdio' && !baseUrl) throw new Error('http、sse 连接器必须提供 url 或 baseUrl')
+
+  const customHeaders = readStringRecord(record, 'customHeaders')
+  const customNpmRegistry = readTrimmedString(record, 'customNpmRegistry')
+  const inheritEnv = readInheritEnv(record)
+
+  return {
+    type,
+    command,
+    args: readStringArray(record, 'args'),
+    env: readStringRecord(record, 'env') ?? {},
+    baseUrl,
+    ...(customHeaders ? { customHeaders } : {}),
+    ...(customNpmRegistry ? { customNpmRegistry } : {}),
+    ...(inheritEnv ? { inheritEnv } : {}),
+    descriptions: readTrimmedString(record, 'descriptions', 'description'),
+    icons: readTrimmedString(record, 'icons', 'icon')
+  }
+}
+
 export async function parseSkillPackage(file: File): Promise<ParsedSkillPackage> {
   if (!file.name.toLowerCase().endsWith('.zip')) {
     throw new Error('请选择技能 zip 包')
   }
-  const entries = unzipSync(await readFileBytes(file))
+  const entries = unzipRootFile(await readFileBytes(file), 'SKILL.md')
   const content = readRootText(entries, 'SKILL.md')
   if (!content) throw new Error('技能 zip 根目录必须包含 SKILL.md')
   const frontmatter = parseFrontmatter(content)
@@ -61,7 +149,7 @@ export async function parseConnectorPackage(file: File): Promise<ParsedConnector
   if (!file.name.toLowerCase().endsWith('.zip')) {
     throw new Error('请选择连接器 zip 包')
   }
-  const entries = unzipSync(await readFileBytes(file))
+  const entries = unzipRootFile(await readFileBytes(file), 'mcp.json')
   const content = readRootText(entries, 'mcp.json')
   if (!content) throw new Error('连接器 zip 根目录必须包含 mcp.json')
   let parsed: unknown
@@ -102,13 +190,12 @@ export async function parseConnectorPackage(file: File): Promise<ParsedConnector
     : hasBaseUrl
       ? 'http'
       : 'stdio'
-  if (type !== 'stdio' && type !== 'http' && type !== 'sse') {
-    throw new Error('MCP type 必须是 stdio、http 或 sse')
-  }
+  const connectorConfig = createConnectorConfig(record, type)
   return {
     id: id.trim(),
     name: id.trim(),
-    description: typeof record.descriptions === 'string' ? record.descriptions.trim() : '',
-    type
+    description: connectorConfig.descriptions,
+    type,
+    config: connectorConfig
   }
 }

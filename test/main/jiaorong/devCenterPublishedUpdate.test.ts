@@ -191,15 +191,19 @@ describe('dev center published app update', () => {
   it('accepts an increased update and a first publish', async () => {
     patchZipManifestMock.mockReturnValue({ ok: true, zipPath: '/tmp/patched.zip' })
     vi.mocked(fs.existsSync).mockReturnValue(true)
+    vi.mocked(fs.statSync).mockReturnValue({ size: 1024 } as unknown as ReturnType<
+      typeof fs.statSync
+    >)
 
     loadBuiltinAppCatalogMock.mockReturnValue([publishedCatalogRecord])
-    await expect(
-      publishDevApp(deps, {
-        appId: 'published-app',
-        manifestJson: manifestJson('published-app', '1.0.1'),
-        zipPath: '/tmp/app.zip'
-      })
-    ).resolves.toMatchObject({ ok: true })
+    const update = await publishDevApp(deps, {
+      appId: 'published-app',
+      manifestJson: manifestJson('published-app', '1.0.1'),
+      zipPath: '/tmp/app.zip'
+    })
+    expect(update).toMatchObject({ ok: true })
+    expect(typeof update.zipBase64).toBe('string')
+    expect(update.zipBase64?.length).toBeGreaterThan(0)
 
     loadBuiltinAppCatalogMock.mockReturnValue([])
     await expect(

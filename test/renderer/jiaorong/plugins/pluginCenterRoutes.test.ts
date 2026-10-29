@@ -6,8 +6,9 @@ import {
 } from '../../../../src/jiaorong_src/router/skills.meta'
 
 describe('plugin center routes', () => {
-  it('includes skills, connectors, mcp, and skill detail', () => {
+  it('includes apps, skills, connectors, mcp, and skill detail', () => {
     expect(SKILL_ROUTE_NAMES).toEqual([
+      'skills-apps',
       'skills',
       'skills-connectors',
       'skills-connector-ocr',
@@ -18,6 +19,7 @@ describe('plugin center routes', () => {
   })
 
   it('treats plugin-center routes as exclusive chrome and leaves the host plugins hub alone', () => {
+    expect(isSkillRouteLocation('skills-apps', '/skills/apps')).toBe(true)
     expect(isSkillRouteLocation('skills', '/skills')).toBe(true)
     expect(isSkillRouteLocation('skills-connectors', '/skills/connectors')).toBe(true)
     expect(isSkillRouteLocation('skills-connector-detail', '/skills/connectors/foo')).toBe(true)

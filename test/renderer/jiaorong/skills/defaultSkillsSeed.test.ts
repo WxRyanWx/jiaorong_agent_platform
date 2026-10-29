@@ -7,7 +7,8 @@ import {
   findRemoteSkillForDefault,
   isDefaultSkillPresentLocally,
   JIAORONG_DEFAULT_SKILLS_SEED_BUILD_KEY,
-  JIAORONG_DEFAULT_SKILLS_SEED_VERSION_KEY
+  JIAORONG_DEFAULT_SKILLS_SEED_VERSION_KEY,
+  toRemoteSkillSeedItems
 } from '../../../../src/jiaorong_src/skills/lib/ensureDefaultSkills'
 
 describe('defaultSkillsManifest', () => {
@@ -69,5 +70,35 @@ describe('ensureDefaultSkills matching', () => {
       }
     ])
     expect(found).toBeNull()
+  })
+
+  it('carries the market version so a freshly seeded skill is not marked updatable', () => {
+    expect(
+      toRemoteSkillSeedItems([
+        {
+          id: 's31',
+          name: '超级前端设计',
+          description: '',
+          downloadUrl: 'https://example.com/superdesign.zip',
+          version: ' 1.2.0 ',
+          openPlatform: true
+        },
+        {
+          id: 's51',
+          name: '24清单',
+          description: '',
+          downloadUrl: 'https://example.com/legacy.zip',
+          openPlatform: true
+        }
+      ])
+    ).toEqual([
+      {
+        id: 's31',
+        name: '超级前端设计',
+        downloadUrl: 'https://example.com/superdesign.zip',
+        version: '1.2.0'
+      },
+      { id: 's51', name: '24清单', downloadUrl: 'https://example.com/legacy.zip' }
+    ])
   })
 })

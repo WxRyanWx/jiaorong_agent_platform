@@ -3,7 +3,7 @@ defineOptions({ name: 'OpenPlatformPage' })
 
 import { onMounted, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
-import { getOpenPlatformClient } from '../api'
+import { getOpenPlatformClient } from '@jiaorong/api/openPlatform'
 import { createClientAppCapabilities } from './clientAppCapabilities'
 import AppsPane from './AppsPane.vue'
 import AssetPane from './AssetPane.vue'

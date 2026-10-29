@@ -1,7 +1,8 @@
 import { useSkillsStore } from '@/stores/skillsStore'
-import { listRemoteSkills } from '../../api/skills'
+import { listOpenPlatformMarketSkillListItems } from '../../plugins/market/openPlatformMarket'
 import { installSkillFromZipUrl } from '../../utils/downloadSkill/installSkillFromZipUrl'
 import { refreshSkillsCatalog } from '../../utils/refreshSkillsCatalog'
+import type { RemoteSkillListItem } from './skillMarketCatalog'
 import {
   loadRemoteInstallMap,
   rememberRemoteInstall,
@@ -70,6 +71,8 @@ export type RemoteSkillSeedItem = {
   id: string
   name: string
   downloadUrl: string
+  /** 市场版本号；补装时一并记录，否则列表页会把刚装好的技能判成「有更新」 */
+  version?: string
 }
 
 /** 远程 list 的 name 与清单 marketName 匹配 */
@@ -114,14 +117,18 @@ async function waitForAuthToken(timeoutMs: number): Promise<boolean> {
   }
 }
 
-function mapRemoteRaw(raw: Record<string, unknown>[]): RemoteSkillSeedItem[] {
+/**
+ * 市场条目转补装用的最小结构；name 为中文展示名，与 DEFAULT_MARKET_SKILLS 精确匹配。
+ * 版本号必须一起带出来：补装落库时不记版本，列表页会把刚装好的技能判成「有更新」。
+ */
+export function toRemoteSkillSeedItems(raw: RemoteSkillListItem[]): RemoteSkillSeedItem[] {
   return raw
-    .map((item) => {
-      const name = String(item.name ?? '').trim()
-      const downloadUrl = String(item.downloadUrl ?? '').trim()
-      const id = String(item.id ?? '').trim()
-      return { id, name, downloadUrl }
-    })
+    .map((item) => ({
+      id: item.id.trim(),
+      name: item.name.trim(),
+      downloadUrl: item.downloadUrl.trim(),
+      ...(item.version?.trim() ? { version: item.version.trim() } : {})
+    }))
     .filter((item) => Boolean(item.name))
 }
 
@@ -183,13 +190,13 @@ async function runEnsureDefaultSkills(options?: {
 
   let remote: RemoteSkillSeedItem[] = []
   try {
-    const raw = await listRemoteSkills()
-    remote = mapRemoteRaw(raw)
+    const raw = await listOpenPlatformMarketSkillListItems()
+    remote = toRemoteSkillSeedItems(raw)
   } catch (error) {
     return {
       ...empty,
       skipped: true,
-      reason: `listRemoteSkills failed: ${String(error)}`
+      reason: `listMarketSkills failed: ${String(error)}`
     }
   }
   if (remote.length === 0) {
@@ -231,7 +238,7 @@ async function runEnsureDefaultSkills(options?: {
         continue
       }
       const localSkillName = installResult.skillName?.trim() || marketName
-      rememberRemoteInstall(marketName, localSkillName)
+      rememberRemoteInstall(marketName, localSkillName, remoteItem.version)
       if (installResult.skillName) {
         rememberSkillSource(installResult.skillName, SkillSource.RemoteApi)
       }

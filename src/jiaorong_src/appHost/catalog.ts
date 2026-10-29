@@ -1,9 +1,8 @@
-/** OSS 应用目录解析与合并。谁能看见只看这份配置表。 */
+/** 应用目录解析与合并。运行时目录来自应用列表接口，OSS 只保留白名单等运行时配置。 */
 
 import {
   resetJiaorongRemoteRuntimeConfigForTests,
   startJiaorongRemoteRuntimeConfigSync,
-  subscribeJiaorongRemoteRuntimeConfig,
   whenJiaorongRemoteRuntimeConfigFirstAttemptSettled
 } from '../config/remoteRuntimeConfig'
 import { normalizeAppAuth } from './auth'
@@ -19,29 +18,14 @@ import type {
 /** 应用 id 合法格式。 */
 const APP_ID_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 
-/** 最近一次 OSS 解析出的应用列表。 */
+/** 最近一次应用列表接口落地的运行时目录。 */
 let remoteAppCatalog: JiaorongAppCatalogRecord[] = []
-/** 是否已订阅远程配置。 */
-let catalogSubscribed = false
+/** 是否至少成功落地过一次目录快照（含接口返回空列表）；冷启动 / 断网时保持 false。 */
+let hasAppliedAppCatalog = false
+/** 上次落地的接口目录快照，内容没变就不重复广播。 */
+let lastAppliedCatalogJson = ''
 /** 目录变化时通知侧栏。 */
 let catalogChangedListener: (() => void) | null = null
-
-/** 内置目录 JSON。 */
-type BuiltinCatalogFile = {
-  /** 目录 schema 版本。 */
-  schemaVersion?: number
-  /** 应用列表。 */
-  apps?: unknown[]
-}
-
-/**
- * 是否为目录允许的应用来源。
- * @param value 目录里的 `source` 字段
- */
-function isAppSource(value: unknown): value is JiaorongAppSource {
-  // 只认这三个字面量，其它回落到 store（避免漏写 source 被当成系统应用）
-  return value === 'builtin' || value === 'local-debug' || value === 'store'
-}
 
 /**
  * 解析目录里的挂载位置。系统应用固定侧栏；商店应用缺省只进应用中心。
@@ -95,107 +79,111 @@ function parsePackage(raw: unknown): JiaorongAppPackage | null {
 }
 
 /**
- * 解析目录里的一条应用。id 须为 kebab-case。
- * @param raw JSON 对象
+ * 解析应用列表接口（`assets?type=app`）的一条记录。
+ * 与 OSS apps 的差异：
+ * - 版本在顶层 `version`，下载地址与校验和在 `latestRelease`；
+ * - `iconUrl` 是绝对地址，不能当包内相对路径，图标改由安装后的 app.json 回填；
+ * - 没有 `enabled`，未发布的应用不会出现在市场列表里。
+ * @param raw 接口 item
  */
-export function parseAppCatalogRecord(raw: unknown): JiaorongAppCatalogRecord | null {
+export function parseAppAssetCatalogRecord(raw: unknown): JiaorongAppCatalogRecord | null {
   // 非对象视为无效
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
   /** 对象形态的入参。 */
   const record = raw as Record<string, unknown>
   /** 记录 id。 */
   const id = typeof record.id === 'string' ? record.id.trim() : ''
+  // id 必须是 kebab-case
+  if (!APP_ID_RE.test(id)) return null
+  // 市场接口只应回已发布项，仍按状态兜底
+  const status = typeof record.status === 'string' ? record.status.trim() : ''
+  if (status && status !== 'published') return null
+  /** 最新发布记录。 */
+  const release =
+    record.latestRelease &&
+    typeof record.latestRelease === 'object' &&
+    !Array.isArray(record.latestRelease)
+      ? (record.latestRelease as Record<string, unknown>)
+      : null
+  /** 读 trim 后字符串。 */
+  const readText = (value: unknown): string => (typeof value === 'string' ? value.trim() : '')
+  /** 版本：顶层优先，其次 latestRelease。 */
+  const version = readText(record.version) || readText(release?.version)
   /** 名称。 */
-  const name = typeof record.name === 'string' ? record.name.trim() : ''
-  /** 版本。 */
-  const version = typeof record.version === 'string' ? record.version.trim() : ''
-  // id 必须是 kebab-case，name / version 必填
-  if (!APP_ID_RE.test(id) || !name || !version) return null
+  const name = readText(record.name) || id
+  if (!version || !name) return null
+  /** 下载地址：优先 latestRelease，其次顶层。 */
+  const downloadUrl = readText(release?.downloadUrl) || readText(record.downloadUrl)
+  /** 包校验和。 */
+  const sha256 = readText(release?.sha256)
   /** 解析出的 package。 */
-  const parsedPackage = parsePackage(record.package)
-  // package 无效则整条丢弃
+  const parsedPackage = parsePackage({
+    kind: 'zip',
+    ...(downloadUrl ? { downloadUrl } : {}),
+    ...(sha256 ? { sha256 } : {})
+  })
+  // 没有可用包地址的条目无法安装
   if (!parsedPackage) return null
-  /** 说明。 */
-  const description = typeof record.description === 'string' ? record.description.trim() : ''
-  /** 图标。 */
-  const icon = typeof record.icon === 'string' ? record.icon.trim() : ''
-  /** 提供方。 */
-  const provider = typeof record.provider === 'string' ? record.provider.trim() : ''
-  /** 来源：发布默认 store；只有 OSS 手改 builtin 才当系统应用。 */
-  const source = isAppSource(record.source) ? record.source : 'store'
+  const description = readText(record.description)
+  const provider = readText(record.provider)
+  /** 来源：接口只有 builtin / store。 */
+  const source: JiaorongAppSource = record.source === 'builtin' ? 'builtin' : 'store'
   return {
     id,
     name,
     version,
     ...(description ? { description } : {}),
-    ...(icon ? { icon } : {}),
     ...(provider ? { provider } : {}),
     slot: parseAppSlot(record.slot, source),
     source,
-    // 只有显式 false 才算停用
-    enabled: record.enabled === false ? false : true,
-    // auth 归一化，三数组皆空表示全员可见
     auth: normalizeAppAuth(record.auth),
     package: parsedPackage
   }
 }
 
 /**
- * 解析 `{ schemaVersion, apps }`。
- * @param raw OSS JSON
+ * 用应用列表接口结果覆盖运行时目录。
+ * @param items 接口 item[]
+ * @returns 目录是否发生变化（变化时才需要重新同步系统应用）
  */
-export function parseAppCatalogFile(raw: unknown): JiaorongAppCatalogRecord[] {
-  /** 单个文件。 */
-  const file = raw && typeof raw === 'object' ? (raw as BuiltinCatalogFile) : {}
-  /** 应用列表。 */
-  const apps = Array.isArray(file.apps) ? file.apps : []
+export function applyAppCatalogFromApi(items: unknown[]): boolean {
   /** 解析结果。 */
   const parsed: JiaorongAppCatalogRecord[] = []
   /** 去重集合。 */
   const seen = new Set<string>()
-  /** 列表一项。 */
-  for (const item of apps) {
-    /** 对象形态的入参。 */
-    const record = parseAppCatalogRecord(item)
+  for (const item of items) {
+    const record = parseAppAssetCatalogRecord(item)
     // 解析失败或 id 重复（保留首次出现）
     if (!record || seen.has(record.id)) continue
     seen.add(record.id)
     parsed.push(record)
   }
-  return parsed
+  /** 目录快照。 */
+  const json = JSON.stringify(parsed)
+  // 接口成功返回即视为已有可信快照，空列表同样代表「市场里确实没有应用」
+  hasAppliedAppCatalog = true
+  // 内容没变不广播，避免重复触发侧栏与系统应用同步
+  if (json === lastAppliedCatalogJson) return false
+  lastAppliedCatalogJson = json
+  remoteAppCatalog = parsed
+  setSystemBundledAppIds(parsed.filter((item) => item.source === 'builtin').map((item) => item.id))
+  // 通知侧栏刷新
+  catalogChangedListener?.()
+  return true
+}
+
+/** 运行时应用目录来自应用列表接口。未拉到或失败时为空，本地 json 不参与运行。 */
+export function loadBuiltinAppCatalog(): JiaorongAppCatalogRecord[] {
+  return remoteAppCatalog
 }
 
 /**
- * 用远端 OSS 覆盖内置应用目录。
- * @param schemaVersion 目录 schema 版本
- * @param apps OSS 里的应用数组
+ * 是否已拿到过可信的接口目录。
+ * 冷启动或接口连续失败时为 false，扫描侧据此保留「已装即可见」的兜底，
+ * 避免断网启动时整个侧栏与交融应用列表被清空；拿到快照后严格按 auth 判定。
  */
-function applyRemoteAppCatalog(schemaVersion: number, apps: unknown[]): void {
-  remoteAppCatalog = parseAppCatalogFile({
-    schemaVersion,
-    apps
-  })
-  setSystemBundledAppIds(
-    remoteAppCatalog.filter((item) => item.source === 'builtin').map((item) => item.id)
-  )
-  // 通知侧栏刷新
-  catalogChangedListener?.()
-}
-
-/** 订阅远端目录变化并刷新。 */
-function bindRemoteAppCatalogSubscription(): void {
-  // 幂等：只订阅一次
-  if (catalogSubscribed) return
-  catalogSubscribed = true
-  // 每次远端配置更新都重新解析目录
-  subscribeJiaorongRemoteRuntimeConfig((config) => {
-    applyRemoteAppCatalog(config.schemaVersion, config.apps)
-  })
-}
-
-/** 运行时应用目录来自 OSS。未拉到或失败时为空，本地 json 不参与运行。 */
-export function loadBuiltinAppCatalog(): JiaorongAppCatalogRecord[] {
-  return remoteAppCatalog
+export function hasAppliedAppCatalogSnapshot(): boolean {
+  return hasAppliedAppCatalog
 }
 
 /**
@@ -211,9 +199,8 @@ export function notifyRemoteAppCatalogChanged(): void {
   catalogChangedListener?.()
 }
 
-/** 点火后台拉取，不等待 OSS。 */
+/** 点火后台拉取 OSS 运行时配置（白名单等）；应用目录由接口单独同步。 */
 export function startRemoteAppCatalogSync(): void {
-  bindRemoteAppCatalogSubscription()
   startJiaorongRemoteRuntimeConfigSync()
 }
 
@@ -226,48 +213,9 @@ export async function ensureRemoteAppCatalog(): Promise<void> {
 /** 测试用：清空远端目录订阅。 */
 export function resetRemoteAppCatalogForTests(): void {
   remoteAppCatalog = []
-  catalogSubscribed = false
+  hasAppliedAppCatalog = false
+  lastAppliedCatalogJson = ''
   catalogChangedListener = null
   setSystemBundledAppIds([])
   resetJiaorongRemoteRuntimeConfigForTests()
-}
-
-/**
- * M2：后管列表覆盖同 id 的内置项（auth / version / 下载地址）。
- * @param builtin 内置目录
- * @param store 后管目录
- */
-export function mergeAppCatalogs(
-  builtin: JiaorongAppCatalogRecord[],
-  store: JiaorongAppCatalogRecord[] = []
-): JiaorongAppCatalogRecord[] {
-  /** 映射表。 */
-  const map = new Map<string, JiaorongAppCatalogRecord>()
-  /** 列表一项。 */
-  for (const item of builtin) {
-    map.set(item.id, item)
-  }
-  /** 列表一项。 */
-  for (const item of store) {
-    /** 上一次的目录。 */
-    const prev = map.get(item.id)
-    // 同 id 已存在则叠加覆盖，否则整条新增
-    map.set(
-      item.id,
-      prev
-        ? {
-            ...prev,
-            ...item,
-            // 来源固定标记为后管
-            source: 'store',
-            // package 字段级合并，保留内置侧缺失的键
-            package: { ...prev.package, ...item.package },
-            // auth 未显式给出时沿用内置配置
-            auth: item.auth === undefined ? prev.auth : item.auth
-          }
-        : item
-    )
-  }
-  // 保持内置在前、后管追加的稳定顺序
-  return [...map.values()]
 }

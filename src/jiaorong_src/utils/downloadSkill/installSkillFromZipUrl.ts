@@ -1,5 +1,6 @@
 import { useSkillsStore } from '@/stores/skillsStore'
 import { createFileClient } from '@api/FileClient'
+import { resolveJiaorongPrivateApiHeaders } from '@jiaorong/api/auth'
 import type { SkillInstallResult } from '@shared/types/skill'
 import {
   fallbackNameFromRemoteZipUrl,
@@ -60,7 +61,14 @@ async function downloadZipBytes(url: string): Promise<Uint8Array> {
   const timeoutId = setTimeout(() => controller.abort(), DOWNLOAD_TIMEOUT_MS)
 
   try {
-    const response = await fetch(url, { signal: controller.signal })
+    // 开放平台的包下载走私有 API，裸请求会 401；第三方直链不附加凭据
+    const authHeaders = resolveJiaorongPrivateApiHeaders(url)
+    const response = await fetch(
+      url,
+      authHeaders
+        ? { signal: controller.signal, headers: authHeaders }
+        : { signal: controller.signal }
+    )
     if (!response.ok) {
       throw new Error(`Failed to download skill zip: ${response.status} ${response.statusText}`)
     }

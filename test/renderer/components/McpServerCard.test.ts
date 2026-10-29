@@ -46,7 +46,11 @@ const server = {
   isRunning: false
 }
 
-const mountCard = (onClick = vi.fn(), serverOverrides: Record<string, unknown> = {}) => {
+const mountCard = (
+  onClick = vi.fn(),
+  serverOverrides: Record<string, unknown> = {},
+  propsOverrides: Record<string, unknown> = {}
+) => {
   const wrapper = mount(McpServerCard, {
     props: {
       server: {
@@ -55,7 +59,8 @@ const mountCard = (onClick = vi.fn(), serverOverrides: Record<string, unknown> =
       },
       toolsCount: 1,
       promptsCount: 1,
-      resourcesCount: 1
+      resourcesCount: 1,
+      ...propsOverrides
     },
     attrs: {
       onClick
@@ -112,6 +117,28 @@ describe('McpServerCard', () => {
     expect(wrapper.emitted('viewPrompts')).toHaveLength(1)
     expect(wrapper.emitted('viewResources')).toHaveLength(1)
     expect(onClick).not.toHaveBeenCalled()
+  })
+
+  it('hides the update action when no update is available', () => {
+    const { wrapper } = mountCard()
+    expect(wrapper.find('[data-testid="mcp-update-demo"]').exists()).toBe(false)
+  })
+
+  it('emits update without opening details when clicking the update action', async () => {
+    const { wrapper, onClick } = mountCard(vi.fn(), {}, { updateAvailable: true })
+
+    await wrapper.get('[data-testid="mcp-update-demo"]').trigger('click')
+
+    expect(wrapper.emitted('update')).toHaveLength(1)
+    expect(onClick).not.toHaveBeenCalled()
+  })
+
+  it('disables the update action while updating', () => {
+    const { wrapper } = mountCard(vi.fn(), {}, { updateAvailable: true, isUpdating: true })
+
+    expect(
+      (wrapper.get('[data-testid="mcp-update-demo"]').element as HTMLButtonElement).disabled
+    ).toBe(true)
   })
 
   it('labels OAuth error status as authentication failed', () => {

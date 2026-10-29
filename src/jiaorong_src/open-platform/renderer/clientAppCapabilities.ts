@@ -11,7 +11,9 @@ export type OpenPlatformAppCapabilities = {
     appId: string
     manifestJson: string
     zipPath: string
-  }) => Promise<{ ok: boolean; message?: string }>
+    /** 服务端卡片本机没登记目录，置真跳过登记校验。 */
+    allowUnregistered?: boolean
+  }) => Promise<{ ok: boolean; message?: string; zipBase64?: string }>
   pickZip: () => Promise<string | null>
   peekZip: (zipPath: string) => Promise<AppManifestFormFields | null>
   openApp: (appId: string) => Promise<{ ok: boolean; cancelled?: boolean; message?: string }>
@@ -34,7 +36,8 @@ export function createClientAppCapabilities(): OpenPlatformAppCapabilities {
         (await window.jiaorongApps?.publishDevApp(
           input.appId,
           input.manifestJson,
-          input.zipPath
+          input.zipPath,
+          input.allowUnregistered
         )) ?? { ok: false, message: 'MISSING' }
       )
     },

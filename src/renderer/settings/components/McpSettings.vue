@@ -374,7 +374,9 @@ const globallyAvailableServerIds = computed(() =>
     mcpStore.serverList
       .filter((server) => {
         const config = mcpStore.config.mcpServers[server.name]
-        return config?.enabled !== false && !config?.disable
+        // 未落地的开放平台市场条目没有本地配置，不属于全局可用服务器，
+        // 否则智能体作用域下会把它的开关显示成已启用。
+        return Boolean(config) && config.enabled !== false && !config.disable
       })
       .map((server) => server.name)
   )

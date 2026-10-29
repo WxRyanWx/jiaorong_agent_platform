@@ -58,3 +58,19 @@ export function listJiaorongPrivateApiCorsUrls(
 ): string[] {
   return [`${resolveAuthApiOrigin(mode)}/*`]
 }
+
+/**
+ * 该地址是否指向当前环境的私有 API。
+ * 主进程与渲染进程共用：只有命中才允许附加登录凭据，避免把 token 发到第三方直链。
+ * @param url 待判定的绝对地址
+ * @param mode Vite mode
+ */
+export function isJiaorongPrivateApiUrl(
+  url: string,
+  mode = import.meta.env.MODE || 'production'
+): boolean {
+  const trimmed = url.trim()
+  if (!trimmed) return false
+  const origin = resolveAuthApiOrigin(mode)
+  return trimmed === origin || trimmed.startsWith(`${origin}/`)
+}

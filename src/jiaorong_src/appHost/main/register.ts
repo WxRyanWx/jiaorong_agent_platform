@@ -13,6 +13,7 @@ import {
   JIAORONG_APP_CENTER_LIST_CHANNEL,
   JIAORONG_APP_CENTER_INSTALL_CHANNEL,
   JIAORONG_APP_CENTER_INSTALL_PACKAGE_CHANNEL,
+  JIAORONG_APP_CENTER_INSTALL_REMOTE_PACKAGE_CHANNEL,
   JIAORONG_APP_CENTER_INSTALL_STATUSES_CHANNEL,
   JIAORONG_APP_CENTER_UNINSTALL_CHANNEL,
   JIAORONG_DEV_APP_OPEN_WINDOW_CHANNEL,
@@ -54,6 +55,7 @@ import { migrateLegacySystemAppsIfNeeded } from './paths'
 import {
   installAppCenterApp,
   installAppCenterAppFromPackage,
+  installAppCenterAppFromRemotePackage,
   isDeveloperIdentity,
   listAppCenterItemsByIds,
   listAppCenterItems,
@@ -79,7 +81,12 @@ import {
 } from '../devCenter/main/devAppWindow'
 import { installJiaorongDevToolsShortcut } from './devtoolsShortcut'
 import { registerJiaorongAppProtocolHandler } from './protocol'
-import { setRemoteAppCatalogChangedListener, startRemoteAppCatalogSync } from '../catalog'
+import {
+  loadBuiltinAppCatalog,
+  setRemoteAppCatalogChangedListener,
+  startRemoteAppCatalogSync
+} from '../catalog'
+import { syncAppCatalogFromApi } from './appCatalogApi'
 import { refreshJiaorongRemoteRuntimeConfig } from '../../config/remoteRuntimeConfig'
 import { resolveAuthEnv } from '../../api/auth/config'
 import { readAppManifest } from './manifest'
@@ -100,6 +107,13 @@ import { readAuthUserKey, readUserIdentityFromAuthSession } from './userIdentity
 let started = false
 /** 上次广播用的用户键。 */
 let lastBroadcastUserKey: string | null = null
+/** 启动阶段目录拉失败后的重试定时器。 */
+let appCatalogRetryTimer: NodeJS.Timeout | null = null
+/** 已重试次数。 */
+let appCatalogRetryCount = 0
+
+/** 失败重试间隔：启动瞬间网络没就绪时自愈，避免菜单一直空着。 */
+const APP_CATALOG_RETRY_DELAYS_MS = [5_000, 20_000, 60_000]
 
 /**
  * IPC sender 的 URL。
@@ -159,14 +173,18 @@ function readDevPublishInput(input: unknown): {
   appId: string
   manifestJson: string
   zipPath: string
+  allowUnregistered: boolean
 } {
-  if (!input || typeof input !== 'object') return { appId: '', manifestJson: '', zipPath: '' }
+  if (!input || typeof input !== 'object') {
+    return { appId: '', manifestJson: '', zipPath: '', allowUnregistered: false }
+  }
   /** 原始字段表。 */
   const record = input as Record<string, unknown>
   return {
     appId: typeof record.appId === 'string' ? record.appId : '',
     manifestJson: typeof record.manifestJson === 'string' ? record.manifestJson : '',
-    zipPath: typeof record.zipPath === 'string' ? record.zipPath : ''
+    zipPath: typeof record.zipPath === 'string' ? record.zipPath : '',
+    allowUnregistered: record.allowUnregistered === true
   }
 }
 
@@ -201,6 +219,25 @@ function readAppPackageInput(input: unknown): { appId: string; packagePath: stri
   return {
     appId: typeof record.appId === 'string' ? record.appId.trim() : '',
     packagePath: typeof record.packagePath === 'string' ? record.packagePath.trim() : ''
+  }
+}
+
+/**
+ * 读开放平台远端包安装入参。
+ * @param input IPC 原始值
+ */
+function readAppRemotePackageInput(input: unknown): {
+  appId: string
+  downloadUrl: string
+  sha256: string
+} {
+  if (!input || typeof input !== 'object') return { appId: '', downloadUrl: '', sha256: '' }
+  /** 入参里的字段。 */
+  const record = input as { appId?: unknown; downloadUrl?: unknown; sha256?: unknown }
+  return {
+    appId: typeof record.appId === 'string' ? record.appId.trim() : '',
+    downloadUrl: typeof record.downloadUrl === 'string' ? record.downloadUrl.trim() : '',
+    sha256: typeof record.sha256 === 'string' ? record.sha256.trim() : ''
   }
 }
 
@@ -389,15 +426,66 @@ function emptyGuestContext(
 }
 
 /**
+ * 后台同步应用目录；成功后顺带补齐内置应用安装 / 更新。
+ * 接口失败按退避重试，避免启动时报错后菜单一直是空的。
+ * @param deps 超级智能体依赖
+ */
+function syncAppCatalogAndSystemApps(deps: JiaorongAppHostDeps): void {
+  void syncAppCatalogFromApi(deps)
+    .then(async (result) => {
+      // 拉失败：保留旧快照并重试，不要当成「目录为空」
+      if (!result.ok) {
+        scheduleAppCatalogRetry(deps)
+        return
+      }
+      appCatalogRetryCount = 0
+      // 目录没变也要跑一次：用户可能删掉了本地已装目录，安装是幂等的
+      await syncCollaborationPlatform(deps)
+    })
+    .catch((error) => {
+      console.warn('[jiaorong-app] app catalog sync failed', error)
+    })
+}
+
+/**
+ * 失败后按退避重试同步目录。
+ * @param deps 超级智能体依赖
+ */
+function scheduleAppCatalogRetry(deps: JiaorongAppHostDeps): void {
+  if (appCatalogRetryTimer) return
+  const delay = APP_CATALOG_RETRY_DELAYS_MS[appCatalogRetryCount]
+  // 重试次数用完就停，等下次登录或打开应用中心再拉
+  if (delay === undefined) return
+  appCatalogRetryCount += 1
+  appCatalogRetryTimer = setTimeout(() => {
+    appCatalogRetryTimer = null
+    syncAppCatalogAndSystemApps(deps)
+  }, delay)
+  // 不阻止进程退出
+  appCatalogRetryTimer.unref?.()
+}
+
+/** 清掉未执行的重试。 */
+function clearAppCatalogRetry(): void {
+  if (appCatalogRetryTimer) clearTimeout(appCatalogRetryTimer)
+  appCatalogRetryTimer = null
+  appCatalogRetryCount = 0
+}
+
+/**
  * 向 guest 广播最新 context；登录用户变了还要停进程并清 guest 存储。
  * @param deps 超级智能体依赖
  */
 async function broadcastContext(deps: JiaorongAppHostDeps): Promise<void> {
   /** 当前用户键。 */
   const currentUser = readAuthUserKey(deps.getAuthSession())
+  /** 上一次广播时的用户键。 */
+  const previousUser = lastBroadcastUserKey
   /** 登录用户是否变化。 */
-  const userChanged = lastBroadcastUserKey !== null && lastBroadcastUserKey !== currentUser
+  const userChanged = previousUser !== null && previousUser !== currentUser
   lastBroadcastUserKey = currentUser
+  // 首次登录 / 换人 / 登出都后台重拉应用目录，不阻塞 context 广播
+  if (previousUser !== currentUser) syncAppCatalogAndSystemApps(deps)
   // 换人登录：所有应用子进程都要停，避免串数据
   if (userChanged) {
     // 先清旧名单，再等调试窗口关闭；窗口关闭期间新身份的同步才能保留下来
@@ -475,8 +563,6 @@ export function startJiaorongAppHost(deps: JiaorongAppHostDeps): void {
   migrateLegacySystemAppsIfNeeded()
   // 旧版把调试 link 长期落盘；新版只在调试窗口打开期间保留
   sharedAppsManager().removeExternalAppLinks()
-  // 记下当前登录用户，供后续判断是否换人
-  lastBroadcastUserKey = readAuthUserKey(deps.getAuthSession())
   // 登录态变化时重广播 context
   setJiaorongAppContextBroadcaster(() => {
     void broadcastContext(deps)
@@ -497,10 +583,13 @@ export function startJiaorongAppHost(deps: JiaorongAppHostDeps): void {
   setRemoteAppCatalogChangedListener(broadcastCatalogChanged)
   setSystemAppUpdateBroadcaster(broadcastCatalogChanged)
   startRemoteAppCatalogSync()
-  void syncCollaborationPlatform(deps)
+  // 应用目录走接口：后台同步，完成后自动安装 / 更新内置应用
+  syncAppCatalogAndSystemApps(deps)
 
   // 侧栏：协同平台 + slot=menu 的已装商店应用；其余只在应用中心打开
   ipcMain.handle(JIAORONG_APP_LIST_CHANNEL, () => {
+    // 目录还是空的（首次启动失败过）就顺手补一次，不阻塞本次返回
+    if (loadBuiltinAppCatalog().length === 0) syncAppCatalogAndSystemApps(deps)
     return listVisible(deps)
       .filter((item) => isJiaorongSidebarMenuApp(item))
       .map((item) => toMenuAppItem(item))
@@ -516,6 +605,8 @@ export function startJiaorongAppHost(deps: JiaorongAppHostDeps): void {
 
   // 应用中心列表：先主动重拉 OSS 目录，再回远程应用 + 安装状态
   ipcMain.handle(JIAORONG_APP_CENTER_LIST_CHANNEL, async () => {
+    // 打开交融应用时后台拉一次应用目录；失败保留上一份快照，不阻塞列表返回
+    syncAppCatalogAndSystemApps(deps)
     await refreshJiaorongRemoteRuntimeConfig()
     return listAppCenterItems(deps)
   })
@@ -528,7 +619,7 @@ export function startJiaorongAppHost(deps: JiaorongAppHostDeps): void {
     return installAppCenterApp(deps, appId)
   })
 
-  // 应用中心 mock 期安装：使用发布时选择的本地 zip
+  // 应用中心按本地 zip 路径安装（本地 / 调试应用）
   ipcMain.handle(JIAORONG_APP_CENTER_INSTALL_PACKAGE_CHANNEL, async (_event, input: unknown) => {
     const { appId, packagePath } = readAppPackageInput(input)
     // 本地包覆盖安装前同样释放同 id 调试来源
@@ -536,12 +627,23 @@ export function startJiaorongAppHost(deps: JiaorongAppHostDeps): void {
     return installAppCenterAppFromPackage(deps, appId, packagePath)
   })
 
-  // 应用中心按 id 查询安装状态：mock 市场卡片合并本地安装结果
+  // 应用中心安装开放平台远端包：主进程带鉴权下载并校验 sha256
+  ipcMain.handle(
+    JIAORONG_APP_CENTER_INSTALL_REMOTE_PACKAGE_CHANNEL,
+    async (_event, input: unknown) => {
+      const { appId, downloadUrl, sha256 } = readAppRemotePackageInput(input)
+      // 覆盖安装前释放同 id 调试来源，与其它安装入口一致
+      if (appId) await closeDevAppWindow(appId)
+      return installAppCenterAppFromRemotePackage(deps, { appId, downloadUrl, sha256 })
+    }
+  )
+
+  // 应用中心按 id 查询安装状态：市场卡片合并本地安装结果
   ipcMain.handle(JIAORONG_APP_CENTER_INSTALL_STATUSES_CHANNEL, (_event, input: unknown) => {
     return listAppCenterItemsByIds(deps, readAppIdsInput(input))
   })
 
-  // 应用中心卸载：仅开发者
+  // 应用中心卸载：已装即可卸，内置（系统）应用除外
   ipcMain.handle(JIAORONG_APP_CENTER_UNINSTALL_CHANNEL, async (_event, input: unknown) => {
     const appId = readAppIdInput(input)
     // 卸载生产包前先关闭调试窗口，避免只卸掉临时 link
@@ -654,7 +756,7 @@ export function startJiaorongAppHost(deps: JiaorongAppHostDeps): void {
     // 起进程前记下其他已跑应用，后面用来判断是不是端口撞车
     const occupiers = manager.listRunningAppNames(spawnId)
     // 按 app.json.spawn 起子进程；cwd 用打开的那份目录
-    const startedSpawn = manager.startApp(
+    const startedSpawn = await manager.startApp(
       spawnId,
       installed.appDir ? { cwd: installed.appDir } : undefined
     )
@@ -771,6 +873,7 @@ export function stopJiaorongAppHost(): void {
   ipcMain.removeHandler(JIAORONG_APP_CENTER_LIST_CHANNEL)
   ipcMain.removeHandler(JIAORONG_APP_CENTER_INSTALL_CHANNEL)
   ipcMain.removeHandler(JIAORONG_APP_CENTER_INSTALL_PACKAGE_CHANNEL)
+  ipcMain.removeHandler(JIAORONG_APP_CENTER_INSTALL_REMOTE_PACKAGE_CHANNEL)
   ipcMain.removeHandler(JIAORONG_APP_CENTER_INSTALL_STATUSES_CHANNEL)
   ipcMain.removeHandler(JIAORONG_APP_CENTER_UNINSTALL_CHANNEL)
   ipcMain.removeHandler(JIAORONG_DEV_CENTER_LIST_CHANNEL)
@@ -790,6 +893,7 @@ export function stopJiaorongAppHost(): void {
   sharedAppsManager().stopAllRunningApps()
   clearWindowSpawns()
   clearAppIntents()
+  clearAppCatalogRetry()
   // 复位状态，允许再次 start
   lastBroadcastUserKey = null
   started = false

@@ -15,6 +15,10 @@ const mocks = vi.hoisted(() => ({
     updateSkillFile: vi.fn(),
     deleteSkill: vi.fn(),
     setSkillAssigned: vi.fn()
+  },
+  // 开放平台市场默认走真实 http，测试里必须替身掉，否则 jsdom 里的请求会一直挂着
+  openPlatformMarket: {
+    listOpenPlatformMarketSkills: vi.fn()
   }
 }))
 let catalogChangedListener: (() => void) | undefined
@@ -25,6 +29,9 @@ vi.mock('@api/ConfigClient', () => ({
 }))
 vi.mock('@api/SkillClient', () => ({
   createSkillClient: () => mocks.skillClient
+}))
+vi.mock('@jiaorong/plugins/market/openPlatformMarket', () => ({
+  listOpenPlatformMarketSkills: mocks.openPlatformMarket.listOpenPlatformMarketSkills
 }))
 vi.mock('@/composables/useGuidedOnboardingStep', () => ({
   useGuidedOnboardingStep: () => ({
@@ -197,6 +204,7 @@ describe('SkillsPluginsPage', () => {
       affectedAgentIds: ['agent-a', 'agent-b']
     })
     mocks.skillClient.setSkillAssigned.mockResolvedValue(undefined)
+    mocks.openPlatformMarket.listOpenPlatformMarketSkills.mockResolvedValue([])
   })
 
   it('shows every Skill in one list and opens its preview', async () => {

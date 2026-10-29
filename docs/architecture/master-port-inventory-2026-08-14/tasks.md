@@ -17,7 +17,7 @@
 - [x] P6 对照上游后：壳启动水合、侧栏 Agent 分区、工具中文接线（含静态对照表 H117）、Linux afterPack 可执行名、内置 SKILL.md displayName
 - [x] P6 明确不搬：悬浮球拖拽/位置持久化（上游已有完整拖拽+吸附+persist）；Win 覆盖安装（SkillUploadDialog 已有）
 - [x] 搬迁漏项（按 master 原逻辑）：非管理员 `speLabel` 藏模型选择；气泡 `duihua`+「交融对话」；技能四件套+设置五件套中文 displayName；设置侧栏 `getSettingsSidebarNavigationGroups`；`jiaorong-settings` 工具组；会话乐观 `goToChat`；上翻 prefetch 200px/25% 视口。首屏 restore idle 调度不搬（属于上游窗口化）
-- [x] 搬迁漏项：内置 `jiaorong` Provider（enable+原 apiKey/baseUrl）；无已启用模型时自动 enable `jiaorong-deepseek-v4-pro`；托盘三图标；用户可见 DeepChat→JiaorongAI（托盘/窗标题/导出/同步目录/mime/MCP 客户端名/ACP 临时目录/远程控制文案/UA）；MCP 内置服务说明「交融超级智能体」；技能/会话默认路径 `.jiaorongchat`
+- [x] 搬迁漏项：内置 `jiaorong` Provider（enable+原 apiKey/baseUrl）；无已启用模型时自动 enable `jiaorong-deepseek-V4.1-flash`；托盘三图标；用户可见 DeepChat→JiaorongAI（托盘/窗标题/导出/同步目录/mime/MCP 客户端名/ACP 临时目录/远程控制文案/UA）；MCP 内置服务说明「交融超级智能体」；技能/会话默认路径 `.jiaorongchat`
 - [x] 搬迁漏项：非管理员只藏模型选择、主动协作保留；设置侧栏藏调试；内置 SKILL.md YAML `description` 中文；zh-CN 工具/设置总览等壳文案
 - [x] 全量 980 文件记录：`docs/architecture/master-port-inventory-2026-08-14/files.md`；已按表补 Apple/Artifacts 工具中文名与描述
 - [x] 搬迁漏项：技能四件套 + 设置五件套 `description` 中文（按 master 原文）；工具定义/失败文案/系统段用户可见 DeepChat→JiaorongAI

@@ -7,9 +7,6 @@ import { readUserIdentityFromAuthSession } from '../../../src/jiaorong_src/appHo
 import {
   ensureRemoteAppCatalog,
   loadBuiltinAppCatalog,
-  mergeAppCatalogs,
-  parseAppCatalogFile,
-  parseAppCatalogRecord,
   resetRemoteAppCatalogForTests
 } from '../../../src/jiaorong_src/appHost/catalog'
 import { mergeSystemBundledCatalog } from '../../../src/jiaorong_src/appHost/systemApps'
@@ -129,55 +126,6 @@ describe('jiaorong app catalog auth', () => {
     ).toBe(true)
   })
 
-  it('lets store catalog override builtin auth and version', () => {
-    const builtin = parseAppCatalogFile({
-      apps: [
-        {
-          id: 'demo-workbench',
-          name: '示例工作台',
-          version: '0.0.1-dev',
-          source: 'builtin',
-          auth: { orgs: ['old'], userIds: [] },
-          package: { kind: 'dir', builtinDir: 'demo-workbench' }
-        }
-      ]
-    })
-    const merged = mergeAppCatalogs(builtin, [
-      {
-        ...builtin[0],
-        source: 'store',
-        version: '1.0.0',
-        auth: { orgs: ['101641966'], userIds: ['L20184974'] },
-        package: {
-          kind: 'zip',
-          builtinDir: 'demo-workbench',
-          downloadUrl: 'https://example.test/demo.zip'
-        }
-      }
-    ])
-    expect(merged[0]?.version).toBe('1.0.0')
-    expect(merged[0]?.source).toBe('store')
-    expect(merged[0]?.auth?.orgs).toEqual(['101641966'])
-    expect(merged[0]?.package.downloadUrl).toBe('https://example.test/demo.zip')
-  })
-
-  it('treats http builtinDir as zip downloadUrl for collaboration-platform', () => {
-    const parsed = parseAppCatalogRecord({
-      id: 'collaboration-platform',
-      name: '协同平台',
-      version: '1.0.1',
-      source: 'builtin',
-      package: {
-        kind: 'dir',
-        builtinDir: 'https://c4ai.ccccltd.cn/xkprosdk/apps/collaboration-platform.zip'
-      }
-    })
-    expect(parsed?.package).toEqual({
-      kind: 'zip',
-      downloadUrl: 'https://c4ai.ccccltd.cn/xkprosdk/apps/collaboration-platform.zip'
-    })
-  })
-
   it('keeps collaboration-platform as a system app and overlays OSS zip', () => {
     const merged = mergeSystemBundledCatalog([
       {
@@ -255,7 +203,7 @@ describe('jiaorong remote app catalog', () => {
     expect(loadBuiltinAppCatalog()).toEqual([])
   })
 
-  it('loads remote apps after a successful fetch', async () => {
+  it('ignores OSS apps because the app catalog now comes from the list api', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () => ({
@@ -277,12 +225,7 @@ describe('jiaorong remote app catalog', () => {
     )
 
     await ensureRemoteAppCatalog()
-    expect(loadBuiltinAppCatalog()).toEqual([
-      expect.objectContaining({
-        id: 'demo-workbench',
-        version: '0.0.29-dev'
-      })
-    ])
+    expect(loadBuiltinAppCatalog()).toEqual([])
   })
 })
 
@@ -312,21 +255,23 @@ describe('jiaorong local-debug scan gate', () => {
   it('keeps local-debug extras when the remote catalog has apps', async () => {
     const { combineRemoteAndLocalDebugApps } =
       await import('../../../src/jiaorong_src/appHost/main/scan')
-    const remote = parseAppCatalogFile({
-      apps: [
-        {
-          id: 'demo-workbench',
-          name: '示例工作台',
-          version: '0.0.1-dev',
-          source: 'builtin',
-          package: { kind: 'dir', builtinDir: 'demo-workbench' }
-        }
-      ]
-    })
+    const remote = [
+      {
+        id: 'demo-workbench',
+        name: '示例工作台',
+        version: '1.0.0',
+        slot: 'menu' as const,
+        source: 'builtin' as const,
+        enabled: true,
+        auth: null,
+        package: { kind: 'zip' as const, downloadUrl: 'https://example.test/demo.zip' }
+      }
+    ]
     const localDebug = [
       {
         ...remote[0],
         id: 'local-only',
+        version: '0.0.1',
         name: 'Local',
         source: 'local-debug' as const,
         package: { kind: 'dir' as const, builtinDir: 'local-only' }

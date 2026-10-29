@@ -1787,7 +1787,7 @@ const resolveModelIconId = (providerId?: string | null, modelId?: string | null)
     return modelId
   }
   // Master: ModelIcon matches provider id (`jiaorong` → duihua). Passing modelId
-  // (`jiaorong-deepseek-v4-pro`) never hits the provider store and can collapse.
+  // (`jiaorong-deepseek-V4.1-flash`) never hits the provider store and can collapse.
   return providerId || modelId || 'anthropic'
 }
 

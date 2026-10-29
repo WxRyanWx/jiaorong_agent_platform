@@ -171,14 +171,23 @@ export type JiaorongAppCenterItem = {
   installStatus: JiaorongAppInstallStatus
   /** 是否远程 zip 包（下载 / 更新走网络）。 */
   remotePackage: boolean
-  /** mock 期的本地 zip 路径；后端接入后为空。 */
+  /** 本地 zip 路径：仅本地 / 调试应用使用，开放平台市场卡片恒为空。 */
   localPackagePath?: string | null
+  /** 远端包下载地址；只有开放平台市场卡片会带，需鉴权头才能下载。 */
+  downloadUrl?: string | null
+  /** 远端包 sha256；缺省则跳过完整性校验。 */
+  packageSha256?: string | null
   /** 当前用户是否可打开。 */
   openable: boolean
-  /** 是否允许卸载（仅开发者）。 */
+  /** 是否允许卸载；已安装的商店应用都可卸载，内置应用固定不可卸载。 */
   canUninstall: boolean
   /** 是否仅开发者可见（单应用 auth 未通过）。 */
   developerOnly: boolean
+  /**
+   * 当前登录用户是否有权看见这张卡：auth 命中，或本人是开发者（可自测未过 auth 的应用）。
+   * 市场卡片按它过滤，避免把无权使用的应用展示成可安装。
+   */
+  visibleToCurrentUser: boolean
   /** 提供方；配置未给则为空串。 */
   provider: string
 }

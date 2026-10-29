@@ -116,6 +116,10 @@ export interface MCPServerConfig {
   type: 'sse' | 'stdio' | 'inmemory' | 'http'
   source?: string
   sourceId?: string
+  /** 提供组织；开放平台连接器落地时写入，仅用于展示，不参与连接与重连判定。 */
+  provider?: string | null
+  /** 开放平台连接器落地时的远端版本号，用于检测市场新版本；不参与连接与重连判定。 */
+  sourceVersion?: string
   ownerPluginId?: string
   /** 非空时仅这些智能体能看到并调用该 MCP 的工具。 */
   visibleToAgentIds?: string[]

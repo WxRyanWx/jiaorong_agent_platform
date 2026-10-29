@@ -35,6 +35,8 @@ import {
   getJiaorongPluginMcpServer,
   resolveJiaorongMcpServerListName as resolveMcpServerListName
 } from '@jiaorong/plugins/mcp'
+import { canEnableOpenPlatformConnector } from '@jiaorong/plugins/market/openPlatformMarket'
+import { isOpenPlatformConnectorConfig } from '@jiaorong/plugins/market/openPlatformConnectorInstall'
 
 const mcpStore = useMcpStore()
 const { t } = useI18n()
@@ -137,6 +139,22 @@ const isDeepChatManagedServer = (config?: MCPServerConfig) => {
   return config?.source === 'deepchat'
 }
 
+/** 市场里尚未落地为本地配置的开放平台连接器；落地后与普通自定义服务器一致。 */
+const isOpenPlatformRemoteOnly = (server: { name: string; source?: string }) =>
+  isOpenPlatformConnectorConfig(server) && !mcpStore.config.mcpServers[server.name]
+
+/** 正在写入本地配置的连接器名称，用于补齐这段窗口期的开关 loading 反馈。 */
+const installingConnectorNames = ref<string[]>([])
+
+const isInstallingConnector = (serverName: string) =>
+  installingConnectorNames.value.includes(serverName)
+
+/** 正在同步开放平台新版本的连接器名称，驱动更新按钮的 loading 态。 */
+const updatingConnectorNames = ref<string[]>([])
+
+const isUpdatingConnector = (serverName: string) =>
+  updatingConnectorNames.value.includes(serverName)
+
 const isBuiltInServer = (serverName: string) => {
   const config = mcpStore.config.mcpServers[serverName]
   return (
@@ -188,6 +206,61 @@ const getServerResourcesCount = (serverName: string) => {
 
 const getServerEnabled = (serverName: string, fallback: boolean) =>
   props.serverEnabledOverrides[serverName] ?? fallback
+
+const enableOpenPlatformConnector = async (
+  server: MCPServerConfig & { name: string }
+): Promise<void> => {
+  if (!canEnableOpenPlatformConnector(server)) {
+    notifyRenderer({
+      kind: 'info',
+      code: 'settings.mcp.openPlatformConnectorUnavailable',
+      title: t('settings.mcp.openPlatformConnectorUnavailable'),
+      description: t('settings.mcp.openPlatformConnectorUnavailableDesc')
+    })
+    return
+  }
+
+  // 写入本地配置前该服务器还不存在，store 的 loading 状态覆盖不到这段窗口期。
+  installingConnectorNames.value = [...installingConnectorNames.value, server.name]
+  try {
+    const result = await mcpStore.installOpenPlatformConnector(server)
+    if (result.status === 'started') return
+
+    if (result.status === 'unsupported') {
+      notifyRenderer({
+        kind: 'error',
+        code: 'settings.mcp.openPlatformConnectorUnavailable',
+        title: t('settings.mcp.openPlatformConnectorUnavailable'),
+        description: t('settings.mcp.openPlatformConnectorUnavailableDesc')
+      })
+      return
+    }
+
+    notifyRenderer({
+      kind: 'error',
+      code: 'settings.mcp.openPlatformConnectorInstallFailed',
+      title: t('settings.mcp.openPlatformConnectorInstallFailed'),
+      description: t('common.error.requestFailed')
+    })
+  } finally {
+    installingConnectorNames.value = installingConnectorNames.value.filter(
+      (serverName) => serverName !== server.name
+    )
+  }
+}
+
+const handleUpdateConnector = async (serverName: string): Promise<void> => {
+  if (isUpdatingConnector(serverName)) return
+  updatingConnectorNames.value = [...updatingConnectorNames.value, serverName]
+  try {
+    // 成功 / 失败通知由 store 统一发出，这里只维护按钮 loading。
+    await mcpStore.updateOpenPlatformConnector(serverName)
+  } finally {
+    updatingConnectorNames.value = updatingConnectorNames.value.filter(
+      (name) => name !== serverName
+    )
+  }
+}
 
 const saveSubmittedCredential = async (
   serverName: string,
@@ -379,13 +452,25 @@ const confirmRemoveServer = async () => {
 }
 
 const handleToggleServer = async (serverName: string) => {
-  if (mcpStore.serverLoadingStates[serverName] || props.agentScopedBusy) {
+  if (
+    mcpStore.serverLoadingStates[serverName] ||
+    isInstallingConnector(serverName) ||
+    props.agentScopedBusy
+  ) {
     return
   }
 
   if (props.agentScopedToggle) {
     const server = mcpStore.serverList.find((item) => item.name === serverName)
     emit('toggle-agent-server', serverName, !getServerEnabled(serverName, Boolean(server?.enabled)))
+    return
+  }
+
+  const remoteConnector = mcpStore.serverList.find(
+    (item) => item.name === serverName && isOpenPlatformRemoteOnly(item)
+  )
+  if (remoteConnector) {
+    await enableOpenPlatformConnector(remoteConnector)
     return
   }
 
@@ -657,19 +742,23 @@ defineExpose({
             :is-built-in="isBuiltInServer(server.name)"
             :is-managed="
               mcpStore.config.mcpServers[server.name]?.source === 'deepchat' ||
-              server.source === 'open-platform'
+              isOpenPlatformRemoteOnly(server)
             "
             :is-loading="
-              mcpStore.serverLoadingStates[server.name] || props.serverLoadingOverrides[server.name]
+              mcpStore.serverLoadingStates[server.name] ||
+              props.serverLoadingOverrides[server.name] ||
+              isInstallingConnector(server.name)
             "
             :disabled="
               mcpStore.configLoading ||
-              server.source === 'open-platform' ||
-              (props.agentScopedToggle && props.agentScopedBusy)
+              (props.agentScopedToggle &&
+                (props.agentScopedBusy || isOpenPlatformRemoteOnly(server)))
             "
             :tools-count="getServerToolsCount(server.name)"
             :prompts-count="getServerPromptsCount(server.name)"
             :resources-count="getServerResourcesCount(server.name)"
+            :update-available="Boolean(mcpStore.connectorUpdatesAvailable[server.name])"
+            :is-updating="isUpdatingConnector(server.name)"
             @click="openDetail(server.name)"
             @toggle="handleToggleServer(server.name)"
             @edit="openEditServerDialog(server.name)"
@@ -679,6 +768,7 @@ defineExpose({
             @view-resources="handleViewResources(server.name)"
             @authenticate="handleAuthenticateServer(server.name)"
             @diagnostics="openDiagnostics(server.name)"
+            @update="handleUpdateConnector(server.name)"
           />
         </div>
 
@@ -836,6 +926,7 @@ defineExpose({
 
         <div class="flex flex-wrap gap-2">
           <DcButton
+            v-if="mcpStore.config.mcpServers[selectedDetailServer.name]"
             variant="outline"
             icon="lucide:settings"
             @click="openEditServerDialog(selectedDetailServer.name)"
@@ -843,7 +934,10 @@ defineExpose({
             {{ t('settings.mcp.editServer') }}
           </DcButton>
           <DcButton
-            v-if="!isBuiltInServer(selectedDetailServer.name)"
+            v-if="
+              !isBuiltInServer(selectedDetailServer.name) &&
+              mcpStore.config.mcpServers[selectedDetailServer.name]
+            "
             variant="destructive"
             icon="lucide:trash-2"
             @click="handleRemoveServer(selectedDetailServer.name)"

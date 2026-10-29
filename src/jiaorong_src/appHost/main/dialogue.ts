@@ -445,7 +445,7 @@ function buildCreateAgentWrite(appId: string, key: string, record: InvokeRecord,
     avatar: record.avatar,
     // 打上应用标记，官方列表据此隐藏该智能体
     config: applySuperAgentDefaultModel({
-      ...(sanitized ?? {}),
+      ...sanitized,
       jiaorongAppId: appId,
       jiaorongAppKey: key
     })

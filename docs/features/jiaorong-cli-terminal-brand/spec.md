@@ -4,7 +4,7 @@
 
 用户启动 JiaorongAI 后，在终端输入 `jiaorong` 即可执行全部公开 CLI 命令。技能说明、开发者指南和用户手册使用 Jiaorong 品牌与中文。
 
-`model invoke` 与 `agent run` 未传服务商/模型时，默认使用内置 `jiaorong` / `jiaorong-deepseek-v4-pro`；`--provider`、`--model` 可覆盖。
+`model invoke` 与 `agent run` 未传服务商/模型时，默认使用内置 `jiaorong` / `jiaorong-deepseek-V4.1-flash`；`--provider`、`--model` 可覆盖。
 
 `model invoke` 未传 `--system` 时，使用 `src/jiaorong_src/prompts/defaultSystemPrompt.ts` 的 `DEFAULT_SYSTEM_PROMPT`；传入 `--system` 则用用户原文。`agent run` 不套这层默认（Agent 会话自己拼系统提示）。
 
@@ -16,7 +16,7 @@
 4. 上一版留下的、可证明由本应用拥有的 `deepchat` PATH 入口，在成功装上 `jiaorong` 后删除。
 5. 包内仍保留 `deepchat` / `deepchat.mjs`，Programmatic `deepchat tool call` 不变。
 6. `resources/skills/jiaorong-cli/SKILL.md` 与 `docs/guides/cli.md` 为中文、Jiaorong 口径；另有一份给终端用户的使用文档。
-7. `jiaorong model invoke --prompt '…'` 不传 `--provider`/`--model` 时，请求落到 `jiaorong` + `jiaorong-deepseek-v4-pro`。
+7. `jiaorong model invoke --prompt '…'` 不传 `--provider`/`--model` 时，请求落到 `jiaorong` + `jiaorong-deepseek-V4.1-flash`。
 8. 同时或分别传入 `--provider`、`--model` 时，覆盖对应默认值。图片/视频/语音命令仍必须显式指定服务商和模型。
 9. 卸载或完整数据重置时，新旧两个命令路径只要内容仍能证明由本应用拥有，都删除；他人占用的同名文件不删。迁移过程中 `jiaorong` 路径不是常规文件时，`getStatus` 报冲突，不抛错。
 10. `jiaorong model invoke --prompt '…'` 不传 `--system` 时带上默认交融系统提示；传入 `--system` 时只用用户提供的内容。

@@ -10,7 +10,7 @@ import type {
   KeyStatus,
   LLM_EMBEDDING_ATTRS
 } from '@shared/types/provider'
-import { HTTP_X_TITLE } from '@jiaorong/brand'
+import { HTTP_X_TITLE, JIAORONG_DEFAULT_MODEL_ID } from '@jiaorong/brand'
 import { DeviceService } from '../device'
 import { jsonrepair } from 'jsonrepair'
 import logger from '@shared/logger'
@@ -20,7 +20,7 @@ import type { ProviderLocalePort } from './ports'
 
 export const AUDIO_TRANSCRIPTION_NOT_SUPPORTED_ERROR = 'audio-transcription-not-supported'
 
-const defaultEnabledModels = ['jiaorong-deepseek-v4-pro']
+const defaultEnabledModels = [JIAORONG_DEFAULT_MODEL_ID]
 
 export function isAudioTranscriptionNotSupportedError(error: unknown): boolean {
   return error instanceof Error && error.message === AUDIO_TRANSCRIPTION_NOT_SUPPORTED_ERROR

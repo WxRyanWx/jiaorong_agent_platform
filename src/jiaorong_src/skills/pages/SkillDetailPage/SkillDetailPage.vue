@@ -8,6 +8,7 @@ import { Switch } from '@shadcn/components/ui/switch'
 import MarkdownRenderer from '@/components/markdown/MarkdownRenderer.vue'
 import { useToast } from '@/components/use-toast'
 import { getSkillDetail, type SkillDetailResponse } from '@jiaorong/api/skills'
+import { readSkillAssetSource } from '../../lib/skillAssetSource'
 import {
   disableSkill,
   enableSkill,
@@ -131,9 +132,10 @@ watch(
     const stored = readJiaorongSkillFromSession()
     const remoteId = resolveSessionRemoteId(currentSkillId.trim(), stored)
     if (!remoteId) return
-
+    // 列表项的新旧来源标识透传给详情接口的 skillSource，后端据此区分新技能与存量技能
+    const skillSource = readSkillAssetSource(stored?.metadata)
     try {
-      const detail = await getSkillDetail(remoteId)
+      const detail = await getSkillDetail(remoteId, skillSource)
       if (cancelled || !detail) return
       remoteSkillDetail.value = detail
       // 把详情里的下载地址写回 session，避免列表合并丢字段后无法再装
@@ -143,6 +145,8 @@ watch(
         ...current.metadata,
         remoteId: detail.id || remoteId,
         ...(detail.downloadUrl ? { downloadUrl: detail.downloadUrl } : {}),
+        // 后端在详情接口补上 skillSource 后以接口为准，缺失时保留列表带来的标识
+        ...(detail.skillSource ? { source: detail.skillSource } : {}),
         displayName:
           detail.name ||
           (typeof current.metadata?.displayName === 'string' && current.metadata.displayName) ||
@@ -316,9 +320,23 @@ const handleInstall = async () => {
       return
     }
 
-    const marketName = stored?.name || skillId.value || result.skillName
+    // 已安装时 session 里的 name 是本地目录名，市场卡键要优先取展示名，否则更新判定会失配
+    const storedDisplayName =
+      typeof stored?.metadata?.displayName === 'string' ? stored.metadata.displayName.trim() : ''
+    const marketName = storedDisplayName || stored?.name || skillId.value || result.skillName
     rememberSkillSource(result.skillName, SkillSource.RemoteApi)
-    rememberRemoteInstall(marketName, result.skillName)
+    // 开放平台技能带市场版本号时一并记录，供列表页更新判定；
+    // 只认 `remoteVersion`，包内 SKILL.md 的 `version` 不是市场版本
+    const marketVersion =
+      typeof stored?.metadata?.remoteVersion === 'string'
+        ? stored.metadata.remoteVersion.trim()
+        : ''
+    rememberRemoteInstall(
+      marketName,
+      result.skillName,
+      marketVersion || undefined,
+      typeof stored?.metadata?.remoteId === 'string' ? stored.metadata.remoteId : undefined
+    )
 
     const nextSkill: JiaorongSkillItem = {
       ...(stored ?? {

@@ -15,6 +15,7 @@
     "src/jiaorong_src/utils/skillSwitchCore.ts",
     "src/jiaorong_src/knowledgeBase/mcp/knowledgeBaseMcpConstants.ts",
     "src/jiaorong_src/api/auth/config.ts",
+    "src/jiaorong_src/api/openPlatform/version.ts",
     "src/jiaorong_src/appHost/auth.ts",
     "src/jiaorong_src/appHost/catalog.ts",
     "src/jiaorong_src/appHost/channels.ts",

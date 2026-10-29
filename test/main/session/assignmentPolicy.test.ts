@@ -315,7 +315,7 @@ describe('SessionAssignmentPolicy', () => {
     ).resolves.toMatchObject({
       agentId: 'reviewer',
       providerId: 'jiaorong',
-      modelId: 'jiaorong-deepseek-v4-pro'
+      modelId: 'jiaorong-deepseek-V4.1-flash'
     })
   })
 })

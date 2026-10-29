@@ -47,7 +47,8 @@ export const BUILT_IN_MODEL_CAPABILITY_OVERRIDES: Readonly<
   Record<string, Readonly<Record<string, BuiltInModelCapabilityOverride>>>
 > = Object.freeze({
   jiaorong: Object.freeze({
-    'jiaorong-deepseek-v4-pro': Object.freeze({
+    // 查找侧统一转小写比对，这里的键必须保持全小写
+    'jiaorong-deepseek-v4.1-flash': Object.freeze({
       contextLength: 1_000_000,
       maxTokens: 32_000
     })

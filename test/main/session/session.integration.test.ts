@@ -1594,7 +1594,7 @@ describe('Session application coordinators', () => {
         expect.objectContaining({
           agentId: 'deepchat',
           providerId: 'jiaorong',
-          modelId: 'jiaorong-deepseek-v4-pro'
+          modelId: 'jiaorong-deepseek-V4.1-flash'
         })
       )
     })

@@ -1,4 +1,4 @@
-/** OSS 运行时配置：管理员白名单 + 嵌入应用目录。拉失败时返回空配置，不抛错。 */
+/** OSS 运行时配置：管理员白名单。应用目录已改走应用列表接口，这里不再读 apps。拉失败时返回空配置，不抛错。 */
 
 export const JIAORONG_REMOTE_RUNTIME_CONFIG_URL =
   'https://c4ai.ccccltd.cn/xkprosdk/jiaorong-runtime-config.json'
@@ -21,7 +21,6 @@ export type JiaorongRemoteRuntimeConfig = {
   appCenterVisiblePhones: string[] | null
   /** 开发者名单：手机号 / userName。 */
   developerPhones: string[]
-  apps: unknown[]
 }
 
 export const EMPTY_JIAORONG_REMOTE_RUNTIME_CONFIG: JiaorongRemoteRuntimeConfig = {
@@ -29,8 +28,7 @@ export const EMPTY_JIAORONG_REMOTE_RUNTIME_CONFIG: JiaorongRemoteRuntimeConfig =
   admins: [],
   // 失败哨兵用空数组：不能把拉取失败当成「没配名单」从而全员放行
   appCenterVisiblePhones: [],
-  developerPhones: [],
-  apps: []
+  developerPhones: []
 }
 
 type FetchOutcome = { ok: true; config: JiaorongRemoteRuntimeConfig } | { ok: false }
@@ -144,8 +142,7 @@ export function parseJiaorongRemoteRuntimeConfig(raw: unknown): JiaorongRemoteRu
     schemaVersion: schemaVersion > 0 ? schemaVersion : 1,
     admins: uniqueStrings(record.admins),
     appCenterVisiblePhones: parseAppCenterVisiblePhones(record),
-    developerPhones: uniqueStrings(record.developerPhones),
-    apps: Array.isArray(record.apps) ? record.apps : []
+    developerPhones: uniqueStrings(record.developerPhones)
   }
 }
 

@@ -161,6 +161,11 @@ watch(lastError, (error) => {
               :data-testid="`app-center-install-${app.id}`"
               @click="install(app)"
             >
+              <Icon
+                v-if="isInstalling(app)"
+                icon="lucide:loader-circle"
+                class="app-center-card__action-spin"
+              />
               {{ t(primaryActionKey(app)) }}
             </Button>
           </div>

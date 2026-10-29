@@ -92,7 +92,7 @@ jiaorong '用一段话介绍 JiaorongAI'
 jiaorong '你是谁' --json
 ```
 
-不传服务商和模型时，默认用内置 `jiaorong` / `jiaorong-deepseek-v4-pro`。不传 `--system` 时带上应用默认的交融系统提示词。传了 `--provider`、`--model`、`--system` 就用你写的：
+不传服务商和模型时，默认用内置 `jiaorong` / `jiaorong-deepseek-V4.1-flash`。不传 `--system` 时带上应用默认的交融系统提示词。传了 `--provider`、`--model`、`--system` 就用你写的：
 
 ```bash
 jiaorong '你是谁' --system '只用一句话回答'

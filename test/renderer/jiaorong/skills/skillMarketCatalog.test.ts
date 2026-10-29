@@ -256,8 +256,45 @@ describe('getSkillDetail', () => {
       name: '24清单',
       description: '计价标准',
       tryPrompts: ['查术语'],
-      downloadUrl: 'https://example.com/a.zip'
+      downloadUrl: 'https://example.com/a.zip',
+      skillSource: ''
     })
+  })
+
+  it('reads the new/old marker from skillSource', async () => {
+    interceptorGet.mockResolvedValue({
+      code: 200,
+      data: { id: 's38', name: '软件测试用例设计', desc: '设计用例', skillSource: 'legacy' }
+    })
+
+    await expect(getSkillDetail('s38')).resolves.toMatchObject({ skillSource: 'legacy' })
+  })
+
+  it('forwards the list skillSource to the detail api as a query param', async () => {
+    interceptorGet.mockResolvedValue({ code: 200, data: { id: 's38', name: '技能', desc: '' } })
+
+    await getSkillDetail('s38', 'open-platform')
+
+    expect(interceptorGet).toHaveBeenCalledWith('deepchat-ext/skill/s38', {
+      params: { skillSource: 'open-platform' }
+    })
+  })
+
+  it('omits the skillSource param when the list did not provide one', async () => {
+    interceptorGet.mockResolvedValue({ code: 200, data: { id: 's38', name: '技能', desc: '' } })
+
+    await getSkillDetail('s38', '')
+
+    expect(interceptorGet).toHaveBeenCalledWith('deepchat-ext/skill/s38', { params: undefined })
+  })
+
+  it('ignores skillSource values outside the new/old domain', async () => {
+    interceptorGet.mockResolvedValue({
+      code: 200,
+      data: { id: 'a1', name: '应用', desc: '', skillSource: 'store' }
+    })
+
+    await expect(getSkillDetail('a1')).resolves.toMatchObject({ skillSource: '' })
   })
 
   it('throws when the auth api code is not success', async () => {

@@ -14,6 +14,7 @@ import {
   JIAORONG_APP_CATALOG_CHANGED_CHANNEL,
   JIAORONG_APP_CENTER_INSTALL_CHANNEL,
   JIAORONG_APP_CENTER_INSTALL_PACKAGE_CHANNEL,
+  JIAORONG_APP_CENTER_INSTALL_REMOTE_PACKAGE_CHANNEL,
   JIAORONG_APP_CENTER_INSTALL_STATUSES_CHANNEL,
   JIAORONG_APP_CENTER_LIST_CHANNEL,
   JIAORONG_APP_CENTER_UNINSTALL_CHANNEL,
@@ -136,14 +137,30 @@ const jiaorongApps = Object.freeze({
     ipcRenderer.invoke(JIAORONG_APP_CENTER_INSTALL_CHANNEL, { appId }),
   installAppCenterPackage: (appId: string, packagePath: string) =>
     ipcRenderer.invoke(JIAORONG_APP_CENTER_INSTALL_PACKAGE_CHANNEL, { appId, packagePath }),
+  installAppCenterRemotePackage: (appId: string, downloadUrl: string, sha256?: string | null) =>
+    ipcRenderer.invoke(JIAORONG_APP_CENTER_INSTALL_REMOTE_PACKAGE_CHANNEL, {
+      appId,
+      downloadUrl,
+      sha256: sha256 ?? ''
+    }),
   getAppCenterInstallStatuses: (appIds: string[]) =>
     ipcRenderer.invoke(JIAORONG_APP_CENTER_INSTALL_STATUSES_CHANNEL, { appIds }),
   uninstallAppCenter: (appId: string) =>
     ipcRenderer.invoke(JIAORONG_APP_CENTER_UNINSTALL_CHANNEL, { appId }),
   listDevCenter: () => ipcRenderer.invoke(JIAORONG_DEV_CENTER_LIST_CHANNEL),
   createDevApp: () => ipcRenderer.invoke(JIAORONG_DEV_CENTER_CREATE_CHANNEL),
-  publishDevApp: (appId: string, manifestJson: string, zipPath: string) =>
-    ipcRenderer.invoke(JIAORONG_DEV_CENTER_PUBLISH_CHANNEL, { appId, manifestJson, zipPath }),
+  publishDevApp: (
+    appId: string,
+    manifestJson: string,
+    zipPath: string,
+    allowUnregistered?: boolean
+  ) =>
+    ipcRenderer.invoke(JIAORONG_DEV_CENTER_PUBLISH_CHANNEL, {
+      appId,
+      manifestJson,
+      zipPath,
+      allowUnregistered: allowUnregistered === true
+    }),
   pickDevZip: () => ipcRenderer.invoke(JIAORONG_DEV_CENTER_PICK_ZIP_CHANNEL),
   peekDevZip: (zipPath: string) =>
     ipcRenderer.invoke(JIAORONG_DEV_CENTER_PEEK_ZIP_CHANNEL, { zipPath }),

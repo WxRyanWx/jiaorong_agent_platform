@@ -12,6 +12,9 @@ export const APP_MANIFEST_SEMVER = /^\d+\.\d+\.\d+(-[\w.]+)?(\+[\w.]+)?$/
 /** 应用 id 必须是单层 kebab-id，防止安装路径或 link 文件逃逸。 */
 export const APP_MANIFEST_ID_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 
+/** 应用来源；app.json 缺省时按 store 处理。 */
+export const APP_MANIFEST_SOURCES = ['builtin', 'store'] as const
+
 /** 发布表单字段。 */
 export type AppManifestFormFields = {
   id: string
@@ -19,6 +22,7 @@ export type AppManifestFormFields = {
   version: string
   entry: string
   slot: string
+  source: string
   icon: string
   description: string
   spawn: string
@@ -37,6 +41,12 @@ export type ManifestIssue =
  */
 export function readManifestString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : ''
+}
+
+/** 应用来源：只认 builtin / store，缺省或非法都收敛成 store。 */
+export function readManifestSource(value: unknown): string {
+  const source = readManifestString(value)
+  return (APP_MANIFEST_SOURCES as readonly string[]).includes(source) ? source : 'store'
 }
 
 /**
@@ -85,7 +95,8 @@ export function buildManifestJson(fields: AppManifestFormFields): string {
     name: fields.name.trim(),
     version: fields.version.trim(),
     entry: fields.entry.trim(),
-    slot: fields.slot.trim()
+    slot: fields.slot.trim(),
+    source: readManifestSource(fields.source)
   }
   /** 选填：空就不写进 JSON。 */
   const icon = fields.icon.trim()
@@ -107,6 +118,7 @@ export function emptyManifestForm(): AppManifestFormFields {
     version: '',
     entry: '',
     slot: 'app-center',
+    source: 'store',
     icon: '',
     description: '',
     spawn: ''
@@ -126,6 +138,7 @@ export function formFieldsFromRecord(record: Record<string, unknown>): AppManife
     version: readManifestString(record.version),
     entry: readManifestString(record.entry),
     slot: (APP_MANIFEST_SLOTS as readonly string[]).includes(slot) ? slot : 'app-center',
+    source: readManifestSource(record.source),
     icon: readManifestString(record.icon),
     description: readManifestString(record.description),
     spawn: readManifestString(record.spawn)
@@ -148,6 +161,7 @@ export function overlayManifestRecord(
   next.version = fields.version.trim()
   next.entry = fields.entry.trim()
   next.slot = fields.slot.trim()
+  next.source = readManifestSource(fields.source)
   const icon = fields.icon.trim()
   const description = fields.description.trim()
   const spawn = fields.spawn.trim()

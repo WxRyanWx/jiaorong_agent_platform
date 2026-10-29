@@ -8,7 +8,8 @@ import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import { randomBytes } from 'node:crypto'
-import { spawn, execSync, ChildProcess } from 'node:child_process'
+import { spawn, execFile, execSync, ChildProcess } from 'node:child_process'
+import { promisify } from 'node:util'
 import { isSystemBundledApp } from '../systemApps'
 import { APP_MANIFEST_ID_RE } from '../manifestRules'
 import { getSystemAppDir, getSystemAppsRoot, isHiddenAppDirName, isPathInsideRoot } from './paths'
@@ -19,6 +20,10 @@ const APP_FOLDER_ID_RE = APP_MANIFEST_ID_RE
 const SPAWN_REUSE_GRACE_MS = 5000
 const NODE_BIN_NAME = process.platform === 'win32' ? 'node.exe' : 'node'
 const UV_BIN_NAME = process.platform === 'win32' ? 'uv.exe' : 'uv'
+/** execFile 的 Promise 版：解压与残留进程探测都走异步，不卡主进程事件循环。 */
+const execFileAsync = promisify(execFile)
+/** lsof 单次开销不小，分批并发探测，既提速又不一次拉满 CPU。 */
+const LEFTOVER_PROBE_CONCURRENCY = 6
 
 /** 这个目录里有没有指定可执行文件。 */
 function directoryHasBin(dir: string, name: string): boolean {
@@ -539,55 +544,63 @@ class appsManages {
   }
 
   /**
+   * 读一个进程的工作目录：Linux 走 procfs，macOS 走 lsof。
+   * @param pid 目标进程 PID
+   * @returns 工作目录；读不到（无权限或进程已退出）返回空串
+   */
+  private async readProcessCwd(pid: number): Promise<string> {
+    try {
+      // Linux 直接读 procfs，没有子进程开销
+      if (process.platform === 'linux') return await fs.promises.readlink(`/proc/${pid}/cwd`)
+      // macOS 用 lsof 取 cwd
+      const { stdout } = await execFileAsync('lsof', ['-a', '-p', String(pid), '-d', 'cwd', '-Fn'])
+      /** lsof 输出里以 n 开头的那行。 */
+      const line = stdout.split('\n').find((row) => row.startsWith('n'))
+      return line ? line.slice(1) : ''
+    } catch {
+      // 读不到 cwd（无权限或进程已退出）按跳过处理
+      return ''
+    }
+  }
+
+  /**
    * Electron 重启后 Map 是空的，旧 Node 仍占 cwd。按工作目录清掉残留。
+   * 探测要 spawn 系统命令，全程异步，避免覆盖安装时卡住主进程。
    * @param appDir 应用工作目录
    */
-  private killLeftoverInDir(appDir: string): void {
+  private async killLeftoverInDir(appDir: string): Promise<void> {
     // 目录为空或 Windows（没有 pgrep / procfs）时跳过
     if (!appDir || process.platform === 'win32') return
-    /** pgrep 输出的 PID 列表。 */
-    let pids = ''
+    /** pgrep 输出。 */
+    let output = ''
     try {
-      pids = execSync('pgrep -f node', {
-        encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'ignore']
-      }).trim()
+      const result = await execFileAsync('pgrep', ['-f', 'node'])
+      output = result.stdout.trim()
     } catch {
       // 没有任何 node 进程，pgrep 会以非 0 退出
       return
     }
-    for (const raw of pids.split('\n')) {
-      /** 单个 PID。 */
-      const pid = Number(raw.trim())
-      // 非法 PID 或客户端自己
-      if (!Number.isInteger(pid) || pid <= 0 || pid === process.pid) continue
-      /** 该进程的工作目录。 */
-      let cwd = ''
-      try {
-        // Linux 直接读 procfs
-        if (process.platform === 'linux') {
-          cwd = fs.readlinkSync(`/proc/${pid}/cwd`)
-        } else {
-          // macOS 用 lsof 取 cwd
-          const lsof = execSync(`lsof -a -p ${pid} -d cwd -Fn`, {
-            encoding: 'utf8',
-            stdio: ['ignore', 'pipe', 'ignore']
-          })
-          /** lsof 输出里以 n 开头的那行。 */
-          const line = lsof.split('\n').find((row) => row.startsWith('n'))
-          cwd = line ? line.slice(1) : ''
+    /** 候选 PID：过滤非法值与客户端自己。 */
+    const pids = output
+      .split('\n')
+      .map((raw) => Number(raw.trim()))
+      .filter((pid) => Number.isInteger(pid) && pid > 0 && pid !== process.pid)
+    /** 目标目录绝对路径。 */
+    const targetDir = path.resolve(appDir)
+    // 分批并发探测 cwd，只有目录完全匹配才杀
+    for (let start = 0; start < pids.length; start += LEFTOVER_PROBE_CONCURRENCY) {
+      /** 本批 PID。 */
+      const batch = pids.slice(start, start + LEFTOVER_PROBE_CONCURRENCY)
+      /** 本批各进程的工作目录。 */
+      const cwds = await Promise.all(batch.map((pid) => this.readProcessCwd(pid)))
+      cwds.forEach((cwd, index) => {
+        if (!cwd || path.resolve(cwd) !== targetDir) return
+        try {
+          process.kill(batch[index], 'SIGKILL')
+        } catch {
+          /* already gone */
         }
-      } catch {
-        // 读不到 cwd（权限或进程已退出）就跳过
-        continue
-      }
-      // 只杀工作目录正好是该应用目录的进程
-      if (path.resolve(cwd) !== path.resolve(appDir)) continue
-      try {
-        process.kill(pid, 'SIGKILL')
-      } catch {
-        /* already gone */
-      }
+      })
     }
   }
 
@@ -1173,10 +1186,10 @@ class appsManages {
    * @param packagePath - .zip / .app 包文件路径
    * @param options - 安装选项
    */
-  installAppFromPackage(
+  async installAppFromPackage(
     packagePath: string,
     options: InstallFromPackageOptions = {}
-  ): AppManageResult<AppConfig> {
+  ): Promise<AppManageResult<AppConfig>> {
     /** 安装包绝对路径。 */
     const absPackagePath = path.resolve(packagePath)
 
@@ -1197,7 +1210,7 @@ class appsManages {
     const tempDir = this.createTempExtractDir()
     try {
       this.ensureDir(tempDir)
-      this.extractZip(absPackagePath, tempDir)
+      await this.extractZip(absPackagePath, tempDir)
 
       // 在解压目录中查找 app.json
       /** 解压出来的清单路径。 */
@@ -1301,7 +1314,7 @@ class appsManages {
    * 把系统应用 zip 解压到 Electron userData，不进用户 apps / ~/.jiaorongchat。
    * @param packagePath zip 路径
    */
-  installSystemAppFromPackage(packagePath: string): AppManageResult<AppConfig> {
+  async installSystemAppFromPackage(packagePath: string): Promise<AppManageResult<AppConfig>> {
     /** 安装包绝对路径。 */
     const absPackagePath = path.resolve(packagePath)
     if (!fs.existsSync(absPackagePath)) {
@@ -1314,7 +1327,7 @@ class appsManages {
     const tempDir = this.createTempExtractDir()
     try {
       this.ensureDir(tempDir)
-      this.extractZip(absPackagePath, tempDir)
+      await this.extractZip(absPackagePath, tempDir)
       /** 解压出来的清单路径。 */
       const manifestPath = this.findManifestInDir(tempDir)
       if (!manifestPath) {
@@ -1340,7 +1353,7 @@ class appsManages {
       if (this.isRunning(manifest.id)) this.stopApp(manifest.id)
       /** 目标目录。 */
       const targetDir = getSystemAppDir(manifest.id)
-      this.killLeftoverInDir(targetDir)
+      await this.killLeftoverInDir(targetDir)
       /** 覆盖失败时用来还原的备份。 */
       const backupDir = `${targetDir}.bak`
       if (fs.existsSync(backupDir)) fs.rmSync(backupDir, { recursive: true, force: true })
@@ -2007,10 +2020,10 @@ class appsManages {
    * @param appId 应用 ID，必须是 app.json.id
    * @param options.cwd 打开的那份目录；不传则走已登记的 getAppDir
    */
-  startApp(
+  async startApp(
     appId: string,
     options?: { cwd?: string }
-  ): AppManageResult<{ command: string; cwd: string; pid: number }> {
+  ): Promise<AppManageResult<{ command: string; cwd: string; pid: number }>> {
     /** 调用方指定的打开目录。 */
     const requestedDir = options?.cwd?.trim() || ''
     // 缓存没有时，从打开目录登记，不假定文件夹名等于 id
@@ -2043,7 +2056,13 @@ class appsManages {
 
     // 已在跑且确实在听（或刚拉起）就复用，避免应用中心返回后再打开把 Node 重启掉
     if (this.isRunning(appId)) {
-      if (this.canReuseSpawn(appId)) {
+      /** 在跑进程启动时的工作目录。 */
+      const runningDir = this.runningCwd.get(appId)
+      // 打开目录变了（开发者换关联目录、重新发布后换包）：旧进程还在服务旧代码，
+      // 直接复用会看到旧版本，必须杀掉按新目录重拉
+      const isDirChanged =
+        Boolean(runningDir) && path.resolve(runningDir ?? '') !== path.resolve(appDir)
+      if (!isDirChanged && this.canReuseSpawn(appId)) {
         return {
           success: true,
           message: `应用 "${appId}" 已在运行`,
@@ -2053,10 +2072,11 @@ class appsManages {
       const stale = this.runningProcesses.get(appId)
       if (stale) this.killChildTree(stale)
       const staleCwd = this.clearRunning(appId)
-      if (staleCwd) this.killLeftoverInDir(staleCwd)
+      if (staleCwd) await this.killLeftoverInDir(staleCwd)
     }
-    // 清掉上次客户端崩溃后仍占着该目录的残留 Node
-    this.killLeftoverInDir(appDir)
+    // 清掉上次客户端崩溃后仍占着该目录的残留 Node。
+    // 必须等清理完成再 spawn：否则旧进程还占着端口，新进程会以 EADDRINUSE 立刻退出。
+    await this.killLeftoverInDir(appDir)
 
     try {
       /** 本次握手 token，子进程用它校验桥请求来源。 */
@@ -2163,7 +2183,8 @@ class appsManages {
         this.killChildTree(child)
       }
       this.clearRunning(appId)
-      if (cwd) this.killLeftoverInDir(cwd)
+      // 子进程树已同步 SIGKILL，这里只是兜底清残留，不必阻塞停止流程
+      if (cwd) void this.killLeftoverInDir(cwd)
       /** 运行时记录；缓存没有时也可以没有。 */
       const runtime = this.appRuntimeCache.get(appId)
       if (runtime) {
@@ -2202,7 +2223,7 @@ class appsManages {
     const dirs = Array.from(this.runningCwd.values())
     const runningIds = Array.from(this.runningProcesses.keys())
     for (const appId of runningIds) this.stopApp(appId)
-    for (const dir of dirs) this.killLeftoverInDir(dir)
+    for (const dir of dirs) void this.killLeftoverInDir(dir)
   }
 
   /**
@@ -2456,27 +2477,36 @@ class appsManages {
   }
 
   /**
-   * 解压 zip 文件（使用系统命令）
+   * 解压 zip 文件（系统命令异步执行，几十 MB 的包也不会冻住主进程）
    * @param zipPath 包文件路径
    * @param destDir 解压目标目录
    */
-  private extractZip(zipPath: string, destDir: string): void {
+  private async extractZip(zipPath: string, destDir: string): Promise<void> {
     // 使用系统命令解压
     try {
-      // Windows 与类 Unix 用不同的系统工具
+      // Windows 与类 Unix 用不同的系统工具；参数按数组传，路径含空格或引号也不会被 shell 拆坏
       if (process.platform === 'win32') {
         // Windows: 使用 PowerShell Expand-Archive
-        execSync(
-          `powershell -Command "Expand-Archive -Path '${zipPath}' -DestinationPath '${destDir}' -Force"`,
-          { stdio: 'pipe', maxBuffer: 64 * 1024 * 1024 }
+        /** PowerShell 单引号字符串里单引号要写成两个，避免路径含引号时命令被截断。 */
+        const quotedZip = zipPath.replaceAll("'", "''")
+        const quotedDest = destDir.replaceAll("'", "''")
+        await execFileAsync(
+          'powershell.exe',
+          [
+            '-NoProfile',
+            '-NonInteractive',
+            '-Command',
+            `Expand-Archive -LiteralPath '${quotedZip}' -DestinationPath '${quotedDest}' -Force`
+          ],
+          { maxBuffer: 64 * 1024 * 1024, windowsHide: true }
         )
-      } else {
-        // Linux/Mac: 使用 unzip（-q 静默，避免海量文件逐行输出撑爆 stdout 缓冲）
-        execSync(`unzip -q -o "${zipPath}" -d "${destDir}"`, {
-          stdio: 'pipe',
-          maxBuffer: 64 * 1024 * 1024
-        })
+        return
       }
+      // Linux/Mac: 使用 unzip（-q 静默，避免海量文件逐行输出撑爆 stdout 缓冲）
+      await execFileAsync('unzip', ['-q', '-o', zipPath, '-d', destDir], {
+        maxBuffer: 64 * 1024 * 1024,
+        windowsHide: true
+      })
     } catch {
       // 统一成可读错误，隐藏平台命令细节
       throw new Error('解压失败，请确保系统已安装 unzip（Linux/Mac）或 PowerShell（Windows）')

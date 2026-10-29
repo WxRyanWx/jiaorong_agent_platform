@@ -13,7 +13,7 @@ vi.mock('@jiaorong/auth/host', () => ({
   JIAORONG_AUTH_SESSION_CHANGED_EVENT: 'jiaorong-auth-session-changed'
 }))
 
-vi.mock('@jiaorong/open-platform/renderer/openPlatformMarket', () => ({
+vi.mock('@jiaorong/plugins/market/openPlatformMarket', () => ({
   listOpenPlatformMarketApps: vi.fn(async () => [])
 }))
 
