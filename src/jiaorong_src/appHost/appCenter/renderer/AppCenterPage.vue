@@ -2,12 +2,15 @@
 // 组件名固定，供路由匹配与调试面板识别
 defineOptions({ name: 'AppCenterPage' })
 
-import { watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Icon } from '@iconify/vue'
 import { Button } from '@shadcn/components/ui/button'
+import { Input } from '@shadcn/components/ui/input'
+import { DcButton } from '@dc-ui/components/button'
 import { useToast } from '@/components/use-toast'
 import type { JiaorongAppCenterItem } from '@jiaorong/appHost/types'
+import skillEmptyArt from '@jiaorong/assets/skill-empty.png'
 import { useJiaorongAppCenter } from './useJiaorongAppCenter'
 import './AppCenterPage.less'
 
@@ -25,6 +28,33 @@ const {
   uninstall,
   open
 } = useJiaorongAppCenter()
+
+type AppFilter = 'all' | 'installed' | 'uninstalled'
+
+const APP_FILTERS: AppFilter[] = ['all', 'installed', 'uninstalled']
+const FILTER_LABEL_KEYS = {
+  all: 'routes.appCenterFilterAll',
+  installed: 'routes.appCenterFilterInstalled',
+  uninstalled: 'routes.appCenterFilterUninstalled'
+} as const
+
+const searchQuery = ref('')
+const activeFilter = ref<AppFilter>('all')
+
+/** 安装中仍视作未安装，便于用户在「未安装」里继续看到进度 */
+const isInstalledApp = (app: JiaorongAppCenterItem): boolean =>
+  app.installStatus === 'installed' || app.installStatus === 'update_available'
+
+const filteredApps = computed(() => {
+  const keyword = searchQuery.value.trim().toLowerCase()
+  return apps.value.filter((app) => {
+    const installed = isInstalledApp(app)
+    if (activeFilter.value === 'installed' && !installed) return false
+    if (activeFilter.value === 'uninstalled' && installed) return false
+    if (!keyword) return true
+    return `${app.name} ${app.description ?? ''}`.toLowerCase().includes(keyword)
+  })
+})
 
 /**
  * 主操作按钮文案键：已装给更新 / 打开，未装给安装。
@@ -78,43 +108,64 @@ watch(lastError, (error) => {
 <template>
   <div class="app-center-page">
     <header class="app-center-page__header">
-      <div>
-        <h1 class="app-center-page__title">{{ t('routes.openPlatformTab_apps') }}</h1>
-        <p class="app-center-page__subtitle">{{ t('routes.appCenterPageSubtitle') }}</p>
-      </div>
-      <Button
+      <h1 class="app-center-page__title">{{ t('routes.openPlatformTab_apps') }}</h1>
+      <DcButton
         variant="outline"
-        size="sm"
+        icon="lucide:refresh-cw"
         data-testid="app-center-refresh"
+        :loading="isRefreshing"
         :disabled="isRefreshing || isBusy"
         @click="refresh"
       >
-        <Icon
-          icon="lucide:refresh-cw"
-          class="app-center-page__refresh-icon"
-          :class="{ 'is-spinning': isRefreshing }"
-        />
-      </Button>
+        {{ t('common.browser.reload') }}
+      </DcButton>
     </header>
 
-    <div v-if="apps.length === 0" class="app-center-page__empty">
-      {{ t('routes.appCenterEmpty') }}
+    <div class="app-center-page__toolbar">
+      <div class="app-center-page__search">
+        <Icon icon="lucide:search" class="app-center-page__search-icon" aria-hidden="true" />
+        <Input
+          v-model="searchQuery"
+          class="app-center-page__search-input"
+          :placeholder="t('routes.appCenterSearch')"
+        />
+      </div>
+      <div class="app-center-page__segments">
+        <button
+          v-for="filter in APP_FILTERS"
+          :key="filter"
+          type="button"
+          class="app-center-page__segment"
+          :class="{ 'is-active': activeFilter === filter }"
+          :data-testid="`app-center-filter-${filter}`"
+          @click="activeFilter = filter"
+        >
+          {{ t(FILTER_LABEL_KEYS[filter]) }}
+        </button>
+      </div>
+    </div>
+
+    <div v-if="filteredApps.length === 0" class="app-center-page__empty">
+      <img :src="skillEmptyArt" alt="" class="app-center-page__empty-image" />
+      <p class="app-center-page__empty-text">
+        {{
+          searchQuery || activeFilter !== 'all'
+            ? t('routes.appCenterNoResult')
+            : t('routes.appCenterEmpty')
+        }}
+      </p>
     </div>
 
     <div v-else class="app-center-page__grid">
-      <article v-for="app in apps" :key="app.id" class="app-center-card">
+      <article v-for="app in filteredApps" :key="app.id" class="app-center-card">
         <div class="app-center-card__head">
           <img v-if="app.iconSrc" :src="app.iconSrc" alt="" class="app-center-card__icon" />
           <Icon v-else icon="lucide:layout-grid" class="app-center-card__icon-fallback" />
-          <div class="app-center-card__meta">
-            <div class="app-center-card__name">
-              {{ app.name }}
-              <span v-if="app.developerOnly" class="app-center-card__dev-badge">
-                {{ t('routes.appCenterDevOnly') }}
-              </span>
-            </div>
-            <div class="app-center-card__version">{{ versionLabel(app) }}</div>
-          </div>
+          <h3 class="app-center-card__name">{{ app.name }}</h3>
+          <span v-if="app.developerOnly" class="app-center-card__badge">
+            {{ t('routes.appCenterDevOnly') }}
+          </span>
+          <span class="app-center-card__badge">{{ versionLabel(app) }}</span>
         </div>
 
         <p class="app-center-card__desc">{{ app.description }}</p>
@@ -155,6 +206,7 @@ watch(lastError, (error) => {
             </Button>
             <Button
               v-if="showPrimaryAction(app)"
+              variant="outline"
               size="sm"
               class="app-center-card__action-btn"
               :disabled="isBusy"

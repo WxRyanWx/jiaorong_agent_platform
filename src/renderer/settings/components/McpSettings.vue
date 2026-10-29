@@ -6,7 +6,7 @@
   <div
     v-else-if="showMcpSkeleton || agentPolicyLoading"
     data-testid="settings-mcp-page"
-    class="flex h-full w-full flex-col gap-4 p-4"
+    class="flex h-full w-full flex-col gap-4 p-8"
   >
     <Skeleton class="h-16 rounded-xl bg-muted/40" />
     <Skeleton class="h-24 rounded-xl bg-muted/30" />
@@ -20,7 +20,7 @@
     data-testid="settings-mcp-page"
     class="w-full h-full min-h-0 flex flex-col"
   >
-    <div class="shrink-0 px-4 pt-4">
+    <div class="shrink-0 px-8 pt-8">
       <div class="flex flex-col gap-3">
         <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div :dir="languageStore.dir" class="min-w-0">
@@ -64,7 +64,7 @@
         <div
           v-if="agentPolicyError"
           role="alert"
-          class="m-4 flex items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3"
+          class="mx-8 mt-8 flex items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3"
         >
           <span class="text-sm text-destructive">{{ agentPolicyError }}</span>
           <DcButton size="sm" variant="outline" @click="loadAgentPolicy">

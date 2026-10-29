@@ -2262,14 +2262,112 @@ declare module 'vue-i18n' {
     'settings-debug': string
     embeddedApp: string
     embeddedAppLoading: string
+    appUpdating: string
     embeddedAppUnavailable: string
     embeddedAppMissing: string
+    embeddedAppBack: string
+    appNodePortBusy: string
+    appNodePortBusyNamed: string
+    appNodeExited: string
     pluginCenterTitle: string
     pluginCenterSkills: string
     pluginCenterConnectors: string
     pluginCenterMcp: string
-    pluginCenterConnectorsSubtitle: string
-    pluginCenterConnectorsAvailable: string
+    pluginCenterMcpSubtitle: string
+    pluginCenterConnectorsSearch: string
+    pluginCenterConnectorsAll: string
+    appCenter: string
+    appCenterInstall: string
+    appCenterUpdate: string
+    appCenterOpen: string
+    appCenterUninstall: string
+    appCenterInstalling: string
+    appCenterStatusError: string
+    appCenterEmpty: string
+    appCenterFilterAll: string
+    appCenterFilterInstalled: string
+    appCenterFilterUninstalled: string
+    appCenterSearch: string
+    appCenterNoResult: string
+    appCenterInstallError: string
+    appCenterDevOnly: string
+    openPlatform: string
+    openPlatformSubtitle: string
+    openPlatformTab_home: string
+    openPlatformTab_apps: string
+    openPlatformTab_skills: string
+    openPlatformTab_connectors: string
+    'openPlatformTab_knowledge-center': string
+    openPlatformKnowledgeCenterUnavailable: string
+    openPlatformHomePlaceholder: string
+    openPlatformStatusPublished: string
+    openPlatformStatusUnpublished: string
+    openPlatformRetry: string
+    openPlatformStatusLocal: string
+    openPlatformAssociate: string
+    openPlatformUpdate: string
+    openPlatformUnpublish: string
+    openPlatformPublishSubtitle: string
+    openPlatformPublishSuccess: string
+    openPlatformPublishFailed: string
+    openPlatformUnpublishFailed: string
+    openPlatformListFailed: string
+    openPlatformLoading: string
+    openPlatformEmpty: string
+    openPlatformSelectPackage: string
+    openPlatformCreate: string
+    openPlatformPackageInvalid: string
+    openPlatformConfirmPublish: string
+    openPlatformPublishOrganization: string
+    openPlatformPublishOrganizationPlaceholder: string
+    openPlatformPublishOrganizationRequired: string
+    openPlatformPublishVersion: string
+    openPlatformPublishVersionPlaceholder: string
+    openPlatformPublishVersionRequired: string
+    openPlatformAuth: string
+    openPlatformAuthInvalid: string
+    openPlatformAuthPlaceholder: string
+    devCenter: string
+    devCenterSubtitle: string
+    devCenterCreate: string
+    devCenterDocs: string
+    devCenterPublish: string
+    devCenterRemove: string
+    devCenterOpenDirFailed: string
+    devCenterEmpty: string
+    devCenterPublishTitle: string
+    devCenterConfirm: string
+    devCenterCancel: string
+    devCenterBack: string
+    devCenterPublishPending: string
+    devCenterCreateFailed: string
+    devCenterPublishMissing: string
+    devCenterPublishSlot: string
+    devCenterPublishVersion: string
+    devCenterPublishZipRequired: string
+    devCenterPublishZipLabel: string
+    devCenterPublishZipPlaceholder: string
+    devCenterPublishZipPick: string
+    devCenterPublishSubtitle: string
+    devCenterPublishZipHint: string
+    devCenterPublishFieldId: string
+    devCenterPublishFieldName: string
+    devCenterPublishFieldVersion: string
+    devCenterPublishFieldEntry: string
+    devCenterPublishFieldSlot: string
+    devCenterPublishFieldIcon: string
+    devCenterPublishFieldDescription: string
+    devCenterPublishFieldSpawn: string
+    devCenterPublishHintId: string
+    devCenterPublishHintName: string
+    devCenterPublishHintVersion: string
+    devCenterPublishHintEntry: string
+    devCenterPublishHintSlot: string
+    devCenterPublishHintIcon: string
+    devCenterPublishHintDescription: string
+    devCenterPublishHintSpawn: string
+    devCenterPublishSlotMenu: string
+    devCenterPublishSlotAppCenter: string
     common: {
       commandShell: {
         title: string
@@ -2357,6 +2455,7 @@ declare module 'vue-i18n' {
       traceDebugEnabled: string
       traceDebugEnabledDesc: string
       loggingEnabled: string
+      signOut: string
       loggingDialogTitle: string
       loggingEnableDesc: string
       loggingDisableDesc: string
@@ -3442,6 +3541,15 @@ declare module 'vue-i18n' {
       }
       managedServerReadOnly: string
       managedServerReadOnlyDesc: string
+      openPlatformConnectorUnavailable: string
+      openPlatformConnectorUnavailableDesc: string
+      openPlatformConnectorInstallFailed: string
+      openPlatformConnectorRevoked: string
+      openPlatformConnectorRevokedDesc: string
+      updateAvailable: string
+      openPlatformConnectorUpdated: string
+      openPlatformConnectorUpdatedDesc: string
+      openPlatformConnectorUpdateFailed: string
       center: {
         title: string
         running: string

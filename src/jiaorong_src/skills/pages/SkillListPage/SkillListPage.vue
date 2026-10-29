@@ -13,7 +13,7 @@ import {
   isSkillSwitchOn,
   startGeneralChatWithSkills
 } from '@jiaorong/utils'
-import skillLogo from '@jiaorong/assets/skill.png'
+import skillEmptyArt from '@jiaorong/assets/skill-empty.png'
 import { useToast } from '@/components/use-toast'
 import {
   BUILTIN_SKILL_NAMES,
@@ -68,6 +68,14 @@ const activeCategoryId = ref(SKILL_CATEGORY_ALL_ID)
 const categories = ref<SkillCategory[]>([
   { id: SKILL_CATEGORY_ALL_ID, categoryName: SKILL_CATEGORY_ALL }
 ])
+/** 类型下拉是否展开（纯 UI 状态） */
+const categoryMenuOpen = ref(false)
+/** 下拉按钮上显示的分类名 */
+const activeCategoryName = computed(
+  () =>
+    categories.value.find((category) => category.id === activeCategoryId.value)?.categoryName ??
+    SKILL_CATEGORY_ALL
+)
 const createMenuOpen = ref(false)
 const uploadDialogOpen = ref(false)
 /** 市场列表（远程 + 本地合并结果） */
@@ -388,6 +396,13 @@ const filteredSkills = computed(() => {
     if (activeTab.value === 'installed' && !isInstalled(skill)) {
       return false
     }
+    // 「未安装」：市场可见但本机还没有技能目录
+    if (
+      activeTab.value === 'uninstalled' &&
+      (!isSkillVisibleInMarket(skill) || isInstalled(skill))
+    ) {
+      return false
+    }
     if (!skillMatchesCategoryFilter(skill, activeCategoryId.value)) {
       return false
     }
@@ -400,11 +415,14 @@ const filteredSkills = computed(() => {
   })
 })
 
-const installedCount = computed(() => skillItems.value.filter((skill) => isInstalled(skill)).length)
-
-const marketCount = computed(
-  () => skillItems.value.filter((skill) => isSkillVisibleInMarket(skill)).length
-)
+/** 空列表文案：整库为空才提示未创建，搜索或「已安装/未安装」筛选无结果都算未匹配 */
+const emptyStateText = computed(() => {
+  if (searchQuery.value.trim()) return '未找到匹配的技能'
+  if (activeTab.value !== 'market') return '未找到匹配的技能'
+  if (activeCategoryId.value !== SKILL_CATEGORY_ALL_ID) return '未找到匹配的技能'
+  if (catalogRemoteError.value) return '技能市场加载失败，请稍后重试'
+  return '还未创建任何技能'
+})
 
 const openDetail = (skill: JiaorongSkillItem) => {
   // 安装中不允许进入详情，避免中断安装或读到半成品状态
@@ -516,6 +534,21 @@ const closeCreateMenu = () => {
   createMenuOpen.value = false
 }
 
+const toggleCategoryMenu = () => {
+  categoryMenuOpen.value = !categoryMenuOpen.value
+}
+
+const selectCategory = (id: string) => {
+  activeCategoryId.value = id
+  categoryMenuOpen.value = false
+}
+
+/** 点击页面空白处收起所有浮层 */
+const closeMenus = () => {
+  closeCreateMenu()
+  categoryMenuOpen.value = false
+}
+
 const createSkill = async () => {
   closeCreateMenu()
   await startGeneralChatWithSkills({
@@ -587,33 +620,10 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="skill-center-page" @click="closeCreateMenu">
-    <!-- Header: tabs + create -->
+  <div class="skill-center-page" @click="closeMenus">
+    <!-- Header: title + create -->
     <div class="skill-center-page__header">
-      <div class="skill-center-page__tabs">
-        <button
-          type="button"
-          class="skill-center-page__tab"
-          :class="{ 'is-active': activeTab === 'market' }"
-          @click.stop="setActiveTab('market')"
-        >
-          技能市场
-          <span class="skill-center-page__tab_span">
-            {{ marketCount }}
-          </span>
-        </button>
-        <button
-          type="button"
-          class="skill-center-page__tab"
-          :class="{ 'is-active': activeTab === 'installed' }"
-          @click.stop="setActiveTab('installed')"
-        >
-          已安装
-          <span class="skill-center-page__tab_span">
-            {{ installedCount }}
-          </span>
-        </button>
-      </div>
+      <h1 class="skill-center-page__title">技能市场</h1>
 
       <div class="skill-center-page__create-wrap" @click.stop>
         <Button size="sm" class="skill-center-page__create-btn" @click="toggleCreateMenu">
@@ -637,26 +647,69 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <!-- Search + categories -->
+    <!-- Search + category select + segments -->
     <div class="skill-center-page__toolbar">
       <div class="skill-center-page__search">
         <Icon icon="lucide:search" class="skill-center-page__search-icon" />
         <Input
           v-model="searchQuery"
           class="skill-center-page__search-input"
-          placeholder="请输入技能名称或描述"
+          placeholder="搜索技能名称、描述或作者"
         />
       </div>
-      <div class="skill-center-page__categories">
+
+      <div class="skill-center-page__category-select" @click.stop>
         <button
-          v-for="category in categories"
-          :key="category.id || 'all'"
           type="button"
-          class="skill-center-page__category"
-          :class="{ 'is-active': activeCategoryId === category.id }"
-          @click="activeCategoryId = category.id"
+          class="skill-center-page__category-trigger"
+          @click="toggleCategoryMenu"
         >
-          {{ category.categoryName }}
+          <span class="skill-center-page__category-value">{{ activeCategoryName }}</span>
+          <Icon icon="lucide:chevron-down" class="skill-center-page__category-arrow" />
+        </button>
+        <div v-if="categoryMenuOpen" class="skill-center-page__category-menu">
+          <button
+            v-for="category in categories"
+            :key="category.id || 'all'"
+            type="button"
+            class="skill-center-page__category-option"
+            :class="{ 'is-active': activeCategoryId === category.id }"
+            @click="selectCategory(category.id)"
+          >
+            <span>{{ category.categoryName }}</span>
+            <Icon
+              v-if="activeCategoryId === category.id"
+              icon="lucide:check"
+              class="skill-center-page__category-check"
+            />
+          </button>
+        </div>
+      </div>
+
+      <div class="skill-center-page__segments" @click.stop>
+        <button
+          type="button"
+          class="skill-center-page__segment"
+          :class="{ 'is-active': activeTab === 'market' }"
+          @click="setActiveTab('market')"
+        >
+          全部
+        </button>
+        <button
+          type="button"
+          class="skill-center-page__segment"
+          :class="{ 'is-active': activeTab === 'installed' }"
+          @click="setActiveTab('installed')"
+        >
+          已安装
+        </button>
+        <button
+          type="button"
+          class="skill-center-page__segment"
+          :class="{ 'is-active': activeTab === 'uninstalled' }"
+          @click="setActiveTab('uninstalled')"
+        >
+          未安装
         </button>
       </div>
     </div>
@@ -674,16 +727,8 @@ onUnmounted(() => {
         v-else-if="filteredSkills.length === 0"
         class="skill-center-page__state skill-center-page__state--empty"
       >
-        <img :src="skillLogo" alt="" class="skill-center-page__state-logo" />
-        <p class="skill-center-page__state-text">
-          {{
-            searchQuery
-              ? '未找到匹配的技能'
-              : catalogRemoteError && activeTab === 'market'
-                ? '技能市场加载失败，请稍后重试'
-                : '暂无技能'
-          }}
-        </p>
+        <img :src="skillEmptyArt" alt="" class="skill-center-page__state-image" />
+        <p class="skill-center-page__state-text">{{ emptyStateText }}</p>
       </div>
 
       <div v-else class="skill-center-page__grid">
@@ -695,7 +740,9 @@ onUnmounted(() => {
           @click="openDetail(skill)"
         >
           <div class="skill-center-page__card-head">
-            <img :src="skillLogo" alt="" class="skill-center-page__card-logo" />
+            <span class="skill-center-page__card-icon" aria-hidden="true">
+              <Icon icon="lucide:sparkles" />
+            </span>
             <h3 class="skill-center-page__card-title">
               {{ getSkillDisplayName(skill) }}
             </h3>

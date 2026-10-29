@@ -695,7 +695,7 @@ defineExpose({
 <template>
   <div class="h-full min-h-0 flex flex-col">
     <!-- Server list -->
-    <ScrollArea class="min-h-0 flex-1 px-3">
+    <ScrollArea class="min-h-0 flex-1 px-8">
       <div v-if="mcpStore.configLoading" class="flex justify-center py-8">
         <div class="text-center">
           <Spinner class="mx-auto mb-2 size-6 text-muted-foreground" />
@@ -783,7 +783,7 @@ defineExpose({
 
     <!-- Footer actions -->
     <div class="shrink-0 border-t bg-background">
-      <div class="flex items-center justify-between gap-3 px-4 py-3">
+      <div class="flex items-center justify-between gap-3 px-8 py-3">
         <div class="flex min-w-0 flex-1 items-center gap-3">
           <slot name="status-bar">
             <div data-mcp-server-counts class="flex items-center space-x-3">
