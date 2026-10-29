@@ -1,6 +1,6 @@
 {
   "name": "create-jiaorong-app",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "交融应用脚手架：一条命令按问答生成本地应用目录",
   "author": "ThinkInAIXYZ",
   "license": "Apache-2.0",
