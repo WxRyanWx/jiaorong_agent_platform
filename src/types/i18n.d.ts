@@ -3544,6 +3544,7 @@ declare module 'vue-i18n' {
       openPlatformConnectorUnavailable: string
       openPlatformConnectorUnavailableDesc: string
       openPlatformConnectorInstallFailed: string
+      serverStartFailedDesc: string
       openPlatformConnectorRevoked: string
       openPlatformConnectorRevokedDesc: string
       updateAvailable: string

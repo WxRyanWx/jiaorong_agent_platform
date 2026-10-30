@@ -671,6 +671,12 @@ export const useMcpStore = defineStore('mcp', () => {
   }
 
   const syncOpenPlatformConnectors = async (): Promise<void> => {
+    // 对账依赖本地配置。页面可能在 store 初始化完成前触发拉取，
+    // 先等配置就绪，避免把「本地还没加载」误当成「没有已安装连接器」。
+    if (!config.value.ready) {
+      await loadConfig()
+    }
+
     /** 市场快照；拉取失败时直接返回，不清空已在展示的市场列表。 */
     let connectors: OpenPlatformMarketMcpServer[]
     try {
@@ -682,13 +688,25 @@ export const useMcpStore = defineStore('mcp', () => {
     }
 
     openPlatformConnectors.value = connectors
-    // 只在成功拿到非空市场列表后对账。
-    // 列表为空可能是数据源异常（后端未就绪、本地 mock 数据被清），
-    // 删除不可逆，此时保留本地配置，避免把用户已启用的连接器一次性删光。
-    if (connectors.length === 0) {
-      console.warn('[MCP] Open platform connector market is empty, skip revoke reconciliation')
-      return
+    // 空列表可能来自瞬时网络/网关抖动。本地已有开放平台连接器时等待后重试一次，
+    // 两次都为空才认定全部下架，避免一次异常响应把本地连接器清空。
+    const hasInstalledConnector = Object.values(config.value.mcpServers ?? {}).some(
+      (serverConfig) => isOpenPlatformConnectorConfig(serverConfig)
+    )
+    if (connectors.length === 0 && hasInstalledConnector) {
+      await new Promise((resolve) => setTimeout(resolve, 1200))
+      try {
+        connectors = await listOpenPlatformMarketConnectors()
+      } catch (error) {
+        // 重试仍失败说明网络不可用，保留本地配置
+        console.warn('[MCP] Connector market retry failed, keep local connectors', error)
+        return
+      }
+      openPlatformConnectors.value = connectors
     }
+    // 成功拿到市场快照后一律对账，空列表同样要清理：
+    // 远端下架（包括全部下架导致市场为空）的连接器必须从本地移除，重新上架后才能再次使用。
+    // 请求失败（未登录 401、网络异常）已在上方 return，不会误删本地配置。
     try {
       await removeRevokedConnectors(connectors)
     } catch (error) {
@@ -982,6 +1000,15 @@ export const useMcpStore = defineStore('mcp', () => {
         console.error(`Failed to rollback MCP server state for ${serverName}`, rollbackError)
       }
       console.error(t('mcp.errors.toggleServerFailed', { serverName }), error)
+      try {
+        // 拉一次诊断，把底层错误写进状态，卡片和失败提示才能显示具体原因
+        await updateServerStatus(serverName, true)
+      } catch (diagnosticsError) {
+        console.warn(
+          `Failed to refresh diagnostics after MCP start failure for ${serverName}`,
+          diagnosticsError
+        )
+      }
       return false
     } finally {
       serverLoadingStates.value[serverName] = false

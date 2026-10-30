@@ -1946,6 +1946,7 @@
     "openPlatformConnectorUnavailable": "连接器缺少可用配置",
     "openPlatformConnectorUnavailableDesc": "请在开放平台重新上传包含完整 mcp.json 的连接器包。",
     "openPlatformConnectorInstallFailed": "连接器启用失败",
+    "serverStartFailedDesc": "服务启动失败，请检查配置或网络后重试。",
     "openPlatformConnectorRevoked": "连接器已下架",
     "openPlatformConnectorRevokedDesc": "{names} 已从开放平台下架，本地配置已移除，重新上架后可再次启用。",
     "updateAvailable": "更新",

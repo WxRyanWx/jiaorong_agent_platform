@@ -240,7 +240,17 @@ const enableOpenPlatformConnector = async (
       kind: 'error',
       code: 'settings.mcp.openPlatformConnectorInstallFailed',
       title: t('settings.mcp.openPlatformConnectorInstallFailed'),
-      description: t('common.error.requestFailed')
+      description:
+        mcpStore.serverStatusMessages?.[result.serverName]?.trim() ||
+        t('settings.mcp.serverStartFailedDesc')
+    })
+  } catch (error) {
+    console.error('[MCP] Failed to enable open platform connector', server.name, error)
+    notifyRenderer({
+      kind: 'error',
+      code: 'settings.mcp.openPlatformConnectorInstallFailed',
+      title: t('settings.mcp.openPlatformConnectorInstallFailed'),
+      description: t('settings.mcp.serverStartFailedDesc')
     })
   } finally {
     installingConnectorNames.value = installingConnectorNames.value.filter(
@@ -491,7 +501,9 @@ const handleToggleServer = async (serverName: string) => {
       kind: 'error',
       code: 'settings.mcp.toggleFailed',
       title: t('common.error.operationFailed'),
-      description: t('common.error.requestFailed')
+      description:
+        mcpStore.serverStatusMessages?.[serverName]?.trim() ||
+        t('settings.mcp.serverStartFailedDesc')
     })
   }
 }

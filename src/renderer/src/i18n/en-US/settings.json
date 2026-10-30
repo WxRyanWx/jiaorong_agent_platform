@@ -1946,6 +1946,7 @@
     "openPlatformConnectorUnavailable": "Connector has no usable configuration",
     "openPlatformConnectorUnavailableDesc": "Re-upload the connector package with a complete mcp.json on the open platform.",
     "openPlatformConnectorInstallFailed": "Failed to enable connector",
+    "serverStartFailedDesc": "Failed to start the service. Check the configuration or network and try again.",
     "openPlatformConnectorRevoked": "Connector delisted",
     "openPlatformConnectorRevokedDesc": "{names} has been delisted from the open platform and removed locally. Enable it again after it is republished.",
     "updateAvailable": "Update",

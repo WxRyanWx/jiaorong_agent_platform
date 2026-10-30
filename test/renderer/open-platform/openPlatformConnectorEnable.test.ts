@@ -480,6 +480,39 @@ describe('connector revoke detection', () => {
     expect(findRevokedConnectorServerNames(servers, new Set(['jina-public-mcp']))).toEqual([])
   })
 
+  it('flags every installed connector when the market becomes empty', () => {
+    const servers = {
+      'jina-public-mcp': createServer({ source: 'open-platform', sourceId: 'jina-public-mcp' }),
+      'tencent-meeting': createServer({ source: 'open-platform', sourceId: 'tencent-meeting' })
+    }
+
+    expect(findRevokedConnectorServerNames(servers, new Set())).toEqual([
+      'jina-public-mcp',
+      'tencent-meeting'
+    ])
+  })
+
+  it('keeps open platform entries without a source id', () => {
+    const servers = {
+      legacy: createServer({ source: 'open-platform' })
+    }
+
+    expect(findRevokedConnectorServerNames(servers, new Set())).toEqual([])
+  })
+
+  it('never flags plugin owned or in-memory servers even with an open platform source', () => {
+    const servers = {
+      'plugin-server': createServer({
+        source: 'open-platform',
+        sourceId: 'plugin-server',
+        ownerPluginId: 'demo-plugin'
+      }),
+      memory: createServer({ source: 'open-platform', sourceId: 'memory', type: 'inmemory' })
+    }
+
+    expect(findRevokedConnectorServerNames(servers, new Set())).toEqual([])
+  })
+
   it('never flags manually added, plugin owned or built-in servers', () => {
     const servers = {
       'tencent-meeting': createServer({ baseUrl: 'https://meeting.example/mcp' }),

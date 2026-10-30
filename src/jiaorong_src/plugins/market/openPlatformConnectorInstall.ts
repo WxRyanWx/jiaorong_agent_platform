@@ -112,8 +112,14 @@ export function findRevokedConnectorServerNames(
   servers: ServerConfigMap,
   marketSourceIds: Set<string>
 ): string[] {
-  return Object.entries(servers ?? {})
-    .filter(([, serverConfig]) => isOpenPlatformConnectorConfig(serverConfig))
-    .filter(([, serverConfig]) => !marketSourceIds.has(serverConfig.sourceId ?? ''))
-    .map(([serverName]) => serverName)
+  return (
+    Object.entries(servers ?? {})
+      .filter(([, serverConfig]) => isOpenPlatformConnectorConfig(serverConfig))
+      // 只清理能确认来源的开放平台连接器：缺 sourceId、插件拥有、内置类型的服务器一律不动
+      .filter(([, serverConfig]) => Boolean(serverConfig.sourceId))
+      .filter(([, serverConfig]) => !serverConfig.ownerPluginId)
+      .filter(([, serverConfig]) => serverConfig.type !== 'inmemory')
+      .filter(([, serverConfig]) => !marketSourceIds.has(serverConfig.sourceId ?? ''))
+      .map(([serverName]) => serverName)
+  )
 }

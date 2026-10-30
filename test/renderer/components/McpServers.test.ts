@@ -679,7 +679,7 @@ describe('McpServers', () => {
       kind: 'error',
       code: 'settings.mcp.toggleFailed',
       title: 'common.error.operationFailed',
-      description: 'common.error.requestFailed'
+      description: 'settings.mcp.serverStartFailedDesc'
     })
   })
 })
