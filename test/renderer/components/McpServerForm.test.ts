@@ -166,7 +166,9 @@ describe('McpServerForm', () => {
       .findAll('button')
       .find((button) => button.text() === 'settings.mcp.serverForm.skipToManual')
     expect(manualButton).toBeDefined()
+    expect(wrapper.emitted('step-change')?.[0]).toEqual(['simple'])
     await manualButton?.trigger('click')
+    expect(wrapper.emitted('step-change')?.at(-1)).toEqual(['detailed'])
 
     const sseOption = wrapper.find('[value="sse"]')
     expect(sseOption.exists()).toBe(true)

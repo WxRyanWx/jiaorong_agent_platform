@@ -36,6 +36,7 @@ describe('McpToolPanel', () => {
             description: 'Inspect values',
             parameters: {
               type: 'object',
+              required: ['formats'],
               properties: {
                 formats: {
                   type: 'array',
@@ -61,7 +62,12 @@ describe('McpToolPanel', () => {
 
     vi.doMock('@/stores/mcp', () => ({ useMcpStore: () => mcpStore }))
     vi.doMock('@vueuse/core', () => ({ useMediaQuery: () => ref(false) }))
-    vi.doMock('vue-i18n', () => ({ useI18n: () => ({ t: (key: string) => key }) }))
+    vi.doMock('vue-i18n', () => ({
+      useI18n: () => ({
+        t: (key: string, params?: { fields?: string }) =>
+          params?.fields ? `${key}:${params.fields}` : key
+      })
+    }))
 
     const McpToolPanel = (await import('@/components/mcp-config/components/McpToolPanel.vue'))
       .default
@@ -103,6 +109,7 @@ describe('McpToolPanel', () => {
 
     expect(wrapper.text()).toContain('array[enum(string)]')
     expect(wrapper.text()).toContain('mcp.tools.arrayItemValues')
+    expect(wrapper.text()).toContain('routes.devCenterPublishMissing:formats')
     expect(wrapper.text()).toContain('json')
     expect(wrapper.text()).toContain('{"format":"xml"}')
   })

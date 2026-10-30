@@ -185,6 +185,23 @@ const toolParametersDescription = computed(() => {
   })
 })
 
+const requiredParameterNames = computed(() =>
+  toolParametersDescription.value
+    .filter((parameter) => parameter.required)
+    .map((parameter) => parameter.name)
+)
+
+const toolInputHint = computed(() => {
+  const baseHint = t('mcp.tools.inputHint')
+  if (requiredParameterNames.value.length === 0) {
+    return baseHint
+  }
+
+  return `${baseHint}；${t('routes.devCenterPublishMissing', {
+    fields: requiredParameterNames.value.join(', ')
+  })}`
+})
+
 // 选择工具的处理函数
 const selectTool = (tool: MCPToolDefinition) => {
   selectedToolName.value = tool.function.name
@@ -260,11 +277,15 @@ const selectTool = (tool: MCPToolDefinition) => {
           <div v-if="!selectedTool" class="flex items-center justify-center h-full">
             <div class="text-center">
               <div
-                class="mx-auto w-12 h-12 bg-muted/30 rounded-full flex items-center justify-center mb-3"
+                class="mx-auto w-12 h-12 bg-muted/30 rounded-full flex items-center justify-center mb-3 text-[#5C78A0]"
+                style="background-color: #f7fafe"
               >
                 <Icon icon="lucide:mouse-pointer-click" class="h-5 w-5 text-muted-foreground" />
               </div>
-              <h3 class="text-base font-medium text-foreground mb-2">
+              <h3
+                class="text-base font-medium text-foreground mb-2"
+                style="color: #5c78a0; font-size: 16px"
+              >
                 {{ t('mcp.tools.selectToolToDebug') }}
               </h3>
             </div>
@@ -277,23 +298,26 @@ const selectTool = (tool: MCPToolDefinition) => {
                 <div>
                   <div class="flex items-center space-x-2 mb-2">
                     <Icon icon="lucide:function-square" class="h-5 w-5 text-primary" />
-                    <h2 class="text-lg font-semibold">
+                    <h2 class="text-lg font-semibold text-[#0B2B57]">
                       {{ t('mcp.tools.functionDescription') }}
                     </h2>
                   </div>
-                  <p class="text-sm text-secondary-foreground">
+                  <p class="text-sm text-[#5C78A0]">
                     {{ selectedTool.function.description || selectedTool.function.name }}
                   </p>
                 </div>
 
                 <!-- 工具参数说明（可折叠） -->
-                <div v-if="toolParametersDescription.length > 0" class="border rounded-lg">
+                <div
+                  v-if="toolParametersDescription.length > 0"
+                  class="rounded-lg border border-[#D5E0ED] bg-[#fff]"
+                >
                   <DcButton
                     variant="ghost"
                     class="w-full justify-between p-3 h-auto"
                     @click="isParametersExpanded = !isParametersExpanded"
                   >
-                    <span class="font-medium"
+                    <span class="text-sm font-medium text-[#1C324D]"
                       >{{ t('mcp.tools.parameters') }} ({{
                         toolParametersDescription.length
                       }})</span
@@ -307,16 +331,16 @@ const selectTool = (tool: MCPToolDefinition) => {
                     <div
                       v-for="param in toolParametersDescription"
                       :key="param.name"
-                      class="p-2 bg-muted/30 rounded-md border border-border/30"
+                      class="rounded-md border border-[#D5E0ED]/70 bg-[#F7FAFE] p-2"
                     >
-                      <div class="flex items-center space-x-1 mb-1">
-                        <code class="text-xs font-mono font-medium text-foreground">{{
+                      <div class="mb-1 flex items-center gap-2">
+                        <code class="text-sm font-mono font-medium text-[#1C324D]">{{
                           param.name
                         }}</code>
                         <DcBadge
                           v-if="param.required"
                           variant="destructive"
-                          class="text-xs px-1 py-0"
+                          class="border-0 bg-[#FFF1F0] px-2 text-xs text-[#F53F3F]"
                         >
                           {{ t('mcp.tools.required') }}
                         </DcBadge>
@@ -326,11 +350,11 @@ const selectTool = (tool: MCPToolDefinition) => {
                               ? 'default'
                               : 'outline'
                           "
-                          class="text-xs px-1 py-0"
+                          class="px-2 text-xs"
                           :class="
                             param.type === 'enum' || param.type === 'array[enum]'
-                              ? 'bg-blue-500 text-white'
-                              : ''
+                              ? 'border-0 bg-[#E8F1FF] text-[#006EFF]'
+                              : 'text-[#5C78A0]'
                           "
                         >
                           {{
@@ -342,36 +366,42 @@ const selectTool = (tool: MCPToolDefinition) => {
                           }}
                         </DcBadge>
                       </div>
-                      <p v-if="param.description" class="text-xs text-muted-foreground">
+                      <p v-if="param.description" class="text-xs text-[#5C78A0]">
                         {{ param.description }}
                       </p>
                       <!-- 显示枚举值 -->
-                      <div v-if="param.enum && param.enum.length > 0" class="mt-1">
-                        <p class="text-xs font-medium text-foreground mb-1">
+                      <div
+                        v-if="param.enum && param.enum.length > 0"
+                        class="mt-1 flex min-w-0 items-center gap-2 overflow-x-auto"
+                      >
+                        <p class="shrink-0 whitespace-nowrap text-xs font-medium text-[#5C78A0]">
                           {{ t('mcp.tools.allowedValues') }}:
                         </p>
-                        <div class="flex flex-wrap gap-1">
+                        <div class="flex flex-nowrap gap-2">
                           <DcBadge
                             v-for="(enumValue, enumIndex) in param.enum"
                             :key="`${param.name}-enum-${enumIndex}`"
                             variant="secondary"
-                            class="text-xs px-1.5 py-0.5 font-mono"
+                            class="border-0 bg-[#F1F5FA] px-2 font-mono text-xs text-[#5C78A0]"
                           >
                             {{ enumValue }}
                           </DcBadge>
                         </div>
                       </div>
                       <!-- 显示数组元素类型的枚举值 -->
-                      <div v-if="param.items?.enum && param.items.enum.length > 0" class="mt-1">
-                        <p class="text-xs font-medium text-foreground mb-1">
+                      <div
+                        v-if="param.items?.enum && param.items.enum.length > 0"
+                        class="mt-1 flex min-w-0 items-center gap-2 overflow-x-auto"
+                      >
+                        <p class="shrink-0 whitespace-nowrap text-xs font-medium text-[#5C78A0]">
                           {{ t('mcp.tools.arrayItemValues') }}:
                         </p>
-                        <div class="flex flex-wrap gap-1">
+                        <div class="flex flex-nowrap gap-2">
                           <DcBadge
                             v-for="(enumValue, enumIndex) in param.items.enum"
                             :key="`${param.name}-item-enum-${enumIndex}`"
                             variant="secondary"
-                            class="text-xs px-1.5 py-0.5 font-mono"
+                            class="border-0 bg-[#F1F5FA] px-2 font-mono text-xs text-[#5C78A0]"
                           >
                             {{ enumValue }}
                           </DcBadge>
@@ -384,16 +414,16 @@ const selectTool = (tool: MCPToolDefinition) => {
                 <!-- 工具参数输入（调试区域） -->
                 <div class="space-y-3">
                   <div class="flex items-center justify-between">
-                    <h3 class="text-sm font-medium text-foreground">
+                    <h3 class="text-sm font-medium text-[#1C324D]">
                       {{ t('mcp.tools.input') }}
                     </h3>
                     <DcButton
                       variant="ghost"
                       size="sm"
-                      class="h-6 text-xs px-2"
+                      class="h-6 cursor-pointer px-2 text-xs text-[#5C78A0] hover:text-[#5C78A0]"
                       @click="formatToolInput(selectedTool.function.name)"
                     >
-                      <Icon icon="lucide:align-left" class="mr-1 h-3 w-3" />
+                      <Icon icon="lucide:align-left" class="mr-1 h-3 w-3 text-[#5C78A0]" />
                       {{ t('common.format') }}
                     </DcButton>
                   </div>
@@ -401,7 +431,7 @@ const selectTool = (tool: MCPToolDefinition) => {
                   <div class="relative">
                     <textarea
                       v-model="localToolInputs[selectedTool.function.name]"
-                      class="flex h-32 w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      class="flex h-32 w-full rounded-md border border-[#D5E0ED] bg-[#F7FAFE] px-3 py-2 text-sm font-mono text-[#1C324D] transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-[#5C78A0] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                       :class="{ 'border-destructive': jsonError[selectedTool.function.name] }"
                       placeholder="{}"
                       @input="
@@ -418,13 +448,13 @@ const selectTool = (tool: MCPToolDefinition) => {
                       {{ t('mcp.tools.invalidJson') }}
                     </div>
                   </div>
-                  <p class="text-xs text-muted-foreground">
-                    {{ t('mcp.tools.inputHint') }}
+                  <p class="text-xs text-[#5C78A0]">
+                    {{ toolInputHint }}
                   </p>
 
                   <!-- 执行按钮 -->
                   <DcButton
-                    class="w-full"
+                    class="w-full cursor-pointer bg-[#006EFF] text-white hover:bg-[#006EFF]"
                     :disabled="
                       mcpStore.toolLoadingStates[selectedTool.function.name] ||
                       jsonError[selectedTool.function.name]

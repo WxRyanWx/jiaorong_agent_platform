@@ -12,7 +12,6 @@ import {
   SelectTrigger,
   SelectValue
 } from '@shadcn/components/ui/select'
-import { ScrollArea } from '@shadcn/components/ui/scroll-area'
 import { DcBadge } from '@dc-ui/components/badge'
 import { DcInlineError } from '@dc-ui/components/inline-error'
 import type {
@@ -45,10 +44,14 @@ const props = defineProps<{
   submissionError?: string
 }>()
 
+type McpServerFormStep = 'simple' | 'detailed'
+
 const emit = defineEmits<{
   submit: [serverName: string, config: MCPServerConfig, credential?: McpCredentialInput]
   'input-change': []
   'name-change': []
+  'step-change': [step: McpServerFormStep]
+  cancel: []
 }>()
 
 // 表单状态
@@ -146,10 +149,18 @@ const getLocalizedDesc = computed(() => {
 })
 
 // 简单表单状态
-const currentStep = ref(props.editMode ? 'detailed' : 'simple')
+const currentStep = ref<McpServerFormStep>(props.editMode ? 'detailed' : 'simple')
 const jsonConfig = ref('')
 const jsonConfigError = ref<string | null>(null)
 const folderSelectionError = ref<string | null>(null)
+
+watch(
+  currentStep,
+  (step) => {
+    emit('step-change', step)
+  },
+  { immediate: true }
+)
 
 // 当type变更时处理baseUrl的显示逻辑
 const showBaseUrl = computed(() => isRemoteType.value)
@@ -622,7 +633,8 @@ const handleSubmit = (): void => {
   emit('submit', name.value.trim(), serverConfig, credential)
 }
 
-const placeholder = `mcp配置示例
+const placeholder = `格式示例 · 请替换为实际配置
+
 {
   "mcpServers": {
     "filesystem": {
@@ -794,15 +806,18 @@ HTTP-Referer=deepchatai.cn`
 
 <template>
   <!-- 简单表单 -->
-  <form v-if="currentStep === 'simple'" class="space-y-4 h-full flex flex-col">
-    <ScrollArea class="h-0 grow">
-      <div class="space-y-4 px-4 pb-4">
-        <div class="text-sm">
+  <form v-if="currentStep === 'simple'" class="flex min-h-0 flex-1 flex-col">
+    <div
+      class="min-h-0 flex-1 overflow-y-auto overscroll-contain"
+      :class="{ 'scrollbar-hide': !editMode }"
+    >
+      <div class="space-y-4 px-6 py-6">
+        <div class="text-[14px] text-[#1C324D]">
           {{ t('settings.mcp.serverForm.jsonConfigIntro') }}
         </div>
 
         <div class="space-y-2">
-          <Label class="text-xs text-muted-foreground" for="json-config">
+          <Label class="text-muted-foreground" for="json-config" style="color: #1C324D; font-size: 14px;">
             {{ t('settings.mcp.serverForm.jsonConfig') }}
           </Label>
           <Textarea
@@ -812,17 +827,30 @@ HTTP-Referer=deepchatai.cn`
             :placeholder="placeholder"
             :aria-invalid="Boolean(jsonConfigError)"
             :aria-describedby="jsonConfigError ? 'json-config-error' : undefined"
+            class="h-[370px] resize-none rounded-md font-mono text-xs leading-5"
+            style="background-color: #f7fafe"
           />
           <DcInlineError id="json-config-error" :error="jsonConfigError ?? undefined" />
         </div>
       </div>
-    </ScrollArea>
+    </div>
 
-    <div class="flex justify-between pt-2 border-t px-4">
-      <DcButton type="button" variant="outline" size="sm" @click="goToDetailedForm">
+    <div class="flex shrink-0 items-center justify-between border-t border-[#edf0f4] px-6 py-5">
+      <DcButton
+        type="button"
+        variant="outline"
+        size="sm"
+        class="h-9 w-[124px] rounded-lg text-sm"
+        @click="goToDetailedForm"
+      >
         {{ t('settings.mcp.serverForm.skipToManual') }}
       </DcButton>
-      <DcButton type="button" size="sm" @click="parseJsonConfig">
+      <DcButton
+        type="button"
+        size="sm"
+        class="h-9 w-[92px] rounded-lg text-sm"
+        @click="parseJsonConfig"
+      >
         {{ t('settings.mcp.serverForm.parseAndContinue') }}
       </DcButton>
     </div>
@@ -831,49 +859,55 @@ HTTP-Referer=deepchatai.cn`
   <!-- 详细表单 -->
   <form
     v-else
-    class="space-y-2 h-full flex flex-col"
+    class="mcp-server-form mcp-server-form--compact flex min-h-0 flex-1 flex-col"
     :inert="submitting || undefined"
     :aria-busy="submitting"
     @submit.prevent="handleSubmit"
   >
-    <ScrollArea class="h-0 grow">
-      <div class="space-y-2 px-4 pb-4">
+    <div class="scrollbar-hide min-h-0 flex-1 overflow-y-auto overscroll-contain">
+      <div
+        class="mcp-server-form__content grid grid-cols-1 gap-x-4 gap-y-4 px-6 py-5 md:grid-cols-2"
+      >
         <!-- 服务器名称 -->
         <!-- 本地化名称 (针对inmemory类型) -->
-        <div v-if="isInMemoryType && name" class="space-y-2">
-          <Label class="text-xs text-muted-foreground" for="localized-name">{{
-            t('settings.mcp.serverForm.name')
-          }}</Label>
+        <div
+          class="mcp-server-form__name-row grid grid-cols-[minmax(0,1fr)_80px] items-start gap-4 md:col-span-2"
+        >
+          <div v-if="isInMemoryType && name" class="space-y-2">
+            <Label class="text-xs text-muted-foreground" for="localized-name">{{
+              t('settings.mcp.serverForm.name')
+            }}</Label>
 
-          <div
-            class="flex h-9 items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background opacity-50"
-          >
-            {{ getLocalizedName }}
+            <div
+              class="flex h-9 items-center justify-between whitespace-nowrap rounded-md border border-[#D5E0ED] bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background opacity-50"
+            >
+              {{ getLocalizedName }}
+            </div>
+          </div>
+          <div v-else class="space-y-2">
+            <Label class="text-xs text-muted-foreground" for="server-name">{{
+              t('settings.mcp.serverForm.name')
+            }}</Label>
+            <Input
+              id="server-name"
+              v-model="name"
+              :placeholder="t('settings.mcp.serverForm.namePlaceholder')"
+              :disabled="editMode || isFieldReadOnly"
+              required
+            />
+          </div>
+
+          <!-- 图标 -->
+          <div class="space-y-2">
+            <Label class="text-xs text-muted-foreground" for="server-icon">{{
+              t('settings.mcp.serverForm.icons')
+            }}</Label>
+            <div class="mcp-icon-field flex items-center">
+              <EmojiPicker v-model="icons" :disabled="isFieldReadOnly" />
+            </div>
           </div>
         </div>
-        <div v-else class="space-y-2">
-          <Label class="text-xs text-muted-foreground" for="server-name">{{
-            t('settings.mcp.serverForm.name')
-          }}</Label>
-          <Input
-            id="server-name"
-            v-model="name"
-            :placeholder="t('settings.mcp.serverForm.namePlaceholder')"
-            :disabled="editMode || isFieldReadOnly"
-            required
-          />
-        </div>
-        <DcInlineError v-if="nameError" :error="nameError" />
-
-        <!-- 图标 -->
-        <div class="space-y-2">
-          <Label class="text-xs text-muted-foreground" for="server-icon">{{
-            t('settings.mcp.serverForm.icons')
-          }}</Label>
-          <div class="flex items-center space-x-2">
-            <EmojiPicker v-model="icons" :disabled="isFieldReadOnly" />
-          </div>
-        </div>
+        <DcInlineError v-if="nameError" class="md:col-span-2" :error="nameError" />
 
         <!-- 服务器类型 -->
         <div class="space-y-2">
@@ -906,7 +940,7 @@ HTTP-Referer=deepchatai.cn`
         </div>
 
         <!-- 基础URL，仅在类型为SSE或HTTP时显示 -->
-        <div v-if="showBaseUrl" class="space-y-2">
+        <div v-if="showBaseUrl" class="space-y-2 md:col-span-2">
           <Label class="text-xs text-muted-foreground" for="server-base-url">{{
             t('settings.mcp.serverForm.baseUrl')
           }}</Label>
@@ -919,7 +953,7 @@ HTTP-Referer=deepchatai.cn`
           />
         </div>
 
-        <div v-if="isHttpTransportType" class="space-y-3 rounded-md border p-3">
+        <div v-if="isHttpTransportType" class="space-y-3 rounded-md border p-3 md:col-span-2">
           <div class="space-y-2">
             <Label class="text-xs text-muted-foreground" for="authorization-mode">
               {{ t('settings.mcp.serverForm.authorizationMode') }}
@@ -1122,7 +1156,7 @@ HTTP-Referer=deepchatai.cn`
         </div>
 
         <!-- 文件夹选择 (特殊处理 buildInFileSystem) -->
-        <div v-if="showFolderSelector" class="space-y-2">
+        <div v-if="showFolderSelector" class="space-y-2 md:col-span-2">
           <Label class="text-xs text-muted-foreground">
             {{ t('settings.mcp.serverForm.folders') }}
           </Label>
@@ -1168,27 +1202,37 @@ HTTP-Referer=deepchatai.cn`
           </div>
         </div>
         <!-- 参数 (标签式输入 for stdio/inmemory) -->
-        <div v-else-if="showArgsInput" class="space-y-2">
+        <div v-else-if="showArgsInput" class="space-y-2 md:col-span-2">
           <div class="flex items-center justify-between">
             <Label class="text-xs text-muted-foreground" for="server-args">
               {{ t('settings.mcp.serverForm.args') }}
             </Label>
-            <DcButton type="button" variant="ghost" size="sm" @click="addArgsRow">
+            <DcButton
+              type="button"
+              variant="ghost"
+              size="sm"
+              class="h-6 cursor-pointer px-0 text-sm font-medium text-primary hover:bg-transparent hover:text-primary"
+              @click="addArgsRow"
+            >
+              <Icon icon="lucide:plus" class="size-3.5 shrink-0" aria-hidden="true" />
               {{ t('settings.mcp.serverForm.addArg') }}
             </DcButton>
           </div>
-          <div class="space-y-2 max-h-48 overflow-y-auto pr-1">
-            <div v-for="row in argsRows" :key="row.id" class="grid grid-cols-12 gap-2 items-center">
+          <div class="mcp-server-form__args-list space-y-2 max-h-48 overflow-y-auto pr-1">
+            <div
+              v-for="row in argsRows"
+              :key="row.id"
+              class="grid grid-cols-[minmax(0,1fr)_36px] gap-2 items-center"
+            >
               <Input
                 v-model="row.value"
-                class="col-span-11"
                 :placeholder="t('settings.mcp.serverForm.argPlaceholder')"
               />
               <DcButton
                 type="button"
                 variant="ghost"
                 size="icon"
-                class="col-span-1"
+                class="size-9 p-0 text-muted-foreground hover:text-foreground"
                 @click="removeArgsRow(row.id)"
               >
                 <X class="h-4 w-4" />
@@ -1200,14 +1244,15 @@ HTTP-Referer=deepchatai.cn`
         </div>
 
         <!-- 环境变量 -->
-        <div v-if="showCommandFields || isInMemoryType" class="space-y-2">
+        <div v-if="showCommandFields || isInMemoryType" class="space-y-2 md:col-span-2">
           <Label class="text-xs text-muted-foreground" for="server-env">{{
             t('settings.mcp.serverForm.env')
           }}</Label>
           <Textarea
             id="server-env"
             v-model="env"
-            rows="5"
+            rows="2"
+            class="mcp-server-form__env h-16 resize-none"
             :placeholder="t('settings.mcp.serverForm.envPlaceholder')"
             :class="{ 'border-red-500': !isEnvValid }"
             :aria-invalid="!isEnvValid"
@@ -1222,12 +1267,12 @@ HTTP-Referer=deepchatai.cn`
 
         <!-- 描述 -->
         <!-- 本地化描述 (针对inmemory类型) -->
-        <div v-if="isInMemoryType && name" class="space-y-2">
+        <div v-if="isInMemoryType && name" class="space-y-2 md:col-span-2">
           <Label class="text-xs text-muted-foreground" for="localized-desc">{{
             t('settings.mcp.serverForm.descriptions')
           }}</Label>
           <div
-            class="flex h-9 items-center rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background opacity-50"
+            class="flex h-9 items-center rounded-md border border-[#D5E0ED] bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background opacity-50"
             :title="getLocalizedDesc"
           >
             <span class="block truncate min-w-0">
@@ -1235,7 +1280,7 @@ HTTP-Referer=deepchatai.cn`
             </span>
           </div>
         </div>
-        <div v-else class="space-y-2">
+        <div v-else class="space-y-2 md:col-span-2">
           <Label class="text-xs text-muted-foreground" for="server-description">{{
             t('settings.mcp.serverForm.descriptions')
           }}</Label>
@@ -1247,7 +1292,7 @@ HTTP-Referer=deepchatai.cn`
           />
         </div>
         <!-- NPM Registry 自定义设置 (仅在命令为 npx 或 node 时显示) -->
-        <div v-if="showNpmRegistryInput" class="space-y-2">
+        <div v-if="showNpmRegistryInput" class="space-y-2 md:col-span-2">
           <Label class="text-xs text-muted-foreground" for="npm-registry">
             {{ t('settings.mcp.serverForm.npmRegistry') }}
           </Label>
@@ -1258,7 +1303,7 @@ HTTP-Referer=deepchatai.cn`
           />
         </div>
         <!-- Custom Headers，仅在类型为SSE或HTTP时显示 -->
-        <div v-if="showBaseUrl" class="space-y-2">
+        <div v-if="showBaseUrl" class="space-y-2 md:col-span-2">
           <Label class="text-xs text-muted-foreground" for="server-custom-headers">{{
             t('settings.mcp.serverForm.customHeaders')
           }}</Label>
@@ -1301,20 +1346,111 @@ HTTP-Referer=deepchatai.cn`
           </p>
         </div>
       </div>
-    </ScrollArea>
+    </div>
 
     <!-- 提交按钮 -->
-    <div class="flex items-center justify-between gap-3 pt-2 border-t px-4">
+    <div
+      class="mcp-server-form__footer flex shrink-0 items-center justify-between gap-3 border-t border-[#edf0f4] px-6 py-3"
+    >
       <DcInlineError class="min-w-0" :error="submissionError" />
-      <DcButton type="submit" size="sm" class="ml-auto" :disabled="!isFormValid || submitting">
-        <Icon
-          v-if="submitting"
-          icon="lucide:loader-circle"
-          class="mr-1.5 size-3.5 animate-spin"
-          aria-hidden="true"
-        />
-        {{ t('settings.mcp.serverForm.submit') }}
-      </DcButton>
+      <div class="mcp-server-form__footer-actions ml-auto flex items-center gap-2">
+        <DcButton
+          type="submit"
+          size="sm"
+          class="h-9 w-20 rounded-lg text-sm"
+          :disabled="!isFormValid || submitting"
+        >
+          <Icon
+            v-if="submitting"
+            icon="lucide:loader-circle"
+            class="mr-1.5 size-3.5 animate-spin"
+            aria-hidden="true"
+          />
+          {{ t('settings.mcp.serverForm.submit') }}
+        </DcButton>
+      </div>
     </div>
   </form>
 </template>
+
+<style scoped>
+.mcp-server-form :deep(label) {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.mcp-server-form--compact .mcp-server-form__content {
+  padding-top: 12px;
+  padding-bottom: 16px;
+  column-gap: 16px;
+  row-gap: 16px;
+}
+
+.mcp-server-form--compact .mcp-server-form__name-row {
+  grid-template-columns: minmax(0, 1fr) 80px;
+  gap: 16px;
+}
+
+.mcp-server-form--compact .mcp-server-form__args-list > :not([hidden]) ~ :not([hidden]) {
+  margin-top: 6px;
+}
+
+.mcp-server-form--compact .mcp-server-form__footer-actions {
+  gap: 12px;
+}
+
+.mcp-server-form--compact
+  .mcp-server-form__content
+  :deep(.space-y-2:not(.mcp-server-form__args-list))
+  > :not([hidden])
+  ~ :not([hidden]) {
+  margin-top: 8px;
+}
+
+.mcp-server-form--compact :deep(label) {
+  color: #1c324d;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.mcp-server-form--compact :deep(input::placeholder),
+.mcp-server-form--compact :deep(textarea::placeholder) {
+  color: #a3abba;
+}
+
+.mcp-server-form--compact .mcp-server-form__env {
+  height: 72px;
+}
+
+.mcp-server-form :deep(input:not([type='hidden'])),
+.mcp-server-form :deep(textarea),
+.mcp-server-form :deep([data-slot='select-trigger']) {
+  border-color: #d5e0ed;
+  border-radius: 6px;
+  background-color: #f7fafe;
+  box-shadow: none;
+}
+
+.mcp-server-form :deep(input:not([type='hidden'])),
+.mcp-server-form :deep([data-slot='select-trigger']) {
+  height: 36px;
+}
+
+.mcp-server-form :deep(textarea) {
+  resize: none;
+}
+
+.mcp-icon-field :deep(button) {
+  width: 100%;
+  height: 36px;
+  padding: 0;
+  border-color: #d5e0ed;
+  border-radius: 6px;
+  background-color: #f7fafe;
+  box-shadow: none;
+  font-size: 16px;
+  line-height: 1;
+}
+</style>
