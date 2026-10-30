@@ -160,7 +160,9 @@ watch(lastError, (error) => {
       <article v-for="app in filteredApps" :key="app.id" class="app-center-card">
         <div class="app-center-card__head">
           <img v-if="app.iconSrc" :src="app.iconSrc" alt="" class="app-center-card__icon" />
-          <Icon v-else icon="lucide:layout-grid" class="app-center-card__icon-fallback" />
+          <div v-else class="app-center-card__icon-bg">
+            <Icon icon="lucide:layout-grid" class="app-center-card__icon-fallback" />
+          </div>
           <h3 class="app-center-card__name">{{ app.name }}</h3>
           <span v-if="app.developerOnly" class="app-center-card__badge">
             {{ t('routes.appCenterDevOnly') }}
