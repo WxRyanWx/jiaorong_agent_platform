@@ -52,6 +52,14 @@ describe('app center access', () => {
     expect(isJiaorongAppCenterVisible()).toBe(true)
   })
 
+  it('treats an unconfigured developer list as open to everyone', () => {
+    applyAppCenterAccess(null, null)
+    setStoredUserInfo({ userName: 'anyone', phone: '13900000000' })
+
+    expect(isJiaorongDeveloper()).toBe(true)
+    expect(isJiaorongAppCenterVisible()).toBe(true)
+  })
+
   it('does not let developers in unless they are on the visible list', () => {
     applyAppCenterAccess(['15557190927'], ['13039619789'])
     setStoredUserInfo({ userName: 'dev', phone: '13039619789' })

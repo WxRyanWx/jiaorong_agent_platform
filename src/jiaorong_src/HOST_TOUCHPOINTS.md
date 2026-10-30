@@ -191,6 +191,8 @@
 | `src/renderer/src/lib/slashMenuDisplayText.ts` | `@jiaorong/tools/slashMenuDisplayText` | 未与 `toolDisplayNames.ts` 合并 |
 | （无整文件 re-export） | `@jiaorong/chat/messageWindowPolicy` | 首屏/分页/预取像素；`message.ts` `ChatPage.vue` 直接引用 |
 
+> 名单语义（H165/H166）：`appCenterVisiblePhones` / `developerPhones` 缺字段或显式 `null` = 全员可见；显式 `[]` = 空名单，谁都不给；配置拉取失败或 JSON 非法时两者都按空名单处理，入口保持隐藏。
+
 ### 不搬
 
 - `jiaorongPrivateApiCors.ts`：上游无此文件，冲突在 `window/index.ts` 的 import；再搬会把 `electron` 带进 `jiaorong_src`（要 nocheck）

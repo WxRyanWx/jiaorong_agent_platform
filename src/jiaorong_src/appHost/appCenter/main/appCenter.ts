@@ -2,10 +2,7 @@
 
 import fs from 'node:fs'
 import path from 'node:path'
-import {
-  allowsIdentityByOptionalWhitelist,
-  matchesIdentityWhitelist
-} from '../../../config/identityWhitelist'
+import { allowsIdentityByOptionalWhitelist } from '../../../config/identityWhitelist'
 import {
   peekJiaorongRemoteRuntimeConfig,
   refreshJiaorongRemoteRuntimeConfig
@@ -74,7 +71,7 @@ export function isDeveloperIdentity(user: JiaorongAppUserIdentity): boolean {
   const config = peekJiaorongRemoteRuntimeConfig()
   // 没拉到配置按非开发者处理
   if (!config) return false
-  return matchesIdentityWhitelist(config.developerPhones, {
+  return allowsIdentityByOptionalWhitelist(config.developerPhones, {
     userName: user.userName,
     phone: user.phone
   })
