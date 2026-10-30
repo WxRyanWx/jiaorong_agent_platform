@@ -1,7 +1,7 @@
 <script setup lang="ts">
 defineOptions({ name: 'OpenPlatformPage' })
 
-import { onActivated, onMounted, ref, watch } from 'vue'
+import { onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import { getOpenPlatformClient } from '@jiaorong/api/openPlatform'
 import { createClientAppCapabilities } from './clientAppCapabilities'
@@ -9,7 +9,13 @@ import AppsPane from './AppsPane.vue'
 import AssetPane from './AssetPane.vue'
 import HomePane from './HomePane.vue'
 import PendingModulePane from './PendingModulePane.vue'
-import { resolveKnowledgeCenterUrl } from './knowledgeCenter'
+import { fetchBuildSignature, resolveKnowledgeCenterUrl } from './knowledgeCenter'
+import {
+  hideKnowledgeCenterFrame,
+  releaseKnowledgeCenterFrame,
+  setKnowledgeCenterFrameUrl,
+  showKnowledgeCenterFrame
+} from './knowledgeCenterFrame'
 import '../styles/open-platform.less'
 
 type OpenPlatformTab =
@@ -28,14 +34,23 @@ const VALID_TABS: OpenPlatformTab[] = [
   'expert',
   'connectors',
   'apps',
-  'hardware',
-  'knowledge-center'
+  'hardware'
+  // 问答中心下周上线：先不接受本地残留的 knowledge-center，避免停在隐藏页签
+  // 'knowledge-center'
 ]
 
 const activeTab = ref<OpenPlatformTab>('home')
 const knowledgeCenterUrl = ref('')
+/** 入口 HTML 的缓存击穿 key：进程启动和检测到线上换版时更新，切菜单不变。 */
+const knowledgeCenterReloadKey = ref(Date.now().toString(36))
+/** 当前 iframe 里实际生效的构建指纹，用于判断线上是否已换版。 */
+const knowledgeCenterBuildSignature = ref<string | null>(null)
+let lastBuildProbeAt = 0
+let isBuildProbePending = false
 const api = getOpenPlatformClient()
 const capabilities = createClientAppCapabilities()
+
+const BUILD_PROBE_INTERVAL_MS = 30_000
 
 const TABS: Array<{ key: OpenPlatformTab; label: string }> = [
   { key: 'home', label: '首页' },
@@ -43,8 +58,9 @@ const TABS: Array<{ key: OpenPlatformTab; label: string }> = [
   { key: 'expert', label: '专家' },
   { key: 'connectors', label: '连接器 MCP' },
   { key: 'apps', label: '交融应用' },
-  { key: 'hardware', label: '硬件（待开放）' },
-  { key: 'knowledge-center', label: '知识中心' }
+  { key: 'hardware', label: '硬件（待开放）' }
+  // 问答中心下周上线，本次生产版本先不放入口，恢复时解开这一行即可
+  // { key: 'knowledge-center', label: '问答中心' }
 ]
 
 function readStoredTab(): OpenPlatformTab {
@@ -53,27 +69,91 @@ function readStoredTab(): OpenPlatformTab {
 }
 
 onMounted(() => {
+  // 页面重建时清掉上一个实例残留的问答中心 iframe，避免带着旧 token 继续跑
+  releaseKnowledgeCenterFrame()
   activeTab.value = readStoredTab()
+  window.addEventListener('focus', handleWindowActivity)
+  document.addEventListener('visibilitychange', handleWindowActivity)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('focus', handleWindowActivity)
+  document.removeEventListener('visibilitychange', handleWindowActivity)
+  releaseKnowledgeCenterFrame()
 })
 
 watch(activeTab, (tab) => {
   localStorage.setItem(TAB_STORAGE_KEY, tab)
-  if (tab === 'knowledge-center') syncKnowledgeCenterUrl()
+  if (tab === 'knowledge-center') {
+    ensureKnowledgeCenterReady()
+    return
+  }
+  hideKnowledgeCenterFrame()
 })
 
 onActivated(() => {
   // 从其它菜单保活回来：登录态可能已换新，仅在 token 变化时重载 iframe
-  if (activeTab.value === 'knowledge-center') syncKnowledgeCenterUrl()
+  if (activeTab.value === 'knowledge-center') ensureKnowledgeCenterReady()
+})
+
+onDeactivated(() => {
+  // 切到其它一级菜单：只隐藏，常驻 iframe 不销毁，问答状态保留
+  hideKnowledgeCenterFrame()
 })
 
 /**
- * 只在 URL 真正变化（首次进入或 token 换新）时赋值。
- * 重复赋同一个 src 会让浏览器整页重载 iframe，问答状态随之丢失。
+ * 同步 iframe 地址。本地 ref 只给占位提示用，常驻 iframe 以 frame 状态为准，
+ * 所以必须无条件写一次：token 被清空时才能把旧 iframe 一并收掉。
  */
 function syncKnowledgeCenterUrl(): void {
-  const nextUrl = resolveKnowledgeCenterUrl()
-  if (nextUrl === knowledgeCenterUrl.value) return
+  const nextUrl = resolveKnowledgeCenterUrl(knowledgeCenterReloadKey.value)
   knowledgeCenterUrl.value = nextUrl
+  setKnowledgeCenterFrameUrl(nextUrl)
+}
+
+/**
+ * 进入问答中心时先保证 iframe 已挂载，再按需记录/校验线上构建指纹。
+ */
+function ensureKnowledgeCenterReady(): void {
+  syncKnowledgeCenterUrl()
+  if (!knowledgeCenterUrl.value) return
+
+  showKnowledgeCenterFrame()
+  void refreshKnowledgeCenterBuild(!knowledgeCenterBuildSignature.value)
+}
+
+/**
+ * 拉一次线上入口指纹：第一个指纹只做基线，之后发现变化才换 key 重载。
+ * 同一时刻只允许一个探测，窗口频繁获焦不会放大请求。
+ * @param immediate 首次进入时立即探测，忽略节流
+ */
+async function refreshKnowledgeCenterBuild(immediate: boolean): Promise<void> {
+  if (isBuildProbePending) return
+  const now = Date.now()
+  if (!immediate && now - lastBuildProbeAt < BUILD_PROBE_INTERVAL_MS) return
+
+  isBuildProbePending = true
+  lastBuildProbeAt = now
+  try {
+    const signature = await fetchBuildSignature()
+    if (!signature) return
+
+    const previousSignature = knowledgeCenterBuildSignature.value
+    knowledgeCenterBuildSignature.value = signature
+    if (!previousSignature || previousSignature === signature) return
+
+    knowledgeCenterReloadKey.value = Date.now().toString(36)
+    syncKnowledgeCenterUrl()
+  } finally {
+    isBuildProbePending = false
+  }
+}
+
+/** 窗口重新获得焦点/从隐藏恢复时校验一次，避免停留在旧版问答中心。 */
+function handleWindowActivity(): void {
+  if (document.visibilityState === 'hidden') return
+  if (!knowledgeCenterUrl.value) return
+  void refreshKnowledgeCenterBuild(false)
 }
 </script>
 
@@ -115,7 +195,7 @@ function syncKnowledgeCenterUrl(): void {
       </button>
     </nav>
 
-    <main class="open-platform-page__content">
+    <main class="open-platform-page__content" data-knowledge-center-anchor>
       <HomePane v-if="activeTab === 'home'" />
       <AssetPane v-else-if="activeTab === 'skills'" :api="api" asset-type="skill" />
       <PendingModulePane
@@ -134,23 +214,13 @@ function syncKnowledgeCenterUrl(): void {
         description="暂未发布"
         icon='<path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z"/><path d="M14 3v5h5"/>'
       />
-      <!-- 知识中心常驻挂载，切走只隐藏不销毁，返回时保留 iframe 内部会话 -->
-      <iframe
-        v-if="knowledgeCenterUrl"
-        v-show="activeTab === 'knowledge-center'"
-        class="open-platform-page__iframe"
-        :src="knowledgeCenterUrl"
-        title="知识中心"
-        allow="clipboard-read; clipboard-write"
-        referrerpolicy="no-referrer"
-        sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads"
-      />
+      <!-- 问答中心 iframe 由常驻宿主承载，切一级菜单不会重建，见 KnowledgeCenterFrameHost -->
       <div
         v-if="activeTab === 'knowledge-center' && !knowledgeCenterUrl"
         class="open-platform-page__placeholder"
       >
         <Icon icon="lucide:book-open" />
-        <p>知识中心暂不可用，请先登录或稍后再试</p>
+        <p>问答中心暂不可用，请先登录或稍后再试</p>
       </div>
     </main>
   </section>

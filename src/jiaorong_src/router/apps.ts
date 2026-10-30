@@ -19,7 +19,7 @@ export function createAppRoutes(): RouteRecordRaw[] {
       meta: {
         titleKey: route.titleKey,
         icon: 'lucide:layout-grid',
-        // 开放平台内含知识中心 iframe，切走菜单后保活，回来不再重新加载丢失会话
+        // 开放平台内含问答中心 iframe，切走菜单后保活，回来不再重新加载丢失会话
         keepAlive: route.name === 'jiaorong-open-platform'
       }
     }
