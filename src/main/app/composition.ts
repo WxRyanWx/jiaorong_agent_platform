@@ -52,6 +52,7 @@ import { ShortcutPresenter } from '../desktop/shortcut'
 import type { FileServicePort } from '@shared/types/file'
 import type { WorkspaceServicePort } from '@shared/types/workspace'
 import type { AssistantMessageBlock } from '@shared/types/agent-interface'
+import { isChatSelectableModelType } from '@shared/model'
 import { projectFinalAssistantAnswer } from '@shared/lib/assistantDeliverySegments'
 import type { SkillMetadataSnapshotPort, SkillServicePort } from '@shared/types/skill'
 import type { SkillSyncServicePort } from '@shared/types/skillSync'
@@ -3529,18 +3530,63 @@ export async function createMainProcessControl(dependencies: {
         readSelection(dependencies.settingsStore.get('preferredModel')),
         readSelection(dependencies.settingsStore.get('defaultModel'))
       ].filter((item): item is { providerId: string; modelId: string } => item !== null)
+      /** 读字符串数组设置，脏数据当空数组。 */
+      const readStringArray = (value: unknown): string[] =>
+        Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
+      /** 读 provider 加入时间，用于没配顺序时的兜底排序。 */
+      const readNumberRecord = (value: unknown): Record<string, number> => {
+        if (!value || typeof value !== 'object') return {}
+        const result: Record<string, number> = {}
+        for (const [key, raw] of Object.entries(value as Record<string, unknown>)) {
+          if (typeof raw === 'number') result[key] = raw
+        }
+        return result
+      }
+      /** 用户自定义的 provider 顺序。 */
+      const providerOrder = readStringArray(dependencies.settingsStore.get('providerOrder'))
+      /** provider 加入时间。 */
+      const providerTimestamps = readNumberRecord(
+        dependencies.settingsStore.get('providerTimestamps')
+      )
+      /** 按主界面同样的规则排 provider：自定义顺序优先，其次加入时间。 */
+      const orderedProviders = [...providerSettings.getProviders()].sort((a, b) => {
+        const aIndex = providerOrder.indexOf(a.id)
+        const bIndex = providerOrder.indexOf(b.id)
+        if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex
+        if (aIndex !== -1) return -1
+        if (bIndex !== -1) return 1
+        return (providerTimestamps[a.id] || 0) - (providerTimestamps[b.id] || 0)
+      })
       /** 按 provider 分组收集启用模型，保持原有顺序。 */
       const groups: Array<{
         providerId: string
         items: Array<{ providerId: string; modelId: string; name: string; providerName?: string }>
       }> = []
-      for (const provider of providerSettings.getProviders()) {
-        if (!provider.enable) continue
+      for (const provider of orderedProviders) {
+        // 和主界面一致：未启用的 provider 与 acp 都不进对话模型列表
+        if (!provider.enable || provider.id === 'acp') continue
+        /** 该供应商下的全部候选模型：内置目录 + 用户自定义。 */
+        const candidates = [
+          ...providerSettings.getProviderModels(provider.id),
+          ...providerSettings.getCustomModels(provider.id)
+        ]
+        if (candidates.length === 0) continue
+        /** 和主界面同一份启用状态快照，未显式启用的模型一律不下发。 */
+        const statusMap = providerSettings.getBatchModelStatus(
+          provider.id,
+          candidates.map((model) => model.id)
+        )
         const items: (typeof groups)[number]['items'] = []
-        for (const model of providerSettings.getProviderModels(provider.id)) {
-          if (model.enabled === false) continue
+        /** 已下发的模型 id：内置目录与自定义模型同 id 时只保留先出现的。 */
+        const seenModelIds = new Set<string>()
+        for (const model of candidates) {
+          // 只有用户在模型设置里启用的模型才算可用
+          if (!statusMap[model.id]) continue
+          // 只下发能对话的模型，避免 embedding / rerank 出现在应用模型列表
+          if (!isChatSelectableModelType(model.type)) continue
           const modelId = model.id?.trim()
-          if (!modelId) continue
+          if (!modelId || seenModelIds.has(modelId)) continue
+          seenModelIds.add(modelId)
           items.push({
             providerId: provider.id,
             modelId,

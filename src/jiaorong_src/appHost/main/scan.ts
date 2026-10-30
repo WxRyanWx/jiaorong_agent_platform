@@ -252,10 +252,40 @@ export function catalogRecordHasInstallSource(record: JiaorongAppCatalogRecord):
 }
 
 /**
+ * 调试窗口存活期间的外部 link：存在且源清单可读时返回接管后的运行时。
+ * 所有来源（builtin / store / local-debug）共用同一份解析，避免两条链路口径跑偏。
+ * @param runtime 目录项
+ */
+function resolveActiveDebugLink(runtime: JiaorongAppRuntime): JiaorongAppRuntime | null {
+  /** 应用管理器。 */
+  const manager = sharedAppsManager()
+  // 没有调试 link
+  if (!manager.isExternalAppLink(runtime.id)) return null
+  /** 本地调试目录。 */
+  const debugDir = manager.getAppDir(runtime.id)
+  /** 本地清单。 */
+  const debugManifest = debugDir ? readAppManifest(debugDir) : null
+  // link 指向的目录已失效
+  if (!debugDir || !debugManifest) return null
+  return {
+    ...runtime,
+    appDir: debugDir,
+    installedVersion: debugManifest.version,
+    installStatus: 'installed',
+    entry: debugManifest.entry,
+    // 本地包自带图标优先回填
+    icon: runtime.icon || debugManifest.icon
+  }
+}
+
+/**
  * 系统应用指向 Electron userData 下的安装目录，不拷到用户 apps。
  * @param runtime 目录项
  */
 function bindSystemBundledDir(runtime: JiaorongAppRuntime): JiaorongAppRuntime {
+  /** 调试窗口存活期间的本地 link：内置应用也要临时接管，否则 jiaorong-app:// 仍读生产包。 */
+  const linkedRuntime = resolveActiveDebugLink(runtime)
+  if (linkedRuntime) return linkedRuntime
   /** OSS 解压后的目录。 */
   const installedDir = getSystemAppDir(runtime.id)
   /** 已装清单。 */
@@ -409,22 +439,8 @@ function resolveDevRuntime(record: JiaorongAppCatalogRecord, appDir: string): Ji
  */
 export function ensureJiaorongAppInstalled(runtime: JiaorongAppRuntime): JiaorongAppRuntime {
   /** 调试窗口存活期间的外部 link；所有来源都必须优先使用，且不能被安装/更新覆盖。 */
-  const manager = sharedAppsManager()
-  if (manager.isExternalAppLink(runtime.id)) {
-    /** 调试目录。 */
-    const debugDir = manager.getAppDir(runtime.id)
-    /** 调试清单。 */
-    const debugManifest = debugDir ? readAppManifest(debugDir) : null
-    if (debugDir && debugManifest) {
-      return {
-        ...runtime,
-        appDir: debugDir,
-        installedVersion: debugManifest.version,
-        installStatus: 'installed',
-        entry: debugManifest.entry
-      }
-    }
-  }
+  const linkedRuntime = resolveActiveDebugLink(runtime)
+  if (linkedRuntime) return linkedRuntime
   // 系统应用始终指向内置目录，不拷贝
   if (runtime.source === 'builtin') return bindSystemBundledDir(runtime)
   // 本地调试包本来就在用户目录里
@@ -492,6 +508,39 @@ export function ensureJiaorongAppInstalled(runtime: JiaorongAppRuntime): Jiaoron
     installedVersion: manifest?.version ?? runtime.version,
     installStatus: 'installed',
     entry: manifest?.entry ?? runtime.entry
+  }
+}
+
+/**
+ * 应用中心展示用的生产安装状态：调试 link 接管期间也要固定回生产安装的版本与状态。
+ * @param runtime 目录运行时项
+ */
+export function resolveProductionInstallState(
+  runtime: JiaorongAppRuntime
+): Pick<JiaorongAppRuntime, 'installedVersion' | 'installStatus'> {
+  /** 应用管理器。 */
+  const manager = sharedAppsManager()
+  // 没被调试 link 接管，扫描结果就是生产安装状态
+  if (!manager.isExternalAppLink(runtime.id)) {
+    return {
+      installedVersion: runtime.installedVersion ?? null,
+      installStatus: runtime.installStatus
+    }
+  }
+  /** 生产安装目录：内置应用在 userData，商店应用在用户 apps。 */
+  const productionDir =
+    runtime.source === 'builtin'
+      ? getSystemAppDir(runtime.id)
+      : manager.getInstalledAppDir(runtime.id)
+  /** 生产清单。 */
+  const manifest = productionDir ? readAppManifest(productionDir) : null
+  // 本机没装生产包，调试中的目录不算已安装
+  if (!manifest) return { installedVersion: null, installStatus: 'not_installed' }
+  return {
+    installedVersion: manifest.version,
+    installStatus: compareAppVersion(manifest.version, runtime.version)
+      ? 'update_available'
+      : 'installed'
   }
 }
 

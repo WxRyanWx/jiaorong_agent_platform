@@ -2,10 +2,14 @@
 
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { JIAORONG_AUTH_SESSION_CHANGED_EVENT } from '@jiaorong/auth/host'
-import type { JiaorongDevAppRecord, JiaorongDevCenterItem } from '../../appHost/types'
+import type { JiaorongDevCenterItem } from '../../appHost/types'
 import { buildManifestJson, type AppManifestFormFields } from '../../appHost/manifestRules'
-import { readStoredUserInfo } from '../../config/storedUserInfo'
-import { resolveJiaorongIdentityValue } from '../../config/identityWhitelist'
+import {
+  readStoredDevApps,
+  resolveDevAppsStorageKey,
+  syncStoredDevApps,
+  writeStoredDevApps
+} from '../../appHost/renderer/devAppsStorage'
 import type {
   OpenPlatformAppAuth,
   OpenPlatformAppPublishInput,
@@ -14,30 +18,11 @@ import type {
 import type { OpenPlatformAppCapabilities } from './clientAppCapabilities'
 import { buildAssetActionKey, runExclusiveAssetAction } from './assetActionLock'
 
-const DEV_APPS_STORAGE_PREFIX = 'jiaorong-dev-apps'
-
 export type OpenPlatformAppCard = JiaorongDevCenterItem & {
   serverStatus: 'published' | 'unpublished' | 'local'
   serverUpdatedAt: string
   serverAuth: OpenPlatformAppAuth | null
   serverProvider: string | null
-}
-
-function resolveDevAppsStorageKey(): string {
-  const identity = readStoredUserInfo()
-  const identityValue = resolveJiaorongIdentityValue(identity)
-  return `${DEV_APPS_STORAGE_PREFIX}:${encodeURIComponent(identityValue)}.json`
-}
-
-function readStoredDevApps(storageKey: string): JiaorongDevAppRecord[] {
-  try {
-    const raw = localStorage.getItem(storageKey)
-    if (!raw) return []
-    const parsed = JSON.parse(raw) as unknown
-    return Array.isArray(parsed) ? (parsed as JiaorongDevAppRecord[]) : []
-  } catch {
-    return []
-  }
 }
 
 /** 主进程回写的发布包是 base64，转成 Blob 才能塞进 multipart。 */
@@ -69,11 +54,6 @@ async function buildUploadPackage(
     return { ok: false, message: result.message || '生成发布包失败' }
   }
   return { ok: true, blob: base64ToZipBlob(result.zipBase64) }
-}
-
-async function writeStoredDevApps(apps: JiaorongDevAppRecord[], storageKey: string): Promise<void> {
-  localStorage.setItem(storageKey, JSON.stringify(apps))
-  await window.jiaorongApps?.syncDevApps(apps)
 }
 
 export function useOpenPlatformApps(input: {
@@ -283,6 +263,10 @@ export function useOpenPlatformApps(input: {
     lastError.value = null
     openingId.value = app.id
     try {
+      // 保活期间主进程名单可能已被其它入口覆盖，打开前再同步一次；同步失败不阻断打开
+      await syncStoredDevApps().catch((error) => {
+        console.warn('[open-platform] sync local apps before open failed', error)
+      })
       const result = await capabilities.openApp(app.id)
       if (result.cancelled) return
       if (!result.ok) lastError.value = { message: result.message || 'MISSING' }
@@ -314,7 +298,7 @@ export function useOpenPlatformApps(input: {
 
   async function requestRefresh(options: { silent?: boolean } = {}): Promise<void> {
     try {
-      await capabilities.syncLocalApps(readStoredDevApps(resolveDevAppsStorageKey()))
+      await syncStoredDevApps()
     } catch (error) {
       // 本地目录同步失败不该挡服务端列表，页面保活期间也可能是后台事件触发
       console.warn('[open-platform] sync local apps failed', error)
