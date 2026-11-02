@@ -1,11 +1,16 @@
 <template>
   <ScrollArea v-if="remoteChannel" class="h-full w-full">
-    <div class="mx-auto flex w-full max-w-4xl flex-col gap-6 px-6 py-8">
-      <div class="flex items-center gap-2">
-        <DcButton variant="ghost" size="sm" @click="goBack">
+    <div
+      class="connector-detail-page mx-auto flex w-full max-w-6xl flex-col gap-4 px-8 py-6"
+    >
+      <div class="connector-detail-toolbar flex items-center gap-3">
+        <DcButton variant="outline" size="sm" class="connector-detail-back" @click="goBack">
           <Icon icon="lucide:arrow-left" class="mr-2 size-4" />
           {{ t('common.back') }}
         </DcButton>
+        <span class="connector-detail-breadcrumb">
+          {{ t('routes.pluginCenterConnectors') }} / {{ remoteTitle }}
+        </span>
       </div>
 
       <div v-if="remoteLoading" class="space-y-3">
@@ -22,46 +27,45 @@
 
       <template v-else>
         <header
-          class="flex flex-col gap-4 border-b border-border/70 pb-5 sm:flex-row sm:items-start sm:justify-between"
+          class="connector-detail-header flex flex-col gap-4 border-b pb-4 sm:flex-row sm:items-start sm:justify-between"
         >
-          <div class="min-w-0 space-y-2">
-            <div class="flex min-w-0 items-center gap-3">
+          <div class="min-w-0 flex-1">
+            <div class="flex min-w-0 items-start gap-3">
               <div
-                class="flex size-12 shrink-0 items-center justify-center rounded-xl border bg-muted/40"
+                class="connector-detail-icon flex size-14 shrink-0 items-center justify-center rounded-lg border"
               >
                 <Icon :icon="remoteIcon" class="size-6" :class="remoteIconClass" />
               </div>
-              <div class="min-w-0">
-                <h1 class="truncate text-2xl font-semibold tracking-normal">
+              <div class="min-w-0 flex-1">
+                <h1 class="connector-detail-title truncate text-2xl font-semibold tracking-normal">
                   {{ remoteTitle }}
                 </h1>
-                <p class="truncate text-sm text-muted-foreground">
+                <p class="connector-detail-description truncate text-sm">
                   {{ remoteDescription }}
                 </p>
+                <div class="connector-detail-badges mt-2 flex flex-wrap gap-2 text-xs">
+                  <span
+                    class="connector-status rounded-full border px-2 py-1"
+                    :class="remoteEnabled ? 'is-enabled' : 'is-disabled'"
+                  >
+                    {{
+                      remoteEnabled
+                        ? t('settings.plugins.status.enabled')
+                        : t('settings.plugins.status.disabled')
+                    }}
+                  </span>
+                  <span
+                    v-if="remoteStatus"
+                    class="connector-status connector-status--neutral rounded-full border px-2 py-1"
+                  >
+                    {{ t(`chat.sidebar.remoteControlStatus.${remoteStatus.state}`) }}
+                  </span>
+                </div>
               </div>
-            </div>
-            <div class="flex flex-wrap gap-2 text-xs">
-              <span
-                class="rounded-full border px-2 py-1"
-                :class="
-                  remoteEnabled
-                    ? 'border-emerald-500/40 text-emerald-600'
-                    : 'border-border text-muted-foreground'
-                "
-              >
-                {{
-                  remoteEnabled
-                    ? t('settings.plugins.status.enabled')
-                    : t('settings.plugins.status.disabled')
-                }}
-              </span>
-              <span v-if="remoteStatus" class="rounded-full border border-border px-2 py-1">
-                {{ t(`chat.sidebar.remoteControlStatus.${remoteStatus.state}`) }}
-              </span>
             </div>
           </div>
 
-          <div class="flex shrink-0 flex-wrap gap-2">
+          <div class="connector-detail-actions flex shrink-0 flex-wrap gap-2">
             <DcButton
               v-if="!remoteEnabled"
               :disabled="pending"
@@ -91,25 +95,32 @@
           {{ errorMessage }}
         </div>
 
-        <RemoteSettings
-          :key="`${remoteChannel}:${remoteSettingsVersion}`"
-          :channel="remoteChannel"
-          embedded
-          hide-channel-toggle
-          hide-header
-          single-channel
-        />
+        <div class="connector-detail-settings">
+          <RemoteSettings
+            :key="`${remoteChannel}:${remoteSettingsVersion}`"
+            :channel="remoteChannel"
+            embedded
+            hide-channel-toggle
+            hide-header
+            single-channel
+          />
+        </div>
       </template>
     </div>
   </ScrollArea>
 
   <ScrollArea v-else class="h-full w-full">
-    <div class="mx-auto flex w-full max-w-4xl flex-col gap-6 px-6 py-8">
-      <div class="flex items-center gap-2">
-        <DcButton variant="ghost" size="sm" @click="goBack">
+    <div
+      class="connector-detail-page mx-auto flex w-full max-w-6xl flex-col gap-4 px-8 py-6"
+    >
+      <div class="connector-detail-toolbar flex items-center gap-3">
+        <DcButton variant="outline" size="sm" class="connector-detail-back" @click="goBack">
           <Icon icon="lucide:arrow-left" class="mr-2 size-4" />
           {{ t('common.back') }}
         </DcButton>
+        <span class="connector-detail-breadcrumb">
+          {{ t('routes.pluginCenterConnectors') }} / {{ pluginTitle }}
+        </span>
       </div>
 
       <div v-if="loading" class="space-y-3">
@@ -126,42 +137,42 @@
 
       <template v-else>
         <header
-          class="flex flex-col gap-4 border-b border-border/70 pb-5 sm:flex-row sm:items-start sm:justify-between"
+          class="connector-detail-header flex flex-col gap-4 border-b pb-4 sm:flex-row sm:items-start sm:justify-between"
         >
-          <div class="min-w-0 space-y-2">
-            <div class="flex min-w-0 items-center gap-3">
+          <div class="min-w-0 flex-1">
+            <div class="flex min-w-0 items-start gap-3">
               <div
-                class="flex size-12 shrink-0 items-center justify-center rounded-xl border bg-muted/40"
+                class="connector-detail-icon flex size-14 shrink-0 items-center justify-center rounded-lg border"
               >
                 <Icon :icon="pluginIcon" class="size-6" :class="pluginIconClass" />
               </div>
-              <div class="min-w-0">
-                <h1 class="truncate text-2xl font-semibold tracking-normal">{{ pluginTitle }}</h1>
-                <p class="truncate text-sm text-muted-foreground">
+              <div class="min-w-0 flex-1">
+                <h1 class="connector-detail-title truncate text-2xl font-semibold tracking-normal">
+                  {{ pluginTitle }}
+                </h1>
+                <p class="connector-detail-description truncate text-sm">
                   {{ pluginDescription }}
                 </p>
+                <div class="connector-detail-badges mt-2 flex flex-wrap gap-2 text-xs">
+                  <span class="connector-version-tag rounded-full border px-2 py-1">{{
+                    plugin.version
+                  }}</span>
+                  <span
+                    class="connector-status rounded-full border px-2 py-1"
+                    :class="plugin.enabled ? 'is-enabled' : 'is-disabled'"
+                  >
+                    {{
+                      plugin.enabled
+                        ? t('settings.plugins.status.enabled')
+                        : t('settings.plugins.status.disabled')
+                    }}
+                  </span>
+                </div>
               </div>
-            </div>
-            <div class="flex flex-wrap gap-2 text-xs">
-              <span class="rounded-full border border-border px-2 py-1">{{ plugin.version }}</span>
-              <span
-                class="rounded-full border px-2 py-1"
-                :class="
-                  plugin.enabled
-                    ? 'border-emerald-500/40 text-emerald-600'
-                    : 'border-border text-muted-foreground'
-                "
-              >
-                {{
-                  plugin.enabled
-                    ? t('settings.plugins.status.enabled')
-                    : t('settings.plugins.status.disabled')
-                }}
-              </span>
             </div>
           </div>
 
-          <div class="flex shrink-0 flex-wrap gap-2">
+          <div class="connector-detail-actions flex shrink-0 flex-wrap gap-2">
             <DcButton v-if="!plugin.enabled" :disabled="pending" size="sm" @click="enablePlugin">
               <Icon icon="lucide:power" class="mr-2 size-4" />
               {{ t('settings.plugins.enable') }}
@@ -259,22 +270,28 @@
                   {{ server.lastError }}
                 </div>
               </div>
-              <span class="shrink-0 text-xs text-muted-foreground">
-                {{ formatMcpRuntimeState(server) }}
-              </span>
+              <DcStatusPill
+                data-testid="mcp-server-status"
+                class="shrink-0"
+                :status="mcpServerStatus(server)"
+                :label="formatMcpRuntimeState(server)"
+                :class="mcpServerStatusClass(server)"
+              />
             </div>
           </div>
         </DcSectionCard>
 
-        <RemoteSettings
-          v-if="isFeishuPlugin"
-          :key="`feishu:${remoteSettingsVersion}`"
-          channel="feishu"
-          embedded
-          hide-channel-toggle
-          hide-header
-          single-channel
-        />
+        <div class="connector-detail-settings">
+          <RemoteSettings
+            v-if="isFeishuPlugin"
+            :key="`feishu:${remoteSettingsVersion}`"
+            channel="feishu"
+            embedded
+            hide-channel-toggle
+            hide-header
+            single-channel
+          />
+        </div>
 
         <DcSectionCard v-if="lastActionData" :title="t('settings.pluginsHub.actionResult')">
           <pre class="max-h-64 overflow-auto rounded-md bg-muted p-3 text-xs">{{
@@ -292,6 +309,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { Icon } from '@iconify/vue'
 import { DcSectionCard } from '@dc-ui/components/section-card'
+import { DcStatusPill, type DcStatus } from '@dc-ui/components/status-pill'
 import { Alert, AlertDescription, AlertTitle } from '@shadcn/components/ui/alert'
 import { DcButton } from '@dc-ui/components/button'
 import { ScrollArea } from '@shadcn/components/ui/scroll-area'
@@ -451,6 +469,23 @@ function formatMcpRuntimeState(server: PluginMcpRuntimeStatus): string {
     return t('settings.plugins.runtimeStates.readyOnDemand')
   }
   return t('settings.plugins.runtimeStates.installed')
+}
+
+function mcpServerStatus(server: PluginMcpRuntimeStatus): DcStatus {
+  if (server.running) return 'success'
+  if (server.lifecycleState === 'error' || server.lifecycleState === 'quarantined') return 'danger'
+  if (!server.enabled) return 'disabled'
+  return 'neutral'
+}
+
+function mcpServerStatusClass(server: PluginMcpRuntimeStatus): string {
+  if (server.running) {
+    return 'border-0 bg-[rgba(51,183,55,0.08)] text-[#33B737] [&_span]:bg-[#33B737]'
+  }
+  if (server.lifecycleState === 'error' || server.lifecycleState === 'quarantined') {
+    return 'border-0 bg-[#FFF1F0] text-[#F53F3F] [&_span]:bg-[#F53F3F]'
+  }
+  return 'border-0 bg-[#F1F5FA] text-[#86909C] [&_span]:bg-[#86909C]'
 }
 
 async function loadPlugin(): Promise<void> {
@@ -666,3 +701,97 @@ onMounted(() => {
   void loadCurrentDetail()
 })
 </script>
+
+<style scoped>
+.connector-detail-page {
+  min-height: 100%;
+  background: #ffffff;
+}
+
+.connector-detail-toolbar {
+  min-height: 32px;
+}
+
+.connector-detail-back {
+  height: 32px;
+  padding: 0 12px;
+  border-color: #d5e0ed;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #1c324d;
+  font-size: 12px;
+  box-shadow: none;
+}
+
+.connector-detail-breadcrumb {
+  color: #5c78a0;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.connector-detail-header {
+  padding-bottom: 16px;
+  border-color: #d5e0ed;
+}
+
+.connector-detail-icon {
+  width: 56px;
+  height: 56px;
+  border-color: #d5e0ed;
+  border-radius: 8px;
+  background: #f7fafe;
+}
+
+.connector-detail-title {
+  height: 34px;
+  margin: 0;
+  color: #1c324d;
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 34px;
+}
+
+.connector-detail-description {
+  margin-top: 6px;
+  color: #5c78a0;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.connector-detail-badges {
+  gap: 8px;
+}
+
+.connector-version-tag,
+.connector-status {
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.connector-version-tag,
+.connector-status.is-disabled,
+.connector-status--neutral {
+  background: #f1f5fa;
+  color: #86909c;
+}
+
+.connector-status.is-enabled {
+  background: rgba(51, 183, 55, 0.08);
+  color: #33b737;
+}
+
+.connector-detail-actions :deep([data-slot='dc-button']) {
+  height: 36px;
+  border-color: #d5e0ed;
+  border-radius: 8px;
+  font-size: 13px;
+  box-shadow: none;
+}
+
+.connector-detail-settings {
+  min-width: 0;
+}
+</style>

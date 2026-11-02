@@ -998,6 +998,27 @@ describe('RemoteSettings', () => {
     expect(feishuPanel.attributes('style')).toBeUndefined()
   })
 
+  it('applies the unified card structure to every remote channel', async () => {
+    const { wrapper } = await setup()
+
+    expect(wrapper.find('.remote-settings-content--unified').exists()).toBe(true)
+    expect(
+      wrapper.find('[data-tabs-content-value="telegram"]').findAll('.remote-card')
+    ).toHaveLength(3)
+    expect(
+      wrapper.find('[data-tabs-content-value="feishu"]').findAll('.remote-card')
+    ).toHaveLength(3)
+    expect(
+      wrapper.find('[data-tabs-content-value="qqbot"]').findAll('.remote-card')
+    ).toHaveLength(3)
+    expect(
+      wrapper.find('[data-tabs-content-value="discord"]').findAll('.remote-card')
+    ).toHaveLength(3)
+    expect(
+      wrapper.find('[data-tabs-content-value="weixin-ilink"]').findAll('.remote-card')
+    ).toHaveLength(4)
+  })
+
   it('toggles telegram remote control from the tab header', async () => {
     const { wrapper, remoteState, remoteControlPresenter, notifyRenderer } = await setup({
       settings: {
@@ -1333,6 +1354,10 @@ describe('RemoteSettings', () => {
     await feishuTrigger!.trigger('click')
     await flushPromises()
 
+    expect(wrapper.find('.remote-settings-content--unified').exists()).toBe(true)
+    expect(
+      wrapper.find('[data-tabs-content-value="feishu"]').findAll('.remote-card')
+    ).toHaveLength(3)
     expect(wrapper.find('[data-testid="remote-feishu-paired-user-open-ids-input"]').exists()).toBe(
       false
     )
@@ -1675,6 +1700,11 @@ describe('RemoteSettings', () => {
 
     await weixinTrigger!.trigger('click')
     await flushPromises()
+
+    expect(wrapper.find('.remote-settings-content--unified').exists()).toBe(true)
+    expect(
+      wrapper.find('[data-tabs-content-value="weixin-ilink"]').findAll('.remote-card')
+    ).toHaveLength(4)
 
     await wrapper.find('[data-testid="weixin-ilink-connect-button"]').trigger('click')
     await flushPromises()

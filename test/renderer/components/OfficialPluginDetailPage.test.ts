@@ -25,6 +25,16 @@ const buttonStub = defineComponent({
   template: '<button :disabled="disabled" @click="$emit(\'click\')"><slot /></button>'
 })
 
+const dcStatusPillStub = defineComponent({
+  name: 'DcStatusPill',
+  inheritAttrs: false,
+  props: {
+    status: { type: String, default: 'neutral' },
+    label: { type: String, default: '' }
+  },
+  template: '<span v-bind="$attrs">{{ label }}<slot /></span>'
+})
+
 const remoteSettingsStub = defineComponent({
   name: 'RemoteSettings',
   props: {
@@ -62,7 +72,8 @@ const translations: Record<string, string> = {
   'settings.remote.feishu.description': 'Feishu localized description',
   'settings.remote.feishu.title': 'Feishu localized title',
   'settings.remote.telegram.description': 'Telegram localized description',
-  'settings.remote.telegram.title': 'Telegram localized title'
+  'settings.remote.telegram.title': 'Telegram localized title',
+  'welcome.buttons.back': 'Back'
 }
 
 const defaultFeishuSettings = (remoteEnabled: boolean) => ({
@@ -231,7 +242,8 @@ async function mountDetail(
         Alert: passthrough('Alert'),
         AlertTitle: passthrough('AlertTitle'),
         AlertDescription: passthrough('AlertDescription'),
-        DcSectionCard: dcSectionCardStub
+        DcSectionCard: dcSectionCardStub,
+        DcStatusPill: dcStatusPillStub
       }
     }
   })
@@ -261,6 +273,28 @@ describe('OfficialPluginDetailPage', () => {
     expect(wrapper.text()).not.toContain('DeepChat · com.deepchat.plugins.feishu')
   })
 
+  it('uses the unified connector detail layout for Feishu', async () => {
+    const { wrapper } = await mountDetail()
+
+    expect(wrapper.find('.connector-detail-page').exists()).toBe(true)
+    expect(wrapper.find('.connector-detail-settings').exists()).toBe(true)
+    expect(wrapper.find('.connector-version-tag').exists()).toBe(true)
+    expect(wrapper.find('.connector-status.is-disabled').exists()).toBe(true)
+  })
+
+  it('uses the same neutral pill for a disabled MCP server', async () => {
+    const { wrapper } = await mountDetail({
+      enabled: false,
+      mcpServer: { lifecycleState: 'stopped' }
+    })
+
+    const status = wrapper.find('[data-testid="mcp-server-status"]')
+    expect(status.text()).toBe('Disabled')
+    expect(status.classes()).toEqual(
+      expect.arrayContaining(['border-0', 'bg-[#F1F5FA]', 'text-[#86909C]'])
+    )
+  })
+
   it('uses the remote channel icon color on remote virtual plugin details', async () => {
     const { wrapper } = await mountDetail({ pluginId: 'remote:telegram' })
 
@@ -268,6 +302,17 @@ describe('OfficialPluginDetailPage', () => {
 
     expect(icon.exists()).toBe(true)
     expect(icon.classes()).toContain('text-sky-500')
+  })
+
+  it('uses the unified connector detail layout for WeChat iLink', async () => {
+    const { wrapper } = await mountDetail({ pluginId: 'remote:weixin-ilink', remoteEnabled: true })
+
+    expect(wrapper.find('.connector-detail-page').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Back')
+    expect(wrapper.text()).toContain(
+      'routes.pluginCenterConnectors / settings.remote.weixinIlink.title'
+    )
+    expect(wrapper.find('.connector-status.is-enabled').exists()).toBe(true)
   })
 
   it('uses the CUA laptop icon on the official plugin detail header', async () => {
