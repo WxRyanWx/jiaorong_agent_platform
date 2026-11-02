@@ -1582,6 +1582,7 @@
     "openPlatformConnectorUnavailable": "連接器缺少可用設定",
     "openPlatformConnectorUnavailableDesc": "請在開放平台重新上載包含完整 mcp.json 的連接器套件。",
     "openPlatformConnectorInstallFailed": "連接器啟用失敗",
+    "serverStartFailedDesc": "服務啟動失敗，請檢查設定或網絡後重試。",
     "openPlatformConnectorRevoked": "連接器已下架",
     "openPlatformConnectorRevokedDesc": "{names} 已從開放平台下架，本機設定已移除，重新上架後可再次啟用。",
     "updateAvailable": "更新",

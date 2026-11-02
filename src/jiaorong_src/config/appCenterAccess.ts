@@ -1,6 +1,6 @@
 import { shallowRef } from 'vue'
 import { JIAORONG_AUTH_SESSION_CHANGED_EVENT } from '../auth/lib/sessionEvents'
-import { allowsIdentityByOptionalWhitelist, matchesIdentityWhitelist } from './identityWhitelist'
+import { allowsIdentityByOptionalWhitelist } from './identityWhitelist'
 import {
   startJiaorongRemoteRuntimeConfigSync,
   subscribeJiaorongRemoteRuntimeConfig
@@ -16,20 +16,23 @@ import { readStoredUserInfo } from './storedUserInfo'
 const appCenterVisibleRef = shallowRef<readonly string[] | null>(null)
 /** 是否已经用上一次成功的 OSS 配置。 */
 const appCenterVisibilityKnown = shallowRef(false)
-/** 开发者名单；默认空。 */
-const developerRef = shallowRef<readonly string[]>([])
+/**
+ * 开发者名单；默认空数组表示配置未到、入口先隐藏。
+ * null 表示配置里没写该字段，全员可进开发者中心。
+ */
+const developerRef = shallowRef<readonly string[] | null>([])
 /** 登录态变化时递增，让入口 computed 重读 localStorage。 */
 const identityTick = shallowRef(0)
 /** 是否已监听登录事件。 */
 let identityListenerBound = false
 
-/** 写入两份名单；供订阅回调与测试使用。visible 为 null 表示没配可见名单。 */
+/** 写入两份名单；供订阅回调与测试使用。null 表示配置里没写该名单。 */
 export const applyAppCenterAccess = (
   visible: readonly string[] | null,
-  developers: readonly string[]
+  developers: readonly string[] | null
 ): void => {
   appCenterVisibleRef.value = visible === null ? null : [...visible]
-  developerRef.value = [...developers]
+  developerRef.value = developers === null ? null : [...developers]
   appCenterVisibilityKnown.value = true
 }
 
@@ -50,10 +53,10 @@ export const hydrateAppCenterAccess = (): void => {
   })
 }
 
-/** 当前用户是否为开发者。 */
+/** 当前用户是否为开发者。没写开发者名单时全员可进，配置未到时先按不可进处理。 */
 export const isJiaorongDeveloper = (): boolean => {
   void identityTick.value
-  return matchesIdentityWhitelist(developerRef.value, readStoredUserInfo())
+  return allowsIdentityByOptionalWhitelist(developerRef.value, readStoredUserInfo())
 }
 
 /**

@@ -1707,6 +1707,31 @@ class appsManages {
     return path.join(this.appsRootPath, folderName)
   }
 
+  /**
+   * 生产安装目录：忽略调试 link，只认 apps 根下已安装的副本。
+   * @param appId 应用 ID
+   */
+  getInstalledAppDir(appId: string): string | null {
+    /** 调试源目录；同名时不能当成生产安装。 */
+    const linkSource = this.appLinkMap.get(appId)
+    /** 是否为调试源目录。 */
+    const isLinkSource = (dir: string) =>
+      Boolean(linkSource && path.resolve(dir) === path.resolve(linkSource))
+    /** 已登记的安装文件夹名。 */
+    const mapped = this.appFolderMap.get(appId)
+    if (mapped) {
+      /** 登记的安装目录。 */
+      const mappedDir = path.join(this.appsRootPath, mapped)
+      if (fs.existsSync(mappedDir) && !isLinkSource(mappedDir)) return mappedDir
+    }
+    /** 文件夹被改名后，按 app.json.id 回磁盘找。 */
+    const folderName = this.findAppFolderOnDisk(appId)
+    if (!folderName) return null
+    /** 磁盘上的安装目录。 */
+    const installedDir = path.join(this.appsRootPath, folderName)
+    return isLinkSource(installedDir) ? null : installedDir
+  }
+
   // ========== 权限控制 ==========
 
   /**

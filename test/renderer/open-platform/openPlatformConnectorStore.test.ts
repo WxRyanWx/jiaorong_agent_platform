@@ -498,7 +498,7 @@ describe('open platform connector revoke sync', () => {
     expect(store.serverList.map((server) => server.name)).toEqual(['jina-public-mcp'])
   })
 
-  it('keeps local connectors when the market responds with an empty page', async () => {
+  it('removes local connectors when the market stays empty after a retry', async () => {
     const store = await setupStore()
     store.config = {
       mcpServers: { 'jina-public-mcp': installConnector() },
@@ -509,8 +509,8 @@ describe('open platform connector revoke sync', () => {
 
     await loadMarket(store)
 
-    expect(removeMcpServerMutate).not.toHaveBeenCalled()
-    expect(Object.keys(store.config.mcpServers)).toEqual(['jina-public-mcp'])
+    expect(removeMcpServerMutate).toHaveBeenCalledWith(['jina-public-mcp'])
+    expect(store.config.mcpServers).toEqual({})
   })
 
   it('keeps the fetched market list when revoke reconciliation fails', async () => {

@@ -12,4 +12,9 @@ describe('parseSkillMarketTab', () => {
     expect(parseSkillMarketTab('installed')).toBe('installed')
     expect(parseSkillMarketTab(['installed'])).toBe('installed')
   })
+
+  it('accepts uninstalled', () => {
+    expect(parseSkillMarketTab('uninstalled')).toBe('uninstalled')
+    expect(parseSkillMarketTab(['uninstalled'])).toBe('uninstalled')
+  })
 })

@@ -21,11 +21,23 @@ const buttonStub = defineComponent({
   template: '<button :disabled="disabled" @click="$emit(\'click\')"><slot /></button>'
 })
 
+const inputStub = defineComponent({
+  name: 'Input',
+  props: {
+    modelValue: { type: String, default: '' },
+    placeholder: { type: String, default: '' }
+  },
+  emits: ['update:modelValue'],
+  template:
+    '<input :value="modelValue" :placeholder="placeholder" @input="$emit(\'update:modelValue\', $event.target.value)" />'
+})
+
 const translations: Record<string, string> = {
+  'common.browser.reload': 'Refresh',
   'routes.plugins': 'Plugins',
   'routes.pluginCenterConnectors': 'Connectors',
-  'routes.pluginCenterConnectorsSubtitle': 'Manage JiaorongAI connectors.',
-  'routes.pluginCenterConnectorsAvailable': 'Available connectors',
+  'routes.pluginCenterConnectorsSearch': 'Search IM',
+  'routes.pluginCenterConnectorsAll': 'All',
   'routes.settings-ocr': 'OCR',
   'settings.ocr.available': 'Available',
   'settings.ocr.description': 'Extract image text locally.',
@@ -149,6 +161,7 @@ async function mountCatalog(options?: {
       plugins: [createPinia()],
       stubs: {
         DcButton: buttonStub,
+        Input: inputStub,
         ScrollArea: passthrough('ScrollArea')
       }
     }
@@ -190,25 +203,46 @@ describe('PluginsCatalogPage', () => {
     expect(wrapper.text()).toContain('CUA localized description')
   })
 
-  it('shows available plugins heading instead of unsupported category filters', async () => {
+  it('renders the title without subtitle or section heading', async () => {
     const { wrapper } = await mountCatalog()
 
     expect(wrapper.text()).toContain('Connectors')
-    expect(wrapper.text()).toContain('Manage JiaorongAI connectors.')
-    expect(wrapper.text()).toContain('Available connectors')
+    expect(wrapper.text()).not.toContain('routes.pluginCenterConnectorsSubtitle')
+    expect(wrapper.text()).not.toContain('routes.pluginCenterConnectorsAvailable')
     expect(wrapper.text()).not.toContain('settings.pluginsHub.available')
     expect(wrapper.text()).not.toContain('settings.pluginsHub.filters.official')
     expect(wrapper.text()).not.toContain('settings.pluginsHub.filters.workspace')
     expect(wrapper.text()).not.toContain('settings.pluginsHub.filters.personal')
   })
 
-  it('removes search and standalone added section', async () => {
+  it('shows search box and state filters', async () => {
     const { wrapper } = await mountCatalog()
 
-    expect(wrapper.find('input').exists()).toBe(false)
-    expect(wrapper.text()).not.toContain('settings.pluginsHub.searchPlaceholder')
+    expect(wrapper.find('input').exists()).toBe(true)
+    expect(wrapper.text()).toContain('All')
+    expect(wrapper.text()).toContain('Enabled')
+    expect(wrapper.text()).toContain('Disabled')
     expect(wrapper.text()).not.toContain('settings.pluginsHub.added')
     expect(wrapper.text()).not.toContain('settings.pluginsHub.noAdded')
+  })
+
+  it('filters cards locally by keyword and enabled state', async () => {
+    const { wrapper } = await mountCatalog()
+
+    await wrapper.find('input').setValue('Feishu')
+    await flushPromises()
+    expect(wrapper.findAll('article')).toHaveLength(1)
+    expect(wrapper.text()).toContain('Feishu localized title')
+
+    await wrapper.find('input').setValue('')
+    await flushPromises()
+    const enabledFilter = wrapper.findAll('button').find((button) => button.text() === 'Enabled')
+    expect(enabledFilter).toBeTruthy()
+    await enabledFilter!.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.findAll('article')).toHaveLength(2)
+    expect(wrapper.text()).not.toContain('Feishu localized title')
   })
 
   it('keeps built-in OCR first while sorting enabled extensions before disabled ones', async () => {
@@ -222,7 +256,7 @@ describe('PluginsCatalogPage', () => {
     expect(cards[0].text()).toContain('Available')
     const ocrBadges = cards[0].findAll('span.rounded-full')
     expect(ocrBadges).toHaveLength(2)
-    expect(ocrBadges[1].classes()).toContain('bg-emerald-500/10')
+    expect(ocrBadges.some((badge) => badge.classes().includes('bg-emerald-500/10'))).toBe(true)
     expect(cards[1].text()).toContain('CUA Computer Use Runtime')
     expect(cards[1].text()).toContain('Manage')
     expect(cards[1].text()).toContain('Enabled')

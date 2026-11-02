@@ -2,10 +2,7 @@
 
 import fs from 'node:fs'
 import path from 'node:path'
-import {
-  allowsIdentityByOptionalWhitelist,
-  matchesIdentityWhitelist
-} from '../../../config/identityWhitelist'
+import { allowsIdentityByOptionalWhitelist } from '../../../config/identityWhitelist'
 import {
   peekJiaorongRemoteRuntimeConfig,
   refreshJiaorongRemoteRuntimeConfig
@@ -24,7 +21,11 @@ import { sharedAppsManager } from '../../main/appManagerInstance'
 import type { JiaorongAppHostDeps } from '../../main/deps'
 import { downloadAppZip } from '../../main/downloadAppZip'
 import { syncAppCatalogFromApi } from '../../main/appCatalogApi'
-import { ensureJiaorongAppInstalled, scanJiaorongApps } from '../../main/scan'
+import {
+  ensureJiaorongAppInstalled,
+  resolveProductionInstallState,
+  scanJiaorongApps
+} from '../../main/scan'
 import { readAuthToken, readUserIdentityFromAuthSession } from '../../main/userIdentity'
 import { isAppInstallInFlight, runExclusiveAppInstall } from './appInstallLock'
 
@@ -70,7 +71,7 @@ export function isDeveloperIdentity(user: JiaorongAppUserIdentity): boolean {
   const config = peekJiaorongRemoteRuntimeConfig()
   // 没拉到配置按非开发者处理
   if (!config) return false
-  return matchesIdentityWhitelist(config.developerPhones, {
+  return allowsIdentityByOptionalWhitelist(config.developerPhones, {
     userName: user.userName,
     phone: user.phone
   })
@@ -133,9 +134,10 @@ export function toAppCenterItem(
   runtime: JiaorongAppRuntime,
   options: { isDeveloper: boolean }
 ): JiaorongAppCenterItem {
+  /** 展示用生产安装状态：调试 link 生效期间不能把调试目录当成已装生产包。 */
+  const { installedVersion, installStatus } = resolveProductionInstallState(runtime)
   /** 已落盘可打开的状态。 */
-  const onDisk =
-    runtime.installStatus === 'installed' || runtime.installStatus === 'update_available'
+  const onDisk = installStatus === 'installed' || installStatus === 'update_available'
   /** 远程 zip 下载地址。 */
   const downloadUrl = resolveRemoteDownloadUrl(runtime)
   /** 内置应用（source=builtin）不允许卸载。 */
@@ -146,9 +148,9 @@ export function toAppCenterItem(
     ...(runtime.description ? { description: runtime.description } : {}),
     iconSrc: resolveAppIconSrc(runtime),
     version: runtime.version,
-    installedVersion: runtime.installedVersion ?? null,
+    installedVersion,
     // 安装任务在飞时抬成「安装中」：页面切走再切回（组件重建）也不会退回「安装」按钮
-    installStatus: isAppInstallInFlight(runtime.id) ? 'installing' : runtime.installStatus,
+    installStatus: isAppInstallInFlight(runtime.id) ? 'installing' : installStatus,
     remotePackage: Boolean(downloadUrl),
     // 开发者自测：auth 未过但已装的启用应用也要能打开
     openable: onDisk && (runtime.visible || options.isDeveloper),

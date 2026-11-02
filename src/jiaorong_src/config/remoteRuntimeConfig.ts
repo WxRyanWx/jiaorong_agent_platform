@@ -16,17 +16,21 @@ export type JiaorongRemoteRuntimeConfig = {
   admins: string[]
   /**
    * 应用中心可见名单：手机号 / userName。
-   * null 表示 JSON 没写该字段，全员可见；数组表示只这些身份可见。
+   * null 表示没写该字段或显式 null，全员可见；数组表示只这些身份可见。
    */
   appCenterVisiblePhones: string[] | null
-  /** 开发者名单：手机号 / userName。 */
-  developerPhones: string[]
+  /**
+   * 开发者名单：手机号 / userName。
+   * null 表示没写该字段或显式 null，全员可进开发者中心；数组表示只这些身份可进。
+   */
+  developerPhones: string[] | null
 }
 
 export const EMPTY_JIAORONG_REMOTE_RUNTIME_CONFIG: JiaorongRemoteRuntimeConfig = {
   schemaVersion: 1,
   admins: [],
-  // 失败哨兵用空数组：不能把拉取失败当成「没配名单」从而全员放行
+  // 失败哨兵用空数组：不能把拉取失败当成「没配名单」从而全员放行。
+  // 两个名单字段共用这一哨兵，显式 [] 也按「空名单」处理，只有缺字段 / null 才放开。
   appCenterVisiblePhones: [],
   developerPhones: []
 }
@@ -122,10 +126,18 @@ async function runBurst(generation: number): Promise<void> {
   scheduleBackgroundRetry(generation)
 }
 
-/** 没写该字段记为 null（全员可见）；写了则按名单，非数组当成空名单。 */
-function parseAppCenterVisiblePhones(record: Record<string, unknown>): string[] | null {
-  if (!Object.prototype.hasOwnProperty.call(record, 'appCenterVisiblePhones')) return null
-  return uniqueStrings(record.appCenterVisiblePhones)
+/**
+ * 可选名单字段：没写或显式 null 记为 null（全员可见）；写了则按名单，非数组当成空名单。
+ * 可见名单与开发者名单必须共用这一语义，否则删掉字段后两个入口表现不一致。
+ */
+function parseOptionalPhoneWhitelist(
+  record: Record<string, unknown>,
+  key: 'appCenterVisiblePhones' | 'developerPhones'
+): string[] | null {
+  if (!Object.prototype.hasOwnProperty.call(record, key)) return null
+  const value = record[key]
+  if (value === null || value === undefined) return null
+  return uniqueStrings(value)
 }
 
 /** 非法 JSON 当成空配置，不抛错。 */
@@ -141,8 +153,8 @@ export function parseJiaorongRemoteRuntimeConfig(raw: unknown): JiaorongRemoteRu
   return {
     schemaVersion: schemaVersion > 0 ? schemaVersion : 1,
     admins: uniqueStrings(record.admins),
-    appCenterVisiblePhones: parseAppCenterVisiblePhones(record),
-    developerPhones: uniqueStrings(record.developerPhones)
+    appCenterVisiblePhones: parseOptionalPhoneWhitelist(record, 'appCenterVisiblePhones'),
+    developerPhones: parseOptionalPhoneWhitelist(record, 'developerPhones')
   }
 }
 

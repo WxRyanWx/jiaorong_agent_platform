@@ -265,7 +265,17 @@ const enableOpenPlatformConnector = async (
       kind: 'error',
       code: 'settings.mcp.openPlatformConnectorInstallFailed',
       title: t('settings.mcp.openPlatformConnectorInstallFailed'),
-      description: t('common.error.requestFailed')
+      description:
+        mcpStore.serverStatusMessages?.[result.serverName]?.trim() ||
+        t('settings.mcp.serverStartFailedDesc')
+    })
+  } catch (error) {
+    console.error('[MCP] Failed to enable open platform connector', server.name, error)
+    notifyRenderer({
+      kind: 'error',
+      code: 'settings.mcp.openPlatformConnectorInstallFailed',
+      title: t('settings.mcp.openPlatformConnectorInstallFailed'),
+      description: t('settings.mcp.serverStartFailedDesc')
     })
   } finally {
     installingConnectorNames.value = installingConnectorNames.value.filter(
@@ -516,7 +526,9 @@ const handleToggleServer = async (serverName: string) => {
       kind: 'error',
       code: 'settings.mcp.toggleFailed',
       title: t('common.error.operationFailed'),
-      description: t('common.error.requestFailed')
+      description:
+        mcpStore.serverStatusMessages?.[serverName]?.trim() ||
+        t('settings.mcp.serverStartFailedDesc')
     })
   }
 }
@@ -720,7 +732,7 @@ defineExpose({
 <template>
   <div class="h-full min-h-0 flex flex-col">
     <!-- Server list -->
-    <ScrollArea class="min-h-0 flex-1 px-4 sm:px-[33px]">
+    <ScrollArea class="min-h-0 flex-1 px-8">
       <div v-if="mcpStore.configLoading" class="flex justify-center py-8">
         <div class="text-center">
           <Spinner class="mx-auto mb-2 size-6 text-muted-foreground" />
@@ -736,8 +748,8 @@ defineExpose({
         class="border-0 py-8"
       />
 
-      <div v-else class="flex flex-col gap-6 pb-0 pt-4">
-        <div class="grid gap-2 sm:grid-cols-2 sm:gap-3 lg:grid-cols-3">
+      <div v-else class="flex flex-col gap-6 pt-6 pb-8">
+        <div class="grid items-center gap-2 sm:grid-cols-2 sm:gap-3 lg:grid-cols-3">
           <div class="relative w-full min-w-0">
             <Icon
               icon="lucide:search"
@@ -749,18 +761,21 @@ defineExpose({
               :placeholder="t('settings.mcp.center.searchPlaceholder')"
             />
           </div>
-          <div class="flex flex-wrap justify-end gap-1 sm:col-span-1 lg:col-span-2">
+          <div
+            class="flex shrink-0 flex-nowrap items-center justify-end gap-2 sm:col-span-1 lg:col-span-2"
+          >
             <DcButton
               v-for="filter in MCP_FILTERS"
               :key="filter"
               size="sm"
               :variant="activeFilter === filter ? 'default' : 'ghost'"
-              class="h-7 rounded-full px-3 text-xs"
-              :class="
+              class="h-8 rounded-full px-0 text-[13px] leading-[18px] font-normal shadow-none active:scale-100"
+              :class="[
+                filter === 'all' ? 'w-[62px]' : 'w-[75px]',
                 activeFilter === filter
-                  ? ''
+                  ? 'text-white hover:text-white'
                   : 'bg-[#F1F5FA] text-[#5C78A0] hover:bg-[#F1F5FA] hover:text-[#5C78A0]'
-              "
+              ]"
               @click="activeFilter = filter"
             >
               {{ t(`settings.mcp.center.filters.${filter}`) }}
@@ -820,7 +835,7 @@ defineExpose({
 
     <!-- Footer actions -->
     <div v-if="showFooterAddButton" class="shrink-0 border-t bg-background">
-      <div class="flex items-center justify-between gap-3 px-4 py-3">
+      <div class="flex items-center justify-between gap-3 px-8 py-3">
         <div class="flex min-w-0 flex-1 items-center gap-3">
           <slot name="status-bar">
             <div data-mcp-server-counts class="flex items-center space-x-3">

@@ -42,6 +42,7 @@ import AppBar from '@/components/AppBar.vue'
 import { useDeviceVersion } from '@/composables/useDeviceVersion'
 import WindowSideBar from '@/components/WindowSideBar.vue'
 import JiaorongAppFrameHost from '@jiaorong/appHost/renderer/JiaorongAppFrameHost.vue'
+import KnowledgeCenterFrameHost from '@jiaorong/open-platform/renderer/KnowledgeCenterFrameHost.vue'
 import JiaorongDevAppRail from '@jiaorong/appHost/devCenter/renderer/DevAppWindowRail.vue'
 import { resolveAppCenterBackRouteName } from '@jiaorong/appHost/appCenter/renderer/navigation'
 import SpotlightOverlay from '@/components/spotlight/SpotlightOverlay.vue'
@@ -674,6 +675,7 @@ onBeforeUnmount(() => {
                   <component :is="Component" v-if="!route.meta.keepAlive" :key="route.fullPath" />
                 </RouterView>
                 <JiaorongAppFrameHost />
+                <KnowledgeCenterFrameHost />
               </template>
             </div>
           </div>

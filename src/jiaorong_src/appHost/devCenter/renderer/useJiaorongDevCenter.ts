@@ -2,42 +2,14 @@
 
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { JIAORONG_AUTH_SESSION_CHANGED_EVENT } from '@jiaorong/auth/host'
-import type { JiaorongDevAppRecord, JiaorongDevCenterItem } from '../../types'
+import type { JiaorongDevCenterItem } from '../../types'
 import type { AppManifestFormFields } from '../../manifestRules'
-import { readStoredUserInfo } from '../../../config/storedUserInfo'
-import { resolveJiaorongIdentityValue } from '../../../config/identityWhitelist'
-
-/** 浏览器存储键前缀：开发者名单，后续替换为服务端接口。 */
-const DEV_APPS_STORAGE_PREFIX = 'jiaorong-dev-apps'
-
-/** 当前登录身份对应的开发者名单存储键。 */
-function resolveDevAppsStorageKey(): string {
-  /** 当前登录身份。 */
-  const identity = readStoredUserInfo()
-  /** 与主进程换人判断一致的身份值。 */
-  const identityValue = resolveJiaorongIdentityValue(identity)
-  return `${DEV_APPS_STORAGE_PREFIX}:${encodeURIComponent(identityValue)}.json`
-}
-
-/** 读浏览器存储名单；损坏按空名单处理。 */
-function readStoredDevApps(storageKey: string): JiaorongDevAppRecord[] {
-  try {
-    /** 存储原文。 */
-    const raw = localStorage.getItem(storageKey)
-    if (!raw) return []
-    /** 解析结果。 */
-    const parsed = JSON.parse(raw) as unknown
-    return Array.isArray(parsed) ? (parsed as JiaorongDevAppRecord[]) : []
-  } catch {
-    return []
-  }
-}
-
-/** 写浏览器存储并同步主进程内存镜像。 */
-async function writeStoredDevApps(apps: JiaorongDevAppRecord[], storageKey: string): Promise<void> {
-  localStorage.setItem(storageKey, JSON.stringify(apps))
-  await window.jiaorongApps?.syncDevApps(apps)
-}
+import {
+  readStoredDevApps,
+  resolveDevAppsStorageKey,
+  syncStoredDevApps,
+  writeStoredDevApps
+} from '../../renderer/devAppsStorage'
 
 /** 开发者中心页状态与操作。 */
 export function useJiaorongDevCenter() {
@@ -205,7 +177,7 @@ export function useJiaorongDevCenter() {
 
   /** 登录态或目录变化后同步当前身份名单并刷新列表。 */
   async function requestRefresh(): Promise<void> {
-    await window.jiaorongApps?.syncDevApps(readStoredDevApps(resolveDevAppsStorageKey()))
+    await syncStoredDevApps()
     await refresh()
   }
 

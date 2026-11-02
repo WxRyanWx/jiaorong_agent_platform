@@ -1,26 +1,22 @@
 <template>
   <ScrollArea class="h-full w-full">
-    <div class="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-8">
-      <header class="flex items-start justify-between gap-4">
-        <div class="space-y-1">
-          <h1 class="text-2xl font-semibold tracking-normal">
-            {{ t('routes.pluginCenterConnectors') }}
-          </h1>
-          <p class="text-sm text-muted-foreground">
-            {{ t('routes.pluginCenterConnectorsSubtitle') }}
-          </p>
-        </div>
-
+    <div class="flex w-full flex-col gap-6 px-8 pt-6 pb-8">
+      <header class="flex items-center justify-between gap-4">
+        <h1
+          class="tracking-normal"
+          style="margin: 0; font-size: 24px; font-weight: 700; line-height: 34px; color: #0b2b57"
+        >
+          {{ t('routes.pluginCenterConnectors') }}
+        </h1>
         <DcButton
           variant="outline"
-          size="icon"
           icon="lucide:refresh-cw"
           :loading="loading"
           :disabled="loading"
-          :label="t('common.browser.reload')"
-          :tooltip="t('common.browser.reload')"
           @click="loadCatalog"
-        />
+        >
+          {{ t('common.browser.reload') }}
+        </DcButton>
       </header>
 
       <div
@@ -30,58 +26,74 @@
         {{ errorMessage }}
       </div>
 
-      <section class="space-y-4">
-        <div class="border-b border-border/70 pb-2">
-          <h2 class="text-sm font-semibold">{{ t('routes.pluginCenterConnectorsAvailable') }}</h2>
+      <div class="flex flex-wrap items-center gap-3">
+        <div class="relative w-72 max-w-full">
+          <Icon
+            icon="lucide:search"
+            class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+          />
+          <Input
+            v-model="searchQuery"
+            class="catalog-search-input"
+            :placeholder="t('routes.pluginCenterConnectorsSearch')"
+          />
         </div>
+        <div class="ml-auto flex items-center gap-2">
+          <button
+            v-for="filter in CATALOG_FILTERS"
+            :key="filter"
+            type="button"
+            class="catalog-segment"
+            :class="{ 'is-active': activeFilter === filter }"
+            @click="activeFilter = filter"
+          >
+            {{ t(FILTER_LABEL_KEYS[filter]) }}
+          </button>
+        </div>
+      </div>
 
-        <div v-if="catalogItems.length" class="grid gap-3 lg:grid-cols-2">
+      <section class="space-y-4">
+        <div v-if="filteredItems.length" class="grid gap-4 md:grid-cols-3">
           <article
-            v-for="item in catalogItems"
+            v-for="item in filteredItems"
             :key="item.id"
             :data-plugin-id="item.id"
-            class="flex min-w-0 items-center gap-3 rounded-lg border border-border bg-background p-3"
+            class="catalog-card flex min-w-0 flex-col rounded-xl border border-border bg-background p-4"
           >
-            <div
-              class="flex size-12 shrink-0 items-center justify-center rounded-xl border border-border bg-muted/40"
-            >
-              <Icon :icon="item.icon" class="size-6" :class="item.iconClass" />
+            <div class="flex min-w-0 items-center gap-2">
+              <Icon :icon="item.icon" class="size-5 shrink-0" :class="item.iconClass" />
+              <h3 class="min-w-0 flex-1 truncate text-sm font-semibold">{{ item.title }}</h3>
+              <span
+                v-if="item.badge"
+                class="catalog-card-badge shrink-0 rounded-full border px-2 py-0.5"
+                :class="
+                  item.badge.variant === 'success'
+                    ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                    : 'border-border text-muted-foreground'
+                "
+              >
+                {{ item.badge.text }}
+              </span>
             </div>
-
-            <div class="min-w-0 flex-1">
-              <div class="flex min-w-0 items-center gap-2">
-                <h3 class="truncate text-sm font-semibold">{{ item.title }}</h3>
-                <span
-                  v-if="item.typeBadge"
-                  class="shrink-0 rounded-full border border-border px-2 py-0.5 text-[11px] text-muted-foreground"
-                >
-                  {{ item.typeBadge }}
-                </span>
-                <span
-                  v-if="item.badge"
-                  class="shrink-0 rounded-full border px-2 py-0.5 text-[11px]"
-                  :class="
-                    item.badge.variant === 'success'
-                      ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                      : 'border-border text-muted-foreground'
-                  "
-                >
-                  {{ item.badge.text }}
-                </span>
-              </div>
-              <p class="mt-0.5 line-clamp-2 text-sm text-muted-foreground">
-                {{ item.description }}
-              </p>
+            <p class="catalog-card-desc mt-2 line-clamp-2 max-h-10 leading-5 text-muted-foreground">
+              {{ item.description }}
+            </p>
+            <div class="mt-auto flex items-center justify-end gap-2 pt-4">
+              <span
+                v-if="item.typeBadge"
+                class="catalog-card-badge mr-auto rounded-full border border-border px-2 py-0.5 text-muted-foreground"
+              >
+                {{ item.typeBadge }}
+              </span>
+              <DcButton
+                size="sm"
+                :variant="isItemEnabled(item) ? 'default' : 'outline'"
+                :disabled="isPending(item.id)"
+                @click="handleCatalogAction(item)"
+              >
+                {{ item.actionLabel }}
+              </DcButton>
             </div>
-
-            <DcButton
-              size="sm"
-              variant="outline"
-              :disabled="isPending(item.id)"
-              @click="handleCatalogAction(item)"
-            >
-              {{ item.actionLabel }}
-            </DcButton>
           </article>
         </div>
         <div
@@ -103,6 +115,7 @@ import { useI18n } from 'vue-i18n'
 import { Icon } from '@iconify/vue'
 import { DcButton } from '@dc-ui/components/button'
 import { ScrollArea } from '@shadcn/components/ui/scroll-area'
+import { Input } from '@shadcn/components/ui/input'
 import { createOcrClient } from '@api/OcrClient'
 import { createPluginClient } from '@api/PluginClient'
 import { createRemoteControlClient } from '@api/RemoteControlClient'
@@ -146,6 +159,15 @@ type RemoteCatalogItem = CatalogItemBase & {
 type ExtensionCatalogItem = OfficialCatalogItem | RemoteCatalogItem
 type CatalogItem = BuiltinCatalogItem | ExtensionCatalogItem
 
+type CatalogFilter = 'all' | 'enabled' | 'disabled'
+
+const CATALOG_FILTERS: CatalogFilter[] = ['all', 'enabled', 'disabled']
+const FILTER_LABEL_KEYS = {
+  all: 'routes.pluginCenterConnectorsAll',
+  enabled: 'settings.plugins.status.enabled',
+  disabled: 'settings.plugins.status.disabled'
+} as const
+
 const remoteIconByChannel: Record<RemoteChannel, string> = {
   telegram: 'lucide:send',
   feishu: 'lucide:message-circle',
@@ -185,8 +207,13 @@ const { plugins, remoteChannels, remoteStatuses, ocrStatus, ocrStatusHasError } 
 const loading = ref(false)
 const errorMessage = ref('')
 const pendingItemId = ref<string | null>(null)
+const searchQuery = ref('')
+const activeFilter = ref<CatalogFilter>('all')
 
 const isPending = (itemId: string) => pendingItemId.value === itemId
+/** 内置能力（如 OCR）没有启用开关，按启用态对待 */
+const isItemEnabled = (item: CatalogItem): boolean =>
+  item.kind === 'builtin' ? true : item.enabled
 const pluginTitle = (plugin: PluginListItem): string =>
   isFeishuOfficialPlugin(plugin) ? t('settings.remote.feishu.title') : plugin.name
 const pluginDescription = (plugin: PluginListItem): string => {
@@ -283,6 +310,17 @@ const catalogItems = computed<CatalogItem[]>(() => {
   return [ocrItem, ...extensionItems]
 })
 
+const filteredItems = computed<CatalogItem[]>(() => {
+  const keyword = searchQuery.value.trim().toLowerCase()
+  return catalogItems.value.filter((item) => {
+    const enabled = isItemEnabled(item)
+    if (activeFilter.value === 'enabled' && !enabled) return false
+    if (activeFilter.value === 'disabled' && enabled) return false
+    if (!keyword) return true
+    return `${item.title} ${item.description}`.toLowerCase().includes(keyword)
+  })
+})
+
 async function loadCatalog(): Promise<void> {
   loading.value = true
   errorMessage.value = ''
@@ -373,3 +411,53 @@ onMounted(() => {
   void loadCatalog()
 })
 </script>
+
+<style scoped lang="less">
+/* 与技能市场保持一致：搜索框 288×36、筛选胶囊 13px/32px 高 */
+.catalog-search-input {
+  height: 36px;
+  padding-left: 36px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.catalog-card {
+  min-height: 156px;
+}
+
+.catalog-card-desc {
+  font-size: 13px;
+}
+
+.catalog-card-badge {
+  font-size: 11px;
+}
+
+.catalog-segment {
+  padding: 7px 18px;
+  border: none;
+  border-radius: 9999px;
+  background: #f2f3f5;
+  color: #646a73;
+  font-size: 13px;
+  line-height: 18px;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+
+  &:hover {
+    background: #e8eaed;
+    color: #1f2329;
+  }
+
+  &.is-active {
+    background: #006eff;
+    color: #ffffff;
+
+    &:hover {
+      background: #006eff;
+    }
+  }
+}
+</style>

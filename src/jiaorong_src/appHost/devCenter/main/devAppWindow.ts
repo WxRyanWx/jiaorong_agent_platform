@@ -232,6 +232,7 @@ export async function openDevAppWindow(appId: string): Promise<JiaorongDevAppOpe
 
 /**
  * 从本地调试切换回生产来源；没有打开中的调试窗口时只清理遗留 link。
+ * 菜单与应用中心打开的一律是生产版本，本地关联只走开放平台的调试窗口。
  * @param appId 应用 id
  */
 export async function switchDevAppToProduction(appId: string): Promise<boolean> {

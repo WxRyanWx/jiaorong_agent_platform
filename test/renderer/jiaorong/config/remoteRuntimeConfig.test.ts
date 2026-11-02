@@ -46,11 +46,13 @@ describe('jiaorong remote runtime config', () => {
       schemaVersion: 1,
       admins: [],
       appCenterVisiblePhones: null,
-      developerPhones: []
+      developerPhones: null
     })
     expect(
       parseJiaorongRemoteRuntimeConfig({ appCenterVisiblePhones: [] }).appCenterVisiblePhones
     ).toEqual([])
+    expect(parseJiaorongRemoteRuntimeConfig({ developerPhones: [] }).developerPhones).toEqual([])
+    expect(parseJiaorongRemoteRuntimeConfig({ developerPhones: null }).developerPhones).toBeNull()
   })
 
   it('returns an empty config when fetch fails', async () => {
@@ -137,7 +139,7 @@ describe('jiaorong remote runtime config', () => {
         schemaVersion: 1,
         admins: [],
         appCenterVisiblePhones: null,
-        developerPhones: []
+        developerPhones: null
       }
     ])
   })
