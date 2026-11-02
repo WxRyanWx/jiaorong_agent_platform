@@ -527,9 +527,15 @@ export async function createMainProcessControl(dependencies: {
   const databaseSecurityService = dependencies.databaseSecurityService
   const startupWorkloadCoordinator = dependencies.startupWorkloadCoordinator
   const mainDatabase = dependencies.database
+  const mainProcessCompositionStartedAt = readMonotonicNow()
   const { reportStartupStage, measureStartupStage } = createMainStartupStageTelemetry(
     dependencies.startupRunId
   )
+  const skillStartupStageTelemetry = {
+    readNow: readMonotonicNow,
+    reportStartupStage,
+    measureStartupStage
+  }
   const fileWatcherService = new FileWatcherService()
   let windowPresenter: IWindowPresenter
   let providerSettings: ProviderSettings
@@ -1429,7 +1435,8 @@ export async function createMainProcessControl(dependencies: {
           agentId: session.agentId
         }))
       }
-    }
+    },
+    skillStartupStageTelemetry
   )
   cliSkillService = new CliSkillService({
     skills: skillService,
@@ -3508,6 +3515,7 @@ export async function createMainProcessControl(dependencies: {
 
   dependencies.bindControl(control)
   registerRoutes()
+  reportStartupStage('main_process_composition', mainProcessCompositionStartedAt)
   const jiaorongAppHostStartedAt = readMonotonicNow()
   startJiaorongAppHost({
     publishAppNotification: createAppNotificationPublisher({ publish: publishDeepchatEvent }),

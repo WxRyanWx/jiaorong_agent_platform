@@ -88,6 +88,10 @@ import {
   isJiaorongAppHiddenAgentId,
   listJiaorongAppHiddenAgentIds
 } from '@jiaorong/appHost/main/agentMap'
+import type {
+  JiaorongStartupStage,
+  JiaorongStartupStageTelemetry
+} from '@jiaorong/logging/startupTelemetry'
 import { normalizeSkillAllowedTools } from './toolNameMapping'
 import { discoverSkillMetadataInWorker, logSkillDiscoveryWorkerWarnings } from './discoveryWorker'
 import {
@@ -383,6 +387,10 @@ function sanitizeSkillExtensionConfig(input: unknown): SkillExtensionConfig {
  * - Manage skill activation state per conversation
  * - Install/uninstall skills from various sources
  */
+export type SkillStartupStageTelemetry = JiaorongStartupStageTelemetry & {
+  readNow: () => number | undefined
+}
+
 export class SkillService implements SkillServicePort {
   private skillsDir: string
   private sidecarDir: string
@@ -410,19 +418,45 @@ export class SkillService implements SkillServicePort {
   private mutationTail: Promise<void> = Promise.resolve()
   private activeSkillMutationTails = new Map<string, Promise<void>>()
   private retiredSessionSkillScopes = new Set<string>()
+  private startupStageTelemetryActive = false
+  private startupDiscoveryTelemetryActive = false
 
   constructor(
     private readonly settings: SkillSettingsPort,
     private readonly sessionStatePort: SkillSessionStatePort,
     private readonly watcherService: IFileWatcherService,
     private readonly publishEvent: DeepchatEventPublisher,
-    private readonly agentScopePort?: SkillAgentScopePort
+    private readonly agentScopePort?: SkillAgentScopePort,
+    private readonly startupStageTelemetry?: SkillStartupStageTelemetry
   ) {
     // Skills directory: ~/.jiaorongchat/skills/
     this.skillsDir = this.resolveSkillsDir()
     this.sidecarDir = path.join(this.skillsDir, SKILL_CONFIG.SIDECAR_DIR)
     this.draftsRoot = path.join(app.getPath('temp'), SKILL_CONFIG.DRAFT_ROOT_DIR)
     this.ensureSkillsDir()
+  }
+
+  private async measureStartupStage<T>(
+    stage: JiaorongStartupStage,
+    operation: () => Promise<T>
+  ): Promise<T> {
+    if (!this.startupStageTelemetryActive || !this.startupStageTelemetry) {
+      return await operation()
+    }
+    return await this.startupStageTelemetry.measureStartupStage(stage, operation)
+  }
+
+  private reportStartupStage(stage: JiaorongStartupStage, startedAt: number | undefined): void {
+    if (!this.startupStageTelemetryActive || !this.startupStageTelemetry) return
+    this.startupStageTelemetry.reportStartupStage(stage, startedAt)
+  }
+
+  private async measureDiscoveryStartupStage<T>(
+    stage: JiaorongStartupStage,
+    operation: () => Promise<T>
+  ): Promise<T> {
+    if (!this.startupDiscoveryTelemetryActive) return await operation()
+    return await this.measureStartupStage(stage, operation)
   }
 
   private resolveSkillsDir(): string {
@@ -626,16 +660,31 @@ export class SkillService implements SkillServicePort {
   }
 
   private async initializeOnce(): Promise<void> {
+    this.startupStageTelemetryActive = true
     try {
-      await this.installBuiltinSkills()
+      await this.measureStartupStage(
+        'skill_builtin_install',
+        async () => await this.installBuiltinSkills()
+      )
       if (this.isServiceStopping()) return
 
-      this.cleanupExpiredDrafts()
-      await this.discoverSkills(BUILTIN_SKILL_AGENT_ID)
+      await this.measureStartupStage('skill_draft_cleanup', async () => this.cleanupExpiredDrafts())
+      this.startupDiscoveryTelemetryActive = true
+      try {
+        await this.measureStartupStage(
+          'skill_discovery',
+          async () => await this.discoverSkills(BUILTIN_SKILL_AGENT_ID)
+        )
+      } finally {
+        this.startupDiscoveryTelemetryActive = false
+      }
       if (this.isServiceStopping()) return
 
       try {
-        await this.migrateSharedSkills()
+        await this.measureStartupStage(
+          'skill_shared_migration',
+          async () => await this.migrateSharedSkills()
+        )
       } catch (error) {
         logger.warn('[SkillService] Shared Skills migration failed; startup can retry.', {
           error
@@ -644,12 +693,14 @@ export class SkillService implements SkillServicePort {
       }
       if (this.isServiceStopping()) return
 
-      await this.watchSkillFiles()
+      await this.measureStartupStage('skill_file_watcher', async () => await this.watchSkillFiles())
       if (this.isServiceStopping()) return
       this.initialized = true
     } catch (error) {
       if (this.isServiceStoppingError(error)) return
       throw error
+    } finally {
+      this.startupStageTelemetryActive = false
     }
   }
 
@@ -674,24 +725,31 @@ export class SkillService implements SkillServicePort {
 
     let discoveredSkills: SkillMetadata[]
     try {
-      const workerResult = await discoverSkillMetadataInWorker({
-        skillsDir: this.skillsDir,
-        sidecarDirName: SKILL_CONFIG.SIDECAR_DIR,
-        maxDepth: SKILL_CONFIG.FOLDER_TREE_MAX_DEPTH,
-        excludedRootDirNames: Array.from(BUILTIN_SKILL_ROOT_EXCLUDED_DIRS)
-      })
+      const workerResult = await this.measureDiscoveryStartupStage(
+        'skill_discovery_worker',
+        async () =>
+          await discoverSkillMetadataInWorker({
+            skillsDir: this.skillsDir,
+            sidecarDirName: SKILL_CONFIG.SIDECAR_DIR,
+            maxDepth: SKILL_CONFIG.FOLDER_TREE_MAX_DEPTH,
+            excludedRootDirNames: Array.from(BUILTIN_SKILL_ROOT_EXCLUDED_DIRS)
+          })
+      )
       logSkillDiscoveryWorkerWarnings(workerResult.warnings)
       discoveredSkills = workerResult.skills
     } catch (error) {
       console.warn('[SkillService] Worker discovery failed, falling back to main thread:', error)
-      discoveredSkills = await this.discoverSkillsOnMainThread()
+      discoveredSkills = await this.measureDiscoveryStartupStage(
+        'skill_discovery_fallback',
+        async () => await this.discoverSkillsOnMainThread()
+      )
     }
 
-    for (const metadata of [
-      ...discoveredSkills,
-      ...this.readOnlyBundledSkills,
-      ...(await this.discoverPluginSkillsOnMainThread())
-    ]) {
+    const pluginSkills = await this.measureDiscoveryStartupStage(
+      'skill_discovery_plugin',
+      async () => await this.discoverPluginSkillsOnMainThread()
+    )
+    for (const metadata of [...discoveredSkills, ...this.readOnlyBundledSkills, ...pluginSkills]) {
       if (this.metadataCache.has(metadata.name)) {
         logger.warn('[SkillService] Duplicate skill name discovered. Keeping the first entry.', {
           name: metadata.name,
@@ -702,14 +760,20 @@ export class SkillService implements SkillServicePort {
       this.metadataCache.set(metadata.name, metadata)
     }
 
-    const skills = this.sortSkillMetadata(Array.from(this.metadataCache.values()))
-    this.builtinCatalogDiscovered = true
-    this.publishEvent('skills.catalog.changed', {
-      reason: 'discovered',
-      agentIds: [BUILTIN_SKILL_AGENT_ID],
-      skills,
-      version: Date.now()
-    })
+    const skills = await this.measureDiscoveryStartupStage(
+      'skill_discovery_aggregate',
+      async () => {
+        const sortedSkills = this.sortSkillMetadata(Array.from(this.metadataCache.values()))
+        this.builtinCatalogDiscovered = true
+        this.publishEvent('skills.catalog.changed', {
+          reason: 'discovered',
+          agentIds: [BUILTIN_SKILL_AGENT_ID],
+          skills: sortedSkills,
+          version: Date.now()
+        })
+        return sortedSkills
+      }
+    )
 
     return skills
   }
@@ -718,7 +782,11 @@ export class SkillService implements SkillServicePort {
     const stored = this.settings.getManagementState()
     if (stored?.version === 3) {
       if (stored.migration?.status === 'committing') {
-        await this.remapLegacySessionSkillNames(stored.migration.agentSkillNames)
+        const resumedAgentSkillNames = stored.migration.agentSkillNames
+        await this.measureStartupStage(
+          'skill_shared_migration_resume',
+          async () => await this.remapLegacySessionSkillNames(resumedAgentSkillNames)
+        )
         const resumedState = this.getStoredManagementState()
         if (resumedState.migration?.status === 'committing') {
           resumedState.migration = {
@@ -731,16 +799,29 @@ export class SkillService implements SkillServicePort {
       } else if (stored.migration?.status === 'planned') {
         throw new Error('Shared Skills migration state was committed before its packages')
       }
-      await this.pruneInactiveAgentBindings()
-      this.reconcileSkillManagementState()
-      await this.materializeProviderBindingsForExistingAgents()
-      fs.rmSync(path.join(this.skillsDir, SHARED_SKILL_MIGRATION_DIR), {
-        recursive: true,
-        force: true
+      await this.measureStartupStage(
+        'skill_shared_migration_prune',
+        async () => await this.pruneInactiveAgentBindings()
+      )
+      await this.measureStartupStage('skill_shared_migration_reconcile', async () =>
+        this.reconcileSkillManagementState()
+      )
+      await this.measureStartupStage(
+        'skill_shared_migration_bindings',
+        async () => await this.materializeProviderBindingsForExistingAgents()
+      )
+      await this.measureStartupStage('skill_shared_migration_cleanup', async () => {
+        fs.rmSync(path.join(this.skillsDir, SHARED_SKILL_MIGRATION_DIR), {
+          recursive: true,
+          force: true
+        })
       })
       return
     }
 
+    const planStartedAt = this.startupStageTelemetryActive
+      ? this.startupStageTelemetry?.readNow()
+      : undefined
     const sourceVersion: 1 | 2 = stored?.version === 2 ? 2 : 1
     const legacyAgents = this.readLegacyAgentManagementStates(stored)
     const agents = this.agentScopePort
@@ -899,7 +980,10 @@ export class SkillService implements SkillServicePort {
       }
     }
 
-    if (plannedCopies.length > 0) {
+    this.reportStartupStage('skill_shared_migration_plan', planStartedAt)
+
+    await this.measureStartupStage('skill_shared_migration_copy', async () => {
+      if (plannedCopies.length === 0) return
       fs.mkdirSync(stagingRoot, { recursive: true })
       for (const copy of plannedCopies) {
         const stagedPath = path.join(stagingRoot, copy.targetName)
@@ -913,46 +997,51 @@ export class SkillService implements SkillServicePort {
           throw new Error(`Migrated Skill failed validation: ${copy.targetName}`)
         }
       }
-    }
+    })
 
-    fs.mkdirSync(migrationRoot, { recursive: true })
-    await this.atomicWriteFile(
-      journalPath,
-      JSON.stringify({ sourceVersion, startedAt, plannedCopies }, null, 2)
-    )
-    migration.status = 'committing'
-
-    for (const copy of plannedCopies) {
-      const stagedPath = path.join(stagingRoot, copy.targetName)
-      if (fs.existsSync(copy.targetPath)) {
-        if (!this.areSkillDirectoriesSame(stagedPath, copy.targetPath)) {
-          throw new Error(`Migration target changed before commit: ${copy.targetName}`)
-        }
-        fs.rmSync(stagedPath, { recursive: true, force: true })
-      } else {
-        fs.renameSync(stagedPath, copy.targetPath)
-      }
-      const metadata = await this.parseSkillMetadata(
-        path.join(copy.targetPath, 'SKILL.md'),
-        copy.targetName,
-        undefined,
-        this.skillsDir
+    await this.measureStartupStage('skill_shared_migration_commit', async () => {
+      fs.mkdirSync(migrationRoot, { recursive: true })
+      await this.atomicWriteFile(
+        journalPath,
+        JSON.stringify({ sourceVersion, startedAt, plannedCopies }, null, 2)
       )
-      if (!metadata) throw new Error(`Committed Skill failed validation: ${copy.targetName}`)
-      this.metadataCache.set(copy.targetName, metadata)
-    }
+      migration.status = 'committing'
 
-    state.migration = { ...migration, status: 'committing' }
-    this.saveManagementState(state)
-    await this.remapLegacySessionSkillNames(migration.agentSkillNames)
-    const completedState = this.getStoredManagementState()
-    completedState.migration = {
-      ...migration,
-      status: 'completed',
-      completedAt: new Date().toISOString()
-    }
-    this.saveManagementState(completedState)
-    fs.rmSync(migrationRoot, { recursive: true, force: true })
+      for (const copy of plannedCopies) {
+        const stagedPath = path.join(stagingRoot, copy.targetName)
+        if (fs.existsSync(copy.targetPath)) {
+          if (!this.areSkillDirectoriesSame(stagedPath, copy.targetPath)) {
+            throw new Error(`Migration target changed before commit: ${copy.targetName}`)
+          }
+          fs.rmSync(stagedPath, { recursive: true, force: true })
+        } else {
+          fs.renameSync(stagedPath, copy.targetPath)
+        }
+        const metadata = await this.parseSkillMetadata(
+          path.join(copy.targetPath, 'SKILL.md'),
+          copy.targetName,
+          undefined,
+          this.skillsDir
+        )
+        if (!metadata) throw new Error(`Committed Skill failed validation: ${copy.targetName}`)
+        this.metadataCache.set(copy.targetName, metadata)
+      }
+
+      state.migration = { ...migration, status: 'committing' }
+      this.saveManagementState(state)
+      await this.measureStartupStage(
+        'skill_shared_migration_session_remap',
+        async () => await this.remapLegacySessionSkillNames(migration.agentSkillNames)
+      )
+      const completedState = this.getStoredManagementState()
+      completedState.migration = {
+        ...migration,
+        status: 'completed',
+        completedAt: new Date().toISOString()
+      }
+      this.saveManagementState(completedState)
+      fs.rmSync(migrationRoot, { recursive: true, force: true })
+    })
   }
 
   private readMigrationRecoveryTargets(
@@ -3062,8 +3151,12 @@ export class SkillService implements SkillServicePort {
    * Install built-in skills from resources
    */
   async installBuiltinSkills(): Promise<void> {
+    const pruneStartedAt = this.startupStageTelemetryActive
+      ? this.startupStageTelemetry?.readNow()
+      : undefined
     this.pruneLegacyDuplicateSettingsSkill()
     this.pruneLegacyDuplicateCliSkill()
+    this.reportStartupStage('skill_builtin_prune', pruneStartedAt)
     const builtinDir = this.resolveBuiltinSkillsDir()
     if (!builtinDir || !fs.existsSync(builtinDir)) {
       this.readOnlyBundledSkills = []
@@ -3096,26 +3189,34 @@ export class SkillService implements SkillServicePort {
       const userSkillDir = path.join(this.skillsDir, entry.name)
       const userExists = fs.existsSync(path.join(userSkillDir, 'SKILL.md'))
       if (userExists) {
-        try {
-          const [builtinHash, userHash] = await Promise.all([
-            this.createBoundedSkillTreeHash(skillDir),
-            this.createBoundedSkillTreeHash(userSkillDir)
-          ])
-          if (builtinHash === userHash) continue
-        } catch (error) {
-          logger.warn('[SkillService] Builtin skill hash compare failed; overwriting.', {
-            name: entry.name,
-            error
-          })
-        }
+        const hashesMatch = await this.measureStartupStage('skill_builtin_hash', async () => {
+          try {
+            const [builtinHash, userHash] = await Promise.all([
+              this.createBoundedSkillTreeHash(skillDir),
+              this.createBoundedSkillTreeHash(userSkillDir)
+            ])
+            return builtinHash === userHash
+          } catch (error) {
+            logger.warn('[SkillService] Builtin skill hash compare failed; overwriting.', {
+              name: entry.name,
+              error
+            })
+            return false
+          }
+        })
+        if (hashesMatch) continue
       }
 
-      const result = await this.installFromDirectory(skillDir, {
-        options: { overwrite: userExists },
-        sourceType: 'builtin',
-        assignToAgent: managementStateIsV3,
-        persistManagementState: managementStateIsV3
-      })
+      const result = await this.measureStartupStage(
+        'skill_builtin_copy',
+        async () =>
+          await this.installFromDirectory(skillDir, {
+            options: { overwrite: userExists },
+            sourceType: 'builtin',
+            assignToAgent: managementStateIsV3,
+            persistManagementState: managementStateIsV3
+          })
+      )
       if (!result.success && result.error?.includes('already exists')) {
         continue
       }
@@ -3123,7 +3224,10 @@ export class SkillService implements SkillServicePort {
         console.warn('[SkillService] Failed to install builtin skill:', result.error)
       }
     }
-    this.readOnlyBundledSkills = await this.discoverReadOnlyBundledSkills()
+    this.readOnlyBundledSkills = await this.measureStartupStage(
+      'skill_builtin_readonly_scan',
+      async () => await this.discoverReadOnlyBundledSkills()
+    )
   }
 
   /** 上游 deepchat-settings 与 jiaorong-settings 重复；只保留交融设置技能 */

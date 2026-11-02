@@ -16,6 +16,8 @@ Windows 启动约 1 分钟，但现有 `app.startup.terminal` 只记录总耗时
 
 - 每次成功或失败的启动阶段都会输出 `app.startup.stage`。
 - 覆盖 Electron ready、设置存储、数据库初始化、配置迁移、协议注册、主进程装配、既有串行初始化、窗口创建和窗口可见。
+- 覆盖技能初始化的内置安装、草稿清理、目录发现、共享迁移和文件监听，并细分内置哈希、内置复制、只读扫描、发现 worker/回退/插件/聚合、迁移恢复/清理/规划/复制/提交/会话重映射等条件子阶段。
+- `skill_service` 总阶段保留，子阶段只在技能初始化期间输出，避免后续热更新污染启动时间线。
 - 窗口 `ready-to-show` 后实际 `show()` 完成时记录从主进程启动开始的耗时。
 - renderer 侧继续记录 `shell-mounted`、`app-stores-ready`、`bootstrap-ready`、`route-ready`、`interactive`、`deferred-settled` 等阶段。
 - 提供一条 PowerShell 指令，输出主进程与 renderer 合并时间线、最耗时节点，并生成桌面报告和日志压缩包。

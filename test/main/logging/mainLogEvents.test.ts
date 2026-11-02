@@ -9,6 +9,7 @@ import {
   type MainLogEventInputMap,
   type MainLogEventName
 } from '@/logging/mainLogEvents'
+import { JIAORONG_STARTUP_STAGES } from '@jiaorong/logging/startupTelemetry'
 
 describe('Main log event projection', () => {
   it('round-trips every catalog projector through persisted-context validation', () => {
@@ -525,6 +526,30 @@ describe('Main log event projection', () => {
       stage: 'app_window_visible',
       durationMs: 58000
     })
+  })
+
+  it('projects skill sub-stage checkpoints with fixed stage names', () => {
+    const projected = projectMainLogEvent('app.startup.stage', {
+      startupRunId: 'main:123:1',
+      stage: 'skill_shared_migration_copy',
+      durationMs: 120000
+    })
+
+    expect(projected.context).toEqual({
+      startupRunId: 'main:123:1',
+      stage: 'skill_shared_migration_copy',
+      durationMs: 120000
+    })
+  })
+
+  it.each(JIAORONG_STARTUP_STAGES)('accepts startup stage %s', (stage) => {
+    const projected = projectMainLogEvent('app.startup.stage', {
+      startupRunId: 'main:123:1',
+      stage,
+      durationMs: 1
+    })
+
+    expect(projected.context.stage).toBe(stage)
   })
 
   it('rejects unknown startup stages', () => {

@@ -617,6 +617,94 @@ describe('SkillService', () => {
       )
     })
 
+    it('reports built-in, discovery, migration and watcher stages during startup', async () => {
+      const measuredStages: string[] = []
+      let now = 0
+      const presenter = new SkillService(
+        mockProviderSettings,
+        skillSessionStatePort as any,
+        fakeWatcherService.service,
+        publishDeepchatEventMock,
+        undefined,
+        {
+          readNow: () => now,
+          reportStartupStage: (stage: string) => {
+            measuredStages.push(stage)
+          },
+          measureStartupStage: async (stage: string, operation: () => Promise<unknown>) => {
+            const startedAt = now
+            try {
+              return await operation()
+            } finally {
+              now = (startedAt ?? 0) + 5
+              measuredStages.push(stage)
+            }
+          }
+        } as any
+      )
+      vi.spyOn(presenter, 'installBuiltinSkills').mockResolvedValue()
+      vi.spyOn(presenter, 'discoverSkills').mockResolvedValue([])
+      vi.spyOn(presenter as any, 'migrateSharedSkills').mockResolvedValue(undefined)
+
+      await presenter.initialize()
+
+      expect(measuredStages).toEqual([
+        'skill_builtin_install',
+        'skill_draft_cleanup',
+        'skill_discovery',
+        'skill_shared_migration',
+        'skill_file_watcher'
+      ])
+      await presenter.destroy()
+    })
+
+    it('reports discovery sub-stages during startup and stops after initialization', async () => {
+      const measuredStages: string[] = []
+      let now = 0
+      const presenter = new SkillService(
+        mockProviderSettings,
+        skillSessionStatePort as any,
+        fakeWatcherService.service,
+        publishDeepchatEventMock,
+        undefined,
+        {
+          readNow: () => now,
+          reportStartupStage: (stage: string) => {
+            measuredStages.push(stage)
+          },
+          measureStartupStage: async (stage: string, operation: () => Promise<unknown>) => {
+            const startedAt = now
+            try {
+              return await operation()
+            } finally {
+              now = (startedAt ?? 0) + 5
+              measuredStages.push(stage)
+            }
+          }
+        } as any
+      )
+      vi.spyOn(presenter, 'installBuiltinSkills').mockResolvedValue()
+      vi.spyOn(presenter as any, 'migrateSharedSkills').mockResolvedValue(undefined)
+
+      await presenter.initialize()
+
+      expect(measuredStages).toEqual(
+        expect.arrayContaining([
+          'skill_discovery',
+          'skill_discovery_worker',
+          'skill_discovery_fallback',
+          'skill_discovery_plugin',
+          'skill_discovery_aggregate'
+        ])
+      )
+      const initializedStageCount = measuredStages.length
+
+      await presenter.discoverSkills()
+
+      expect(measuredStages).toHaveLength(initializedStageCount)
+      await presenter.destroy()
+    })
+
     it('lets shutdown drain initialization without starting the watcher', async () => {
       let releaseInstall!: () => void
       const installBlocked = new Promise<void>((resolve) => {

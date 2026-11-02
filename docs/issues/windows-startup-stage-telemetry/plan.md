@@ -19,6 +19,13 @@
 6. 在主窗口 `ready-to-show` 且实际 `show()` 后记录 `app_window_visible`。
 7. 保持原有 `await` 顺序和异常传播，阶段结束时在 `finally` 中记录耗时。
 8. 更新日志投影测试，确认输出字段和未知阶段拒绝。
+9. 为 `SkillService` 注入可选的启动计时端口，在 `initializeOnce()` 期间细分：
+   - 内置技能安装、草稿清理、目录发现、共享迁移和文件监听总阶段
+   - 内置哈希、内置复制、只读扫描、重复目录清理
+   - 发现 worker、主线程回退、插件技能、目录聚合
+   - 共享迁移恢复、绑定清理、状态校准、绑定物化、迁移目录清理、规划、复制、提交和会话重映射
+10. 在 `createMainProcessControl()` 记录 `main_process_composition`，覆盖服务装配到 Jiaorong app host 注册前的空档。
+11. 启动计时端口只在初始化期间生效，初始化结束后停止输出子阶段，避免热更新和后续刷新污染时间线。
 
 ## 数据流
 
@@ -60,7 +67,7 @@ renderer 关键加载阶段 -> renderer monotonic clock 计时 -> `performance.r
         Time = $time
         Source = 'main'
         Stage = $stage
-        Kind = if ($stage -in @('main_process_control', 'app_window_visible', 'app.startup.terminal')) { 'inclusive' } else { 'segment' }
+        Kind = if ($stage -in @('main_process_control', 'app_window_visible', 'app.startup.terminal', 'skill_service', 'skill_builtin_install', 'skill_discovery', 'skill_shared_migration', 'skill_shared_migration_commit')) { 'inclusive' } else { 'segment' }
         DurationMs = $_.context.durationMs
         RelativeMs = [int64](($time - $startupTime).TotalMilliseconds)
       }
@@ -116,7 +123,9 @@ renderer 关键加载阶段 -> renderer monotonic clock 计时 -> `performance.r
 
 双击图标到主进程模块加载前的时间无法由 JS 记录，需要外部记录双击时间和窗口出现时间。
 
-`main_process_control`、`app_window_visible` 和 `app.startup.terminal` 是包含内部阶段的耗时，不能与子阶段相加；renderer 记录的 `DurationMs` 是相对 renderer 性能起点的累计值。`GapMs` 是相邻日志时间戳的差值，用于发现尚未埋点的空白区间，包含日志写入和 IPC 延迟。
+`main_process_control`、`app_window_visible`、`app.startup.terminal`、`skill_service`、`skill_builtin_install`、`skill_discovery`、`skill_shared_migration` 和 `skill_shared_migration_commit` 是包含内部阶段的耗时，不能与子阶段相加；renderer 记录的 `DurationMs` 是相对 renderer 性能起点的累计值。`GapMs` 是相邻日志时间戳的差值，用于发现尚未埋点的空白区间，包含日志写入和 IPC 延迟。
+
+`skill_builtin_hash` 和 `skill_builtin_copy` 会按内置技能逐个输出，同名阶段可能出现多条记录，分析时按次数和总耗时统计，不要只看第一条。`skill_discovery` 只覆盖启动时显式发现；内置安装过程中由安装流程触发的嵌套发现不会重复输出发现子阶段，其耗时计入对应的 `skill_builtin_copy`。
 
 ## 测试策略
 
