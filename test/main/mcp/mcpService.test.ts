@@ -4,6 +4,7 @@ const serverManagerMocks = vi.hoisted(() => ({
   startServer: vi.fn(),
   stopServer: vi.fn(),
   isServerRunning: vi.fn(),
+  isServerActive: vi.fn(() => false),
   getClient: vi.fn(),
   getServerLastError: vi.fn(),
   getRunningClients: vi.fn().mockResolvedValue([]),
@@ -35,6 +36,7 @@ vi.mock('../../../src/main/mcp/serverManager', () => ({
     startServer: serverManagerMocks.startServer,
     stopServer: serverManagerMocks.stopServer,
     isServerRunning: serverManagerMocks.isServerRunning,
+    isServerActive: serverManagerMocks.isServerActive,
     getClient: serverManagerMocks.getClient,
     getServerLastError: serverManagerMocks.getServerLastError,
     getRunningClients: serverManagerMocks.getRunningClients,
@@ -361,6 +363,25 @@ describe('McpService', () => {
     )
   })
 
+  it('does not treat jiaorong app owned server configurations as regular expected sources', async () => {
+    const providerSettings = createProviderSettings(
+      true,
+      false,
+      {
+        regular: { enabled: true },
+        cowork: { enabled: true, source: 'jiaorong-app', sourceId: 'collaboration-platform' }
+      },
+      ['regular', 'cowork']
+    )
+    const presenter = createMcpService(providerSettings)
+
+    await presenter.snapshotCachedToolDefinitions()
+
+    expect(toolManagerMocks.snapshotCachedToolDefinitions).toHaveBeenCalledWith(
+      expect.objectContaining({ expectedServerNames: ['regular'] })
+    )
+  })
+
   it('does not read or expect regular servers while MCP is globally disabled', async () => {
     const providerSettings = createProviderSettings(false)
     providerSettings.getEnabledMcpServers.mockRejectedValue(
@@ -415,6 +436,7 @@ describe('McpService', () => {
       getMcpServers: vi.fn().mockResolvedValue(servers),
       getEnabledMcpServers: vi.fn().mockResolvedValue(enabledServers),
       addMcpServer: vi.fn().mockResolvedValue(undefined),
+      updateMcpServer: vi.fn().mockResolvedValue(undefined),
       privacyModeEnabled
     }) as any
 
@@ -579,6 +601,96 @@ describe('McpService', () => {
       expect.objectContaining({ onBackgroundConnected: expect.any(Function) })
     )
     expect(serverManagerMocks.startServer).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not auto-start jiaorong app owned servers during initialization', async () => {
+    const providerSettings = createProviderSettings(
+      true,
+      false,
+      {
+        regular: { enabled: true },
+        cowork: {
+          enabled: true,
+          type: 'http',
+          baseUrl: 'https://mcp.example.com/cowork',
+          source: 'jiaorong-app',
+          sourceId: 'collaboration-platform'
+        }
+      },
+      ['regular', 'cowork']
+    )
+    const presenter = createMcpService(providerSettings)
+    ;(presenter as any).serverManager = {
+      startServer: serverManagerMocks.startServer,
+      testNpmRegistrySpeed: serverManagerMocks.testNpmRegistrySpeed,
+      getNpmRegistry: serverManagerMocks.getNpmRegistry,
+      updateNpmRegistryInBackground: serverManagerMocks.updateNpmRegistryInBackground
+    }
+
+    await presenter.initialize()
+
+    expect(serverManagerMocks.startServer).toHaveBeenCalledTimes(1)
+    expect(serverManagerMocks.startServer).toHaveBeenCalledWith(
+      'regular',
+      expect.objectContaining({ onBackgroundConnected: expect.any(Function) })
+    )
+  })
+
+  it('starts and stops only the MCP servers owned by the opened app', async () => {
+    const providerSettings = createProviderSettings(true, false, {
+      cowork: { enabled: true, source: 'jiaorong-app', sourceId: 'collaboration-platform' },
+      other: { enabled: true, source: 'jiaorong-app', sourceId: 'other-app' },
+      disabled: { enabled: false, source: 'jiaorong-app', sourceId: 'collaboration-platform' },
+      regular: { enabled: true }
+    })
+    const presenter = createMcpService(providerSettings)
+    const isRunning = vi.fn((name: string) => name === 'cowork')
+    ;(presenter as any).serverManager = {
+      startServer: serverManagerMocks.startServer,
+      stopServer: serverManagerMocks.stopServer,
+      isServerRunning: isRunning,
+      isServerActive: vi.fn(() => false)
+    }
+
+    await presenter.startAppOwnedMcpServers('collaboration-platform')
+
+    expect(serverManagerMocks.startServer).toHaveBeenCalledTimes(1)
+    expect(serverManagerMocks.startServer).toHaveBeenCalledWith(
+      'cowork',
+      expect.objectContaining({ onBackgroundConnected: expect.any(Function) })
+    )
+
+    await presenter.stopAppOwnedMcpServers('collaboration-platform')
+
+    expect(serverManagerMocks.stopServer).toHaveBeenCalledTimes(1)
+    expect(serverManagerMocks.stopServer).toHaveBeenCalledWith('cowork')
+  })
+
+  it('restarts a connecting server after its configuration changes', async () => {
+    const providerSettings = createProviderSettings(true, false, {
+      cowork: {
+        enabled: true,
+        type: 'http',
+        baseUrl: 'https://mcp.example.com/cowork',
+        source: 'jiaorong-app',
+        sourceId: 'collaboration-platform'
+      }
+    })
+    const presenter = createMcpService(providerSettings)
+    ;(presenter as any).serverManager = {
+      isServerRunning: vi.fn(() => false),
+      isServerActive: vi.fn(() => true),
+      stopServer: serverManagerMocks.stopServer,
+      startServer: serverManagerMocks.startServer
+    }
+
+    await presenter.updateMcpServer('cowork', { customHeaders: { Authorization: 'fresh' } })
+
+    expect(providerSettings.updateMcpServer).toHaveBeenCalledWith('cowork', {
+      customHeaders: { Authorization: 'fresh' }
+    })
+    expect(serverManagerMocks.stopServer).toHaveBeenCalledWith('cowork')
+    expect(serverManagerMocks.startServer).toHaveBeenCalledWith('cowork', expect.anything())
   })
 
   it('retains terminal startup diagnostics after a failed client becomes inactive', async () => {

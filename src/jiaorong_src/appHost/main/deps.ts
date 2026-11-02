@@ -506,4 +506,8 @@ export type JiaorongAppMcpPort = {
   updateMcpServer(serverName: string, config: Partial<MCPServerConfig>): Promise<void>
   /** 进程是否在跑。 */
   isServerRunning(serverName: string): Promise<boolean>
+  /** 启动该应用名下全部 MCP（应用打开时）。 */
+  startAppOwnedMcpServers?(appId: string): Promise<void>
+  /** 停止该应用名下全部 MCP（应用关闭时）。 */
+  stopAppOwnedMcpServers?(appId: string): Promise<void>
 }

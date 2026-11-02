@@ -771,6 +771,10 @@ export function startJiaorongAppHost(deps: JiaorongAppHostDeps): void {
     if (!info) return null
     // 等待 spawn 探测期间调试窗口可能已接管，不能再返回旧生产信息
     if (!isDevAppOpenInfoRequest(event) && isDevAppWindowOpen(appId)) return null
+    // 子应用 MCP 随应用打开启动；连接在后台进行，不拖慢首屏
+    void hostDeps.mcp?.startAppOwnedMcpServers?.(appId).catch((error) => {
+      console.warn('[jiaorong-app] start app MCP failed', appId, error)
+    })
     // 有 spawn 时等一小会：EADDRINUSE 的进程几乎立刻退出，日志里也会写 address already in use
     if (manager.getApp(spawnId)?.spawn?.trim()) {
       if (!startedSpawn.success) {
@@ -808,6 +812,10 @@ export function startJiaorongAppHost(deps: JiaorongAppHostDeps): void {
       return { ok: true }
     }
     manager.stopApp(spawnId)
+    // 子应用 MCP 随应用关闭停止，保留启用状态供下次打开复用
+    void hostDeps.mcp?.stopAppOwnedMcpServers?.(appId).catch((error) => {
+      console.warn('[jiaorong-app] stop app MCP failed', appId, error)
+    })
     // 异步停生成，不阻塞侧栏跳转
     void abortAppGenerations(deps, spawnId)
     return { ok: true }

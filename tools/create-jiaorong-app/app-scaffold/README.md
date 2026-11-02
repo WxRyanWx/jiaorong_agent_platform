@@ -4,7 +4,7 @@
 
 ```text
 app-scaffold/
-  app.json                      # id / name / entry / spawn
+  app.json                      # id / name / entry / spawn；slot 固定 app-center，不要改
   icon.png                      # 应用图标
   web-ui/                       # 构建产物，客户端打开这个
   web/                          # Vue 源码，位置不限，构建产物拷进 web-ui/

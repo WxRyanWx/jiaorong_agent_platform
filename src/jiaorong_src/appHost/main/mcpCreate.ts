@@ -1,6 +1,7 @@
 /** 应用桥 mcp.create：按 JSON 注册 MCP，默开，并限制到指定智能体。 */
 
 import type { MCPServerConfig } from '@shared/types/mcp'
+import { JIAORONG_APP_MCP_SOURCE } from '@shared/mcp/ownedBy'
 import { bridgeError } from '../bridgeErrors'
 import { appAgentIds } from './agentMap'
 import type { JiaorongAppHostDeps, JiaorongAppMcpPort } from './deps'
@@ -80,7 +81,7 @@ export async function handleJiaorongMcpCreate(
     config: {
       ...item.config,
       enabled,
-      source: 'jiaorong-app',
+      source: JIAORONG_APP_MCP_SOURCE,
       sourceId: runtime.id,
       visibleToAgentIds: [agentId]
     }
@@ -93,7 +94,7 @@ export async function handleJiaorongMcpCreate(
   for (const item of servers) {
     const current = existing[item.name]
     if (!current) continue
-    if (current.source === 'jiaorong-app' && current.sourceId === runtime.id) continue
+    if (current.source === JIAORONG_APP_MCP_SOURCE && current.sourceId === runtime.id) continue
     throw bridgeError('VALIDATION_ERROR', `MCP 名称已存在：${item.name}`)
   }
 

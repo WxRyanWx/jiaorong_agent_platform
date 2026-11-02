@@ -129,6 +129,30 @@ describe('ServerManager notifications and plugin isolation', () => {
     expect(publishDeepchatEventMock).not.toHaveBeenCalled()
   })
 
+  it('suppresses semantic connection occurrences for jiaorong app owned MCP servers', async () => {
+    const providerSettings = createProviderSettings({
+      cowork: {
+        type: 'http',
+        baseUrl: 'https://mcp.example.com/cowork',
+        command: '',
+        args: [],
+        env: {},
+        customHeaders: { Authorization: 'expired' },
+        source: 'jiaorong-app',
+        sourceId: 'collaboration-platform',
+        enabled: true
+      }
+    })
+    const manager = createManager(providerSettings)
+    clientMocks.connect.mockRejectedValueOnce(new Error('401 Unauthorized'))
+
+    await expect(manager.startServer('cowork')).rejects.toThrow('401 Unauthorized')
+
+    expect(manager.getServerLastError('cowork')).toBe('401 Unauthorized')
+    expect(semanticNotificationsMock.occur).not.toHaveBeenCalled()
+    expect(publishDeepchatEventMock).not.toHaveBeenCalled()
+  })
+
   it('recovers the connection episode after a successful start', async () => {
     const providerSettings = createProviderSettings({
       regular: {

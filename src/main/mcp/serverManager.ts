@@ -14,6 +14,7 @@ import type { McpOAuthManager } from './mcpOAuthManager'
 import type { InMemoryServerFactory } from './inMemoryServers/builder'
 import type { PrivacySettingsPort } from '@/app/privacy'
 import type { McpSettings } from './settings'
+import { isJiaorongAppOwnedMcpServer } from '@shared/mcp/ownedBy'
 
 const NPM_REGISTRY_LIST = [
   'https://registry.npmmirror.com/',
@@ -58,6 +59,11 @@ export class ServerManager {
 
   private isPluginOwnedServerConfig(config?: Partial<MCPServerConfig> | null): boolean {
     return Boolean(config?.ownerPluginId || config?.source === 'plugin')
+  }
+
+  /** 子应用托管的 MCP 由应用生命周期驱动，失败只留日志与诊断，不打扰全局用户。 */
+  private shouldNotifyConnectionFailure(config?: Partial<MCPServerConfig> | null): boolean {
+    return !this.isPluginOwnedServerConfig(config) && !isJiaorongAppOwnedMcpServer(config)
   }
 
   getServerLastError(serverName: string): string | undefined {
@@ -343,7 +349,7 @@ export class ServerManager {
       const authHandled =
         this.mcpOAuthManager?.handleConnectionError(name, serverConfig, error) ?? false
 
-      if (!authHandled && !this.isPluginOwnedServerConfig(serverConfig)) {
+      if (!authHandled && this.shouldNotifyConnectionFailure(serverConfig)) {
         this.notifyConnectionFailure(name)
       }
 
@@ -389,7 +395,7 @@ export class ServerManager {
         const authHandled =
           this.mcpOAuthManager?.handleConnectionError(name, serverConfig, error) ?? false
 
-        if (!authHandled && !this.isPluginOwnedServerConfig(serverConfig)) {
+        if (!authHandled && this.shouldNotifyConnectionFailure(serverConfig)) {
           this.notifyConnectionFailure(name)
         }
 

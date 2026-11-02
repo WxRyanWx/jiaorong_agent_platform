@@ -57,6 +57,7 @@ import type { ToolPermissionBroker } from '@/tool/permission'
 import type { McpAppSandboxRegistry } from './apps/sandboxRegistry'
 import { McpAppHost } from './apps/appHost'
 import { hasMcpIdentityBearingChange } from './serverIdentity'
+import { JIAORONG_APP_MCP_SOURCE, isJiaorongAppOwnedMcpServer } from '@shared/mcp/ownedBy'
 import type { CacheImageOptions } from '@/platform/imageCache'
 import { awaitWithAbort } from '@/lib/awaitWithAbort'
 import { isJiaorongKnowledgeBaseMcpServer } from '@jiaorong/knowledgeBase/mcp/knowledgeBaseMcpConstants'
@@ -112,6 +113,8 @@ export class McpService implements McpServicePort {
   private addMcpServerTail: Promise<void> = Promise.resolve()
   /** 更新同样串行：读-改-写之间有 await，并发更新不同服务器会互相覆盖丢配置。 */
   private updateMcpServerTail: Promise<void> = Promise.resolve()
+  /** 子应用 MCP 启停按 appId 串行，避免关闭后立即重开时两次操作交错。 */
+  private appMcpLifecycleTails = new Map<string, Promise<void>>()
   private readonly pluginRuntimeSupervisor: PluginRuntimeSupervisor
   private readonly mcpAppSandboxRegistry?: McpAppSandboxRegistry
   private pendingSamplingRequests = new Map<
@@ -396,6 +399,7 @@ export class McpService implements McpServicePort {
             !startingServers.has(serverName) &&
             mcpEnabled &&
             !this.isPluginOwnedServerConfig(serverConfig, serverName) &&
+            !isJiaorongAppOwnedMcpServer(serverConfig) &&
             !this.pluginRuntimeSupervisor.ownsServer(serverName)
           ) {
             logger.info(`[MCP] Attempting to start enabled server: ${serverName}`)
@@ -874,6 +878,8 @@ export class McpService implements McpServicePort {
       )
     }
     const wasRunning = this.serverManager.isServerRunning(serverName)
+    // 连接中的客户端同样持有旧配置；不重启会沿用旧 token / 旧 header
+    const wasActive = this.serverManager.isServerActive(serverName)
     const previousConfig = servers[serverName]
     if (
       previousConfig?.serverId &&
@@ -891,8 +897,8 @@ export class McpService implements McpServicePort {
       this.mcpOAuthManager.clearServerCredentials(previousConfig.serverId)
     }
 
-    // If server was previously running, restart it to apply new configuration
-    if (wasRunning) {
+    // 运行中或连接中都要重启才能应用新配置；显式停用的配置不再重启
+    if ((wasRunning || wasActive) && updatedConfig?.enabled !== false) {
       logger.info(`[MCP] Configuration updated, restarting server: ${serverName}`)
       try {
         await this.stopServer(serverName) // stopServer will emit SERVER_STOPPED event
@@ -991,6 +997,74 @@ export class McpService implements McpServicePort {
   private async stopServerDirect(serverName: string): Promise<void> {
     await this.serverManager.stopServer(serverName)
     this.emitServerStopped(serverName)
+  }
+
+  /**
+   * 启动某个子应用名下的全部 MCP（应用打开时调用）。
+   * 只启动持久化为启用的条目，连接过程后台进行，不阻塞应用打开。
+   */
+  async startAppOwnedMcpServers(appId: string): Promise<void> {
+    return this.runAppMcpLifecycle(appId, async () => {
+      if (!(await this.mcpSettings.getMcpEnabled())) return
+      for (const [serverName, config] of await this.listAppOwnedMcpServers(appId)) {
+        if (config.enabled === false) continue
+        if (this.pluginRuntimeSupervisor.ownsServer(serverName)) continue
+        this.startServerInBackground(
+          serverName,
+          `[MCP] App MCP ${serverName} started for ${appId}`,
+          `[MCP] Failed to start app MCP ${serverName} for ${appId}:`
+        )
+      }
+    })
+  }
+
+  /**
+   * 停止某个子应用名下的全部 MCP（应用关闭时调用）。
+   * 保留持久化的启用状态，下一次打开可再次启动。
+   */
+  async stopAppOwnedMcpServers(appId: string): Promise<void> {
+    return this.runAppMcpLifecycle(appId, async () => {
+      for (const [serverName] of await this.listAppOwnedMcpServers(appId)) {
+        if (this.pluginRuntimeSupervisor.ownsServer(serverName)) continue
+        if (
+          !this.serverManager.isServerRunning(serverName) &&
+          !this.serverManager.isServerActive(serverName)
+        ) {
+          continue
+        }
+        try {
+          await this.stopServerDirect(serverName)
+        } catch (error) {
+          console.error(`[MCP] Failed to stop app MCP ${serverName} for ${appId}:`, error)
+        }
+      }
+    })
+  }
+
+  /** 同一应用的启停按调用顺序串行执行。 */
+  private runAppMcpLifecycle(appId: string, task: () => Promise<void>): Promise<void> {
+    const key = appId.trim()
+    if (!key) return Promise.resolve()
+    const previous = this.appMcpLifecycleTails.get(key) ?? Promise.resolve()
+    const next = previous.then(task, task)
+    this.appMcpLifecycleTails.set(key, next)
+    void next
+      .catch(() => undefined)
+      .finally(() => {
+        if (this.appMcpLifecycleTails.get(key) === next) this.appMcpLifecycleTails.delete(key)
+      })
+    return next
+  }
+
+  /** 按应用 id 找出 `mcp.create` 写入的 MCP 及其配置。 */
+  private async listAppOwnedMcpServers(appId: string): Promise<Array<[string, MCPServerConfig]>> {
+    const id = appId.trim()
+    if (!id) return []
+    const servers = await this.mcpSettings.getMcpServers()
+    return Object.entries(servers).filter(
+      (entry): entry is [string, MCPServerConfig] =>
+        entry[1]?.source === JIAORONG_APP_MCP_SOURCE && entry[1].sourceId === id
+    )
   }
 
   getServerLastError(serverName: string): string | undefined {
@@ -1229,6 +1303,7 @@ export class McpService implements McpServicePort {
           (serverName) =>
             (!selectedServerNames || selectedServerNames.has(serverName)) &&
             !this.isPluginOwnedServerConfig(serverConfigs[serverName], serverName) &&
+            !isJiaorongAppOwnedMcpServer(serverConfigs[serverName]) &&
             !this.pluginRuntimeSupervisor.ownsServer(serverName) &&
             this.isServerVisibleToAgent(serverName, context, serverConfigs)
         )
@@ -1602,7 +1677,8 @@ export class McpService implements McpServicePort {
       for (const serverName of enabledServers) {
         if (
           this.pluginRuntimeSupervisor.ownsServer(serverName) ||
-          this.isPluginOwnedServerConfig(servers[serverName], serverName)
+          this.isPluginOwnedServerConfig(servers[serverName], serverName) ||
+          isJiaorongAppOwnedMcpServer(servers[serverName])
         ) {
           continue
         }
