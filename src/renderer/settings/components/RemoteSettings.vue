@@ -1,6 +1,6 @@
 <template>
   <component :is="rootComponent" data-testid="settings-remote-page" class="h-full w-full">
-    <div class="flex h-full w-full flex-col gap-4 p-4">
+    <div class="remote-settings-content--unified flex h-full w-full flex-col gap-4 p-4">
       <div v-if="isLoading" class="flex flex-col gap-4">
         <Skeleton class="h-6 w-48 rounded bg-muted/50" />
         <Skeleton class="h-20 rounded-xl bg-muted/40" />
@@ -66,8 +66,8 @@
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="telegram" class="space-y-4">
-            <div class="rounded-lg border bg-muted/20 p-4">
+          <TabsContent value="telegram" class="remote-channel-page space-y-4">
+            <div class="remote-card rounded-lg border bg-muted/20 p-4">
               <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div class="space-y-1">
                   <div class="flex flex-wrap items-center gap-2">
@@ -75,6 +75,7 @@
                     <DcStatusPill
                       :status="statusPillStatus(telegramStatus.state)"
                       :label="formatStatusLine(telegramStatus)"
+                      :class="remoteStatusTagClass(telegramStatus.state)"
                     />
                   </div>
                   <p class="text-sm text-muted-foreground">
@@ -104,7 +105,7 @@
               </div>
             </div>
 
-            <div class="rounded-lg border p-4">
+            <div class="remote-card rounded-lg border p-4">
               <div class="space-y-4">
                 <div class="space-y-1">
                   <div class="text-sm font-medium">
@@ -144,7 +145,7 @@
               </div>
             </div>
 
-            <div class="rounded-lg border p-4">
+            <div class="remote-card rounded-lg border p-4">
               <div class="space-y-4">
                 <div class="space-y-1">
                   <div class="text-sm font-medium">
@@ -189,7 +190,7 @@
                         <DcButton
                           variant="outline"
                           size="sm"
-                          class="h-8 w-full min-w-0 justify-between gap-1.5 px-2.5 text-xs"
+                          class="remote-workdir-trigger h-8 w-full min-w-0 justify-between gap-1.5 px-2.5 text-xs"
                           :title="defaultWorkdirTitle('telegram')"
                         >
                           <div class="flex min-w-0 items-center gap-1.5">
@@ -279,8 +280,8 @@
             </div>
           </TabsContent>
 
-          <TabsContent value="feishu" class="space-y-4">
-            <div class="rounded-lg border bg-muted/20 p-4">
+          <TabsContent value="feishu" class="remote-channel-page space-y-4">
+            <div class="remote-card rounded-lg border bg-muted/20 p-4">
               <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div class="space-y-1">
                   <div class="flex flex-wrap items-center gap-2">
@@ -288,6 +289,7 @@
                     <DcStatusPill
                       :status="statusPillStatus(feishuStatus.state)"
                       :label="formatStatusLine(feishuStatus)"
+                      :class="remoteStatusTagClass(feishuStatus.state)"
                     />
                   </div>
                   <p class="text-sm text-muted-foreground">
@@ -317,7 +319,7 @@
               </div>
             </div>
 
-            <div class="rounded-lg border p-4">
+            <div class="remote-card rounded-lg border p-4">
               <div class="space-y-4">
                 <div class="space-y-1">
                   <div class="text-sm font-medium">
@@ -398,7 +400,7 @@
                   </div>
                 </div>
 
-                <div class="rounded-lg border bg-muted/20 p-3 text-sm">
+                <div class="remote-section-card rounded-lg border bg-muted/20 p-3 text-sm">
                   <div class="font-medium">{{ t('settings.remote.feishu.installTitle') }}</div>
                   <p class="mt-1 text-muted-foreground">
                     {{ t('settings.remote.feishu.installDescription') }}
@@ -472,7 +474,9 @@
                   </div>
                 </div>
 
-                <div class="rounded-lg border border-dashed bg-muted/20 p-3 text-sm">
+                <div
+                  class="remote-section-card rounded-lg border border-dashed bg-muted/20 p-3 text-sm"
+                >
                   <div class="font-medium">{{ t('settings.remote.feishu.manualSetupTitle') }}</div>
                   <p class="mt-1 text-muted-foreground">
                     {{ t('settings.remote.feishu.manualSetupDescription') }}
@@ -496,13 +500,15 @@
                   </div>
                 </div>
 
-                <div class="rounded-lg border bg-muted/20 p-3 text-sm">
+                <div class="remote-section-card rounded-lg border bg-muted/20 p-3 text-sm">
                   <div class="font-medium">{{ t('settings.remote.feishu.userAuthTitle') }}</div>
                   <p class="mt-1 text-muted-foreground">
                     {{ t('settings.remote.feishu.userAuthDescription') }}
                   </p>
                   <div class="mt-3 grid gap-3 md:grid-cols-2">
-                    <div class="rounded-md border border-dashed bg-background/60 p-3">
+                    <div
+                      class="remote-info-block rounded-md border border-dashed bg-background/60 p-3"
+                    >
                       <div class="text-xs font-medium text-foreground">
                         {{ t('settings.remote.feishu.pairAuthTitle') }}
                       </div>
@@ -510,7 +516,9 @@
                         {{ t('settings.remote.feishu.pairAuthDescription') }}
                       </p>
                     </div>
-                    <div class="rounded-md border border-dashed bg-background/60 p-3">
+                    <div
+                      class="remote-info-block rounded-md border border-dashed bg-background/60 p-3"
+                    >
                       <div class="text-xs font-medium text-foreground">
                         {{ t('settings.remote.feishu.scanAuthTitle') }}
                       </div>
@@ -577,7 +585,7 @@
               </div>
             </div>
 
-            <div class="rounded-lg border p-4">
+            <div class="remote-card rounded-lg border p-4">
               <div class="space-y-4">
                 <div class="space-y-1">
                   <div class="text-sm font-medium">
@@ -589,14 +597,14 @@
                 </div>
 
                 <div
-                  class="rounded-lg border border-dashed bg-muted/20 p-3 text-sm text-muted-foreground"
+                  class="remote-info-block rounded-lg border border-dashed bg-muted/20 p-3 text-sm text-muted-foreground"
                 >
                   <div>{{ t('settings.remote.feishu.accessRule1') }}</div>
                   <div class="mt-1">{{ t('settings.remote.feishu.accessRule2') }}</div>
                 </div>
 
                 <label
-                  class="flex items-start justify-between gap-4 rounded-lg border bg-muted/20 p-3 text-sm"
+                  class="remote-streaming-row flex items-start justify-between gap-4 rounded-lg border bg-muted/20 p-3 text-sm"
                 >
                   <div class="space-y-1">
                     <div class="font-medium">{{ t('settings.remote.feishu.streamingCards') }}</div>
@@ -654,7 +662,7 @@
                         <DcButton
                           variant="outline"
                           size="sm"
-                          class="h-8 w-full min-w-0 justify-between gap-1.5 px-2.5 text-xs"
+                          class="remote-workdir-trigger h-8 w-full min-w-0 justify-between gap-1.5 px-2.5 text-xs"
                           :title="defaultWorkdirTitle('feishu')"
                         >
                           <div class="flex min-w-0 items-center gap-1.5">
@@ -709,7 +717,7 @@
                         />
                       </DropdownMenuContent>
                     </DropdownMenu>
-                    <p class="text-xs text-muted-foreground">
+                    <p class="text-xs text-muted-foreground mt-2">
                       {{ t('settings.remote.remoteControl.defaultWorkdirHelper') }}
                     </p>
                   </div>
@@ -730,8 +738,8 @@
             </div>
           </TabsContent>
 
-          <TabsContent value="qqbot" class="space-y-4">
-            <div class="rounded-lg border bg-muted/20 p-4">
+          <TabsContent value="qqbot" class="remote-channel-page space-y-4">
+            <div class="remote-card rounded-lg border bg-muted/20 p-4">
               <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div class="space-y-1">
                   <div class="flex flex-wrap items-center gap-2">
@@ -739,6 +747,7 @@
                     <DcStatusPill
                       :status="statusPillStatus(qqbotStatus.state)"
                       :label="formatStatusLine(qqbotStatus)"
+                      :class="remoteStatusTagClass(qqbotStatus.state)"
                     />
                   </div>
                   <p class="text-sm text-muted-foreground">
@@ -768,7 +777,7 @@
               </div>
             </div>
 
-            <div class="rounded-lg border p-4">
+            <div class="remote-card rounded-lg border p-4">
               <div class="space-y-4">
                 <div class="space-y-1">
                   <div class="text-sm font-medium">
@@ -803,7 +812,7 @@
               </div>
             </div>
 
-            <div class="rounded-lg border p-4">
+            <div class="remote-card rounded-lg border p-4">
               <div class="space-y-4">
                 <div class="space-y-1">
                   <div class="text-sm font-medium">
@@ -848,7 +857,7 @@
                         <DcButton
                           variant="outline"
                           size="sm"
-                          class="h-8 w-full min-w-0 justify-between gap-1.5 px-2.5 text-xs"
+                          class="remote-workdir-trigger h-8 w-full min-w-0 justify-between gap-1.5 px-2.5 text-xs"
                           :title="defaultWorkdirTitle('qqbot')"
                         >
                           <div class="flex min-w-0 items-center gap-1.5">
@@ -936,8 +945,8 @@
             </div>
           </TabsContent>
 
-          <TabsContent value="discord" class="space-y-4">
-            <div class="rounded-lg border bg-muted/20 p-4">
+          <TabsContent value="discord" class="remote-channel-page space-y-4">
+            <div class="remote-card rounded-lg border bg-muted/20 p-4">
               <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div class="space-y-1">
                   <div class="flex flex-wrap items-center gap-2">
@@ -945,6 +954,7 @@
                     <DcStatusPill
                       :status="statusPillStatus(discordStatus.state)"
                       :label="formatStatusLine(discordStatus)"
+                      :class="remoteStatusTagClass(discordStatus.state)"
                     />
                   </div>
                   <p class="text-sm text-muted-foreground">
@@ -974,7 +984,7 @@
               </div>
             </div>
 
-            <div class="rounded-lg border p-4">
+            <div class="remote-card rounded-lg border p-4">
               <div class="space-y-4">
                 <div class="space-y-1">
                   <div class="text-sm font-medium">
@@ -1011,7 +1021,7 @@
               </div>
             </div>
 
-            <div class="rounded-lg border p-4">
+            <div class="remote-card rounded-lg border p-4">
               <div class="space-y-4">
                 <div class="space-y-1">
                   <div class="text-sm font-medium">
@@ -1023,7 +1033,7 @@
                 </div>
 
                 <div
-                  class="rounded-lg border border-dashed bg-muted/20 p-3 text-sm text-muted-foreground"
+                  class="remote-info-block rounded-lg border border-dashed bg-muted/20 p-3 text-sm text-muted-foreground"
                 >
                   <div>{{ t('settings.remote.discord.accessRule1') }}</div>
                   <div class="mt-1">{{ t('settings.remote.discord.accessRule2') }}</div>
@@ -1063,7 +1073,7 @@
                         <DcButton
                           variant="outline"
                           size="sm"
-                          class="h-8 w-full min-w-0 justify-between gap-1.5 px-2.5 text-xs"
+                          class="remote-workdir-trigger h-8 w-full min-w-0 justify-between gap-1.5 px-2.5 text-xs"
                           :title="defaultWorkdirTitle('discord')"
                         >
                           <div class="flex min-w-0 items-center gap-1.5">
@@ -1153,21 +1163,26 @@
             </div>
           </TabsContent>
 
-          <TabsContent value="weixin-ilink" class="space-y-4">
-            <div class="rounded-lg border bg-muted/20 p-4">
+          <TabsContent value="weixin-ilink" class="remote-channel-page space-y-4">
+            <div
+              class="remote-card weixin-ilink-card weixin-ilink-summary rounded-lg border border-[#D5E0ED] bg-white p-4"
+            >
               <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div class="space-y-1">
                   <div class="flex flex-wrap items-center gap-2">
-                    <div class="text-base font-medium">{{ channelTitle('weixin-ilink') }}</div>
+                    <div class="weixin-ilink-section-title text-base font-medium">
+                      {{ channelTitle('weixin-ilink') }}
+                    </div>
                     <DcStatusPill
                       :status="statusPillStatus(weixinIlinkStatus.state)"
                       :label="formatStatusLine(weixinIlinkStatus)"
+                      :class="remoteStatusTagClass(weixinIlinkStatus.state)"
                     />
                   </div>
-                  <p class="text-sm text-muted-foreground">
+                  <p class="weixin-ilink-description text-sm text-muted-foreground">
                     {{ t('settings.remote.weixinIlink.description') }}
                   </p>
-                  <p class="text-xs text-muted-foreground">
+                  <p class="weixin-ilink-overview text-xs text-muted-foreground text-[#5C78A0]">
                     {{ formatOverviewLine('weixin-ilink') }}
                   </p>
                   <p v-if="weixinIlinkStatus.lastError" class="break-all text-xs text-destructive">
@@ -1191,10 +1206,12 @@
               </div>
             </div>
 
-            <div class="rounded-lg border p-4">
+            <div
+              class="remote-card weixin-ilink-card weixin-ilink-login rounded-lg border border-[#D5E0ED] bg-white p-4"
+            >
               <div class="space-y-4">
                 <div
-                  class="rounded-lg border border-dashed bg-muted/20 p-3 text-sm text-muted-foreground"
+                  class="remote-info-block weixin-ilink-notice rounded-lg border border-[#D5E0ED] p-4 text-[13px] leading-5 text-[#5C78A0]"
                 >
                   <div>{{ t('settings.remote.weixinIlink.loginDescription') }}</div>
                   <div class="mt-1">{{ t('settings.remote.weixinIlink.ownerOnlyNotice') }}</div>
@@ -1205,6 +1222,7 @@
                     data-testid="weixin-ilink-connect-button"
                     variant="outline"
                     size="sm"
+                    class="weixin-ilink-action-button h-9 rounded-lg border-[#D5E0ED] bg-white text-[13px] text-[#1C324D] shadow-none"
                     :disabled="
                       weixinIlinkLoginBusy ||
                       saving['weixin-ilink'] ||
@@ -1229,19 +1247,21 @@
               </div>
             </div>
 
-            <div class="rounded-lg border p-4">
+            <div
+              class="remote-card weixin-ilink-card weixin-ilink-accounts rounded-lg border border-[#D5E0ED] bg-white p-4"
+            >
               <div class="mb-3 space-y-1">
-                <div class="text-sm font-medium">
+                <div class="weixin-ilink-section-title text-sm font-medium">
                   {{ t('settings.remote.weixinIlink.accountsTitle') }}
                 </div>
-                <p class="text-sm text-muted-foreground">
+                <p class="weixin-ilink-description text-sm text-muted-foreground">
                   {{ t('settings.remote.weixinIlink.accountsDescription') }}
                 </p>
               </div>
 
               <div
                 v-if="weixinIlinkStatus.accounts.length === 0"
-                class="rounded-lg border border-dashed p-4 text-sm text-muted-foreground"
+                class="remote-info-block weixin-ilink-empty rounded-lg border-0 p-6 text-center text-[13px] text-[#5C78A0]"
               >
                 {{ t('settings.remote.weixinIlink.noAccounts') }}
               </div>
@@ -1249,7 +1269,7 @@
                 <div
                   v-for="account in weixinIlinkStatus.accounts"
                   :key="account.accountId"
-                  class="rounded-lg border p-3"
+                  class="weixin-ilink-account rounded-lg border border-[#D5E0ED] bg-white p-3"
                 >
                   <div class="flex flex-wrap items-start justify-between gap-3">
                     <div class="min-w-0 flex-1">
@@ -1273,8 +1293,8 @@
                     <div class="flex flex-col items-end gap-2">
                       <span
                         :class="[
-                          'inline-flex rounded-full px-2 py-1 text-[11px]',
-                          statusDotClass(account.state)
+                          'inline-flex rounded-full border-0 px-2 py-1 text-[11px]',
+                          remoteStatusTagClass(account.state)
                         ]"
                       >
                         {{ t(`settings.remote.status.states.${account.state}`) }}
@@ -1338,20 +1358,24 @@
               </div>
             </div>
 
-            <div class="rounded-lg border p-4">
+            <div
+              class="remote-card weixin-ilink-card weixin-ilink-remote-control rounded-lg border border-[#D5E0ED] bg-white p-4"
+            >
               <div class="space-y-4">
                 <div class="space-y-1">
-                  <div class="text-sm font-medium">
+                  <div class="weixin-ilink-section-title text-sm font-medium">
                     {{ t('settings.remote.sections.remoteControl') }}
                   </div>
-                  <p class="text-sm text-muted-foreground">
+                  <p class="weixin-ilink-description text-sm text-muted-foreground">
                     {{ t('settings.remote.weixinIlink.remoteControlDescription') }}
                   </p>
                 </div>
 
-                <div class="grid grid-cols-1 gap-4">
+                <div
+                  class="weixin-ilink-control-grid grid grid-cols-1 gap-4 md:grid-cols-2"
+                >
                   <div class="space-y-2">
-                    <Label class="text-xs text-muted-foreground">
+                    <Label class="text-xs text-[#1C324D]">
                       {{ t('settings.remote.remoteControl.defaultAgent') }}
                     </Label>
                     <Select
@@ -1360,7 +1384,9 @@
                         (value) => updateWeixinIlinkDefaultAgentId(String(value))
                       "
                     >
-                      <SelectTrigger class="h-8!">
+                      <SelectTrigger
+                        class="h-9! w-full rounded-md border-[#D5E0ED] bg-[#F7FAFE] text-[#1C324D] shadow-none"
+                      >
                         <SelectValue
                           :placeholder="t('settings.remote.remoteControl.defaultAgentPlaceholder')"
                         />
@@ -1377,7 +1403,7 @@
                     </Select>
                   </div>
                   <div class="space-y-2">
-                    <Label class="text-xs text-muted-foreground">
+                    <Label class="text-xs text-[#1C324D]">
                       {{ t('settings.remote.remoteControl.defaultWorkdir') }}
                     </Label>
                     <DropdownMenu>
@@ -1385,7 +1411,7 @@
                         <DcButton
                           variant="outline"
                           size="sm"
-                          class="h-8 w-full min-w-0 justify-between gap-1.5 px-2.5 text-xs"
+                          class="remote-workdir-trigger weixin-ilink-action-button h-9 w-full min-w-0 justify-between gap-1.5 rounded-md border-[#D5E0ED] px-2.5 text-[13px] text-[#1C324D] shadow-none"
                           :title="defaultWorkdirTitle('weixin-ilink')"
                         >
                           <div class="flex min-w-0 items-center gap-1.5">
@@ -1442,7 +1468,7 @@
                         />
                       </DropdownMenuContent>
                     </DropdownMenu>
-                    <p class="text-xs text-muted-foreground">
+                    <p class="text-xs text-[#5C78A0] pt-2">
                       {{ t('settings.remote.remoteControl.defaultWorkdirHelper') }}
                     </p>
                   </div>
@@ -1452,6 +1478,7 @@
                   <DcButton
                     variant="outline"
                     size="sm"
+                    class="weixin-ilink-action-button h-9 rounded-lg border-[#D5E0ED] bg-white text-[13px] text-[#1C324D] shadow-none"
                     :disabled="saving['weixin-ilink']"
                     @click="openBindingsDialog('weixin-ilink')"
                   >
@@ -4074,6 +4101,19 @@ const statusDotClass = (state: RemoteRuntimeState, dotOnly = false) => {
   return dotOnly ? 'bg-muted-foreground/50' : 'bg-muted text-muted-foreground'
 }
 
+const remoteStatusTagClass = (state: RemoteRuntimeState) => {
+  if (state === 'running') {
+    return 'border-0 bg-[rgba(51,183,55,0.08)] text-[#33B737] [&_span]:bg-[#33B737]'
+  }
+  if (state === 'starting' || state === 'backoff') {
+    return 'border-0 bg-[#FFF7E8] text-[#FF7D00] [&_span]:bg-[#FF7D00]'
+  }
+  if (state === 'error') {
+    return 'border-0 bg-[#FFF1F0] text-[#F53F3F] [&_span]:bg-[#F53F3F]'
+  }
+  return 'border-0 bg-[#F1F5FA] text-[#86909C] [&_span]:bg-[#86909C]'
+}
+
 const selectedFeishuSetupUrls = computed(() => {
   const brand = feishuSettings.value?.brand === 'lark' ? 'lark' : 'feishu'
   const baseUrl = brand === 'lark' ? 'https://open.larksuite.com' : 'https://open.feishu.cn'
@@ -4284,3 +4324,108 @@ onUnmounted(() => {
   closeWeixinIlinkLoginDialog()
 })
 </script>
+
+<style scoped>
+.remote-settings-content--unified {
+  gap: 16px;
+  padding: 0;
+}
+
+.remote-settings-content--unified .remote-channel-page {
+  gap: 16px;
+}
+
+.remote-settings-content--unified .remote-card {
+  padding: 16px;
+  border: 1px solid #d5e0ed;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.remote-settings-content--unified .remote-card .text-base.font-medium,
+.remote-settings-content--unified .remote-card .text-sm.font-medium {
+  color: #1c324d;
+  font-weight: 600;
+}
+
+.remote-settings-content--unified .remote-card p.text-sm.text-muted-foreground {
+  color: #5c78a0;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.remote-settings-content--unified .remote-card p.text-xs.text-muted-foreground {
+  color: #5c78a0;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.remote-settings-content--unified .remote-card .remote-section-card {
+  border-color: #d5e0ed;
+  border-radius: 8px;
+  background-color: #ffffff;
+}
+
+.remote-settings-content--unified .remote-card .remote-info-block {
+  border-color: #d5e0ed;
+  background-color: #f7fafe;
+}
+
+.remote-settings-content--unified .remote-card .remote-streaming-row {
+  background-color: #ffffff;
+}
+
+.remote-settings-content--unified .remote-card .text-xs.font-medium.text-foreground,
+.remote-settings-content--unified .remote-card :deep(label) {
+  color: #1c324d;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.remote-settings-content--unified .remote-card p:not(.text-destructive),
+.remote-settings-content--unified .remote-card li {
+  color: #5c78a0;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.remote-settings-content--unified .remote-card :deep([data-slot='select-trigger']) {
+  height: 36px;
+  width: 100%;
+  border-color: #d5e0ed;
+  border-radius: 6px;
+  background-color: #f7fafe;
+  color: #1c324d;
+  font-size: 13px;
+  box-shadow: none;
+}
+
+.remote-settings-content--unified .remote-card :deep(input) {
+  height: 36px;
+  border-color: #d5e0ed;
+  border-radius: 6px;
+  background-color: #f7fafe;
+  color: #1c324d;
+  font-size: 13px;
+  box-shadow: none;
+}
+
+.remote-settings-content--unified .remote-card :deep([data-slot='dc-button']) {
+  height: 36px;
+  border-color: #d5e0ed;
+  border-radius: 8px;
+  font-size: 13px;
+  box-shadow: none;
+}
+
+.remote-settings-content--unified .remote-card :deep(.remote-workdir-trigger) {
+  background-color: #f7fafe;
+}
+
+.remote-settings-content--unified
+  .remote-card
+  :deep([data-slot='switch'][data-state='unchecked']) {
+  background: #d5e0ed;
+}
+
+</style>

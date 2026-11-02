@@ -1,12 +1,12 @@
 <template>
-  <div v-if="isMarketView" data-testid="settings-mcp-page" class="w-full h-full">
+  <div v-if="isMarketView" data-testid="settings-mcp-page" class="mcp-settings-page w-full h-full">
     <McpBuiltinMarket embedded @back="closeMarketView" />
   </div>
 
   <div
     v-else-if="showMcpSkeleton || agentPolicyLoading"
     data-testid="settings-mcp-page"
-    class="flex h-full w-full flex-col gap-4 p-8"
+    class="mcp-settings-page flex h-full w-full flex-col gap-4 px-8 pt-6 pb-8"
   >
     <Skeleton class="h-16 rounded-xl bg-muted/40" />
     <Skeleton class="h-24 rounded-xl bg-muted/30" />
@@ -18,33 +18,29 @@
     v-else
     ref="guideRootRef"
     data-testid="settings-mcp-page"
-    class="w-full h-full min-h-0 flex flex-col"
+    class="mcp-settings-page w-full h-full min-h-0 flex flex-col"
   >
-    <div class="shrink-0 px-8 pt-8">
+    <div class="shrink-0 px-8 pt-6">
       <div class="flex flex-col gap-3">
-        <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div class="flex flex-wrap items-center justify-between gap-2">
           <div :dir="languageStore.dir" class="min-w-0">
-            <h1 class="text-lg font-semibold">{{ pageTitle }}</h1>
-            <p class="text-xs text-muted-foreground">
-              {{ pageDescription }}
-            </p>
+            <h1 class="text-base font-semibold text-[#0B2B57]" style="margin: 0; font-size: 24px;">{{ pageTitle }}</h1>
           </div>
           <div
             ref="mcpActionsRef"
-            class="flex shrink-0 items-center gap-3"
+            class="flex shrink-0 items-center gap-2"
             @click="handleMcpGuideTargetInteract"
           >
-            <DcButton v-if="mcpEnabled" size="sm" @click="openAddServerDialog">
-              <Icon icon="lucide:plus" class="size-4" />
-              {{ t('common.add') }}
+            <DcButton
+              v-if="mcpEnabled"
+              size="sm"
+              class="h-9 min-w-[118px] max-w-full rounded-[7px] px-5 text-[13px] font-medium"
+              @click="openAddServerDialog"
+            >
+              <Icon icon="lucide:plus" class="size-3.5" />
+              {{ t('common.add') }} MCP
             </DcButton>
-            <span data-mcp-market-button>
-              <DcButton variant="outline" size="sm" @click="openMarketView">
-                <Icon icon="lucide:shopping-bag" class="size-4" />
-                {{ t('routes.settings-mcp-market') }}
-              </DcButton>
-            </span>
-            <span data-mcp-master-switch>
+            <span v-if="!mcpEnabled" data-mcp-master-switch>
               <Switch
                 dir="ltr"
                 :model-value="mcpEnabled"
@@ -55,7 +51,6 @@
           </div>
         </div>
       </div>
-      <Separator class="mt-3" />
     </div>
 
     <!-- Server list -->
@@ -64,7 +59,7 @@
         <div
           v-if="agentPolicyError"
           role="alert"
-          class="mx-8 mt-8 flex items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3"
+          class="mx-8 mt-6 flex items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3"
         >
           <span class="text-sm text-destructive">{{ agentPolicyError }}</span>
           <DcButton size="sm" variant="outline" @click="loadAgentPolicy">
@@ -73,7 +68,7 @@
         </div>
         <McpServers
           v-else
-          ref="mcpServersRef"
+          v-model:add-open="isAddServerDialogOpen"
           :show-footer-add-button="false"
           :server-enabled-overrides="serverEnabledOverrides"
           :server-loading-overrides="serverLoadingOverrides"
@@ -247,7 +242,6 @@ import { DcButton } from '@dc-ui/components/button'
 import { Input } from '@shadcn/components/ui/input'
 import { Skeleton } from '@shadcn/components/ui/skeleton'
 import { Icon } from '@iconify/vue'
-import { Separator } from '@shadcn/components/ui/separator'
 import {
   Dialog,
   DialogContent,
@@ -288,7 +282,7 @@ const configClient = createConfigClient()
 const route = useRoute()
 const router = useRouter()
 const windowClient = createWindowClient()
-const mcpServersRef = ref<{ openAddServerDialog: () => void } | null>(null)
+const isAddServerDialogOpen = ref(false)
 const guideRootRef = ref<HTMLElement | null>(null)
 const mcpActionsRef = ref<HTMLElement | null>(null)
 const mcpGuide = useGuidedOnboardingStep('mcp')
@@ -296,15 +290,7 @@ const showMcpGuide = computed(() => mcpGuide.showGuide.value && Boolean(mcpActio
 
 const mcpEnabled = computed(() => mcpStore.mcpEnabled)
 const isMarketView = computed(() => route.query.view === 'market')
-const isPluginCenterMcpView = computed(() => route.name === 'plugins-mcp')
-const pageTitle = computed(() =>
-  isPluginCenterMcpView.value ? t('routes.pluginCenterMcp') : t('settings.mcp.center.title')
-)
-const pageDescription = computed(() =>
-  isPluginCenterMcpView.value
-    ? t('routes.pluginCenterMcpSubtitle')
-    : t('settings.mcp.enabledDescription')
-)
+const pageTitle = computed(() => t('settings.mcp.center.title'))
 const showMcpSkeleton = computed(() => mcpStore.configLoading && !mcpStore.config.ready)
 
 const npmRegistryStatus = ref<{
@@ -622,7 +608,7 @@ const handleToggleAgentServer = async (serverName: string, enabled: boolean) => 
 }
 
 const openAddServerDialog = () => {
-  mcpServersRef.value?.openAddServerDialog()
+  isAddServerDialogOpen.value = true
 }
 
 const loadNpmRegistryStatus = async (reportError = true): Promise<boolean> => {
@@ -846,18 +832,11 @@ const closeMarketView = async () => {
     query: nextQuery
   })
 }
-
-const openMarketView = async () => {
-  const routeName =
-    typeof router.hasRoute === 'function' && router.hasRoute('plugins-mcp')
-      ? 'plugins-mcp'
-      : 'settings-mcp'
-  await router.push({
-    name: routeName,
-    query: {
-      ...route.query,
-      view: 'market'
-    }
-  })
-}
 </script>
+
+<style scoped>
+.mcp-settings-page {
+  --scp-primary: #006eff;
+  --primary: var(--scp-primary);
+}
+</style>

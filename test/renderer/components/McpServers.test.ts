@@ -57,7 +57,7 @@ const mcpServerFormStub = defineComponent({
     nameError: { type: String, default: undefined },
     submissionError: { type: String, default: undefined }
   },
-  emits: ['submit', 'input-change', 'name-change'],
+  emits: ['submit', 'input-change', 'name-change', 'step-change'],
   template: `
     <div>
       <p v-if="nameError || submissionError" data-testid="add-server-error">
@@ -79,6 +79,9 @@ const mcpServerFormStub = defineComponent({
       <button data-testid="change-server-command" @click="$emit('input-change')">
         change command
       </button>
+      <button data-testid="show-detailed-form" @click="$emit('step-change', 'detailed')">
+        show detailed
+      </button>
     </div>
   `
 })
@@ -86,6 +89,7 @@ const mcpServerFormStub = defineComponent({
 type SetupOptions = {
   withServers?: boolean
   showFooterAddButton?: boolean
+  addOpen?: boolean
   serverList?: Array<Record<string, unknown> & { name: string }>
   config?: {
     mcpServers?: Record<string, Record<string, unknown>>
@@ -230,7 +234,8 @@ const setup = async (options: SetupOptions = {}) => {
 
   const wrapper = mount(McpServers, {
     props: {
-      showFooterAddButton: options.showFooterAddButton
+      showFooterAddButton: options.showFooterAddButton,
+      addOpen: options.addOpen
     },
     global: {
       stubs: {
@@ -283,11 +288,64 @@ describe('McpServers', () => {
     expect(wrapper.text()).not.toContain('common.add')
   })
 
+  it('keeps the add dialog mounted when the footer button is hidden', async () => {
+    const { wrapper } = await setup({ showFooterAddButton: false, addOpen: true })
+    const addDialog = wrapper
+      .findAllComponents(dialogStub)
+      .find((dialog) => dialog.props('open') === true)
+
+    expect(addDialog).toBeDefined()
+  })
+
+  it('sizes the add dialog for the active form step', async () => {
+    const { wrapper } = await setup({ addOpen: true })
+    const addDialogContent = wrapper.findAllComponents({ name: 'DialogContent' })[0]
+
+    expect(addDialogContent.attributes('style')).toContain('width: 680px')
+    expect(addDialogContent.attributes('style')).toContain('height: 640px')
+
+    await wrapper.find('[data-testid="show-detailed-form"]').trigger('click')
+
+    expect(addDialogContent.attributes('style')).toContain('width: 760px')
+    expect(addDialogContent.attributes('style')).toContain('height: 760px')
+  })
+
+  it('uses the same dialog size for manual add and edit', async () => {
+    const { wrapper } = await setup({ withServers: true, addOpen: true })
+    const dialogContents = wrapper.findAllComponents({ name: 'DialogContent' })
+
+    await wrapper.find('[data-testid="show-detailed-form"]').trigger('click')
+    ;(
+      wrapper.vm as unknown as { openEditServerDialog: (name: string) => void }
+    ).openEditServerDialog('running-server')
+    await wrapper.vm.$nextTick()
+
+    expect(dialogContents[0].attributes('style')).toContain('width: 760px')
+    expect(dialogContents[2].attributes('style')).toContain('width: 760px')
+    expect(dialogContents[2].attributes('style')).toContain('height: 760px')
+    expect(dialogContents[2].attributes('style')).toContain(
+      'min-width: min(760px, calc(100vw - 64px))'
+    )
+  })
+
   it('uses a localized refresh label in MCP diagnostics', async () => {
     const { wrapper } = await setup()
 
     expect(wrapper.text()).toContain('mcp.tools.refresh')
     expect(wrapper.text()).not.toContain('common.refresh')
+  })
+
+  it('applies the designed width to the diagnostics dialog', async () => {
+    const { wrapper } = await setup({ withServers: true })
+
+    await wrapper.find('[data-testid="diagnostics-server"]').trigger('click')
+    await wrapper.vm.$nextTick()
+
+    const diagnosticsContent = wrapper.findAllComponents({ name: 'DialogContent' }).at(-1)
+    expect(diagnosticsContent?.attributes('style')).toContain('width: 678px')
+    expect(diagnosticsContent?.attributes('style')).toContain(
+      'min-width: min(678px, calc(100vw - 64px))'
+    )
   })
 
   it('ignores diagnostics responses from a previously selected server', async () => {

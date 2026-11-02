@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
 import { DcButton } from '@dc-ui/components/button'
-import { DcStatusPill } from '@dc-ui/components/status-pill'
 import { DcTooltip } from '@dc-ui/components/tooltip'
 import { Switch } from '@shadcn/components/ui/switch'
 import {
@@ -132,39 +131,39 @@ const statusConfig = computed(() => {
   switch (serverStatus.value) {
     case 'running':
       return {
-        dot: 'bg-green-500',
+        dot: 'bg-[#00c750]',
         text: t('settings.mcp.running'),
-        color: 'text-green-600 dark:text-green-400'
+        color: 'text-[#00c750]'
       }
     case 'loading':
       return {
         dot: 'bg-blue-500 animate-pulse',
         text: t('settings.mcp.starting'),
-        color: 'text-blue-600 dark:text-blue-400'
+        color: 'text-blue-500'
       }
     case 'auth-required':
       return {
         dot: 'bg-yellow-500',
         text: t('settings.mcp.authRequired'),
-        color: 'text-yellow-600 dark:text-yellow-400'
+        color: 'text-yellow-500'
       }
     case 'auth-error':
       return {
         dot: 'bg-red-500',
         text: t('settings.mcp.authFailed'),
-        color: 'text-red-600 dark:text-red-400'
+        color: 'text-red-500'
       }
     case 'error':
       return {
         dot: 'bg-red-500',
         text: t('settings.mcp.error'),
-        color: 'text-red-600 dark:text-red-400'
+        color: 'text-red-500'
       }
     default:
       return {
-        dot: 'bg-gray-400',
+        dot: 'bg-[#86909c]',
         text: t('settings.mcp.stopped'),
-        color: 'text-muted-foreground'
+        color: 'text-[#86909c]'
       }
   }
 })
@@ -207,23 +206,25 @@ watch(watchDescription, () => {
   <div
     :data-mcp-server="server.name"
     :data-mcp-source="server.source || undefined"
-    class="bg-card flex flex-col shadow-sm border rounded-lg overflow-hidden transition-all duration-200 hover:shadow-md group"
+    class="bg-card group flex flex-col overflow-hidden rounded-lg border border-border/70 transition-all duration-200 hover:border-border"
   >
-    <div class="px-4 py-2 flex-1">
+    <div class="flex flex-1 flex-col p-4 pb-6">
       <!-- 头部：图标、名称、状态、菜单 -->
-      <div class="flex items-center justify-between mb-1">
+      <div class="flex items-center justify-between mb-3">
         <div class="flex items-center gap-1.5 flex-1 min-w-0">
           <!-- 服务器图标 -->
-          <img
-            v-if="pluginMcpIconSrc"
-            :src="pluginMcpIconSrc"
-            alt=""
-            class="size-4 shrink-0 rounded-[3px] object-contain"
-          />
-          <span v-else class="shrink-0">{{ server.icons }}</span>
+          <span class="flex size-7 shrink-0 items-center justify-center rounded-md bg-[#E8F1FF]">
+            <img
+              v-if="pluginMcpIconSrc"
+              :src="pluginMcpIconSrc"
+              alt=""
+              class="size-4 object-contain"
+            />
+            <span v-else>{{ server.icons }}</span>
+          </span>
 
           <!-- 名称 -->
-          <h3 class="text-sm font-bold truncate flex-1">
+          <h3 class="truncate flex-1 text-sm font-medium">
             {{ displayServerName }}
           </h3>
         </div>
@@ -242,7 +243,7 @@ watch(watchDescription, () => {
             <DcButton
               variant="ghost"
               size="icon"
-              class="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+              class="h-6 w-6 shrink-0"
               :tooltip="t('common.more')"
               @click.stop
             >
@@ -269,6 +270,8 @@ watch(watchDescription, () => {
               icon="lucide:trash-2"
               :label="t('settings.mcp.removeServer')"
               :disabled="disabled"
+              style="opacity: 1"
+              class="text-[#F53F3F] [&_svg]:text-[#F53F3F] focus:text-[#F53F3F] focus:[&_svg]:text-[#F53F3F] data-[disabled]:opacity-100"
               danger
               @select="$emit('remove')"
             />
@@ -279,26 +282,29 @@ watch(watchDescription, () => {
       <!-- 描述 -->
       <p
         ref="descriptionRef"
-        class="text-xs text-secondary-foreground overflow-hidden leading-5 break-all mb-2"
+        class="text-xs text-secondary-foreground overflow-hidden leading-5 break-all mb-3"
         :class="[
-          !isDescriptionExpanded ? 'line-clamp-1' : '',
+          !isDescriptionExpanded ? 'line-clamp-2' : '',
+          'flex-1',
           needsExpansion ? 'hover:text-foreground transition-colors' : ''
         ]"
-        style="min-height: 1rem"
         @click.stop="needsExpansion && (isDescriptionExpanded = !isDescriptionExpanded)"
       >
         {{ fullDescription }}
       </p>
 
       <!-- 底部控制 -->
-      <div class="flex items-center justify-between">
+      <div class="mt-auto flex items-center justify-between">
         <!-- 状态 -->
-        <div class="flex items-center space-x-1.5">
-          <DcStatusPill
-            :status="serverStatus"
-            :label="statusConfig.text"
-            :pulse="serverStatus === 'loading'"
+        <div class="flex items-center gap-1.5">
+          <span
+            class="size-1.5 shrink-0 rounded-full"
+            :class="statusConfig.dot"
+            aria-hidden="true"
           />
+          <span class="whitespace-nowrap text-xs leading-5" :class="statusConfig.color">
+            {{ statusConfig.text }}
+          </span>
 
           <!-- 错误提示 -->
           <DcTooltip v-if="server.errorMessage" :content="server.errorMessage" side="top">
@@ -340,12 +346,13 @@ watch(watchDescription, () => {
           <Switch
             :model-value="server.enabled"
             :disabled="disabled || isLoading"
+            class="data-[state=unchecked]:bg-[#D5E0ED]"
             @update:model-value="$emit('toggle')"
           />
         </div>
       </div>
     </div>
-    <div class="flex flex-row border-t h-9 items-center">
+    <div class="flex flex-row h-11 items-center border-t">
       <!-- 工具按钮 -->
       <DcButton
         v-if="toolsCount !== undefined"

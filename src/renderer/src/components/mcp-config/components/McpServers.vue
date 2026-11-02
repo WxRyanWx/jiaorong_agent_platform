@@ -64,12 +64,36 @@ const emit = defineEmits<{
   'toggle-agent-server': [serverName: string, enabled: boolean]
 }>()
 
-const isAddServerDialogOpen = ref(false)
+type McpServerFormStep = 'simple' | 'detailed'
+
+const isAddServerDialogOpen = defineModel<boolean>('addOpen', { default: false })
 const isEditServerDialogOpen = ref(false)
 const isRemoveConfirmDialogOpen = ref(false)
 const isAuthCallbackDialogOpen = ref(false)
 const addServerError = ref<'duplicate' | 'failed' | null>(null)
 const isAddingServer = ref(false)
+const addServerFormStep = ref<McpServerFormStep>('simple')
+const serverDialogBaseStyle = {
+  '--primary': '#006eff',
+  '--ring': '#006eff',
+  maxWidth: 'calc(100vw - 64px)',
+  maxHeight: 'calc(100vh - 48px)'
+}
+const addServerDialogStyle = computed(() => ({
+  ...serverDialogBaseStyle,
+  width: addServerFormStep.value === 'simple' ? '680px' : '760px',
+  height: addServerFormStep.value === 'simple' ? '640px' : '760px',
+  minWidth:
+    addServerFormStep.value === 'simple'
+      ? 'min(680px, calc(100vw - 64px))'
+      : 'min(760px, calc(100vw - 64px))'
+}))
+const editServerDialogStyle = {
+  ...serverDialogBaseStyle,
+  width: '760px',
+  height: '760px',
+  minWidth: 'min(760px, calc(100vw - 64px))'
+}
 const editServerError = ref<string | null>(null)
 const isEditingServer = ref(false)
 const removeServerError = ref<string | null>(null)
@@ -115,6 +139,7 @@ watch(
     if (!newIsAddServerDialogOpen) {
       mcpStore.clearMcpInstallCache()
       addServerError.value = null
+      addServerFormStep.value = 'simple'
     }
   },
   { flush: 'sync' }
@@ -723,19 +748,34 @@ defineExpose({
         class="border-0 py-8"
       />
 
-      <div v-else class="flex flex-col gap-3 py-3">
-        <div class="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-          <Input
-            v-model="searchQuery"
-            class="lg:max-w-sm"
-            :placeholder="t('settings.mcp.center.searchPlaceholder')"
-          />
-          <div class="flex flex-wrap gap-2">
+      <div v-else class="flex flex-col gap-6 pt-6 pb-8">
+        <div class="grid items-center gap-2 sm:grid-cols-2 sm:gap-3 lg:grid-cols-3">
+          <div class="relative w-full min-w-0">
+            <Icon
+              icon="lucide:search"
+              class="pointer-events-none absolute left-3 top-1/2 z-[1] size-4 -translate-y-1/2 text-muted-foreground"
+            />
+            <Input
+              v-model="searchQuery"
+              class="h-9 w-full rounded bg-background pl-9"
+              :placeholder="t('settings.mcp.center.searchPlaceholder')"
+            />
+          </div>
+          <div
+            class="flex shrink-0 flex-nowrap items-center justify-end gap-2 sm:col-span-1 lg:col-span-2"
+          >
             <DcButton
               v-for="filter in MCP_FILTERS"
               :key="filter"
               size="sm"
-              :variant="activeFilter === filter ? 'default' : 'outline'"
+              :variant="activeFilter === filter ? 'default' : 'ghost'"
+              class="h-8 rounded-full px-0 text-[13px] leading-[18px] font-normal shadow-none active:scale-100"
+              :class="[
+                filter === 'all' ? 'w-[62px]' : 'w-[75px]',
+                activeFilter === filter
+                  ? 'text-white hover:text-white'
+                  : 'bg-[#F1F5FA] text-[#5C78A0] hover:bg-[#F1F5FA] hover:text-[#5C78A0]'
+              ]"
               @click="activeFilter = filter"
             >
               {{ t(`settings.mcp.center.filters.${filter}`) }}
@@ -743,7 +783,7 @@ defineExpose({
           </div>
         </div>
 
-        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <McpServerCard
             v-for="server in filteredServers"
             :key="server.name"
@@ -794,7 +834,7 @@ defineExpose({
     </ScrollArea>
 
     <!-- Footer actions -->
-    <div class="shrink-0 border-t bg-background">
+    <div v-if="showFooterAddButton" class="shrink-0 border-t bg-background">
       <div class="flex items-center justify-between gap-3 px-8 py-3">
         <div class="flex min-w-0 flex-1 items-center gap-3">
           <slot name="status-bar">
@@ -820,43 +860,47 @@ defineExpose({
           <span v-if="!props.agentScopedToggle" data-mcp-enterprise-identity>
             <McpEnterpriseProfiles />
           </span>
-          <Dialog :open="isAddServerDialogOpen" @update:open="handleAddDialogOpenChange">
-            <DialogTrigger v-if="props.showFooterAddButton" as-child>
-              <DcButton size="sm" class="h-8 px-3 text-xs">
-                <Icon icon="lucide:plus" class="mr-1.5 h-3 w-3" />
-                {{ t('common.add') }}
-              </DcButton>
-            </DialogTrigger>
-            <DialogContent class="w-[95vw] max-w-[500px] px-0 h-[85vh] max-h-[500px] flex flex-col">
-              <DialogHeader class="px-3 shrink-0 pb-2">
-                <DialogTitle class="text-base">{{
-                  t('settings.mcp.addServerDialog.title')
-                }}</DialogTitle>
-                <DialogDescription class="text-sm">
-                  {{ t('settings.mcp.addServerDialog.description') }}
-                </DialogDescription>
-              </DialogHeader>
-              <McpServerForm
-                :default-json-config="mcpStore.mcpInstallCache || undefined"
-                :submitting="isAddingServer"
-                :name-error="
-                  addServerError === 'duplicate'
-                    ? t('settings.mcp.serverForm.nameDuplicate')
-                    : undefined
-                "
-                :submission-error="
-                  addServerError === 'failed' ? t('mcp.errors.addServerFailed') : undefined
-                "
-                @submit="handleAddServer"
-                @input-change="clearFailedAddServerError"
-                @name-change="clearAddServerError"
-              />
-            </DialogContent>
-          </Dialog>
           <slot name="footer-actions-after" />
         </div>
       </div>
     </div>
+
+    <Dialog :open="isAddServerDialogOpen" @update:open="handleAddDialogOpenChange">
+      <DialogTrigger v-if="props.showFooterAddButton" as-child>
+        <DcButton size="sm" class="h-8 px-3 text-xs">
+          <Icon icon="lucide:plus" class="mr-1.5 h-3 w-3" />
+          {{ t('common.add') }}
+        </DcButton>
+      </DialogTrigger>
+      <DialogContent
+        class="mcp-add-server-dialog flex min-h-0 flex-col gap-0 overflow-hidden rounded-xl p-0"
+        :style="addServerDialogStyle"
+      >
+        <DialogHeader class="shrink-0 gap-1 border-b border-[#edf0f4] px-6 py-4">
+          <DialogTitle class="text-base font-semibold">{{
+            t('settings.mcp.addServerDialog.title')
+          }}</DialogTitle>
+          <DialogDescription class="text-xs text-muted-foreground">
+            {{ t('settings.mcp.addServerDialog.description') }}
+          </DialogDescription>
+        </DialogHeader>
+        <McpServerForm
+          :default-json-config="mcpStore.mcpInstallCache || undefined"
+          :submitting="isAddingServer"
+          :name-error="
+            addServerError === 'duplicate' ? t('settings.mcp.serverForm.nameDuplicate') : undefined
+          "
+          :submission-error="
+            addServerError === 'failed' ? t('mcp.errors.addServerFailed') : undefined
+          "
+          @submit="handleAddServer"
+          @input-change="clearFailedAddServerError"
+          @name-change="clearAddServerError"
+          @step-change="addServerFormStep = $event"
+          @cancel="handleAddDialogOpenChange(false)"
+        />
+      </DialogContent>
+    </Dialog>
 
     <DcSheetPanel
       appearance="plain"
@@ -869,12 +913,18 @@ defineExpose({
       "
       @update:open="closeDetail"
     >
-      <div v-if="selectedDetailServer" class="flex flex-1 flex-col gap-4 overflow-y-auto px-4 pb-4">
+      <div v-if="selectedDetailServer" class="flex flex-1 flex-col gap-6 overflow-y-auto px-4 pb-4">
         <div class="flex flex-wrap gap-2">
           <DcStatusPill
             :status="selectedDetailServer.isRunning ? 'running' : 'stopped'"
             :label="
               selectedDetailServer.isRunning ? t('settings.mcp.running') : t('settings.mcp.stopped')
+            "
+            class="h-[26px] w-20 justify-center rounded-lg border-0 px-0"
+            :class="
+              selectedDetailServer.isRunning
+                ? 'bg-[#F0FFF3] text-[#33B737] [&_span]:bg-[#33B737]'
+                : 'bg-[#F1F5FA] text-[#86909C] [&_span]:bg-[#86909C]'
             "
           />
           <DcStatusPill
@@ -884,54 +934,64 @@ defineExpose({
                 ? t('settings.mcp.builtInServers')
                 : t('settings.mcp.customServers')
             "
+            class="h-[26px] w-[94px] justify-center rounded-lg border-0 bg-[#F1F5FA] px-0 text-[#5C78A0] [&_span]:bg-[#86909C]"
           />
         </div>
 
-        <div class="grid gap-2 sm:grid-cols-3">
+        <div class="grid grid-cols-3 gap-2">
           <DcButton
             variant="outline"
+            class="h-[52px] min-w-0 cursor-pointer rounded-lg border-[#D5E0ED] bg-[#F7FAFE] shadow-none hover:bg-[#F7FAFE] disabled:border-[#D5E0ED] disabled:bg-[#F7FAFE] disabled:text-muted-foreground disabled:opacity-100 text-[#1C324D]"
             :disabled="getServerToolsCount(selectedDetailServer.name) === 0"
             @click="handleViewTools(selectedDetailServer.name)"
           >
-            <Icon icon="lucide:wrench" class="size-4" />
+            <Icon icon="lucide:wrench" class="size-4 text-[#5C78A0]" />
             {{ getServerToolsCount(selectedDetailServer.name) }}
           </DcButton>
           <DcButton
             variant="outline"
+            class="h-[52px] min-w-0 cursor-pointer rounded-lg border-[#D5E0ED] bg-[#F7FAFE] shadow-none hover:bg-[#F7FAFE] disabled:border-[#D5E0ED] disabled:bg-[#F7FAFE] disabled:text-muted-foreground disabled:opacity-100 text-[#1C324D]"
             :disabled="getServerPromptsCount(selectedDetailServer.name) === 0"
             @click="handleViewPrompts(selectedDetailServer.name)"
           >
-            <Icon icon="lucide:message-square-quote" class="size-4" />
+            <Icon icon="lucide:message-square-quote" class="size-4 text-[#5C78A0]" />
             {{ getServerPromptsCount(selectedDetailServer.name) }}
           </DcButton>
           <DcButton
             variant="outline"
+            class="h-[52px] min-w-0 cursor-pointer rounded-lg border-[#D5E0ED] bg-[#F7FAFE] shadow-none hover:bg-[#F7FAFE] disabled:border-[#D5E0ED] disabled:bg-[#F7FAFE] disabled:text-muted-foreground disabled:opacity-100 text-[#1C324D]"
             :disabled="getServerResourcesCount(selectedDetailServer.name) === 0"
             @click="handleViewResources(selectedDetailServer.name)"
           >
-            <Icon icon="lucide:folder" class="size-4" />
+            <Icon icon="lucide:folder" class="size-4 text-[#5C78A0]" />
             {{ getServerResourcesCount(selectedDetailServer.name) }}
           </DcButton>
         </div>
 
         <div
           v-if="selectedDetailServer.baseUrl"
-          class="rounded-lg border border-border p-3"
+          class="h-[52px] max-w-full overflow-hidden rounded-lg border border-[#D5E0ED] bg-[#F7FAFE] px-3 py-2"
           data-testid="mcp-server-detail-url"
         >
           <div class="text-xs font-medium text-muted-foreground">
             {{ t('settings.mcp.serverForm.baseUrl') }}
           </div>
-          <div class="mt-1 break-all font-mono text-xs">
+          <div class="mt-0.5 truncate font-mono text-xs" :title="selectedDetailServer.baseUrl">
             {{ selectedDetailServer.baseUrl }}
           </div>
         </div>
 
-        <div v-else class="rounded-lg border border-border p-3">
+        <div
+          v-else
+          class="h-[52px] max-w-full overflow-hidden rounded-lg border border-[#D5E0ED] bg-[#F7FAFE] px-3 py-2"
+        >
           <div class="text-xs font-medium text-muted-foreground">
             {{ t('settings.mcp.center.command') }}
           </div>
-          <div class="mt-1 break-all font-mono text-xs">
+          <div
+            class="mt-0.5 truncate font-mono text-xs"
+            :title="selectedDetailServer.command || '-'"
+          >
             {{ selectedDetailServer.command || '-' }}
           </div>
         </div>
@@ -940,7 +1000,10 @@ defineExpose({
           <DcButton
             v-if="mcpStore.config.mcpServers[selectedDetailServer.name]"
             variant="outline"
-            icon="lucide:settings"
+            icon="lucide:pen-line"
+            icon-class="text-[#5C78A0]"
+            class="text-[#1C324D] hover:text-[#1C324D]"
+            style="padding: 8px 21px"
             @click="openEditServerDialog(selectedDetailServer.name)"
           >
             {{ t('settings.mcp.editServer') }}
@@ -962,12 +1025,15 @@ defineExpose({
 
     <!-- Edit server dialog -->
     <Dialog :open="isEditServerDialogOpen" @update:open="handleEditDialogOpenChange">
-      <DialogContent class="w-[95vw] max-w-[500px] px-0 h-[85vh] max-h-[500px] flex flex-col">
-        <DialogHeader class="px-3 shrink-0 pb-2">
-          <DialogTitle class="text-base">{{
+      <DialogContent
+        class="edit-server-dialog flex min-h-0 flex-col gap-0 overflow-hidden rounded-xl p-0"
+        :style="editServerDialogStyle"
+      >
+        <DialogHeader class="shrink-0 gap-1 border-b border-[#edf0f4] px-6 py-4">
+          <DialogTitle class="text-base font-semibold">{{
             t('settings.mcp.editServerDialog.title')
           }}</DialogTitle>
-          <DialogDescription class="text-sm">
+          <DialogDescription class="text-xs text-muted-foreground">
             {{ t('settings.mcp.editServerDialog.description') }}
           </DialogDescription>
         </DialogHeader>
@@ -980,6 +1046,7 @@ defineExpose({
           :submission-error="editServerError || undefined"
           @submit="handleEditServer"
           @input-change="clearEditServerError"
+          @cancel="handleEditDialogOpenChange(false)"
         />
       </DialogContent>
     </Dialog>
@@ -1070,88 +1137,171 @@ defineExpose({
     </Dialog>
 
     <Dialog v-model:open="isDiagnosticsOpen">
-      <DialogContent class="w-[92vw] max-w-[620px]">
-        <DialogHeader>
-          <DialogTitle>{{ t('settings.mcp.diagnostics.title') }}</DialogTitle>
-          <DialogDescription>{{ diagnosticsServerName }}</DialogDescription>
+      <DialogContent
+        class="flex min-h-0 flex-col gap-0 overflow-hidden p-0"
+        :style="{
+          '--primary': '#006eff',
+          '--ring': '#006eff',
+          width: '678px',
+          minWidth: 'min(678px, calc(100vw - 64px))',
+          height: '680px',
+          maxWidth: 'calc(100vw - 64px)',
+          maxHeight: 'calc(100vh - 48px)'
+        }"
+      >
+        <DialogHeader class="shrink-0 space-y-1 border-b border-border/70 px-5 py-4">
+          <DialogTitle class="text-lg font-semibold">
+            {{ t('settings.mcp.diagnostics.title') }}
+          </DialogTitle>
+          <DialogDescription class="text-xs text-muted-foreground">
+            {{ diagnosticsServerName }}
+          </DialogDescription>
         </DialogHeader>
-        <div class="max-h-[60vh] overflow-auto">
-          <div v-if="isDiagnosticsLoading" class="flex justify-center py-10">
+        <div class="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+          <div v-if="isDiagnosticsLoading" class="flex h-full items-center justify-center">
             <Spinner class="size-5" />
           </div>
-          <div v-else-if="diagnosticsError" class="text-sm text-destructive">
+          <div
+            v-else-if="diagnosticsError"
+            class="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+          >
             {{ diagnosticsError }}
           </div>
-          <dl v-else-if="diagnostics" class="grid grid-cols-[9rem_1fr] gap-x-3 gap-y-2 text-sm">
-            <dt class="text-muted-foreground">{{ t('settings.mcp.diagnostics.serverId') }}</dt>
-            <dd class="break-all font-mono text-xs">{{ diagnostics.serverId }}</dd>
-            <dt class="text-muted-foreground">{{ t('settings.mcp.diagnostics.owner') }}</dt>
-            <dd>{{ diagnostics.owner }}</dd>
-            <dt class="text-muted-foreground">{{ t('settings.mcp.diagnostics.transport') }}</dt>
-            <dd>{{ diagnostics.transport }}</dd>
-            <dt class="text-muted-foreground">
-              {{ t('settings.mcp.diagnostics.connectionState') }}
-            </dt>
-            <dd>{{ diagnostics.connectionState }}</dd>
-            <dt class="text-muted-foreground">{{ t('settings.mcp.diagnostics.era') }}</dt>
-            <dd>{{ diagnostics.era }} {{ diagnostics.protocolVersion || '' }}</dd>
-            <dt class="text-muted-foreground">
-              {{ t('settings.mcp.diagnostics.serverImplementation') }}
-            </dt>
-            <dd>
-              {{
-                diagnostics.serverImplementation
-                  ? `${diagnostics.serverImplementation.name} ${diagnostics.serverImplementation.version}`
-                  : '-'
-              }}
-            </dd>
-            <dt class="text-muted-foreground">{{ t('settings.mcp.diagnostics.probe') }}</dt>
-            <dd>
-              {{ diagnostics.probe.outcome }}
-              {{ diagnostics.probe.reasonCode ? `· ${diagnostics.probe.reasonCode}` : '' }}
-            </dd>
-            <dt class="text-muted-foreground">{{ t('settings.mcp.diagnostics.extensions') }}</dt>
-            <dd class="break-all">{{ diagnostics.extensions.join(', ') || '-' }}</dd>
-            <dt class="text-muted-foreground">
-              {{ t('settings.mcp.diagnostics.clientExtensions') }}
-            </dt>
-            <dd class="break-all">
-              {{
-                diagnostics.clientExtensions
-                  .map((extension) =>
-                    extension.revision ? `${extension.id}@${extension.revision}` : extension.id
-                  )
-                  .join(', ') || '-'
-              }}
-            </dd>
-            <dt class="text-muted-foreground">{{ t('settings.mcp.diagnostics.cache') }}</dt>
-            <dd>{{ diagnostics.cacheState }}</dd>
-            <dt class="text-muted-foreground">
-              {{ t('settings.mcp.diagnostics.subscriptions') }}
-            </dt>
-            <dd>{{ diagnostics.subscriptions.join(', ') || '-' }}</dd>
-            <dt class="text-muted-foreground">{{ t('settings.mcp.diagnostics.auth') }}</dt>
-            <dd>
-              {{ diagnostics.auth.state }}
-              {{ diagnostics.auth.mode ? `· ${diagnostics.auth.mode}` : '' }}
-              {{
-                diagnostics.auth.persistent === undefined
-                  ? ''
-                  : `· persistent=${diagnostics.auth.persistent}`
-              }}
-            </dd>
+          <dl
+            v-else-if="diagnostics"
+            class="overflow-hidden rounded-md bg-background [&>div+div]:border-t [&>div+div]:border-border/40"
+          >
+            <div class="grid grid-cols-[180px_minmax(0,1fr)] odd:bg-[#F7FAFE]">
+              <dt class="px-4 py-2.5 text-[13px] leading-5 text-[#5C78A0]">
+                {{ t('settings.mcp.diagnostics.serverId') }}
+              </dt>
+              <dd class="break-all px-4 py-2.5 font-mono text-xs leading-5 text-foreground">
+                {{ diagnostics.serverId }}
+              </dd>
+            </div>
+            <div class="grid grid-cols-[180px_minmax(0,1fr)] odd:bg-[#F7FAFE]">
+              <dt class="px-4 py-2.5 text-[13px] leading-5 text-[#5C78A0]">
+                {{ t('settings.mcp.diagnostics.owner') }}
+              </dt>
+              <dd class="break-all px-4 py-2.5 text-xs leading-5 text-foreground">
+                {{ diagnostics.owner }}
+              </dd>
+            </div>
+            <div class="grid grid-cols-[180px_minmax(0,1fr)] odd:bg-[#F7FAFE]">
+              <dt class="px-4 py-2.5 text-[13px] leading-5 text-[#5C78A0]">
+                {{ t('settings.mcp.diagnostics.transport') }}
+              </dt>
+              <dd class="break-all px-4 py-2.5 text-xs leading-5 text-foreground">
+                {{ diagnostics.transport }}
+              </dd>
+            </div>
+            <div class="grid grid-cols-[180px_minmax(0,1fr)] odd:bg-[#F7FAFE]">
+              <dt class="px-4 py-2.5 text-[13px] leading-5 text-[#5C78A0]">
+                {{ t('settings.mcp.diagnostics.connectionState') }}
+              </dt>
+              <dd class="break-all px-4 py-2.5 text-xs leading-5 text-foreground">
+                {{ diagnostics.connectionState }}
+              </dd>
+            </div>
+            <div class="grid grid-cols-[180px_minmax(0,1fr)] odd:bg-[#F7FAFE]">
+              <dt class="px-4 py-2.5 text-[13px] leading-5 text-[#5C78A0]">
+                {{ t('settings.mcp.diagnostics.era') }}
+              </dt>
+              <dd class="break-all px-4 py-2.5 text-xs leading-5 text-foreground">
+                {{ diagnostics.era }} {{ diagnostics.protocolVersion || '' }}
+              </dd>
+            </div>
+            <div class="grid grid-cols-[180px_minmax(0,1fr)] odd:bg-[#F7FAFE]">
+              <dt class="px-4 py-2.5 text-[13px] leading-5 text-[#5C78A0]">
+                {{ t('settings.mcp.diagnostics.serverImplementation') }}
+              </dt>
+              <dd class="break-all px-4 py-2.5 text-xs leading-5 text-foreground">
+                {{
+                  diagnostics.serverImplementation
+                    ? `${diagnostics.serverImplementation.name} ${diagnostics.serverImplementation.version}`
+                    : '-'
+                }}
+              </dd>
+            </div>
+            <div class="grid grid-cols-[180px_minmax(0,1fr)] odd:bg-[#F7FAFE]">
+              <dt class="px-4 py-2.5 text-[13px] leading-5 text-[#5C78A0]">
+                {{ t('settings.mcp.diagnostics.probe') }}
+              </dt>
+              <dd class="break-all px-4 py-2.5 text-xs leading-5 text-foreground">
+                {{ diagnostics.probe.outcome }}
+                {{ diagnostics.probe.reasonCode ? `· ${diagnostics.probe.reasonCode}` : '' }}
+              </dd>
+            </div>
+            <div class="grid grid-cols-[180px_minmax(0,1fr)] odd:bg-[#F7FAFE]">
+              <dt class="px-4 py-2.5 text-[13px] leading-5 text-[#5C78A0]">
+                {{ t('settings.mcp.diagnostics.extensions') }}
+              </dt>
+              <dd class="break-all px-4 py-2.5 text-xs leading-5 text-foreground">
+                {{ diagnostics.extensions.join(', ') || '-' }}
+              </dd>
+            </div>
+            <div class="grid grid-cols-[180px_minmax(0,1fr)] odd:bg-[#F7FAFE]">
+              <dt class="px-4 py-2.5 text-[13px] leading-5 text-[#5C78A0]">
+                {{ t('settings.mcp.diagnostics.clientExtensions') }}
+              </dt>
+              <dd class="break-all px-4 py-2.5 text-xs leading-5 text-foreground">
+                {{
+                  diagnostics.clientExtensions
+                    .map((extension) =>
+                      extension.revision ? `${extension.id}@${extension.revision}` : extension.id
+                    )
+                    .join(', ') || '-'
+                }}
+              </dd>
+            </div>
+            <div class="grid grid-cols-[180px_minmax(0,1fr)] odd:bg-[#F7FAFE]">
+              <dt class="px-4 py-2.5 text-[13px] leading-5 text-[#5C78A0]">
+                {{ t('settings.mcp.diagnostics.cache') }}
+              </dt>
+              <dd class="break-all px-4 py-2.5 text-xs leading-5 text-foreground">
+                {{ diagnostics.cacheState }}
+              </dd>
+            </div>
+            <div class="grid grid-cols-[180px_minmax(0,1fr)] odd:bg-[#F7FAFE]">
+              <dt class="px-4 py-2.5 text-[13px] leading-5 text-[#5C78A0]">
+                {{ t('settings.mcp.diagnostics.subscriptions') }}
+              </dt>
+              <dd class="break-all px-4 py-2.5 text-xs leading-5 text-foreground">
+                {{ diagnostics.subscriptions.join(', ') || '-' }}
+              </dd>
+            </div>
+            <div class="grid grid-cols-[180px_minmax(0,1fr)] odd:bg-[#F7FAFE]">
+              <dt class="px-4 py-2.5 text-[13px] leading-5 text-[#5C78A0]">
+                {{ t('settings.mcp.diagnostics.auth') }}
+              </dt>
+              <dd class="break-all px-4 py-2.5 text-xs leading-5 text-foreground">
+                {{ diagnostics.auth.state }}
+                {{ diagnostics.auth.mode ? `· ${diagnostics.auth.mode}` : '' }}
+                {{
+                  diagnostics.auth.persistent === undefined
+                    ? ''
+                    : `· persistent=${diagnostics.auth.persistent}`
+                }}
+              </dd>
+            </div>
           </dl>
         </div>
-        <div class="flex justify-end gap-2">
-          <DcButton variant="outline" :disabled="isDiagnosticsLoading" @click="refreshDiagnostics">
-            <Icon icon="lucide:refresh-cw" class="size-4" />
-            {{ t('mcp.tools.refresh') }}
-          </DcButton>
+        <div class="flex shrink-0 justify-end gap-2 border-t border-border/70 px-5 py-4">
           <DcCopyButton
             :disabled="!diagnostics"
             :copy-text="diagnosticsText"
             :label="t('settings.mcp.diagnostics.copy')"
+            variant="outline"
+            class="h-9 w-[124px] rounded-lg"
           />
+          <DcButton
+            :disabled="isDiagnosticsLoading"
+            class="h-9 w-[92px] rounded-lg"
+            @click="refreshDiagnostics"
+          >
+            <Icon icon="lucide:refresh-cw" class="size-3.5" />
+            {{ t('mcp.tools.refresh') }}
+          </DcButton>
         </div>
       </DialogContent>
     </Dialog>
