@@ -3,15 +3,16 @@
  * 只藏 UI：条目仍在 DOM 里，用 CSS `display: none` 藏掉，不卸载、不改默认开关。
  * 例如 `builtin:ocr` 默认仍开启，聊天里继续可用。
  *
- * 连接器 id（PluginsCatalogPage data-plugin-id）：
+ * 插件中心里被隐藏的 IM 条目 id（PluginsCatalogPage data-plugin-id）：
  *   builtin:ocr
  *   official:com.deepchat.plugins.cua
- *   official:com.deepchat.plugins.feishu
- *   remote:telegram | remote:feishu | remote:qqbot | remote:discord | remote:weixin-ilink
+ *   remote:telegram | remote:discord | remote:qqbot
+ * 其余官方插件与远程渠道正常展示。
  *
  * MCP 隐藏名单在 `./mcp/hidden.ts` 维护。
  */
 import { PLUGIN_CENTER_HIDDEN_MCP_IDS } from './mcp/hidden'
+import { JIAORONG_APP_MCP_SOURCE } from '@shared/mcp/ownedBy'
 
 export { PLUGIN_CENTER_HIDDEN_MCP_IDS }
 
@@ -34,6 +35,19 @@ export const PLUGIN_CENTER_HIDDEN_SELECTORS = [
 ] as const
 
 const cssAttr = (value: string): string => JSON.stringify(value)
+
+const HIDDEN_PLUGIN_ID_SET = new Set<string>(PLUGIN_CENTER_HIDDEN_PLUGIN_IDS)
+const HIDDEN_MCP_ID_SET = new Set<string>(PLUGIN_CENTER_HIDDEN_MCP_IDS)
+
+/**
+ * 插件中心里被 CSS 藏掉的 IM 条目。
+ * 筛选与空态判断必须同步排除，否则会把「全部被隐藏」误判成有数据而出现白屏。
+ */
+export const isPluginCenterHiddenPluginId = (id: string): boolean => HIDDEN_PLUGIN_ID_SET.has(id)
+
+/** 插件中心里被 CSS 藏掉的连接器条目（含交融子应用托管的 MCP）。 */
+export const isPluginCenterHiddenMcpServer = (name: string, source?: string): boolean =>
+  source === JIAORONG_APP_MCP_SOURCE || HIDDEN_MCP_ID_SET.has(name)
 
 const HIDE_ROOT = '.plugin-center-page'
 

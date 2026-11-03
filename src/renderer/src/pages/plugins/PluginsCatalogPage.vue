@@ -52,7 +52,7 @@
         </div>
       </div>
 
-      <section class="space-y-4">
+      <section class="catalog-list-section">
         <div v-if="filteredItems.length" class="plugin-center-grid">
           <article
             v-for="item in filteredItems"
@@ -87,6 +87,7 @@
               </span>
               <DcButton
                 size="sm"
+                class="catalog-action-btn"
                 :variant="isItemEnabled(item) ? 'default' : 'outline'"
                 :disabled="isPending(item.id)"
                 @click="handleCatalogAction(item)"
@@ -96,11 +97,9 @@
             </div>
           </article>
         </div>
-        <div
-          v-else
-          class="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground"
-        >
-          {{ t('settings.pluginsHub.emptySearch') }}
+        <div v-else class="catalog-empty">
+          <img :src="skillEmptyArt" alt="" class="catalog-empty__image" />
+          <p class="catalog-empty__text">{{ emptyStateText }}</p>
         </div>
       </section>
     </div>
@@ -120,6 +119,8 @@ import { createOcrClient } from '@api/OcrClient'
 import { createPluginClient } from '@api/PluginClient'
 import { createRemoteControlClient } from '@api/RemoteControlClient'
 import { resolveConnectorManageTarget } from '@jiaorong/plugins/navigation'
+import skillEmptyArt from '@jiaorong/assets/skill-empty.png'
+import { isPluginCenterHiddenPluginId } from '@jiaorong/plugins/hiddenItems'
 import { CUA_PLUGIN_ID, type PluginActionResult, type PluginListItem } from '@shared/types/plugin'
 import type { RemoteChannel } from '@shared/types/remote'
 import { usePluginCatalogStore } from '@/stores/pluginCatalog'
@@ -209,6 +210,9 @@ const errorMessage = ref('')
 const pendingItemId = ref<string | null>(null)
 const searchQuery = ref('')
 const activeFilter = ref<CatalogFilter>('all')
+
+/** 仅交融插件中心壳（/skills）排除 CSS 隐藏项；宿主旧插件页（/plugins）保持原行为 */
+const isPluginCenterShell = computed(() => route.path.startsWith('/skills'))
 
 const isPending = (itemId: string) => pendingItemId.value === itemId
 /** 内置能力（如 OCR）没有启用开关，按启用态对待 */
@@ -313,6 +317,8 @@ const catalogItems = computed<CatalogItem[]>(() => {
 const filteredItems = computed<CatalogItem[]>(() => {
   const keyword = searchQuery.value.trim().toLowerCase()
   return catalogItems.value.filter((item) => {
+    /* 插件中心用 CSS 隐藏的内置条目不计入筛选与空态，否则会出现全部被隐藏的白屏 */
+    if (isPluginCenterShell.value && isPluginCenterHiddenPluginId(item.id)) return false
     const enabled = isItemEnabled(item)
     if (activeFilter.value === 'enabled' && !enabled) return false
     if (activeFilter.value === 'disabled' && enabled) return false
@@ -320,6 +326,13 @@ const filteredItems = computed<CatalogItem[]>(() => {
     return `${item.title} ${item.description}`.toLowerCase().includes(keyword)
   })
 })
+
+/** 空态文案：搜索或状态筛选无结果算未匹配，整库为空才提示暂无可用 */
+const emptyStateText = computed(() =>
+  searchQuery.value.trim() || activeFilter.value !== 'all'
+    ? t('settings.pluginsHub.emptySearch')
+    : t('settings.pluginsHub.empty')
+)
 
 async function loadCatalog(): Promise<void> {
   loading.value = true
@@ -418,7 +431,11 @@ onMounted(() => {
 /* 列表容器：列数断点按容器宽度计算，与技能页、交融应用页共用同一套规则 */
 .plugin-center-list-container {
   .plugin-center-card-list();
+  flex: 1 1 auto;
+  min-height: 0;
 }
+
+.plugin-center-scroll-fill();
 
 .plugin-center-grid {
   .plugin-center-card-grid();
@@ -435,7 +452,8 @@ onMounted(() => {
 }
 
 .catalog-card {
-  min-height: 156px;
+  /* 与技能市场卡片一致 */
+  min-height: 168px;
 }
 
 .catalog-card-desc {
@@ -449,5 +467,31 @@ onMounted(() => {
 .catalog-segment {
   /* 与其余三个列表共用同一套 tab 样式 */
   .plugin-center-segment();
+}
+
+/* DcButton 设了 inheritAttrs: false，根 button 不带父组件的 data-v 属性，
+ * scoped 选择器命中不到，这里用全局选择器并限定在 IM 卡片内。
+ * 与技能市场卡片的操作按钮同宽同高。 */
+:global(.catalog-card .catalog-action-btn) {
+  .plugin-center-card-action-button();
+}
+
+/* 搜索 / 筛选无结果：与技能市场同款空图与居中布局 */
+.catalog-list-section {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+}
+
+.catalog-empty {
+  .plugin-center-empty-state();
+}
+
+.catalog-empty__image {
+  .plugin-center-empty-image();
+}
+
+.catalog-empty__text {
+  .plugin-center-empty-text();
 }
 </style>

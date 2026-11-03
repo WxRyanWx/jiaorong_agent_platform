@@ -90,6 +90,7 @@ type SetupOptions = {
   withServers?: boolean
   showFooterAddButton?: boolean
   addOpen?: boolean
+  pluginCenterMode?: boolean
   serverList?: Array<Record<string, unknown> & { name: string }>
   config?: {
     mcpServers?: Record<string, Record<string, unknown>>
@@ -235,7 +236,8 @@ const setup = async (options: SetupOptions = {}) => {
   const wrapper = mount(McpServers, {
     props: {
       showFooterAddButton: options.showFooterAddButton,
-      addOpen: options.addOpen
+      addOpen: options.addOpen,
+      pluginCenterMode: options.pluginCenterMode
     },
     global: {
       stubs: {
@@ -739,5 +741,52 @@ describe('McpServers', () => {
       title: 'common.error.operationFailed',
       description: 'settings.mcp.serverStartFailedDesc'
     })
+  })
+
+  it('shows the shared empty state when a filter has no match', async () => {
+    const { wrapper } = await setup({
+      serverList: [
+        {
+          name: 'running-only',
+          icons: '',
+          descriptions: '',
+          command: '',
+          args: [],
+          enabled: true,
+          isRunning: true
+        }
+      ],
+      config: { mcpServers: { 'running-only': { type: 'stdio' } } }
+    })
+
+    await wrapper.findAll('.mcp-filter-segment')[2]?.trigger('click')
+
+    const empty = wrapper.find('.plugin-center-empty')
+    expect(empty.exists()).toBe(true)
+    expect(empty.find('img').exists()).toBe(true)
+  })
+
+  it('uses the plugin center connector copy for an empty and a filtered list', async () => {
+    const { wrapper, mcpStore } = await setup({ pluginCenterMode: true })
+
+    expect(wrapper.find('.plugin-center-empty__text').text()).toBe('settings.mcp.center.empty')
+
+    mcpStore.serverList.push({
+      name: 'only-server',
+      icons: '',
+      descriptions: '',
+      command: '',
+      args: [],
+      enabled: true,
+      isRunning: true
+    })
+    await flushPromises()
+
+    const stoppedFilter = wrapper
+      .findAll('.mcp-filter-segment')
+      .find((button) => button.text() === 'settings.mcp.center.filters.stopped')
+    await stoppedFilter?.trigger('click')
+
+    expect(wrapper.find('.plugin-center-empty__text').text()).toBe('settings.mcp.center.noResults')
   })
 })

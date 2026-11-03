@@ -14,6 +14,26 @@
   container-name: plugin-center-list;
 }
 
+/* 让列表内容真正撑满 ScrollArea 可视区。
+ * reka-ui 的 viewport 与内层包裹 div 默认都是自动高度，只用 `100vh - 固定值`
+ * 估算会被窗口标题栏高度影响，空态看起来偏下。把这两层改成纵向 flex 后，
+ * 列表容器 `flex: 1` 即可精确填满可视区，空态在搜索栏以下的剩余区域内居中。 */
+.plugin-center-scroll-fill() {
+  :deep([data-reka-scroll-area-viewport]) {
+    display: flex;
+    flex-direction: column;
+  }
+
+  :deep([data-reka-scroll-area-viewport] > div) {
+    display: flex;
+    /* 内容少时至少撑满可视区，内容多时按实际高度增长，避免被 flex 压缩后
+     * 溢出到滚动区域之外 */
+    flex: 0 0 auto;
+    flex-direction: column;
+    min-height: 100%;
+  }
+}
+
 .plugin-center-card-grid(@gap: 16px) {
   display: grid;
   gap: @gap;
@@ -86,4 +106,47 @@
       background: #006eff;
     }
   }
+}
+
+/* 卡片底部操作按钮（安装 / 更新 / 打开…）：技能市场与 IM 列表共用，
+ * 宽高、内边距、圆角、字号统一，颜色仍由各页的 variant 决定。 */
+.plugin-center-card-action-button() {
+  min-width: 60px !important;
+  height: 30px !important;
+  padding: 0 16px !important;
+  border-radius: 6px !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  line-height: 28px !important;
+  cursor: pointer;
+}
+
+/* 列表空态（搜索或筛选无结果）：与技能市场一致，240×160 空图 + 13px 文案。
+ * 配合 `.plugin-center-scroll-fill()` 撑满 ScrollArea 后，空态用 flex: 1
+ * 占满搜索栏以下的剩余区域，实现真正的垂直水平居中。 */
+.plugin-center-empty-state() {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 0;
+  color: var(--muted-foreground);
+  text-align: center;
+}
+
+.plugin-center-empty-image() {
+  width: 240px;
+  height: 160px;
+  margin-bottom: 4px;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.plugin-center-empty-text() {
+  margin: 0;
+  font-size: 13px;
+  line-height: 20px;
 }

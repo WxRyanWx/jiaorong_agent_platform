@@ -3561,6 +3561,7 @@ declare module 'vue-i18n' {
         custom: string
         searchPlaceholder: string
         noResults: string
+        empty: string
         command: string
         filters: {
           all: string
@@ -4214,6 +4215,7 @@ declare module 'vue-i18n' {
       manage: string
       builtinCapability: string
       emptySearch: string
+      empty: string
       pluginNotFound: string
       actionResult: string
       cuaDescription: string

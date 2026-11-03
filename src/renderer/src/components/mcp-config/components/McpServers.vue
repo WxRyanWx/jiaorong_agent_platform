@@ -37,6 +37,8 @@ import {
 } from '@jiaorong/plugins/mcp'
 import { canEnableOpenPlatformConnector } from '@jiaorong/plugins/market/openPlatformMarket'
 import { isOpenPlatformConnectorConfig } from '@jiaorong/plugins/market/openPlatformConnectorInstall'
+import skillEmptyArt from '@jiaorong/assets/skill-empty.png'
+import { isPluginCenterHiddenMcpServer } from '@jiaorong/plugins/hiddenItems'
 
 const mcpStore = useMcpStore()
 const { t } = useI18n()
@@ -47,6 +49,8 @@ const props = withDefaults(
   defineProps<{
     showFooterAddButton?: boolean
     searchPlaceholder?: string
+    /** 插件中心壳里需要跳过被 CSS 隐藏的连接器，避免筛选后误判为空列表 */
+    pluginCenterMode?: boolean
     serverEnabledOverrides?: Record<string, boolean>
     serverLoadingOverrides?: Record<string, boolean>
     agentScopedToggle?: boolean
@@ -55,6 +59,7 @@ const props = withDefaults(
   {
     showFooterAddButton: true,
     searchPlaceholder: '',
+    pluginCenterMode: false,
     serverEnabledOverrides: () => ({}),
     serverLoadingOverrides: () => ({}),
     agentScopedToggle: false,
@@ -201,6 +206,9 @@ const filteredServers = computed(() => {
   const query = searchQuery.value.trim().toLowerCase()
 
   return mcpStore.serverList.filter((server) => {
+    if (props.pluginCenterMode && isPluginCenterHiddenMcpServer(server.name, server.source)) {
+      return false
+    }
     const matchesQuery =
       !query ||
       server.name.toLowerCase().includes(query) ||
@@ -214,6 +222,13 @@ const filteredServers = computed(() => {
     return matchesQuery && matchesFilter
   })
 })
+
+/** 空态文案：搜索或状态筛选无结果算未匹配，整库为空才提示暂无可用 */
+const emptyStateText = computed(() =>
+  searchQuery.value.trim() || activeFilter.value !== 'all'
+    ? t('settings.mcp.center.noResults')
+    : t('settings.mcp.center.empty')
+)
 
 const selectedDetailServer = computed(() =>
   mcpStore.serverList.find((server) => server.name === selectedDetailServerName.value)
@@ -743,7 +758,7 @@ defineExpose({
       </div>
 
       <DcEmpty
-        v-else-if="mcpStore.serverList.length === 0"
+        v-else-if="!pluginCenterMode && mcpStore.serverList.length === 0"
         icon="lucide:server-off"
         :title="t('settings.mcp.noServersFound')"
         :description="t('settings.mcp.noServersDescription')"
@@ -777,7 +792,7 @@ defineExpose({
           </div>
         </div>
 
-        <div class="plugin-center-grid">
+        <div v-if="filteredServers.length > 0" class="plugin-center-grid">
           <McpServerCard
             v-for="server in filteredServers"
             :key="server.name"
@@ -818,11 +833,9 @@ defineExpose({
           />
         </div>
 
-        <div
-          v-if="filteredServers.length === 0"
-          class="py-8 text-center text-sm text-muted-foreground"
-        >
-          {{ t('settings.mcp.center.noResults') }}
+        <div v-if="filteredServers.length === 0" class="plugin-center-empty">
+          <img :src="skillEmptyArt" alt="" class="plugin-center-empty__image" />
+          <p class="plugin-center-empty__text">{{ emptyStateText }}</p>
         </div>
       </div>
     </ScrollArea>
@@ -1320,7 +1333,11 @@ defineExpose({
 /* 连接器列表与技能 / IM / 交融应用共用同一套列数断点 */
 .plugin-center-list-container {
   .plugin-center-card-list();
+  flex: 1 1 auto;
+  min-height: 0;
 }
+
+.plugin-center-scroll-fill();
 
 .plugin-center-grid {
   .plugin-center-card-grid();
@@ -1338,5 +1355,18 @@ defineExpose({
 /* 筛选 tab 与其余三个列表共用同一套样式 */
 .mcp-filter-segment {
   .plugin-center-segment();
+}
+
+/* 搜索 / 筛选无结果：与技能市场同款空图与居中布局 */
+.plugin-center-empty {
+  .plugin-center-empty-state();
+}
+
+.plugin-center-empty__image {
+  .plugin-center-empty-image();
+}
+
+.plugin-center-empty__text {
+  .plugin-center-empty-text();
 }
 </style>

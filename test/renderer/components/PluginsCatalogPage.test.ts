@@ -71,6 +71,7 @@ const AVAILABLE_OCR_STATUS: OcrRuntimeStatus = {
 async function mountCatalog(options?: {
   ocrStatus?: OcrRuntimeStatus | Error
   route?: { name: string; path: string }
+  hiddenPluginIds?: string[]
 }) {
   vi.resetModules()
   vi.clearAllMocks()
@@ -153,6 +154,12 @@ async function mountCatalog(options?: {
       },
       template: '<span :data-icon="icon" />'
     })
+  }))
+  /* 默认不隐藏任何条目，保留 OCR / CUA / Feishu 的既有断言；
+   * 需要验证隐藏逻辑的用例再显式传入 hiddenPluginIds。 */
+  const hiddenPluginIds = options?.hiddenPluginIds ?? []
+  vi.doMock('@jiaorong/plugins/hiddenItems', () => ({
+    isPluginCenterHiddenPluginId: (id: string) => hiddenPluginIds.includes(id)
   }))
 
   const PluginsCatalogPage = (await import('@/pages/plugins/PluginsCatalogPage.vue')).default
@@ -360,5 +367,43 @@ describe('PluginsCatalogPage', () => {
       expect.objectContaining({ message: 'IPC unavailable' })
     )
     warn.mockRestore()
+  })
+
+  it('shows the shared empty state when search has no match', async () => {
+    const { wrapper } = await mountCatalog()
+
+    await wrapper.find('input').setValue('no-such-plugin')
+    await flushPromises()
+
+    const empty = wrapper.find('.catalog-empty')
+    expect(empty.exists()).toBe(true)
+    expect(empty.find('img').exists()).toBe(true)
+    expect(empty.find('.catalog-empty__text').text()).toBe('settings.pluginsHub.emptySearch')
+  })
+
+  it('excludes CSS-hidden entries from filters and the empty-state check', async () => {
+    const { wrapper } = await mountCatalog({
+      route: { name: 'skills-connectors', path: '/skills/connectors' },
+      hiddenPluginIds: [
+        'builtin:ocr',
+        'official:com.deepchat.plugins.cua',
+        'official:com.deepchat.plugins.feishu',
+        'remote:feishu'
+      ]
+    })
+
+    expect(wrapper.findAll('article')).toHaveLength(0)
+    expect(wrapper.find('.catalog-empty').exists()).toBe(true)
+    expect(wrapper.find('.catalog-empty img').exists()).toBe(true)
+    expect(wrapper.find('.catalog-empty__text').text()).toBe('settings.pluginsHub.empty')
+  })
+
+  it('keeps the legacy plugins shell unfiltered', async () => {
+    const { wrapper } = await mountCatalog({
+      route: { name: 'plugins', path: '/plugins' },
+      hiddenPluginIds: ['builtin:ocr']
+    })
+
+    expect(wrapper.findAll('article')).toHaveLength(3)
   })
 })

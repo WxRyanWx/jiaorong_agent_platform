@@ -76,6 +76,7 @@
           v-else
           v-model:add-open="isAddServerDialogOpen"
           :search-placeholder="searchPlaceholder"
+          :plugin-center-mode="isPluginCenterCopy"
           :show-footer-add-button="false"
           :server-enabled-overrides="serverEnabledOverrides"
           :server-loading-overrides="serverLoadingOverrides"

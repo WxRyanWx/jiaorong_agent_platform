@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 import {
   PLUGIN_CENTER_HIDDEN_MCP_IDS,
   PLUGIN_CENTER_HIDDEN_PLUGIN_IDS,
-  buildPluginCenterHideCss
+  buildPluginCenterHideCss,
+  isPluginCenterHiddenMcpServer,
+  isPluginCenterHiddenPluginId
 } from '../../../../src/jiaorong_src/plugins/hiddenItems'
 
 describe('plugin center hide css', () => {
@@ -50,5 +52,16 @@ describe('plugin center hide css', () => {
     expect(PLUGIN_CENTER_HIDDEN_MCP_IDS.length).toBeGreaterThan(0)
     expect(buildPluginCenterHideCss()).toContain('data-plugin-id')
     expect(buildPluginCenterHideCss()).toContain('data-mcp-server')
+  })
+
+  it('matches the filter helpers against the same hide lists as the css', () => {
+    expect(isPluginCenterHiddenPluginId('builtin:ocr')).toBe(true)
+    expect(isPluginCenterHiddenPluginId('official:com.deepchat.plugins.cua')).toBe(true)
+    expect(isPluginCenterHiddenPluginId('official:com.deepchat.plugins.feishu')).toBe(false)
+
+    expect(isPluginCenterHiddenMcpServer('builtinKnowledge')).toBe(true)
+    expect(isPluginCenterHiddenMcpServer('jina-public-mcp')).toBe(false)
+    expect(isPluginCenterHiddenMcpServer('some-server', 'jiaorong-app')).toBe(true)
+    expect(isPluginCenterHiddenMcpServer('some-server', 'open-platform')).toBe(false)
   })
 })
