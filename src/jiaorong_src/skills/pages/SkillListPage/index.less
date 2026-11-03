@@ -3,6 +3,8 @@
  *   color: ~'hsl(var(--muted-foreground) / 0.7)';
  */
 
+@import '../../../plugins/styles/plugin-center-list-layout.less';
+
 .skill-center-page {
   /* 主题里 --primary 已是完整 hsl(...)，不要再包一层 hsl() */
   --scp-primary: #006eff;
@@ -25,6 +27,7 @@
   height: 100%;
   min-height: 0;
   padding: 24px 32px 32px;
+  .plugin-center-card-list();
   //   background: var(--scp-bg);
   color: var(--scp-text);
 
@@ -57,18 +60,13 @@
     align-items: center;
     background: var(--scp-primary) !important;
     gap: 6px !important;
-    height: 36px !important;
-    width: 118px;
-    padding: 0px 20px !important;
-    border-radius: var(--scp-radius-ctl) !important;
-    font-size: 13px !important;
-    font-weight: 500 !important;
+    .plugin-center-add-button();
     cursor: pointer;
   }
 
   &__create-icon {
-    width: 14px;
-    height: 14px;
+    width: 14px !important;
+    height: 14px !important;
     flex-shrink: 0;
   }
 
@@ -130,10 +128,8 @@
   }
 
   &__search {
-    position: relative;
-    flex: 0 0 288px;
-    width: 288px;
-    max-width: 288px;
+    /* 宽度随工具栏伸缩，最小 120px，放不下时整块换行 */
+    .plugin-center-search-field();
   }
 
   &__search-icon {
@@ -266,31 +262,8 @@
   }
 
   &__segment {
-    padding: 7px 18px;
-    border: none;
-    border-radius: var(--scp-radius-pill);
-    background: #f2f3f5;
-    font-size: 13px;
-    line-height: 18px;
-    color: var(--scp-text-secondary);
-    cursor: pointer;
-    transition:
-      background 0.15s ease,
-      color 0.15s ease;
-
-    &:hover {
-      background: #e8eaed;
-      color: var(--scp-text);
-    }
-
-    &.is-active {
-      background: var(--scp-primary);
-      color: var(--scp-primary-fg);
-
-      &:hover {
-        background: var(--scp-primary);
-      }
-    }
+    /* 与其余三个列表共用同一套 tab 样式 */
+    .plugin-center-segment();
   }
 
   /* ---------- Content / grid ---------- */
@@ -344,10 +317,8 @@
   }
 
   &__grid {
-    display: grid;
-    /* 固定一行 3 张，卡片宽度按容器均分自适应 */
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 16px;
+    /* 3 / 2 / 1 列跟随列表容器宽度，规则见 plugin-center-list-layout.less */
+    .plugin-center-card-grid();
   }
 
   /* ---------- Card ---------- */

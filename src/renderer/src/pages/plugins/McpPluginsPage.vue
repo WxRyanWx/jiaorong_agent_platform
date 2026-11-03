@@ -1,5 +1,5 @@
 <template>
-  <McpSettings />
+  <McpSettings copy-scope="plugin-center" />
 </template>
 
 <script setup lang="ts">

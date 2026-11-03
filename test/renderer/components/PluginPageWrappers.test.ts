@@ -9,8 +9,8 @@ describe('plugins page wrappers', () => {
     expect(skillsSource).not.toContain('settings/components/skills')
   })
 
-  it('renders the original MCP settings view in global scope', () => {
-    expect(mcpSource).toContain('<McpSettings />')
+  it('renders the MCP settings view with plugin-center copy', () => {
+    expect(mcpSource).toContain('<McpSettings copy-scope="plugin-center" />')
     expect(mcpSource).toContain('settings/components/McpSettings.vue')
   })
 

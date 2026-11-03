@@ -21,7 +21,10 @@ import {
   JIAORONG_KB_MCP_SERVER_DISPLAY_NAME
 } from '@jiaorong/knowledgeBase/mcp/knowledgeBaseMcpConstants'
 import { getJiaorongPluginMcpServer } from '@jiaorong/plugins/mcp'
-import { getJiaorongPluginMcpIconSrc } from '@jiaorong/plugins/mcp/icons'
+import {
+  getJiaorongPluginMcpIconSrc,
+  JIAORONG_PLUGIN_MCP_DEFAULT_ICON_SRC
+} from '@jiaorong/plugins/mcp/icons'
 
 interface ServerInfo {
   name: string
@@ -82,6 +85,16 @@ const getLocalizedServerName = (serverName: string) => {
 
 const pluginMcp = computed(() => getJiaorongPluginMcpServer(props.server.name))
 const pluginMcpIconSrc = computed(() => getJiaorongPluginMcpIconSrc(props.server.name))
+/** 开放平台连接器的 config.icons 可能是图片地址，而不是 emoji 文本 */
+const serverIconText = computed(() => props.server.icons?.trim() ?? '')
+const isRemoteIconUrl = computed(() => /^(https?:\/\/|\/|data:image\/)/i.test(serverIconText.value))
+const remoteIconLoadFailed = ref(false)
+watch(
+  () => serverIconText.value,
+  () => {
+    remoteIconLoadFailed.value = false
+  }
+)
 
 const displayServerName = computed(() => {
   if (pluginMcp.value) {
@@ -213,14 +226,31 @@ watch(watchDescription, () => {
       <div class="flex items-center justify-between mb-3">
         <div class="flex items-center gap-1.5 flex-1 min-w-0">
           <!-- 服务器图标 -->
-          <span class="flex size-7 shrink-0 items-center justify-center rounded-md bg-[#E8F1FF]">
+          <span
+            data-testid="mcp-server-icon"
+            class="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-md bg-[#E8F1FF]"
+          >
             <img
               v-if="pluginMcpIconSrc"
               :src="pluginMcpIconSrc"
               alt=""
               class="size-4 object-contain"
             />
-            <span v-else>{{ server.icons }}</span>
+            <img
+              v-else-if="isRemoteIconUrl && !remoteIconLoadFailed"
+              :src="serverIconText"
+              alt=""
+              class="size-4 object-contain"
+              @error="remoteIconLoadFailed = true"
+            />
+            <span
+              v-else-if="serverIconText && !isRemoteIconUrl"
+              class="max-w-full truncate px-0.5 text-sm leading-none"
+            >
+              {{ serverIconText }}
+            </span>
+            <!-- 开放平台连接器 config.icons 可能为空，兜底用插件中心菜单的「连接器」图标 -->
+            <img v-else :src="JIAORONG_PLUGIN_MCP_DEFAULT_ICON_SRC" alt="" class="size-4" />
           </span>
 
           <!-- 名称 -->

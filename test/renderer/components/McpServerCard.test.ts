@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { defineComponent } from 'vue'
 import { mount } from '@vue/test-utils'
 import McpServerCard from '@/components/mcp-config/components/McpServerCard.vue'
+import { JIAORONG_PLUGIN_MCP_DEFAULT_ICON_SRC } from '@jiaorong/plugins/mcp/icons'
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
@@ -122,6 +123,20 @@ describe('McpServerCard', () => {
   it('hides the update action when no update is available', () => {
     const { wrapper } = mountCard()
     expect(wrapper.find('[data-testid="mcp-update-demo"]').exists()).toBe(false)
+  })
+
+  it('renders a remote icon url as an image', () => {
+    const { wrapper } = mountCard(vi.fn(), { icons: 'https://cdn.example.com/icon.png' })
+    const icon = wrapper.get('[data-testid="mcp-server-icon"] img')
+
+    expect(icon.attributes('src')).toBe('https://cdn.example.com/icon.png')
+  })
+
+  it('falls back to the connector menu icon when the server has no icon', () => {
+    const { wrapper } = mountCard(vi.fn(), { icons: '' })
+    const icon = wrapper.get('[data-testid="mcp-server-icon"] img')
+
+    expect(icon.attributes('src')).toBe(JIAORONG_PLUGIN_MCP_DEFAULT_ICON_SRC)
   })
 
   it('emits update without opening details when clicking the update action', async () => {

@@ -46,6 +46,7 @@ const mcpClient = createMcpClient()
 const props = withDefaults(
   defineProps<{
     showFooterAddButton?: boolean
+    searchPlaceholder?: string
     serverEnabledOverrides?: Record<string, boolean>
     serverLoadingOverrides?: Record<string, boolean>
     agentScopedToggle?: boolean
@@ -53,6 +54,7 @@ const props = withDefaults(
   }>(),
   {
     showFooterAddButton: true,
+    searchPlaceholder: '',
     serverEnabledOverrides: () => ({}),
     serverLoadingOverrides: () => ({}),
     agentScopedToggle: false,
@@ -748,42 +750,34 @@ defineExpose({
         class="border-0 py-8"
       />
 
-      <div v-else class="flex flex-col gap-6 pt-6 pb-8">
-        <div class="grid items-center gap-2 sm:grid-cols-2 sm:gap-3 lg:grid-cols-3">
-          <div class="relative w-full min-w-0">
+      <div v-else class="plugin-center-list-container flex flex-col gap-6 pt-6 pb-8">
+        <div class="flex flex-wrap items-center gap-2 sm:gap-3">
+          <div class="plugin-center-search">
             <Icon
               icon="lucide:search"
               class="pointer-events-none absolute left-3 top-1/2 z-[1] size-4 -translate-y-1/2 text-muted-foreground"
             />
             <Input
               v-model="searchQuery"
-              class="h-9 w-full rounded bg-background pl-9"
-              :placeholder="t('settings.mcp.center.searchPlaceholder')"
+              class="mcp-search-input w-full bg-background"
+              :placeholder="searchPlaceholder || t('settings.mcp.center.searchPlaceholder')"
             />
           </div>
-          <div
-            class="flex shrink-0 flex-nowrap items-center justify-end gap-2 sm:col-span-1 lg:col-span-2"
-          >
-            <DcButton
+          <div class="ml-auto flex shrink-0 flex-nowrap items-center justify-end gap-2">
+            <button
               v-for="filter in MCP_FILTERS"
               :key="filter"
-              size="sm"
-              :variant="activeFilter === filter ? 'default' : 'ghost'"
-              class="h-8 rounded-full px-0 text-[13px] leading-[18px] font-normal shadow-none active:scale-100"
-              :class="[
-                filter === 'all' ? 'w-[62px]' : 'w-[75px]',
-                activeFilter === filter
-                  ? 'text-white hover:text-white'
-                  : 'bg-[#F1F5FA] text-[#5C78A0] hover:bg-[#F1F5FA] hover:text-[#5C78A0]'
-              ]"
+              type="button"
+              class="mcp-filter-segment"
+              :class="{ 'is-active': activeFilter === filter }"
               @click="activeFilter = filter"
             >
               {{ t(`settings.mcp.center.filters.${filter}`) }}
-            </DcButton>
+            </button>
           </div>
         </div>
 
-        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div class="plugin-center-grid">
           <McpServerCard
             v-for="server in filteredServers"
             :key="server.name"
@@ -1319,3 +1313,30 @@ defineExpose({
     />
   </div>
 </template>
+
+<style scoped lang="less">
+@import '../../../../../jiaorong_src/plugins/styles/plugin-center-list-layout.less';
+
+/* 连接器列表与技能 / IM / 交融应用共用同一套列数断点 */
+.plugin-center-list-container {
+  .plugin-center-card-list();
+}
+
+.plugin-center-grid {
+  .plugin-center-card-grid();
+}
+
+/* 宽度随工具栏伸缩，最小 120px，放不下时整块换行 */
+.plugin-center-search {
+  .plugin-center-search-field();
+}
+
+.mcp-search-input {
+  .plugin-center-search-input();
+}
+
+/* 筛选 tab 与其余三个列表共用同一套样式 */
+.mcp-filter-segment {
+  .plugin-center-segment();
+}
+</style>

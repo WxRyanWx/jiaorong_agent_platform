@@ -1,6 +1,6 @@
 <template>
   <ScrollArea class="h-full w-full">
-    <div class="flex w-full flex-col gap-6 px-8 pt-6 pb-8">
+    <div class="plugin-center-list-container flex w-full flex-col gap-6 px-8 pt-6 pb-8">
       <header class="flex items-center justify-between gap-4">
         <h1
           class="tracking-normal"
@@ -27,7 +27,7 @@
       </div>
 
       <div class="flex flex-wrap items-center gap-3">
-        <div class="relative w-72 max-w-full">
+        <div class="catalog-search">
           <Icon
             icon="lucide:search"
             class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
@@ -53,7 +53,7 @@
       </div>
 
       <section class="space-y-4">
-        <div v-if="filteredItems.length" class="grid gap-4 md:grid-cols-3">
+        <div v-if="filteredItems.length" class="plugin-center-grid">
           <article
             v-for="item in filteredItems"
             :key="item.id"
@@ -413,12 +413,25 @@ onMounted(() => {
 </script>
 
 <style scoped lang="less">
-/* 与技能市场保持一致：搜索框 288×36、筛选胶囊 13px/32px 高 */
+@import '../../../../jiaorong_src/plugins/styles/plugin-center-list-layout.less';
+
+/* 列表容器：列数断点按容器宽度计算，与技能页、交融应用页共用同一套规则 */
+.plugin-center-list-container {
+  .plugin-center-card-list();
+}
+
+.plugin-center-grid {
+  .plugin-center-card-grid();
+}
+
+/* 宽度随工具栏伸缩，最小 120px，放不下时整块换行 */
+.catalog-search {
+  .plugin-center-search-field();
+}
+
+/* 与其余三个列表一致：搜索框高 36、筛选胶囊 13px/32px 高 */
 .catalog-search-input {
-  height: 36px;
-  padding-left: 36px;
-  border-radius: 8px;
-  font-size: 13px;
+  .plugin-center-search-input();
 }
 
 .catalog-card {
@@ -434,30 +447,7 @@ onMounted(() => {
 }
 
 .catalog-segment {
-  padding: 7px 18px;
-  border: none;
-  border-radius: 9999px;
-  background: #f2f3f5;
-  color: #646a73;
-  font-size: 13px;
-  line-height: 18px;
-  cursor: pointer;
-  transition:
-    background-color 0.15s ease,
-    color 0.15s ease;
-
-  &:hover {
-    background: #e8eaed;
-    color: #1f2329;
-  }
-
-  &.is-active {
-    background: #006eff;
-    color: #ffffff;
-
-    &:hover {
-      background: #006eff;
-    }
-  }
+  /* 与其余三个列表共用同一套 tab 样式 */
+  .plugin-center-segment();
 }
 </style>

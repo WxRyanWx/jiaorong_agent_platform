@@ -24,7 +24,9 @@
       <div class="flex flex-col gap-3">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div :dir="languageStore.dir" class="min-w-0">
-            <h1 class="text-base font-semibold text-[#0B2B57]" style="margin: 0; font-size: 24px;">{{ pageTitle }}</h1>
+            <h1 class="text-base font-semibold text-[#0B2B57]" style="margin: 0; font-size: 24px">
+              {{ pageTitle }}
+            </h1>
           </div>
           <div
             ref="mcpActionsRef"
@@ -34,11 +36,15 @@
             <DcButton
               v-if="mcpEnabled"
               size="sm"
-              class="h-9 min-w-[118px] max-w-full rounded-[7px] px-5 text-[13px] font-medium"
+              :class="
+                isPluginCenterCopy
+                  ? 'plugin-center-add-btn max-w-full'
+                  : 'h-9 min-w-[118px] max-w-full rounded-[7px] px-5 text-[13px] font-medium'
+              "
               @click="openAddServerDialog"
             >
               <Icon icon="lucide:plus" class="size-3.5" />
-              {{ t('common.add') }} MCP
+              {{ addServerLabel }}
             </DcButton>
             <span v-if="!mcpEnabled" data-mcp-master-switch>
               <Switch
@@ -69,6 +75,7 @@
         <McpServers
           v-else
           v-model:add-open="isAddServerDialogOpen"
+          :search-placeholder="searchPlaceholder"
           :show-footer-add-button="false"
           :server-enabled-overrides="serverEnabledOverrides"
           :server-loading-overrides="serverLoadingOverrides"
@@ -267,9 +274,11 @@ import { notifyRenderer } from '@renderer-notifications/rendererNotificationPort
 const props = withDefaults(
   defineProps<{
     scope?: 'global' | 'agent'
+    copyScope?: 'default' | 'plugin-center'
   }>(),
   {
-    scope: 'global'
+    scope: 'global',
+    copyScope: 'default'
   }
 )
 
@@ -290,7 +299,17 @@ const showMcpGuide = computed(() => mcpGuide.showGuide.value && Boolean(mcpActio
 
 const mcpEnabled = computed(() => mcpStore.mcpEnabled)
 const isMarketView = computed(() => route.query.view === 'market')
-const pageTitle = computed(() => t('settings.mcp.center.title'))
+/** 插件中心壳里使用「连接器」文案，设置窗口保持原有 MCP 文案 */
+const isPluginCenterCopy = computed(() => props.copyScope === 'plugin-center')
+const pageTitle = computed(() =>
+  isPluginCenterCopy.value ? t('routes.pluginCenterMcpPageTitle') : t('settings.mcp.center.title')
+)
+const addServerLabel = computed(() =>
+  isPluginCenterCopy.value ? t('routes.pluginCenterMcpAdd') : `${t('common.add')} MCP`
+)
+const searchPlaceholder = computed(() =>
+  isPluginCenterCopy.value ? t('routes.pluginCenterMcpSearch') : undefined
+)
 const showMcpSkeleton = computed(() => mcpStore.configLoading && !mcpStore.config.ready)
 
 const npmRegistryStatus = ref<{
@@ -834,9 +853,18 @@ const closeMarketView = async () => {
 }
 </script>
 
-<style scoped>
+<style scoped lang="less">
+@import '../../../jiaorong_src/plugins/styles/plugin-center-list-layout.less';
+
 .mcp-settings-page {
   --scp-primary: #006eff;
   --primary: var(--scp-primary);
+}
+
+/* 「新增」按钮与技能页保持一致：14px / 500 / 36 高 / 118 宽 / 圆角 8
+ * DcButton 的根节点是组件透传，用 :global 保证作用到真实 button 元素；
+ * 同时限定在设置页容器内，避免该类名外溢到其他页面 */
+:global(.mcp-settings-page .plugin-center-add-btn) {
+  .plugin-center-add-button();
 }
 </style>

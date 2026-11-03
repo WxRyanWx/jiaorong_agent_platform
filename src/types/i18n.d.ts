@@ -2274,6 +2274,9 @@ declare module 'vue-i18n' {
     pluginCenterConnectors: string
     pluginCenterMcp: string
     pluginCenterMcpSubtitle: string
+    pluginCenterMcpPageTitle: string
+    pluginCenterMcpSearch: string
+    pluginCenterMcpAdd: string
     pluginCenterConnectorsSearch: string
     pluginCenterConnectorsAll: string
     appCenter: string

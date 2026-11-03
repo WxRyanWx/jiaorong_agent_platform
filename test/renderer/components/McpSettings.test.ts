@@ -240,6 +240,13 @@ describe('McpSettings', () => {
     expect(scrollFrame?.className).toContain('overflow-hidden')
   })
 
+  it('switches to connector copy when hosted by the plugin center', async () => {
+    const { wrapper } = await setup({}, { copyScope: 'plugin-center' })
+
+    expect(wrapper.text()).toContain('routes.pluginCenterMcpPageTitle')
+    expect(wrapper.text()).toContain('routes.pluginCenterMcpAdd')
+  })
+
   it('respects the global MCP master switch in agent scope', async () => {
     const { wrapper } = await setup({}, { scope: 'agent' }, { mcpEnabled: false })
 

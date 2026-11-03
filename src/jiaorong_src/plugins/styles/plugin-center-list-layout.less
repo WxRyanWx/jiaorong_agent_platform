@@ -1,0 +1,89 @@
+/**
+ * 插件中心列表布局：技能 / IM / 交融应用 / 连接器四个列表共用。
+ *
+ * 卡片网格：列数跟随列表容器宽度，最多 3 列。
+ * 3 列需要容器 ≥ 830px（约 3 × 260px 卡片 + 两列间距），
+ * 低于 830px 收成 2 列，低于 540px 收成 1 列，避免卡片被压得过窄。
+ *
+ * 搜索框：随工具栏伸缩，最宽 360px、最窄 120px；父级为 flex-wrap 时，
+ * 剩余空间不足 120px 会自动换行到下一行。四页共用同一组数值，
+ * 空间充足时宽度一致。
+ */
+.plugin-center-card-list() {
+  container-type: inline-size;
+  container-name: plugin-center-list;
+}
+
+.plugin-center-card-grid(@gap: 16px) {
+  display: grid;
+  gap: @gap;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+
+  @container plugin-center-list (max-width: 829px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @container plugin-center-list (max-width: 539px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.plugin-center-search-field() {
+  position: relative;
+  flex: 1 1 240px;
+  min-width: 120px;
+  max-width: 360px;
+}
+
+.plugin-center-search-input() {
+  /* shadcn Input 自带 h-9 / rounded / text-sm，这里必须压过它，否则四页尺寸不一致 */
+  height: 36px !important;
+  padding-left: 36px !important;
+  border-radius: 8px !important;
+  font-size: 13px !important;
+}
+
+/* 「新增」按钮：插件中心内沿用同一组尺寸与字号，用 !important 压过图标相关的
+ * `has-[>svg]:px-*` 与变体字号，保证四页按钮外观一致 */
+.plugin-center-add-button() {
+  height: 36px !important;
+  min-width: 118px !important;
+  padding: 0 20px !important;
+  border-radius: 8px !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+}
+
+/* 筛选 tab（全部 / 已安装 / 未安装…）：四页共用，字号 13、行高 18、高 32。
+ * 尺寸与字号用 !important 固定，避免宿主组件（DcButton / 原生 button）的
+ * 默认字号、内边距差异把某一页的 tab 顶大一号。 */
+.plugin-center-segment() {
+  box-sizing: border-box;
+  height: 32px !important;
+  padding: 0 18px !important;
+  border: none !important;
+  border-radius: 9999px !important;
+  background: #f2f3f5;
+  color: #646a73;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  line-height: 18px !important;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+
+  &:hover {
+    background: #e8eaed;
+    color: #1f2329;
+  }
+
+  &.is-active {
+    background: #006eff;
+    color: #ffffff;
+
+    &:hover {
+      background: #006eff;
+    }
+  }
+}
