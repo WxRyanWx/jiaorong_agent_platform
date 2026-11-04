@@ -23,8 +23,9 @@ import type {
   OpenPlatformSkillCategory
 } from '@jiaorong/api/openPlatform/types'
 import {
+  isOpenPlatformPublishVersion,
   isNewerOpenPlatformVersion,
-  isValidOpenPlatformVersion
+  normalizeOpenPlatformPublishVersionInput
 } from '@jiaorong/api/openPlatform/version'
 import { parseConnectorPackage, parseSkillPackage } from '../packages/parseOpenPlatformPackage'
 import {
@@ -86,6 +87,7 @@ const skillCategories = ref<OpenPlatformSkillCategory[]>([])
 const dialog = ref<PublishDialogState | null>(null)
 const dialogBody = ref<HTMLDivElement | null>(null)
 const dialogError = ref('')
+const versionError = ref('')
 const isConfirmVisible = ref(false)
 const confirmContainer = ref<HTMLDivElement | null>(null)
 const error = ref('')
@@ -136,6 +138,8 @@ const ZIP_LABELS: Record<'skill' | 'connector', string> = {
   skill: '技能包',
   connector: '连接器包'
 }
+const PUBLISH_VERSION_MAX_LENGTH = 8
+const PROVIDER_MAX_LENGTH = 50
 
 const dialogTitle = computed(() =>
   dialog.value?.mode === 'update' ? UPDATE_LABELS[props.assetType] : PUBLISH_LABELS[props.assetType]
@@ -155,6 +159,42 @@ const confirmDescription = computed(() => {
   }
   return `将使用创建时上传的 zip 包发布「${state.details.name}」的 ${version} 版本。`
 })
+
+function countProviderCharacters(value: string): number {
+  return Array.from(value).length
+}
+
+function sliceProviderCharacters(value: string, maxLength = PROVIDER_MAX_LENGTH): string {
+  return Array.from(value).slice(0, maxLength).join('')
+}
+
+function getVersionInputLength(value: string): number {
+  return normalizeOpenPlatformPublishVersionInput(value) === value
+    ? value.length
+    : PUBLISH_VERSION_MAX_LENGTH + 1
+}
+
+function readTextInputValue(value: unknown): string {
+  if (typeof value === 'string') return value
+  if (value instanceof Event) {
+    const target = value.target
+    if (target instanceof HTMLInputElement) return target.value
+  }
+  return ''
+}
+
+function handleVersionInput(value: unknown): void {
+  const state = dialog.value
+  if (!state) return
+  state.version = normalizeOpenPlatformPublishVersionInput(readTextInputValue(value))
+  versionError.value = ''
+}
+
+function handleProviderInput(value: unknown): void {
+  const state = dialog.value
+  if (!state) return
+  state.provider = sliceProviderCharacters(readTextInputValue(value))
+}
 
 /** `silent` 用于保活回到页面时的后台同步：保留已有卡片，不切加载态、不丢滚动位置。 */
 async function refresh(options: { silent?: boolean } = {}): Promise<void> {
@@ -297,6 +337,7 @@ function buildItemDetails(
 async function openPublishDialog(item: OpenPlatformAssetSummary): Promise<void> {
   if (isPublishing.value) return
   dialogError.value = ''
+  versionError.value = ''
   isConfirmVisible.value = false
   const packageFile = await readOpenPlatformPackage(props.assetType, item.id)
   if (isPublishing.value) return
@@ -305,7 +346,7 @@ async function openPublishDialog(item: OpenPlatformAssetSummary): Promise<void> 
     item,
     parsedPackage: null,
     packageFile,
-    provider: item.provider?.trim() ?? '',
+    provider: sliceProviderCharacters(item.provider?.trim() ?? ''),
     version: item.version?.trim() ?? '',
     categoryId: item.categoryId ?? '',
     details: buildItemDetails(item, packageFile)
@@ -316,6 +357,7 @@ async function openPublishDialog(item: OpenPlatformAssetSummary): Promise<void> 
 function openUpdateDialog(item: OpenPlatformAssetSummary): void {
   if (isPublishing.value) return
   dialogError.value = ''
+  versionError.value = ''
   isConfirmVisible.value = false
   dialog.value = {
     mode: 'update',
@@ -323,7 +365,7 @@ function openUpdateDialog(item: OpenPlatformAssetSummary): void {
     parsedPackage: null,
     // 更新必须重新选一份新制品，不复用上次发布时记住的 zip
     packageFile: null,
-    provider: item.provider?.trim() ?? '',
+    provider: sliceProviderCharacters(item.provider?.trim() ?? ''),
     version: item.version?.trim() ?? '',
     categoryId: item.categoryId ?? '',
     details: {
@@ -344,6 +386,7 @@ function closeDialog(): void {
   }
   dialog.value = null
   dialogError.value = ''
+  versionError.value = ''
   isConfirmVisible.value = false
 }
 
@@ -358,6 +401,7 @@ function pickDialogPackage(): void {
 
 /** 弹窗表单前置校验；失败时写 dialogError 并中断。 */
 function validateDialog(state: PublishDialogState): boolean {
+  versionError.value = ''
   if (!state.packageFile) {
     dialogError.value =
       state.mode === 'update'
@@ -371,11 +415,13 @@ function validateDialog(state: PublishDialogState): boolean {
   }
   const version = state.version.trim()
   if (!version) {
-    dialogError.value = t('routes.openPlatformPublishVersionRequired')
+    versionError.value = t('routes.openPlatformPublishVersionRequired')
+    dialogError.value = ''
     return false
   }
-  if (!isValidOpenPlatformVersion(version)) {
-    dialogError.value = '版本号要用三段式版本号，例如 1.0.0'
+  if (!isOpenPlatformPublishVersion(version)) {
+    versionError.value = t('routes.devCenterPublishVersion')
+    dialogError.value = ''
     return false
   }
   if (props.assetType === 'skill' && !state.categoryId) {
@@ -664,6 +710,7 @@ function openDocs(): void {
                 :disabled="isPublishing"
                 :test-id="`open-platform-${assetType}-unpublish-${item.id}`"
                 @confirm="unpublish(item)"
+                position="left"
               />
               <Button
                 v-if="item.status === 'draft'"
@@ -690,6 +737,7 @@ function openDocs(): void {
                 label="移除"
                 description="移除后当前列表将不再展示该内容。"
                 confirm-label="确认移除"
+                position="left"
                 variant="outline"
                 confirm-variant="destructive"
                 :disabled="isPublishing"
@@ -767,10 +815,18 @@ function openDocs(): void {
               </span>
               <Input
                 v-model="dialog.version"
+                :max-length="PUBLISH_VERSION_MAX_LENGTH"
+                :word-length="getVersionInputLength"
+                :word-slice="normalizeOpenPlatformPublishVersionInput"
+                :error="Boolean(versionError)"
                 :disabled="isPublishing"
                 :data-testid="`open-platform-${assetType}-version-${dialog.item.id}`"
                 :placeholder="t('routes.openPlatformPublishVersionPlaceholder')"
+                @input="handleVersionInput"
               />
+              <span v-if="versionError" class="open-platform-pane__field-error">
+                {{ versionError }}
+              </span>
             </label>
             <label class="open-platform-pane__field">
               <span class="open-platform-pane__required-label">
@@ -779,9 +835,15 @@ function openDocs(): void {
               </span>
               <Input
                 v-model="dialog.provider"
+                :max-length="PROVIDER_MAX_LENGTH"
+                :word-length="countProviderCharacters"
+                :word-slice="sliceProviderCharacters"
+                :input-attrs="{ maxlength: PROVIDER_MAX_LENGTH }"
+                show-word-limit
                 :disabled="isPublishing"
                 :data-testid="`open-platform-${assetType}-provider-${dialog.item.id}`"
                 :placeholder="t('routes.openPlatformPublishOrganizationPlaceholder')"
+                @input="handleProviderInput"
               />
             </label>
             <div v-if="assetType === 'skill'" class="open-platform-pane__field">
@@ -817,6 +879,7 @@ function openDocs(): void {
                 :test-id="`open-platform-${assetType}-confirm-${dialog.item.id}`"
                 @update:popup-visible="handleConfirmVisible"
                 @confirm="submitConfirmed"
+                position="left"
               />
             </div>
           </DialogFooter>

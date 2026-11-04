@@ -23,6 +23,10 @@ import {
   type AppManifestFormFields
 } from '../../appHost/manifestRules'
 import type { OpenPlatformAppAuth, OpenPlatformClient } from '@jiaorong/api/openPlatform/types'
+import {
+  isOpenPlatformPublishVersion,
+  normalizeOpenPlatformPublishVersionInput
+} from '@jiaorong/api/openPlatform/version'
 import type { OpenPlatformAppCapabilities } from './clientAppCapabilities'
 import ConfirmAction from './ConfirmAction.vue'
 import { useOpenPlatformApps, type OpenPlatformAppCard } from './useOpenPlatformApps'
@@ -49,6 +53,8 @@ const MODULE_META = {
   title: '交融应用',
   subtitle: '可独立分发的应用，面向终端用户场景'
 }
+const PUBLISH_VERSION_MAX_LENGTH = 8
+const PROVIDER_MAX_LENGTH = 50
 
 const props = defineProps<{
   api: OpenPlatformClient
@@ -92,6 +98,7 @@ const publishForm = ref<AppManifestFormFields>(emptyManifestForm())
 const publishZipPath = ref('')
 const publishOrgNames = ref('')
 const publishProvider = ref('')
+const appVersionError = ref('')
 const publishError = ref('')
 const isPublishConfirmVisible = ref(false)
 const pendingPublishRequest = ref<PendingPublishRequest | null>(null)
@@ -99,6 +106,34 @@ const publishConfirmContainer = ref<HTMLDivElement | null>(null)
 const isPublishing = ref(false)
 const isChoosingZip = ref(false)
 let publishSequence = 0
+
+function countProviderCharacters(value: string): number {
+  return Array.from(value).length
+}
+
+function sliceProviderCharacters(value: string, maxLength = PROVIDER_MAX_LENGTH): string {
+  return Array.from(value).slice(0, maxLength).join('')
+}
+
+function readTextInputValue(value: unknown): string {
+  if (typeof value === 'string') return value
+  if (value instanceof Event) {
+    const target = value.target
+    if (target instanceof HTMLInputElement) return target.value
+  }
+  return ''
+}
+
+function handleManifestFieldInput(key: keyof AppManifestFormFields, value: unknown): void {
+  const nextValue = readTextInputValue(value)
+  publishForm.value[key] =
+    key === 'version' ? normalizeOpenPlatformPublishVersionInput(nextValue) : nextValue
+  if (key === 'version') appVersionError.value = ''
+}
+
+function handleProviderInput(value: unknown): void {
+  publishProvider.value = sliceProviderCharacters(readTextInputValue(value))
+}
 
 const isDialogBusy = computed(() => isPublishing.value || isChoosingZip.value)
 const publishConfirmDescription = computed(() =>
@@ -125,6 +160,10 @@ function fieldLabel(key: string): string {
 }
 
 function publishFormIssueText(fields: AppManifestFormFields): string {
+  const version = fields.version.trim()
+  if (version && !isOpenPlatformPublishVersion(version)) {
+    return t('routes.devCenterPublishVersion')
+  }
   const issue = inspectManifestRecord(fields)
   if (!issue) return ''
   if (issue.kind === 'required') {
@@ -146,8 +185,9 @@ function openPublishDialog(app: OpenPlatformAppCard): void {
   publishSequence += 1
   publishForm.value = { ...emptyManifestForm(), id: app.id }
   publishOrgNames.value = app.serverAuth?.orgNames ?? ''
-  publishProvider.value = app.serverProvider ?? ''
+  publishProvider.value = sliceProviderCharacters(app.serverProvider ?? '')
   publishZipPath.value = ''
+  appVersionError.value = ''
   publishError.value = ''
   isPublishConfirmVisible.value = false
   pendingPublishRequest.value = null
@@ -176,7 +216,11 @@ async function choosePublishZip(): Promise<void> {
       publishError.value = '应用 ID 与当前应用不一致'
       return
     }
-    publishForm.value = { ...fields }
+    publishForm.value = {
+      ...fields,
+      version: normalizeOpenPlatformPublishVersionInput(fields.version)
+    }
+    appVersionError.value = ''
   } finally {
     isChoosingZip.value = false
   }
@@ -186,6 +230,7 @@ function closePublishDialog(): void {
   if (isPublishing.value) return
   publishSequence += 1
   publishTarget.value = null
+  appVersionError.value = ''
   publishError.value = ''
   isPublishConfirmVisible.value = false
   pendingPublishRequest.value = null
@@ -198,7 +243,19 @@ function createPendingPublishRequest(): PendingPublishRequest | null {
     publishError.value = t('routes.devCenterPublishZipRequired')
     return null
   }
+  appVersionError.value = ''
   const fields = { ...publishForm.value }
+  const version = fields.version.trim()
+  if (!version) {
+    appVersionError.value = t('routes.openPlatformPublishVersionRequired')
+    publishError.value = ''
+    return null
+  }
+  if (!isOpenPlatformPublishVersion(version)) {
+    appVersionError.value = t('routes.devCenterPublishVersion')
+    publishError.value = ''
+    return null
+  }
   publishError.value = publishFormIssueText(fields)
   if (publishError.value) return null
   const provider = publishProvider.value.trim()
@@ -395,6 +452,7 @@ watch(lastError, (error) => {
                 label="移除"
                 description="移除后当前列表将不再显示该应用。"
                 confirm-label="确认移除"
+                position="left"
                 variant="outline"
                 confirm-variant="destructive"
                 :disabled="isBusy"
@@ -498,10 +556,19 @@ watch(lastError, (error) => {
             />
             <Input
               v-else
-              v-model="publishForm[field.key]"
+              :model-value="publishForm[field.key]"
               :disabled="field.key === 'id'"
               :placeholder="field.placeholder"
+              :maxlength="field.key === 'version' ? PUBLISH_VERSION_MAX_LENGTH : undefined"
+              :aria-invalid="field.key === 'version' && Boolean(appVersionError)"
+              @update:model-value="handleManifestFieldInput(field.key, $event)"
             />
+            <span
+              v-if="field.key === 'version' && appVersionError"
+              class="open-platform-pane__field-error"
+            >
+              {{ appVersionError }}
+            </span>
           </label>
           <label class="open-platform-pane__field">
             <span class="open-platform-pane__required-label">
@@ -509,11 +576,16 @@ watch(lastError, (error) => {
               {{ t('routes.openPlatformPublishOrganization') }}：
             </span>
             <Input
-              v-model="publishProvider"
+              :model-value="publishProvider"
+              :maxlength="PROVIDER_MAX_LENGTH"
               :disabled="isDialogBusy"
               :data-testid="`open-platform-app-provider-${publishTarget?.id}`"
               :placeholder="t('routes.openPlatformPublishOrganizationPlaceholder')"
+              @update:model-value="handleProviderInput"
             />
+            <span class="open-platform-pane__field-hint">
+              {{ countProviderCharacters(publishProvider) }}/{{ PROVIDER_MAX_LENGTH }}
+            </span>
           </label>
           <label class="open-platform-pane__field">
             <span>{{ t('routes.openPlatformAuth') }}</span>
