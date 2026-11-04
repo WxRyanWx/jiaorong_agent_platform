@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest'
 import {
   compareOpenPlatformVersions,
   isValidOpenPlatformVersion,
+  isOpenPlatformPublishVersion,
   isNewerOpenPlatformVersion,
-  needsOpenPlatformVersionSync
+  needsOpenPlatformVersionSync,
+  normalizeOpenPlatformPublishVersionInput
 } from '@jiaorong/api/openPlatform/version'
 
 describe('open platform version', () => {
@@ -14,6 +16,24 @@ describe('open platform version', () => {
     expect(isValidOpenPlatformVersion('1.0')).toBe(false)
     expect(isValidOpenPlatformVersion('v1.0.0')).toBe(false)
     expect(isValidOpenPlatformVersion('')).toBe(false)
+  })
+
+  it('limits publish versions to 99.99.99', () => {
+    expect(isOpenPlatformPublishVersion('0.0.0')).toBe(true)
+    expect(isOpenPlatformPublishVersion('99.99.99')).toBe(true)
+    expect(isOpenPlatformPublishVersion('100.0.0')).toBe(false)
+    expect(isOpenPlatformPublishVersion('1.100.0')).toBe(false)
+    expect(isOpenPlatformPublishVersion('1.0.100')).toBe(false)
+    expect(isOpenPlatformPublishVersion('1.0.0-beta')).toBe(false)
+    // 市场历史版本仍需按通用 semver 读取，不能被发布上限误伤
+    expect(isValidOpenPlatformVersion('100.0.0')).toBe(true)
+  })
+
+  it('normalizes publish version input', () => {
+    expect(normalizeOpenPlatformPublishVersionInput('v123.45.678')).toBe('12.45.67')
+    expect(normalizeOpenPlatformPublishVersionInput('1a.2b.3c')).toBe('1.2.3')
+    expect(normalizeOpenPlatformPublishVersionInput('99.1212.123')).toBe('99.12.12')
+    expect(normalizeOpenPlatformPublishVersionInput(undefined)).toBe('')
   })
 
   it('compares core and prerelease segments', () => {

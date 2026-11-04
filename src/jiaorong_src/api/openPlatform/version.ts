@@ -4,9 +4,26 @@
  */
 
 const OPEN_PLATFORM_VERSION_PATTERN = /^\d+\.\d+\.\d+(?:-[\w.]+)?(?:\+[\w.]+)?$/
+const OPEN_PLATFORM_PUBLISH_VERSION_PATTERN = /^\d{1,2}\.\d{1,2}\.\d{1,2}$/
 
 export function isValidOpenPlatformVersion(version: string): boolean {
   return OPEN_PLATFORM_VERSION_PATTERN.test(version.trim())
+}
+
+/** 发布表单专用：三段均为 1-2 位数字，即最大 99.99.99。 */
+export function isOpenPlatformPublishVersion(version: string): boolean {
+  return OPEN_PLATFORM_PUBLISH_VERSION_PATTERN.test(version.trim())
+}
+
+/** 发布版本输入规范化：只保留三段数字，并限制每段最多两位。 */
+export function normalizeOpenPlatformPublishVersionInput(value: unknown): string {
+  const text = typeof value === 'string' ? value : ''
+  return text
+    .replace(/[^\d.]/g, '')
+    .split('.')
+    .slice(0, 3)
+    .map((part) => part.slice(0, 2))
+    .join('.')
 }
 
 function parseVersionParts(version: string): { core: number[]; pre: string[] } | null {

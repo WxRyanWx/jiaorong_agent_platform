@@ -155,7 +155,7 @@
   "devCenterCreateFailed": "创建失败，请检查 app.json",
   "devCenterPublishMissing": "请填写必填字段：{fields}",
   "devCenterPublishSlot": "挂载位置必须是侧栏菜单或应用中心",
-  "devCenterPublishVersion": "版本号要用三段式版本号，例如 1.0.0",
+  "devCenterPublishVersion": "版本號格式為三段數字，每段 0-99，最大 99.99.99",
   "devCenterPublishZipRequired": "请选择 zip 包",
   "devCenterPublishZipLabel": "应用包",
   "devCenterPublishZipPlaceholder": "未选择 zip 包",

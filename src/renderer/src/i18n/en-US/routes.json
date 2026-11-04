@@ -155,7 +155,7 @@
   "devCenterCreateFailed": "Create failed, please check app.json",
   "devCenterPublishMissing": "Required fields missing: {fields}",
   "devCenterPublishSlot": "Mount slot must be sidebar menu or App Center",
-  "devCenterPublishVersion": "Version must be three-part, for example 1.0.0",
+  "devCenterPublishVersion": "Version must have three numeric parts from 0 to 99 (max 99.99.99)",
   "devCenterPublishZipRequired": "Please choose a zip package",
   "devCenterPublishZipLabel": "App package",
   "devCenterPublishZipPlaceholder": "No zip selected",
