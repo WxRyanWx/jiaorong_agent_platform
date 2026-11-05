@@ -21,6 +21,7 @@ export type AiSdkModelSourceStrategy =
   | 'config-db'
   | 'bedrock'
   | 'new-api'
+  | 'new-jiaorong'
   | 'openrouter'
   | 'ppio'
   | 'groq'
@@ -394,6 +395,13 @@ const PROVIDER_ID_REGISTRY = new Map<string, AiSdkProviderDefinition>([
       modelSource: 'new-api',
       routeStrategy: 'new-api',
       embeddingStrategy: 'new-api'
+    })
+  ],
+  [
+    'new-jiaorong',
+    createDefinition({
+      ...OPENAI_BASE,
+      modelSource: 'new-jiaorong'
     })
   ],
   [

@@ -20,6 +20,23 @@ export const DEFAULT_PROVIDERS: LLM_PROVIDER_BASE[] = [
     }
   },
   {
+    id: 'new-jiaorong',
+    name: 'New Jiaorong',
+    apiType: 'openai-completions',
+    apiKey: revealBuiltinSecret(
+      'jrk1.6Rng2CdWF5ZyvJlY.97mKMUnh1mJWFNm0A650_Q.EnFmdjVXH1xN_VmJXKkZMBR0B6vHYM8s1AnFOYs7ZAAhNjVHu8Im5clDtRDBueJErdZgHn_W5cM3uVM'
+    ),
+    baseUrl: 'https://token.ccccltd.cn/gateway/v1',
+    enable: true,
+    websites: {
+      official: 'https://token.ccccltd.cn/',
+      apiKey: '',
+      docs: '',
+      models: 'https://token.ccccltd.cn/gateway/v1/models',
+      defaultBaseUrl: 'https://token.ccccltd.cn/gateway/v1'
+    }
+  },
+  {
     id: 'ollama',
     name: 'Ollama',
     apiType: 'ollama',

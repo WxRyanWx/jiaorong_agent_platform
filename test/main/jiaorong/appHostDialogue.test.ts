@@ -645,8 +645,8 @@ describe('jiaorong app dialogue bridge', () => {
       name: '示例工作台助手',
       enabled: true,
       config: {
-        assistantModel: { providerId: 'jiaorong', modelId: 'jiaorong-deepseek-V4.1-flash' },
-        defaultModelPreset: { providerId: 'jiaorong', modelId: 'jiaorong-deepseek-V4.1-flash' },
+        assistantModel: { providerId: 'new-jiaorong', modelId: 'jrdz-dsv4.1f' },
+        defaultModelPreset: { providerId: 'new-jiaorong', modelId: 'jrdz-dsv4.1f' },
         jiaorongAppId: 'demo-workbench',
         jiaorongAppKey: 'unit-test-agent'
       }
@@ -767,7 +767,7 @@ describe('jiaorong app dialogue bridge', () => {
     expect(store.has('demo-workbench::other-name')).toBe(false)
   })
 
-  it('defaults a new app agent to the Super Agent jiaorong model', async () => {
+  it('defaults a new app agent to the Super Agent new-jiaorong model', async () => {
     const createDeepChatAgent = vi.fn().mockResolvedValue({
       id: 'deepchat-app-model',
       name: '示例工作台助手',
@@ -809,8 +809,8 @@ describe('jiaorong app dialogue bridge', () => {
     expect(createDeepChatAgent).toHaveBeenCalledWith(
       expect.objectContaining({
         config: expect.objectContaining({
-          assistantModel: { providerId: 'jiaorong', modelId: 'jiaorong-deepseek-V4.1-flash' },
-          defaultModelPreset: { providerId: 'jiaorong', modelId: 'jiaorong-deepseek-V4.1-flash' },
+          assistantModel: { providerId: 'new-jiaorong', modelId: 'jrdz-dsv4.1f' },
+          defaultModelPreset: { providerId: 'new-jiaorong', modelId: 'jrdz-dsv4.1f' },
           jiaorongAppId: 'demo-workbench',
           jiaorongAppKey: 'inherit-model'
         })

@@ -23,7 +23,9 @@ import { resolveAcpAgentAlias } from '@shared/utils/acpAgentAlias'
 import {
   JIAORONG_DEFAULT_MODEL_ID,
   JIAORONG_DEFAULT_PROVIDER_ID,
-  JIAORONG_LEGACY_DEFAULT_MODEL_ID
+  JIAORONG_LEGACY_DEFAULT_MODEL_ID,
+  JIAORONG_LEGACY_PROVIDER_ID,
+  JIAORONG_LEGACY_V4_PRO_MODEL_ID
 } from '@jiaorong/brand'
 import type { SettingsStore } from '@/config/settingsStore'
 import { AcpCatalogSettings } from '@/agent/acp/catalog/settings'
@@ -39,6 +41,8 @@ import type { AgentLifecycleGatePort } from '@/agent/lifecycleGate'
 const UNIFIED_AGENTS_MIGRATION_VERSION = 3
 const JIAORONG_DEFAULT_MODEL_MIGRATION_KEY = 'jiaorongDefaultModelMigrationVersion'
 const JIAORONG_DEFAULT_MODEL_MIGRATION_VERSION = 1
+const JIAORONG_NEW_MAAS_MIGRATION_KEY = 'jiaorongNewMaasMigrationVersion'
+const JIAORONG_NEW_MAAS_MIGRATION_VERSION = 1
 const PENDING_AGENT_SKILL_CLEANUP_KEY = 'pendingAgentSkillCleanupIds'
 const DEPRECATED_BUILTIN_PROVIDER_IDS = ['qwenlm', 'laoshi'] as const
 const MEMORY_MAINTENANCE_TRIGGER_CONFIG_KEYS: readonly (keyof DeepChatAgentConfig)[] = [
@@ -226,6 +230,7 @@ export class AgentSettings implements AgentSettingsPort {
         logger.warn('[AgentSettings] Failed to materialize independent Agent configs.', { error })
       }
     }
+    this.migrateJiaorongNewMaasSelectionsIfNeeded()
     this.provider.setAcpProviderEnabled(this.acpCatalog.getGlobalEnabled())
     const previousAgents = this.registry.listAgents()
     void this.registry
@@ -265,8 +270,8 @@ export class AgentSettings implements AgentSettingsPort {
       Boolean(value) &&
       typeof value === 'object' &&
       !Array.isArray(value) &&
-      (value as ModelSelection).providerId === JIAORONG_DEFAULT_PROVIDER_ID &&
-      (value as ModelSelection).modelId === JIAORONG_LEGACY_DEFAULT_MODEL_ID
+      (value as ModelSelection).providerId === JIAORONG_LEGACY_PROVIDER_ID &&
+      (value as ModelSelection).modelId === JIAORONG_LEGACY_V4_PRO_MODEL_ID
 
     for (const agent of this.repository.listAgents({ agentType: 'deepchat' })) {
       const config = this.repository.getDeepChatAgentConfig(agent.id) ?? {}
@@ -274,14 +279,72 @@ export class AgentSettings implements AgentSettingsPort {
       if (isLegacyDefaultSelection(config.defaultModelPreset)) {
         updates.defaultModelPreset = {
           ...config.defaultModelPreset,
-          modelId: JIAORONG_DEFAULT_MODEL_ID
+          modelId: JIAORONG_LEGACY_DEFAULT_MODEL_ID
         }
       }
       if (isLegacyDefaultSelection(config.assistantModel)) {
         updates.assistantModel = {
           ...config.assistantModel,
-          modelId: JIAORONG_DEFAULT_MODEL_ID
+          modelId: JIAORONG_LEGACY_DEFAULT_MODEL_ID
         }
+      }
+      if (Object.keys(updates).length > 0) {
+        this.repository.updateDeepChatAgent(agent.id, { config: updates })
+      }
+    }
+  }
+
+  private migrateJiaorongNewMaasSelectionsIfNeeded(): void {
+    const migratedVersion = this.settings.get<number>(JIAORONG_NEW_MAAS_MIGRATION_KEY) ?? 0
+    if (migratedVersion >= JIAORONG_NEW_MAAS_MIGRATION_VERSION) return
+
+    try {
+      this.migrateJiaorongNewMaasSelections()
+    } catch (error) {
+      logger.warn('[AgentSettings] Failed to migrate Jiaorong MaaS selections.', { error })
+      return
+    }
+    this.settings.set(JIAORONG_NEW_MAAS_MIGRATION_KEY, JIAORONG_NEW_MAAS_MIGRATION_VERSION)
+  }
+
+  /**
+   * 升级用户的新会话切到新 MaaS 网关；已创建会话保存了 provider/model，不受影响。
+   * 只迁移旧网关的默认模型，用户自行选择的其他模型保持不变。
+   */
+  private migrateJiaorongNewMaasSelections(): void {
+    const isLegacyMaasSelection = (value: unknown): value is ModelSelection =>
+      Boolean(value) &&
+      typeof value === 'object' &&
+      !Array.isArray(value) &&
+      (value as ModelSelection).providerId === JIAORONG_LEGACY_PROVIDER_ID &&
+      ((value as ModelSelection).modelId === JIAORONG_LEGACY_DEFAULT_MODEL_ID ||
+        (value as ModelSelection).modelId === JIAORONG_LEGACY_V4_PRO_MODEL_ID)
+
+    const toNewMaasSelection = <T extends ModelSelection>(value: T): T => ({
+      ...value,
+      providerId: JIAORONG_DEFAULT_PROVIDER_ID,
+      modelId: JIAORONG_DEFAULT_MODEL_ID
+    })
+
+    const defaultModel = this.settings.get('defaultModel')
+    if (isLegacyMaasSelection(defaultModel)) {
+      this.setDefaultModel(toNewMaasSelection(defaultModel))
+    }
+
+    // 主界面切换模型写入 preferredModel，优先级高于 defaultModel。
+    const preferredModel = this.settings.get('preferredModel')
+    if (isLegacyMaasSelection(preferredModel)) {
+      this.settings.set('preferredModel', toNewMaasSelection(preferredModel))
+    }
+
+    for (const agent of this.repository.listAgents({ agentType: 'deepchat' })) {
+      const config = this.repository.getDeepChatAgentConfig(agent.id) ?? {}
+      const updates: Partial<DeepChatAgentConfig> = {}
+      if (isLegacyMaasSelection(config.defaultModelPreset)) {
+        updates.defaultModelPreset = toNewMaasSelection(config.defaultModelPreset)
+      }
+      if (isLegacyMaasSelection(config.assistantModel)) {
+        updates.assistantModel = toNewMaasSelection(config.assistantModel)
       }
       if (Object.keys(updates).length > 0) {
         this.repository.updateDeepChatAgent(agent.id, { config: updates })

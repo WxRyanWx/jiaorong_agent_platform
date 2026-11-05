@@ -19,6 +19,27 @@ describe('DEFAULT_PROVIDERS', () => {
     })
   })
 
+  it('keeps the legacy Jiaorong gateway and adds the new MaaS gateway', () => {
+    const providersById = new Map(DEFAULT_PROVIDERS.map((provider) => [provider.id, provider]))
+
+    expect(providersById.get('new-jiaorong')).toMatchObject({
+      id: 'new-jiaorong',
+      name: 'New Jiaorong',
+      apiType: 'openai-completions',
+      baseUrl: 'https://token.ccccltd.cn/gateway/v1',
+      enable: true,
+      websites: expect.objectContaining({
+        official: 'https://token.ccccltd.cn/',
+        defaultBaseUrl: 'https://token.ccccltd.cn/gateway/v1'
+      })
+    })
+    expect(providersById.get('new-jiaorong')?.apiKey).toBeTruthy()
+    expect(providersById.get('new-jiaorong')?.apiKey.startsWith(`${BUILTIN_SECRET_PREFIX}.`)).toBe(
+      false
+    )
+    expect(providersById.get('jiaorong')?.baseUrl).toBe('https://c4ai.ccccltd.cn/api/compatible/v1')
+  })
+
   it('includes AMD GPU Cloud as a disabled built-in OpenAI-compatible provider', () => {
     expect(DEFAULT_PROVIDERS).toContainEqual(
       expect.objectContaining({

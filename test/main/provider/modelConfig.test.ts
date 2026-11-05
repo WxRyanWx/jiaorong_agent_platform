@@ -138,6 +138,14 @@ describe('ModelConfigHelper', () => {
       expect(defaultConfig.isUserDefined).toBe(false)
     })
 
+    it('should apply the 1M context of the new Jiaorong MaaS default model', () => {
+      const config = modelConfigHelper.getModelConfig('jrdz-dsv4.1f', 'new-jiaorong')
+
+      expect(config.contextLength).toBe(1_000_000)
+      expect(config.maxTokens).toBe(32_000)
+      expect(config.isUserDefined).toBe(false)
+    })
+
     it.each([
       {
         label: 'Anthropic',

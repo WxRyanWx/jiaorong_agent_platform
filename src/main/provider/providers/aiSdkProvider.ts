@@ -56,6 +56,7 @@ import {
   resolveAiSdkProviderDefinition
 } from '../providerRegistry'
 import { providerDbLoader } from '../../provider/providerDbLoader'
+import { mapNewJiaorongModelRecords } from '../newJiaorongModels'
 import { modelCapabilities } from '../modelCapabilities'
 import {
   buildResolvedCapabilitySnapshot,
@@ -1715,6 +1716,8 @@ export class AiSdkProvider extends BaseLLMProvider {
         return this.fetchBedrockModels()
       case 'new-api':
         return this.fetchNewApiModels()
+      case 'new-jiaorong':
+        return this.fetchNewJiaorongModels()
       case 'openai':
       default:
         return this.fetchDefaultOpenAIModels({ timeout: this.getModelFetchTimeout() }).then(
@@ -1727,6 +1730,13 @@ export class AiSdkProvider extends BaseLLMProvider {
               : models
         )
     }
+  }
+
+  private async fetchNewJiaorongModels(): Promise<MODEL_META[]> {
+    const records = await this.fetchOpenAIModelRecords({
+      timeout: this.getModelFetchTimeout()
+    })
+    return mapNewJiaorongModelRecords(this.provider.id, records)
   }
 
   private async fetchOpenAiDerivedModels(

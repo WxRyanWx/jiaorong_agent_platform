@@ -209,8 +209,8 @@ describe('CLI argument grammar', () => {
   it('defaults model invoke and agent run to the built-in Jiaorong text model', () => {
     expect(parseCliArguments(['model', 'invoke', '--prompt', 'hello'], {})).toMatchObject({
       params: {
-        providerId: 'jiaorong',
-        modelId: 'jiaorong-deepseek-V4.1-flash',
+        providerId: 'new-jiaorong',
+        modelId: 'jrdz-dsv4.1f',
         messages: [
           { role: 'system', content: expect.stringContaining('交融超级智能体') },
           { role: 'user', content: 'hello' }
@@ -230,26 +230,24 @@ describe('CLI argument grammar', () => {
     expect(
       parseCliArguments(['model', 'invoke', '--provider', 'openai', '--prompt', 'hello'], {})
     ).toMatchObject({
-      params: { providerId: 'openai', modelId: 'jiaorong-deepseek-V4.1-flash' }
+      params: { providerId: 'openai', modelId: 'jrdz-dsv4.1f' }
     })
     expect(
       parseCliArguments(['model', 'invoke', '--model', 'other-model', '--prompt', 'hello'], {})
     ).toMatchObject({
-      params: { providerId: 'jiaorong', modelId: 'other-model' }
+      params: { providerId: 'new-jiaorong', modelId: 'other-model' }
     })
     expect(
       parseCliArguments(['agent', 'run', '--prompt', 'Inspect the project'], {})
     ).toMatchObject({
       params: {
         prompt: 'Inspect the project',
-        providerId: 'jiaorong',
-        modelId: 'jiaorong-deepseek-V4.1-flash'
+        providerId: 'new-jiaorong',
+        modelId: 'jrdz-dsv4.1f'
       }
     })
     expect(formatCliHelp({ domain: 'model', verb: 'invoke' })).toContain('[--provider <id>]')
-    expect(formatCliHelp({ domain: 'model', verb: 'invoke' })).toContain(
-      'default: jiaorong-deepseek-V4.1-flash'
-    )
+    expect(formatCliHelp({ domain: 'model', verb: 'invoke' })).toContain('default: jrdz-dsv4.1f')
     expect(formatCliHelp({ domain: 'model', verb: 'invoke' })).toContain(
       'default: Jiaorong identity prompt'
     )
@@ -263,8 +261,8 @@ describe('CLI argument grammar', () => {
       domain: 'model',
       verb: 'invoke',
       params: {
-        providerId: 'jiaorong',
-        modelId: 'jiaorong-deepseek-V4.1-flash',
+        providerId: 'new-jiaorong',
+        modelId: 'jrdz-dsv4.1f',
         messages: [
           { role: 'system', content: expect.stringContaining('交融超级智能体') },
           { role: 'user', content: '你是谁' }
@@ -348,8 +346,8 @@ describe('CLI argument grammar', () => {
     expect(parseCliArguments(['agent', 'run', '--stdin'], {})).toMatchObject({
       readStdin: true,
       params: {
-        providerId: 'jiaorong',
-        modelId: 'jiaorong-deepseek-V4.1-flash'
+        providerId: 'new-jiaorong',
+        modelId: 'jrdz-dsv4.1f'
       }
     })
     expect(() => parseCliArguments(['agent', 'run', '--prompt', 'hello', '--stdin'], {})).toThrow(

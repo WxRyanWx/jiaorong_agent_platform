@@ -293,6 +293,54 @@ describe('AgentSettings migrations', () => {
     })
   })
 
+  it('migrates legacy jiaorong selections to the new MaaS gateway', () => {
+    const legacySelection = createModelSelection('jiaorong', 'jiaorong-deepseek-V4.1-flash')
+    const newSelection = createModelSelection('new-jiaorong', 'jrdz-dsv4.1f')
+    const customSelection = createModelSelection('openai', 'gpt-4o')
+    const repository = {
+      listAgents: vi.fn(() => [
+        { id: BUILTIN_DEEPCHAT_AGENT_ID },
+        { id: 'deepchat-app' },
+        { id: 'deepchat-custom' }
+      ]),
+      getDeepChatAgentConfig: vi.fn((agentId: string) => {
+        if (agentId === 'deepchat-custom') {
+          return { defaultModelPreset: customSelection, assistantModel: customSelection }
+        }
+        return {
+          defaultModelPreset: legacySelection,
+          assistantModel: agentId === 'deepchat-app' ? legacySelection : null
+        }
+      }),
+      updateDeepChatAgent: vi.fn()
+    }
+    const store = {
+      get: vi.fn((key: string) =>
+        key === 'defaultModel' || key === 'preferredModel' ? legacySelection : undefined
+      ),
+      set: vi.fn()
+    }
+    const settings = Object.assign(Object.create(AgentSettings.prototype), {
+      settings: store,
+      repository
+    }) as AgentSettings
+
+    ;(settings as any).migrateJiaorongNewMaasSelections()
+
+    expect(store.set).toHaveBeenCalledWith('defaultModel', newSelection)
+    expect(store.set).toHaveBeenCalledWith('preferredModel', newSelection)
+    expect(repository.updateDeepChatAgent).toHaveBeenCalledWith(BUILTIN_DEEPCHAT_AGENT_ID, {
+      config: { defaultModelPreset: newSelection }
+    })
+    expect(repository.updateDeepChatAgent).toHaveBeenCalledWith('deepchat-app', {
+      config: { defaultModelPreset: newSelection, assistantModel: newSelection }
+    })
+    expect(repository.updateDeepChatAgent).not.toHaveBeenCalledWith(
+      'deepchat-custom',
+      expect.anything()
+    )
+  })
+
   it('runs once and records its own migration version key', () => {
     const migrateLegacyDefaultModelSelections = vi.fn()
     const store = { get: vi.fn(() => undefined), set: vi.fn() }

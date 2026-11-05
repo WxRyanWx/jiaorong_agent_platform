@@ -1145,16 +1145,16 @@ export function formatCliHelp(command?: Pick<ParsedCliArguments, 'domain' | 'ver
     const optionLines =
       commandKey === 'model invoke'
         ? [
-            '  --provider <id>      Override provider (default: jiaorong)',
-            '  --model <id>         Override model (default: jiaorong-deepseek-V4.1-flash)',
+            `  --provider <id>      Override provider (default: ${CLI_DEFAULT_PROVIDER_ID})`,
+            `  --model <id>         Override model (default: ${CLI_DEFAULT_MODEL_ID})`,
             '  --system <text>       Override system prompt (default: Jiaorong identity prompt)',
             '  --temperature <n>     Set sampling temperature (0..2)',
             '  --max-tokens <n>      Set the output-token limit'
           ]
         : commandKey === 'agent run'
           ? [
-              '  --provider <id>         Override provider (default: jiaorong)',
-              '  --model <id>            Override model (default: jiaorong-deepseek-V4.1-flash)',
+              `  --provider <id>         Override provider (default: ${CLI_DEFAULT_PROVIDER_ID})`,
+              `  --model <id>            Override model (default: ${CLI_DEFAULT_MODEL_ID})`,
               '  --system <text>         Override the Agent system prompt',
               '  --title <text>          Set the durable session title',
               '  --project-dir <path>    Set the Agent working directory',

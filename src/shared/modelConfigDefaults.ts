@@ -52,6 +52,24 @@ export const BUILT_IN_MODEL_CAPABILITY_OVERRIDES: Readonly<
       contextLength: 1_000_000,
       maxTokens: 32_000
     })
+  }),
+  'new-jiaorong': Object.freeze({
+    // 新 MaaS 网关的 DeepSeek V4.1 Flash，能力与旧网关同名模型保持一致
+    'jrdz-dsv4.1f': Object.freeze({
+      contextLength: 1_000_000,
+      maxTokens: 32_000
+    }),
+    // 网关 /models 不带能力字段，以下按网关实测报错区间声明，避免退回 16K/4K 兜底值：
+    // qwen3.7-max 输入 ≤ 983616、max_tokens ≤ 131072；qwen3.5-35b-a3b 输入 ≤ 258048、max_tokens ≤ 65536。
+    // maxTokens 统一取产品派发上限 32K。
+    'jrdz-qwen3.7-max': Object.freeze({
+      contextLength: 983_616,
+      maxTokens: 32_000
+    }),
+    'jrdz-qwen3.5-35b-a3b': Object.freeze({
+      contextLength: 258_048,
+      maxTokens: 32_000
+    })
   })
 })
 

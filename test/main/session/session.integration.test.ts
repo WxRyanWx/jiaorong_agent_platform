@@ -1584,7 +1584,7 @@ describe('Session application coordinators', () => {
       )
     })
 
-    it('uses jiaorong Super Agent defaults when no provider/model is stored', async () => {
+    it('uses new-jiaorong Super Agent defaults when no provider/model is stored', async () => {
       providerSettings.getDefaultModel.mockReturnValue(null)
 
       await lifecycle.createSession({ agentId: 'deepchat', message: 'Hi' }, 1)
@@ -1593,8 +1593,8 @@ describe('Session application coordinators', () => {
         expect.any(String),
         expect.objectContaining({
           agentId: 'deepchat',
-          providerId: 'jiaorong',
-          modelId: 'jiaorong-deepseek-V4.1-flash'
+          providerId: 'new-jiaorong',
+          modelId: 'jrdz-dsv4.1f'
         })
       )
     })

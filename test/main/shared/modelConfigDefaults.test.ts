@@ -60,6 +60,35 @@ describe('applyBuiltInModelCapabilityOverrides', () => {
     })
   })
 
+  it('applies new-jiaorong MaaS default model limits', () => {
+    expect(
+      applyBuiltInModelCapabilityOverrides('new-jiaorong', 'jrdz-dsv4.1f', {
+        contextLength: 16000,
+        maxTokens: 4096
+      })
+    ).toEqual({
+      contextLength: 1_000_000,
+      maxTokens: 32_000
+    })
+  })
+
+  it('applies new-jiaorong MaaS Qwen model limits', () => {
+    const fallbackConfig = { contextLength: 16000, maxTokens: 4096 }
+
+    expect(
+      applyBuiltInModelCapabilityOverrides('new-jiaorong', 'jrdz-qwen3.7-max', fallbackConfig)
+    ).toEqual({
+      contextLength: 983_616,
+      maxTokens: 32_000
+    })
+    expect(
+      applyBuiltInModelCapabilityOverrides('new-jiaorong', 'jrdz-qwen3.5-35b-a3b', fallbackConfig)
+    ).toEqual({
+      contextLength: 258_048,
+      maxTokens: 32_000
+    })
+  })
+
   it('leaves unrelated models unchanged', () => {
     const config = { contextLength: 8192, maxTokens: 2048 }
     expect(applyBuiltInModelCapabilityOverrides('openai', 'gpt-4o', config)).toBe(config)

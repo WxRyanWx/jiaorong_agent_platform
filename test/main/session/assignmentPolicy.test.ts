@@ -303,7 +303,7 @@ describe('SessionAssignmentPolicy', () => {
     ).toMatchObject({ attachmentFallbackPolicy: 'send_without_image_content' })
   })
 
-  it('uses jiaorong Super Agent defaults when no agent or settings model exists', async () => {
+  it('uses new-jiaorong Super Agent defaults when no agent or settings model exists', async () => {
     const { policy, config } = createHarness()
     config.getDefaultModel.mockReturnValue(null)
 
@@ -314,8 +314,8 @@ describe('SessionAssignmentPolicy', () => {
       })
     ).resolves.toMatchObject({
       agentId: 'reviewer',
-      providerId: 'jiaorong',
-      modelId: 'jiaorong-deepseek-V4.1-flash'
+      providerId: 'new-jiaorong',
+      modelId: 'jrdz-dsv4.1f'
     })
   })
 })

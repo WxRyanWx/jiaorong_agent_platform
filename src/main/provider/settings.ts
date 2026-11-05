@@ -41,9 +41,9 @@ import {
 import { stripDerivedProviderModelFields } from '@/provider/providerModelFacts'
 import { DEFAULT_SYSTEM_PROMPT } from '@/agent/promptSettings'
 import {
-  JIAORONG_DEFAULT_MODEL_ID,
-  JIAORONG_DEFAULT_PROVIDER_ID,
-  JIAORONG_LEGACY_DEFAULT_MODEL_ID
+  JIAORONG_LEGACY_DEFAULT_MODEL_ID,
+  JIAORONG_LEGACY_PROVIDER_ID,
+  JIAORONG_LEGACY_V4_PRO_MODEL_ID
 } from '@jiaorong/brand'
 import type { ProviderDatabase } from './data/database'
 import type { SettingsKey, SettingsSnapshotValues } from '@shared/contracts/routes'
@@ -425,25 +425,25 @@ export class ProviderSettings implements ProviderSettingsPort {
 
   private migrateLegacyJiaorongDefaultModelStatus(): void {
     const isLegacyDefaultEnabled = this.modelStatusHelper.getModelStatus(
-      JIAORONG_DEFAULT_PROVIDER_ID,
-      JIAORONG_LEGACY_DEFAULT_MODEL_ID
+      JIAORONG_LEGACY_PROVIDER_ID,
+      JIAORONG_LEGACY_V4_PRO_MODEL_ID
     )
     if (!isLegacyDefaultEnabled) return
 
     const isNewDefaultEnabled = this.modelStatusHelper.getModelStatus(
-      JIAORONG_DEFAULT_PROVIDER_ID,
-      JIAORONG_DEFAULT_MODEL_ID
+      JIAORONG_LEGACY_PROVIDER_ID,
+      JIAORONG_LEGACY_DEFAULT_MODEL_ID
     )
     if (isNewDefaultEnabled) return
 
     this.modelStatusHelper.setModelStatus(
-      JIAORONG_DEFAULT_PROVIDER_ID,
-      JIAORONG_LEGACY_DEFAULT_MODEL_ID,
+      JIAORONG_LEGACY_PROVIDER_ID,
+      JIAORONG_LEGACY_V4_PRO_MODEL_ID,
       false
     )
     this.modelStatusHelper.setModelStatus(
-      JIAORONG_DEFAULT_PROVIDER_ID,
-      JIAORONG_DEFAULT_MODEL_ID,
+      JIAORONG_LEGACY_PROVIDER_ID,
+      JIAORONG_LEGACY_DEFAULT_MODEL_ID,
       true
     )
   }

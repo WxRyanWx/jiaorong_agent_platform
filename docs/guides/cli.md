@@ -101,8 +101,8 @@ jiaorong image generate --help
 
 ## 模型、媒体与 OCR
 
-`model invoke` 和 `agent run` 省略 `--provider` / `--model` 时，默认使用内置服务商 `jiaorong` 和模型
-`jiaorong-deepseek-V4.1-flash`。传入的 ID 覆盖对应默认值。图片、视频、语音命令仍必须显式指定。
+`model invoke` 和 `agent run` 省略 `--provider` / `--model` 时，默认使用内置服务商 `new-jiaorong` 和模型
+`jrdz-dsv4.1f`。传入的 ID 覆盖对应默认值。图片、视频、语音命令仍必须显式指定。
 `model invoke` 省略 `--system` 时带上默认交融系统提示词；传入 `--system` 则只用用户原文。
 
 先枚举可用 Provider 和模型 ID，不要根据界面名称猜测：
