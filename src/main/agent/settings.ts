@@ -38,7 +38,9 @@ import type { AgentLifecycleGatePort } from '@/agent/lifecycleGate'
 
 const UNIFIED_AGENTS_MIGRATION_VERSION = 3
 const JIAORONG_DEFAULT_MODEL_MIGRATION_KEY = 'jiaorongDefaultModelMigrationVersion'
-const JIAORONG_DEFAULT_MODEL_MIGRATION_VERSION = 1
+// v2：旧默认模型迁移漏掉了 preferredModel/defaultModel/assistantModel，且模型启用状态
+// 迁移存在提前返回，需要对这些已迁移过的用户重跑一次。
+const JIAORONG_DEFAULT_MODEL_MIGRATION_VERSION = 2
 const PENDING_AGENT_SKILL_CLEANUP_KEY = 'pendingAgentSkillCleanupIds'
 const DEPRECATED_BUILTIN_PROVIDER_IDS = ['qwenlm', 'laoshi'] as const
 const MEMORY_MAINTENANCE_TRIGGER_CONFIG_KEYS: readonly (keyof DeepChatAgentConfig)[] = [
@@ -163,6 +165,17 @@ const normalizeModelSelection = (value: unknown): ModelSelection | null => {
   return providerId && modelId ? { providerId, modelId } : null
 }
 
+/** 模型 ID 在不同版本/服务端返回中的大小写并不稳定，比较前统一归一化。 */
+const normalizeModelIdForComparison = (value: unknown): string =>
+  typeof value === 'string' ? value.trim().toLowerCase() : ''
+
+/** 旧默认模型可能被持久化在这些设置键里，迁移时需要一并改写。 */
+const LEGACY_DEFAULT_MODEL_SETTING_KEYS = [
+  'preferredModel',
+  'defaultModel',
+  'assistantModel'
+] as const
+
 const isDeprecatedBuiltinModelSelection = (selection: unknown): boolean => {
   const normalized = normalizeModelSelection(selection)
   return Boolean(
@@ -261,12 +274,16 @@ export class AgentSettings implements AgentSettingsPort {
   }
 
   private migrateLegacyDefaultModelSelections(): void {
-    const isLegacyDefaultSelection = (value: unknown): value is ModelSelection =>
-      Boolean(value) &&
-      typeof value === 'object' &&
-      !Array.isArray(value) &&
-      (value as ModelSelection).providerId === JIAORONG_DEFAULT_PROVIDER_ID &&
-      (value as ModelSelection).modelId === JIAORONG_LEGACY_DEFAULT_MODEL_ID
+    const isLegacyDefaultSelection = (value: unknown): value is ModelSelection => {
+      if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+      const selection = value as ModelSelection
+      return (
+        normalizeModelIdForComparison(selection.providerId) ===
+          JIAORONG_DEFAULT_PROVIDER_ID.toLowerCase() &&
+        normalizeModelIdForComparison(selection.modelId) ===
+          JIAORONG_LEGACY_DEFAULT_MODEL_ID.toLowerCase()
+      )
+    }
 
     for (const agent of this.repository.listAgents({ agentType: 'deepchat' })) {
       const config = this.repository.getDeepChatAgentConfig(agent.id) ?? {}
@@ -286,6 +303,14 @@ export class AgentSettings implements AgentSettingsPort {
       if (Object.keys(updates).length > 0) {
         this.repository.updateDeepChatAgent(agent.id, { config: updates })
       }
+    }
+
+    // 主界面切换模型时会把选择写进 preferredModel，新对话解析模型时优先使用它；
+    // 这些键如果不迁移，升级用户仍然会选中已下线的旧默认模型。
+    for (const key of LEGACY_DEFAULT_MODEL_SETTING_KEYS) {
+      const current = normalizeModelSelection(this.settings.get(key))
+      if (!isLegacyDefaultSelection(current)) continue
+      this.settings.set(key, { ...current, modelId: JIAORONG_DEFAULT_MODEL_ID })
     }
   }
 

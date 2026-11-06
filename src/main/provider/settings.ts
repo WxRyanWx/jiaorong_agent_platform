@@ -23,6 +23,7 @@ import {
   resolveModelVision
 } from '@shared/modelConfigDefaults'
 import { DEFAULT_PROVIDERS } from '@/provider/defaults'
+import logger from '@shared/logger'
 import path from 'path'
 import { app } from 'electron'
 import fs from 'fs'
@@ -91,6 +92,7 @@ const defaultProviders = DEFAULT_PROVIDERS.map((provider) => ({
 }))
 
 const PROVIDERS_STORE_KEY = 'providers'
+const MODEL_STATUS_KEY_PREFIX = 'model_status_'
 const DEPRECATED_BUILTIN_PROVIDER_IDS = ['qwenlm', 'laoshi'] as const
 const VOICE_AI_DEFAULTS = {
   audioFormat: 'mp3',
@@ -424,28 +426,65 @@ export class ProviderSettings implements ProviderSettingsPort {
   }
 
   private migrateLegacyJiaorongDefaultModelStatus(): void {
-    const isLegacyDefaultEnabled = this.modelStatusHelper.getModelStatus(
-      JIAORONG_DEFAULT_PROVIDER_ID,
-      JIAORONG_LEGACY_DEFAULT_MODEL_ID
-    )
-    if (!isLegacyDefaultEnabled) return
+    // 旧默认模型只要还处于启用状态就必须停用，即使新默认模型已经启用：
+    // 旧模型排在启用列表前面时，新对话仍会选中它并发送失败。
+    const legacyModelIds = this.collectEnabledLegacyDefaultModelIds()
+    if (legacyModelIds.length === 0) return
 
+    for (const legacyModelId of legacyModelIds) {
+      this.modelStatusHelper.setModelStatus(JIAORONG_DEFAULT_PROVIDER_ID, legacyModelId, false)
+    }
+
+    // 旧模型没启用就不碰新模型：此时用户可能已主动关闭新模型，迁移不能把它重新打开。
     const isNewDefaultEnabled = this.modelStatusHelper.getModelStatus(
       JIAORONG_DEFAULT_PROVIDER_ID,
       JIAORONG_DEFAULT_MODEL_ID
     )
-    if (isNewDefaultEnabled) return
+    if (!isNewDefaultEnabled) {
+      this.modelStatusHelper.setModelStatus(
+        JIAORONG_DEFAULT_PROVIDER_ID,
+        JIAORONG_DEFAULT_MODEL_ID,
+        true
+      )
+    }
+  }
 
-    this.modelStatusHelper.setModelStatus(
-      JIAORONG_DEFAULT_PROVIDER_ID,
-      JIAORONG_LEGACY_DEFAULT_MODEL_ID,
-      false
-    )
-    this.modelStatusHelper.setModelStatus(
-      JIAORONG_DEFAULT_PROVIDER_ID,
-      JIAORONG_DEFAULT_MODEL_ID,
-      true
-    )
+  /**
+   * 收集仍处于启用状态的旧默认模型条目。模型 ID 的大小写在不同来源之间并不统一，
+   * 所以除了精确匹配，还要按 getStatusKey 的归一化规则扫描一遍，避免漏掉变体条目。
+   */
+  private collectEnabledLegacyDefaultModelIds(): string[] {
+    const modelIds = new Set<string>()
+    if (
+      this.modelStatusHelper.getModelStatus(
+        JIAORONG_DEFAULT_PROVIDER_ID,
+        JIAORONG_LEGACY_DEFAULT_MODEL_ID
+      )
+    ) {
+      modelIds.add(JIAORONG_LEGACY_DEFAULT_MODEL_ID)
+    }
+
+    // 扫描失败时保留已命中的精确匹配结果，避免影响启动。
+    try {
+      const rawStore = this.store?.store
+      if (!rawStore) return [...modelIds]
+
+      const statusPrefix = MODEL_STATUS_KEY_PREFIX + JIAORONG_DEFAULT_PROVIDER_ID + '_'
+      // model_status 的 key 会把模型 ID 里的点替换成横线，比较前按同样规则归一化。
+      const expectedModelSuffix = JIAORONG_LEGACY_DEFAULT_MODEL_ID.replace(/\./g, '-').toLowerCase()
+
+      for (const [key, enabled] of Object.entries(rawStore)) {
+        if (enabled !== true || !key.startsWith(statusPrefix)) continue
+        if (key.slice(statusPrefix.length).toLowerCase() !== expectedModelSuffix) continue
+        modelIds.add(key.slice(statusPrefix.length))
+      }
+    } catch (error) {
+      logger.warn('[ProviderSettings] Failed to scan legacy default model status entries.', {
+        error: error instanceof Error ? error.message : String(error)
+      })
+    }
+
+    return [...modelIds]
   }
 
   cleanupLegacyProviderJsonForDatabaseEncryption(): number {
