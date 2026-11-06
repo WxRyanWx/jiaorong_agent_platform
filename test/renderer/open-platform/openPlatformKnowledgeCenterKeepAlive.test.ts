@@ -25,7 +25,7 @@ const stubProbeHtml = (html: string) =>
   vi.fn().mockResolvedValue({ ok: true, text: async () => html })
 
 /**
- * 问答中心入口本版本未开放，测试直接写页面状态进入。
+ * 直接写页面状态进入目标页签，避免依赖页签的点击细节。
  * @param wrapper 测试包装器
  * @param tab 目标页签
  */
@@ -79,11 +79,11 @@ describe('开放平台问答中心 iframe 保活', () => {
     vi.unstubAllGlobals()
   })
 
-  it('本版本不展示问答中心页签入口', () => {
+  it('展示问答中心页签入口', () => {
     const { wrapper } = mountOpenPlatform()
 
-    expect(wrapper.find('[data-testid="open-platform-tab-knowledge-center"]').exists()).toBe(false)
-    expect(wrapper.text()).not.toContain('问答中心')
+    expect(wrapper.find('[data-testid="open-platform-tab-knowledge-center"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('问答中心')
 
     wrapper.unmount()
   })

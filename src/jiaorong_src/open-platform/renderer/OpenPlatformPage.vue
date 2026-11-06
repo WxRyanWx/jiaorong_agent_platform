@@ -34,9 +34,8 @@ const VALID_TABS: OpenPlatformTab[] = [
   'expert',
   'connectors',
   'apps',
-  'hardware'
-  // 问答中心下周上线：先不接受本地残留的 knowledge-center，避免停在隐藏页签
-  // 'knowledge-center'
+  'hardware',
+  'knowledge-center'
 ]
 
 const activeTab = ref<OpenPlatformTab>('home')
@@ -58,9 +57,8 @@ const TABS: Array<{ key: OpenPlatformTab; label: string }> = [
   { key: 'expert', label: '专家' },
   { key: 'connectors', label: '连接器 MCP' },
   { key: 'apps', label: '交融应用' },
-  { key: 'hardware', label: '硬件（待开放）' }
-  // 问答中心下周上线，本次生产版本先不放入口，恢复时解开这一行即可
-  // { key: 'knowledge-center', label: '问答中心' }
+  { key: 'hardware', label: '硬件（待开放）' },
+  { key: 'knowledge-center', label: '问答中心' }
 ]
 
 function readStoredTab(): OpenPlatformTab {

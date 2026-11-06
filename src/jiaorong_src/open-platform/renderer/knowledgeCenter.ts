@@ -1,7 +1,27 @@
 import { getToken } from '../../auth/lib/local-user'
 
-/** 问答中心地址：测试与生产共用同一实例，后续切换正式域名只改这一处。 */
-const KNOWLEDGE_CENTER_ORIGIN_URL = 'http://106.63.7.106:10001/qa-platform-web/'
+/**
+ * 问答中心地址：按 Vite mode 选择，日常无需 .env。
+ *   development（pnpm dev）/ test（build:test）→ 测试服
+ *   production（pnpm build / 正式包）→ 正式服
+ */
+const KNOWLEDGE_CENTER_TEST_URL = 'http://106.63.7.106:10001/qa-platform-web/'
+const KNOWLEDGE_CENTER_PROD_URL = 'https://c4ai.ccccltd.cn/qa-platform-web/'
+
+const KNOWLEDGE_CENTER_URL_BY_MODE: Record<string, string> = {
+  development: KNOWLEDGE_CENTER_TEST_URL,
+  test: KNOWLEDGE_CENTER_TEST_URL,
+  production: KNOWLEDGE_CENTER_PROD_URL
+}
+
+/** 未匹配 mode 时的回退（正式服） */
+export const DEFAULT_KNOWLEDGE_CENTER_URL = KNOWLEDGE_CENTER_PROD_URL
+
+export function resolveKnowledgeCenterOriginUrl(): string {
+  const mode = import.meta.env.MODE || 'production'
+  return KNOWLEDGE_CENTER_URL_BY_MODE[mode] || DEFAULT_KNOWLEDGE_CENTER_URL
+}
+
 /** 探测超时：请求挂死时尽快放开，不拖住后续检测。 */
 const BUILD_PROBE_TIMEOUT_MS = 8_000
 
@@ -13,7 +33,7 @@ export function resolveKnowledgeCenterUrl(reloadKey: string): string {
   const token = getToken()?.trim()
   if (!token) return ''
 
-  const url = new URL(KNOWLEDGE_CENTER_ORIGIN_URL)
+  const url = new URL(resolveKnowledgeCenterOriginUrl())
   url.searchParams.set('token', token)
   url.searchParams.set('_t', reloadKey)
   return url.toString()
@@ -37,7 +57,7 @@ export function extractBuildSignature(html: string): string {
 
 /** 拉取线上入口指纹；网络或跨域失败返回 null，调用方保持现状。 */
 export async function fetchBuildSignature(): Promise<string | null> {
-  const url = new URL(KNOWLEDGE_CENTER_ORIGIN_URL)
+  const url = new URL(resolveKnowledgeCenterOriginUrl())
   const token = getToken()?.trim()
   if (token) url.searchParams.set('token', token)
   url.searchParams.set('__probe', String(Date.now()))
