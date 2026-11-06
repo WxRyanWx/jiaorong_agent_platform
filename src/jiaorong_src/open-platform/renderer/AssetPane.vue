@@ -187,6 +187,10 @@ function handleVersionInput(value: unknown): void {
   const state = dialog.value
   if (!state) return
   state.version = normalizeOpenPlatformPublishVersionInput(readTextInputValue(value))
+  if (value instanceof Event) {
+    const target = value.target
+    if (target instanceof HTMLInputElement) target.value = state.version
+  }
   versionError.value = ''
 }
 

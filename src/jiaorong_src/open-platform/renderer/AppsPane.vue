@@ -1,7 +1,7 @@
 <script setup lang="ts">
 defineOptions({ name: 'OpenPlatformAppsPane' })
 
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch, type ComponentPublicInstance } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Icon } from '@iconify/vue'
 import { Button } from '@arco-design/web-vue'
@@ -55,6 +55,7 @@ const MODULE_META = {
 }
 const PUBLISH_VERSION_MAX_LENGTH = 8
 const PROVIDER_MAX_LENGTH = 50
+const PUBLISH_TEXT_MAX_LENGTH = 200
 
 const props = defineProps<{
   api: OpenPlatformClient
@@ -105,13 +106,14 @@ const pendingPublishRequest = ref<PendingPublishRequest | null>(null)
 const publishConfirmContainer = ref<HTMLDivElement | null>(null)
 const isPublishing = ref(false)
 const isChoosingZip = ref(false)
+const versionInputRef = ref<ComponentPublicInstance | null>(null)
 let publishSequence = 0
 
-function countProviderCharacters(value: string): number {
+function countTextCharacters(value: string): number {
   return Array.from(value).length
 }
 
-function sliceProviderCharacters(value: string, maxLength = PROVIDER_MAX_LENGTH): string {
+function sliceTextCharacters(value: string, maxLength: number): string {
   return Array.from(value).slice(0, maxLength).join('')
 }
 
@@ -119,20 +121,67 @@ function readTextInputValue(value: unknown): string {
   if (typeof value === 'string') return value
   if (value instanceof Event) {
     const target = value.target
-    if (target instanceof HTMLInputElement) return target.value
+    if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
+      return target.value
+    }
   }
   return ''
 }
 
+function syncInputElementValue(value: unknown, nextValue: string): void {
+  if (!(value instanceof Event)) return
+  const target = value.target
+  if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
+    target.value = nextValue
+  }
+}
+
+function setVersionInputRef(value: Element | ComponentPublicInstance | null): void {
+  versionInputRef.value = value instanceof Element ? null : value
+}
+
+function syncVersionInputValue(nextValue: string): void {
+  void nextTick(() => {
+    const input = versionInputRef.value?.$el
+    if (input instanceof HTMLInputElement && input.value !== nextValue) {
+      input.value = nextValue
+    }
+  })
+}
+
 function handleManifestFieldInput(key: keyof AppManifestFormFields, value: unknown): void {
   const nextValue = readTextInputValue(value)
-  publishForm.value[key] =
+  const normalizedValue =
     key === 'version' ? normalizeOpenPlatformPublishVersionInput(nextValue) : nextValue
-  if (key === 'version') appVersionError.value = ''
+  publishForm.value[key] = normalizedValue
+  if (key === 'version') {
+    if (nextValue !== normalizedValue) syncVersionInputValue(normalizedValue)
+    appVersionError.value = ''
+  }
+}
+
+function handleLimitedTextInput(value: unknown, update: (text: string) => void): void {
+  const limitedValue = sliceTextCharacters(readTextInputValue(value), PUBLISH_TEXT_MAX_LENGTH)
+  update(limitedValue)
+  syncInputElementValue(value, limitedValue)
+}
+
+function handleDescriptionInput(value: unknown): void {
+  handleLimitedTextInput(value, (text) => {
+    publishForm.value.description = text
+  })
 }
 
 function handleProviderInput(value: unknown): void {
-  publishProvider.value = sliceProviderCharacters(readTextInputValue(value))
+  const provider = sliceTextCharacters(readTextInputValue(value), PROVIDER_MAX_LENGTH)
+  publishProvider.value = provider
+  syncInputElementValue(value, provider)
+}
+
+function handleOrgNamesInput(value: unknown): void {
+  handleLimitedTextInput(value, (text) => {
+    publishOrgNames.value = text
+  })
 }
 
 const isDialogBusy = computed(() => isPublishing.value || isChoosingZip.value)
@@ -184,8 +233,11 @@ function openPublishDialog(app: OpenPlatformAppCard): void {
   if (isDialogBusy.value) return
   publishSequence += 1
   publishForm.value = { ...emptyManifestForm(), id: app.id }
-  publishOrgNames.value = app.serverAuth?.orgNames ?? ''
-  publishProvider.value = sliceProviderCharacters(app.serverProvider ?? '')
+  publishOrgNames.value = sliceTextCharacters(
+    app.serverAuth?.orgNames ?? '',
+    PUBLISH_TEXT_MAX_LENGTH
+  )
+  publishProvider.value = sliceTextCharacters(app.serverProvider ?? '', PROVIDER_MAX_LENGTH)
   publishZipPath.value = ''
   appVersionError.value = ''
   publishError.value = ''
@@ -218,7 +270,8 @@ async function choosePublishZip(): Promise<void> {
     }
     publishForm.value = {
       ...fields,
-      version: normalizeOpenPlatformPublishVersionInput(fields.version)
+      version: normalizeOpenPlatformPublishVersionInput(fields.version),
+      description: sliceTextCharacters(fields.description, PUBLISH_TEXT_MAX_LENGTH)
     }
     appVersionError.value = ''
   } finally {
@@ -263,7 +316,9 @@ function createPendingPublishRequest(): PendingPublishRequest | null {
     publishError.value = t('routes.openPlatformPublishOrganizationRequired')
     return null
   }
-  const auth = buildAuthFromOrgNames(publishOrgNames.value)
+  const auth = buildAuthFromOrgNames(
+    sliceTextCharacters(publishOrgNames.value, PUBLISH_TEXT_MAX_LENGTH)
+  )
 
   return { target, fields, auth, provider, zipPath: publishZipPath.value }
 }
@@ -553,6 +608,8 @@ watch(lastError, (error) => {
               v-if="field.kind === 'textarea'"
               v-model="publishForm.description"
               class="open-platform-pane__desc-input"
+              :maxlength="PUBLISH_TEXT_MAX_LENGTH"
+              @input="handleDescriptionInput"
             />
             <Input
               v-else
@@ -561,8 +618,12 @@ watch(lastError, (error) => {
               :placeholder="field.placeholder"
               :maxlength="field.key === 'version' ? PUBLISH_VERSION_MAX_LENGTH : undefined"
               :aria-invalid="field.key === 'version' && Boolean(appVersionError)"
+              :ref="field.key === 'version' ? setVersionInputRef : undefined"
               @update:model-value="handleManifestFieldInput(field.key, $event)"
             />
+            <span v-if="field.key === 'description'" class="open-platform-pane__field-hint">
+              {{ countTextCharacters(publishForm.description) }}/{{ PUBLISH_TEXT_MAX_LENGTH }}
+            </span>
             <span
               v-if="field.key === 'version' && appVersionError"
               class="open-platform-pane__field-error"
@@ -584,7 +645,7 @@ watch(lastError, (error) => {
               @update:model-value="handleProviderInput"
             />
             <span class="open-platform-pane__field-hint">
-              {{ countProviderCharacters(publishProvider) }}/{{ PROVIDER_MAX_LENGTH }}
+              {{ countTextCharacters(publishProvider) }}/{{ PROVIDER_MAX_LENGTH }}
             </span>
           </label>
           <label class="open-platform-pane__field">
@@ -592,8 +653,13 @@ watch(lastError, (error) => {
             <Textarea
               v-model="publishOrgNames"
               class="open-platform-pane__auth-input"
+              :maxlength="PUBLISH_TEXT_MAX_LENGTH"
               :placeholder="t('routes.openPlatformAuthPlaceholder')"
+              @input="handleOrgNamesInput"
             />
+            <span class="open-platform-pane__field-hint">
+              {{ countTextCharacters(publishOrgNames) }}/{{ PUBLISH_TEXT_MAX_LENGTH }}
+            </span>
           </label>
           <p v-if="publishError" class="open-platform-pane__error">{{ publishError }}</p>
         </div>
