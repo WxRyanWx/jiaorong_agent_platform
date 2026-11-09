@@ -2,11 +2,10 @@ import type { Router } from 'vue-router'
 import { Message } from '@arco-design/web-vue'
 import { api, responseFn, responseErrorFn, setAuthRenewHandler } from '@jiaorong/api/auth'
 import { resetAuthSessionValidation } from './session'
-import { renewToken, startTokenRenewalScheduler } from './tokenRenewal'
 
 export function setupAuthInterceptors(router: Router) {
-  // 401 先静默续期并重试，续期被拒才清态跳登录
-  setAuthRenewHandler(renewToken)
+  // 演示版免登录：无有效 token，关闭静默续期，避免反复请求 /auth/token/refresh
+  setAuthRenewHandler(null)
   api.interceptors.response.use(
     (response) => {
       responseFn(response, () => {
@@ -29,13 +28,11 @@ export function setupAuthInterceptors(router: Router) {
         } else if (code === 4) {
           Message.error(error.response?.data || '您的网络出现了问题，请刷新界面试试')
         } else if (code === 5) {
-          Message.error('用户信息过期，请重新登录')
+          // 演示版免登录：不提示"用户信息过期"
           resetAuthSessionValidation()
           router.push({ name: 'login' })
         }
       })
     }
   )
-  // 须在响应拦截器注册后启动：续期响应依赖拦截器解包
-  startTokenRenewalScheduler()
 }

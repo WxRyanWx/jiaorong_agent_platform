@@ -37,6 +37,11 @@ function isUnauthorizedError(error: unknown): boolean {
  */
 export async function ensureAuthSessionValidated(): Promise<boolean> {
   const token = getToken()
+  // 演示版免登录：占位 token 不做 userInfo 校验，避免无谓请求
+  if (token === 'jiaorong-demo-token') {
+    sessionValidated = true
+    return true
+  }
   if (!token) {
     return false
   }

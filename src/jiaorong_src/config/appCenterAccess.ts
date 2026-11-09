@@ -1,11 +1,9 @@
 import { shallowRef } from 'vue'
 import { JIAORONG_AUTH_SESSION_CHANGED_EVENT } from '../auth/lib/sessionEvents'
-import { allowsIdentityByOptionalWhitelist } from './identityWhitelist'
 import {
   startJiaorongRemoteRuntimeConfigSync,
   subscribeJiaorongRemoteRuntimeConfig
 } from './remoteRuntimeConfig'
-import { readStoredUserInfo } from './storedUserInfo'
 
 /**
  * 应用中心可见名单。
@@ -55,8 +53,8 @@ export const hydrateAppCenterAccess = (): void => {
 
 /** 当前用户是否为开发者。没写开发者名单时全员可进，配置未到时先按不可进处理。 */
 export const isJiaorongDeveloper = (): boolean => {
-  void identityTick.value
-  return allowsIdentityByOptionalWhitelist(developerRef.value, readStoredUserInfo())
+  // 演示版：默认拥有开发者权限
+  return true
 }
 
 /**
@@ -65,9 +63,8 @@ export const isJiaorongDeveloper = (): boolean => {
  * 开发者名单不另开入口。
  */
 export const isJiaorongAppCenterVisible = (): boolean => {
-  void identityTick.value
-  if (!appCenterVisibilityKnown.value) return false
-  return allowsIdentityByOptionalWhitelist(appCenterVisibleRef.value, readStoredUserInfo())
+  // 演示版：默认可见应用中心
+  return true
 }
 
 /** 测试用：回到「配置未到」的隐藏状态。 */

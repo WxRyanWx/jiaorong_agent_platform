@@ -2,7 +2,8 @@ import { clearAuthStorage } from '../../api/auth/utils/local'
 import { schedulePersistAuthSession, TOKEN_ISSUED_AT_STORAGE_KEY } from './persist'
 
 export const getToken = () => {
-  return localStorage.getItem('xkaitoken')
+  // 演示版免登录：无 token 时返回占位值，让各处登录态判断直接通过
+  return localStorage.getItem('xkaitoken') || 'jiaorong-demo-token'
 }
 
 export const setToken = (token: string) => {

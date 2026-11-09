@@ -1,5 +1,4 @@
 import { createMcpClient } from '@api/McpClient'
-import { getToken } from '../../auth/lib/local-user'
 import { resolveAuthProductId } from '../../api/auth/config'
 import { resolveKnowledgeBaseMcpUrl } from '@jiaorong/api/knowledgeBase/mcpConfig'
 import type { MCPServerConfig } from '@shared/types/mcp'
@@ -65,7 +64,8 @@ function sameRuntimeConfig(existing: MCPServerConfig | undefined, next: MCPServe
 }
 
 async function ensureOnce(options?: { startIfStopped?: boolean }): Promise<void> {
-  const token = getToken() || ''
+  // 演示版免登录：占位 token 不能用于注册知识库 MCP，避免把不可用服务带进对话
+  const token = localStorage.getItem('xkaitoken')?.trim() || ''
   if (!token) {
     throw new Error('未登录，无法启用知识库 MCP')
   }
@@ -133,7 +133,8 @@ export async function ensureJiaorongKnowledgeBaseMcpServer(options?: {
 
 /** 有 token 时把本机残留的测试 URL 写成当前包 origin；未登录跳过。不强迫启动已停止的服务。 */
 export function scheduleEnsureJiaorongKnowledgeBaseMcpServer(): void {
-  const token = getToken()?.trim()
+  // 只用真实登录 token；占位值不触发同步
+  const token = localStorage.getItem('xkaitoken')?.trim()
   if (!token || token === lastSyncedToken) return
   void ensureJiaorongKnowledgeBaseMcpServer({ startIfStopped: false })
     .then(() => {

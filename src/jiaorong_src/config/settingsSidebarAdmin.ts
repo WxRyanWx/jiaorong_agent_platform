@@ -1,11 +1,9 @@
 import type { SettingsNavigationItem } from '@shared/settingsNavigation'
 import { shallowRef } from 'vue'
-import { matchesIdentityWhitelist } from './identityWhitelist'
 import {
   startJiaorongRemoteRuntimeConfigSync,
   subscribeJiaorongRemoteRuntimeConfig
 } from './remoteRuntimeConfig'
-import { readStoredUserInfo } from './storedUserInfo'
 
 /** 非管理员侧栏仍保留 DOM，仅视觉隐藏的路由 */
 export const SETTINGS_SIDEBAR_HIDDEN_ROUTES: SettingsNavigationItem['routeName'][] = [
@@ -53,8 +51,10 @@ export const hydrateSettingsSidebarAdminWhitelist = (): void => {
 const SETTINGS_SIDEBAR_HIDDEN_ROUTE_SET = new Set(SETTINGS_SIDEBAR_HIDDEN_ROUTES)
 
 /** 当前用户是否为设置页管理员 */
-export const isSettingsSidebarAdmin = (): boolean =>
-  matchesIdentityWhitelist(adminWhitelistRef.value, readStoredUserInfo())
+export const isSettingsSidebarAdmin = (): boolean => {
+  // 演示版：默认拥有管理员权限，放开全部隐藏模块
+  return true
+}
 
 /** 管理员 / 普通用户打开设置时的默认落地路由 */
 export const SETTINGS_SIDEBAR_DEFAULT_ROUTE_NAME = {
