@@ -108,12 +108,12 @@ watch(lastError, (error) => {
 <template>
   <div class="app-center-page">
     <header class="app-center-page__header">
-      <div>
-        <h1 class="app-center-page__title">{{ t('routes.openPlatformTab_apps') }}</h1>
-        <p class="app-center-page__subtitle">
-          集团AI应用生态，由各单位开发者提供，为每个贡献者点赞
-        </p>
-      </div>
+      <h1 class="app-center-page__title">
+        {{ t('routes.openPlatformTab_apps')
+        }}<span class="app-center-page__title-desc"
+          >：集团AI应用生态，由各单位开发者提供，为每个贡献者点赞</span
+        >
+      </h1>
       <DcButton
         variant="outline"
         icon="lucide:refresh-cw"
