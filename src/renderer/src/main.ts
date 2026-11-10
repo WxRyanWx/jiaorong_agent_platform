@@ -13,6 +13,7 @@ import router from './router'
 import { bootstrapJiaorongRendererAuth } from '@jiaorong/auth/host'
 import { APP_DOCUMENT_TITLE } from '@jiaorong/brand'
 import { hydrateSettingsSidebarAdminWhitelist } from '@jiaorong/config/settingsSidebarAdmin'
+import { startJiaorongProviderApiKeyRefresh } from '@jiaorong/provider/apiKeyRefresh'
 import { createRendererI18n } from './i18n/bootstrap'
 import { preloadIcons } from './lib/iconLoader'
 import { createConfigClient } from '@api/ConfigClient'
@@ -27,6 +28,8 @@ async function bootstrap() {
   document.documentElement.dir = languageState.direction === 'rtl' ? 'rtl' : 'auto'
   document.title = APP_DOCUMENT_TITLE
   await bootstrapJiaorongRendererAuth(router)
+  // 每次启动用登录 token 换一次 Jiaorong key，不阻塞首屏
+  startJiaorongProviderApiKeyRefresh()
 
   // Icons will be loaded asynchronously on app mount to improve startup performance
   const pinia = createPinia()

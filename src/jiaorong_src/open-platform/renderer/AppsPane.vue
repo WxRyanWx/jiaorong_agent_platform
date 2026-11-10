@@ -255,7 +255,17 @@ async function choosePublishZip(): Promise<void> {
     if (!filePath || publishTarget.value !== target) return
     publishZipPath.value = filePath
     publishError.value = ''
-    const fields = await peekZip(filePath)
+    let fields: AppManifestFormFields | null = null
+    try {
+      fields = await peekZip(filePath)
+    } catch (error) {
+      // 读取期间弹窗可能被关掉并换成另一个应用，不能清掉新表单
+      if (publishTarget.value !== target) return
+      publishZipPath.value = ''
+      publishForm.value = { ...emptyManifestForm(), id: target.id }
+      publishError.value = error instanceof Error ? error.message : '读取 zip 失败'
+      return
+    }
     if (publishTarget.value !== target) return
     if (!fields) {
       publishZipPath.value = ''

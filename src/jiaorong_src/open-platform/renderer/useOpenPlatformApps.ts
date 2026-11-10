@@ -250,12 +250,7 @@ export function useOpenPlatformApps(input: {
 
   async function peekZip(zipPath: string): Promise<AppManifestFormFields | null> {
     lastError.value = null
-    try {
-      return await capabilities.peekZip(zipPath)
-    } catch (error) {
-      lastError.value = { message: error instanceof Error ? error.message : '读取 zip 失败' }
-      return null
-    }
+    return await capabilities.peekZip(zipPath)
   }
 
   async function open(app: OpenPlatformAppCard): Promise<void> {

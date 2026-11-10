@@ -83,6 +83,8 @@ function rejectAsExpired(error: AxiosError, callback: AuthResponseCallback) {
 export const responseErrorFn = (error: AxiosError, callback: AuthResponseCallback) => {
   /** 带鉴权标记的请求配置 */
   const config = error.config as AuthAwareRequestConfig | undefined
+  /** 调用方要求静默：非 401 失败只 reject，不弹全局提示 */
+  const silent = Boolean(config?.headers?.dontShowMessage)
   // 静默续期请求自身的非 401 失败（网络抖动等）：不打扰用户
   if (config?.authRefreshRequest && error.response?.status !== 401) {
     return Promise.reject(error)
@@ -104,6 +106,8 @@ export const responseErrorFn = (error: AxiosError, callback: AuthResponseCallbac
     }
     return rejectAsExpired(error, callback)
   }
+  // 静默请求只吞掉全局提示，401 的登录态清理仍按上面处理
+  if (silent) return Promise.reject(error)
   const responseData = error.response?.data as
     | { code?: number | string; message?: string }
     | undefined

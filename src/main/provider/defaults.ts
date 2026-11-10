@@ -1,22 +1,24 @@
 import type { LLM_PROVIDER_BASE } from '@shared/types/provider'
-import { revealBuiltinSecret } from '@jiaorong/provider/builtinSecret'
+import { resolveJiaorongCompatibleBaseUrl } from '@jiaorong/api/auth/config'
+
+/** 内置 Jiaorong 服务商地址，随构建环境切换测试 / 生产。 */
+const JIAORONG_COMPATIBLE_BASE_URL = resolveJiaorongCompatibleBaseUrl()
 
 export const DEFAULT_PROVIDERS: LLM_PROVIDER_BASE[] = [
   {
     id: 'jiaorong',
     name: 'Jiaorong',
     apiType: 'openai-completions',
-    apiKey: revealBuiltinSecret(
-      'jrk1.2A4ZBBkvcTDq1A0Z.PFjHfkJRlY7ZwmWmdzvh9A.8F6BJo4PUW3TFf-XHqV4hImpkFyZzizUpcj3Z0sExIs5jlw'
-    ),
-    baseUrl: 'https://c4ai.ccccltd.cn/api/compatible/v1',
+    // key 由客户端启动时调用 model-center 接口动态获取，这里不再内置
+    apiKey: '',
+    baseUrl: JIAORONG_COMPATIBLE_BASE_URL,
     enable: true,
     websites: {
       official: 'https://c4ai.ccccltd.cn/',
       apiKey: '',
       docs: '',
       models: '',
-      defaultBaseUrl: 'https://c4ai.ccccltd.cn/api/compatible/v1'
+      defaultBaseUrl: JIAORONG_COMPATIBLE_BASE_URL
     }
   },
   {

@@ -8,6 +8,7 @@ import {
   listJiaorongPrivateApiCorsUrls,
   resolveAuthApiOrigin,
   resolveAuthEnv,
+  resolveJiaorongCompatibleBaseUrl,
   resolveAuthProductId
 } from '@jiaorong/api/auth/config'
 import { resolveJiaorongPrivateApiHeaders } from '@jiaorong/api/auth/privateApiHeaders'
@@ -35,6 +36,15 @@ describe('auth api env config', () => {
     expect(listJiaorongPrivateApiCorsUrls('development')).toEqual([`${AUTH_API_TEST_ORIGIN}/*`])
     expect(listJiaorongPrivateApiCorsUrls('test')).toEqual([`${AUTH_API_TEST_ORIGIN}/*`])
     expect(listJiaorongPrivateApiCorsUrls('production')).toEqual([`${AUTH_API_PROD_ORIGIN}/*`])
+  })
+
+  it('switches the Jiaorong compatible endpoint with the environment', () => {
+    expect(resolveJiaorongCompatibleBaseUrl('test')).toBe(
+      `${AUTH_API_TEST_ORIGIN}/api/compatible/v1`
+    )
+    expect(resolveJiaorongCompatibleBaseUrl('production')).toBe(
+      `${AUTH_API_PROD_ORIGIN}/api/compatible/v1`
+    )
   })
 
   it('only treats the current mode origin as a private api url', () => {

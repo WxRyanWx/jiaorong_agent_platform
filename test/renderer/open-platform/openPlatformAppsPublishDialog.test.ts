@@ -84,7 +84,7 @@ const fields: AppManifestFormFields = {
   source: 'store',
   icon: '',
   description: 'b'.repeat(205),
-  spawn: ''
+  spawn: 'node node/main.js'
 }
 
 const appMocks = vi.hoisted(() => ({
@@ -166,10 +166,29 @@ describe('open platform app publish dialog', () => {
     await flushPromises()
 
     expect((description.element as HTMLTextAreaElement).value).toBe('b'.repeat(200))
+    /** 回填后「后台进程」也要跟着 zip 内 app.json 更新。 */
+    const spawnInput = wrapper.get('input[placeholder="node node/server.js"]')
+    expect((spawnInput.element as HTMLInputElement).value).toBe('node node/main.js')
     await description.setValue('c'.repeat(201))
     expect((description.element as HTMLTextAreaElement).value).toBe('c'.repeat(200))
     await organizations.setValue('d'.repeat(201))
     expect((organizations.element as HTMLTextAreaElement).value).toBe('d'.repeat(200))
+    wrapper.unmount()
+  })
+
+  it('shows the zip read error instead of silently clearing the form', async () => {
+    appMocks.peekZip.mockRejectedValue(new Error('zip 包里没有 app.json'))
+    const wrapper = mountAppsPane()
+    await openPublishDialog(wrapper)
+
+    const chooseZip = wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'routes.devCenterPublishZipPick')
+    expect(chooseZip).toBeTruthy()
+    await chooseZip?.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('zip 包里没有 app.json')
     wrapper.unmount()
   })
 })

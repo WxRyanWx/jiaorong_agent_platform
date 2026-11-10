@@ -46,6 +46,7 @@ describe('dev zip manifest peek and patch', () => {
         version: '1.0.0',
         entry: 'web-ui/index.html',
         slot: 'menu',
+        spawn: 'node node/main.js',
         extra: 'keep-me'
       }),
       'web-ui/index.html': '<html></html>'
@@ -58,7 +59,8 @@ describe('dev zip manifest peek and patch', () => {
       name: 'Demo',
       version: '1.0.0',
       entry: 'web-ui/index.html',
-      slot: 'menu'
+      slot: 'menu',
+      spawn: 'node node/main.js'
     })
   })
 

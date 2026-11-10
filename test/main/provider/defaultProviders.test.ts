@@ -1,20 +1,22 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_PROVIDERS } from '../../../src/main/provider/defaults'
-import { BUILTIN_SECRET_PREFIX } from '@jiaorong/provider/builtinSecret'
+import { resolveJiaorongCompatibleBaseUrl } from '@jiaorong/api/auth/config'
+
+/** 当前测试 mode 下的 Jiaorong 兼容接口地址。 */
+const jiaorongBaseUrl = resolveJiaorongCompatibleBaseUrl()
 
 describe('DEFAULT_PROVIDERS', () => {
-  it('includes Jiaorong as the preconfigured enabled OpenAI-compatible provider', () => {
-    expect(DEFAULT_PROVIDERS[0].apiKey).toBeTruthy()
-    expect(DEFAULT_PROVIDERS[0].apiKey.startsWith(`${BUILTIN_SECRET_PREFIX}.`)).toBe(false)
+  it('includes Jiaorong as an enabled OpenAI-compatible provider without a built-in key', () => {
+    expect(DEFAULT_PROVIDERS[0].apiKey).toBe('')
     expect(DEFAULT_PROVIDERS[0]).toMatchObject({
       id: 'jiaorong',
       name: 'Jiaorong',
       apiType: 'openai-completions',
-      baseUrl: 'https://c4ai.ccccltd.cn/api/compatible/v1',
+      baseUrl: jiaorongBaseUrl,
       enable: true,
       websites: expect.objectContaining({
         official: 'https://c4ai.ccccltd.cn/',
-        defaultBaseUrl: 'https://c4ai.ccccltd.cn/api/compatible/v1'
+        defaultBaseUrl: jiaorongBaseUrl
       })
     })
   })

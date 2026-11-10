@@ -8,12 +8,13 @@ vi.mock('../../../../src/jiaorong_src/api/auth/utils/local', () => ({
 
 import { clearAuthStorage } from '../../../../src/jiaorong_src/api/auth/utils/local'
 
-function makeError(status: number, code?: number): AxiosError {
+function makeError(status: number, code?: number, silent = false): AxiosError {
   return {
     isAxiosError: true,
     name: 'AxiosError',
     message: 'error',
     toJSON: () => ({}),
+    config: silent ? ({ headers: { dontShowMessage: true } } as never) : undefined,
     response: {
       status,
       data: code == null ? {} : { code, message: 'biz' },
@@ -72,5 +73,15 @@ describe('auth responseErrorFn', () => {
     expect(clearAuthStorage).not.toHaveBeenCalled()
     expect(cb).toHaveBeenCalledWith(1)
     expect(cb).toHaveBeenCalledWith(3)
+  })
+
+  it('stays silent for requests that opt out of global messages', async () => {
+    const cb = vi.fn()
+
+    await expect(responseErrorFn(makeError(500, 500001, true), cb)).rejects.toBeTruthy()
+    await expect(responseErrorFn(makeError(404, undefined, true), cb)).rejects.toBeTruthy()
+
+    expect(cb).not.toHaveBeenCalled()
+    expect(clearAuthStorage).not.toHaveBeenCalled()
   })
 })

@@ -45,6 +45,19 @@ export function resolveAuthApiBaseUrl(mode = import.meta.env.MODE || 'production
   return `${resolveAuthApiOrigin(mode)}/api`
 }
 
+/** Jiaorong OpenAI 兼容接口路径。 */
+export const JIAORONG_COMPATIBLE_API_PATH = '/api/compatible/v1'
+
+/**
+ * Jiaorong 服务商 baseUrl：测试 / 生产跟随私有 API origin。
+ * @param mode Vite mode
+ */
+export function resolveJiaorongCompatibleBaseUrl(
+  mode = import.meta.env.MODE || 'production'
+): string {
+  return `${resolveAuthApiOrigin(mode)}${JIAORONG_COMPATIBLE_API_PATH}`
+}
+
 /** Product-Id 跟 origin 走，避免只改接口地址却仍带测试服 id */
 export function resolveAuthProductId(mode = import.meta.env.MODE || 'production'): string {
   return resolveAuthApiOrigin(mode) === AUTH_API_TEST_ORIGIN

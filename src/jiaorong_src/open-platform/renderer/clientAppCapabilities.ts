@@ -52,7 +52,9 @@ export function createClientAppCapabilities(): OpenPlatformAppCapabilities {
     },
     async peekZip(zipPath) {
       const result = await window.jiaorongApps?.peekDevZip(zipPath)
-      if (!result || !result.ok) return null
+      if (!result) throw new Error('读取 zip 失败')
+      // 主进程会给出「没有 app.json / 不是合法 JSON」等原因，不能吞成空表单
+      if (!result.ok) throw new Error(result.message || '读取 zip 失败')
       return result.fields ?? null
     },
     async openApp(appId) {
