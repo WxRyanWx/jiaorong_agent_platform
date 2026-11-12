@@ -7,11 +7,18 @@ import { useI18n } from 'vue-i18n'
 import { Icon } from '@iconify/vue'
 import { Button } from '@shadcn/components/ui/button'
 import { Input } from '@shadcn/components/ui/input'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
+} from '@shadcn/components/ui/tooltip'
 import { DcButton } from '@dc-ui/components/button'
 import { useToast } from '@/components/use-toast'
 import type { JiaorongAppCenterItem } from '@jiaorong/appHost/types'
 import skillEmptyArt from '@jiaorong/assets/skill-empty.png'
 import { useJiaorongAppCenter } from './useJiaorongAppCenter'
+import AppCenterDetailDrawer from './AppCenterDetailDrawer.vue'
 import './AppCenterPage.less'
 
 const { t } = useI18n()
@@ -40,10 +47,21 @@ const FILTER_LABEL_KEYS = {
 
 const searchQuery = ref('')
 const activeFilter = ref<AppFilter>('all')
+const detailAppId = ref<string | null>(null)
+const brokenIconIds = ref(new Set<string>())
+
+function markIconBroken(appId: string): void {
+  if (brokenIconIds.value.has(appId)) return
+  const next = new Set(brokenIconIds.value)
+  next.add(appId)
+  brokenIconIds.value = next
+}
 
 /** 安装中仍视作未安装，便于用户在「未安装」里继续看到进度 */
 const isInstalledApp = (app: JiaorongAppCenterItem): boolean =>
   app.installStatus === 'installed' || app.installStatus === 'update_available'
+
+const detailApp = computed(() => apps.value.find((app) => app.id === detailAppId.value) ?? null)
 
 const filteredApps = computed(() => {
   const keyword = searchQuery.value.trim().toLowerCase()
@@ -92,6 +110,10 @@ function providerLabel(app: JiaorongAppCenterItem): string {
   return `由 ${app.provider} 提供`
 }
 
+watch(detailApp, (app) => {
+  if (detailAppId.value && !app) detailAppId.value = null
+})
+
 // 主进程返回的失败信息统一走 toast
 watch(lastError, (error) => {
   if (!error) return
@@ -106,130 +128,180 @@ watch(lastError, (error) => {
 </script>
 
 <template>
-  <div class="app-center-page">
-    <header class="app-center-page__header">
-      <h1 class="app-center-page__title">
-        {{ t('routes.openPlatformTab_apps')
-        }}<span class="app-center-page__title-desc"
-          >：集团AI应用生态，由各单位开发者提供，为每个贡献者点赞</span
-        >
-      </h1>
-      <DcButton
-        variant="outline"
-        icon="lucide:refresh-cw"
-        data-testid="app-center-refresh"
-        :loading="isRefreshing"
-        :disabled="isRefreshing || isBusy"
-        @click="refresh"
-      >
-        {{ t('common.browser.reload') }}
-      </DcButton>
-    </header>
-
-    <div class="app-center-page__toolbar">
-      <div class="app-center-page__search">
-        <Icon icon="lucide:search" class="app-center-page__search-icon" aria-hidden="true" />
-        <Input
-          v-model="searchQuery"
-          class="app-center-page__search-input"
-          :placeholder="t('routes.appCenterSearch')"
-        />
-      </div>
-      <div class="app-center-page__segments">
-        <button
-          v-for="filter in APP_FILTERS"
-          :key="filter"
-          type="button"
-          class="app-center-page__segment"
-          :class="{ 'is-active': activeFilter === filter }"
-          :data-testid="`app-center-filter-${filter}`"
-          @click="activeFilter = filter"
-        >
-          {{ t(FILTER_LABEL_KEYS[filter]) }}
-        </button>
-      </div>
-    </div>
-
-    <div v-if="filteredApps.length === 0" class="app-center-page__empty">
-      <img :src="skillEmptyArt" alt="" class="app-center-page__empty-image" />
-      <p class="app-center-page__empty-text">
-        {{
-          searchQuery || activeFilter !== 'all'
-            ? t('routes.appCenterNoResult')
-            : t('routes.appCenterEmpty')
-        }}
-      </p>
-    </div>
-
-    <div v-else class="app-center-page__grid">
-      <article v-for="app in filteredApps" :key="app.id" class="app-center-card">
-        <div class="app-center-card__head">
-          <img v-if="app.iconSrc" :src="app.iconSrc" alt="" class="app-center-card__icon" />
-          <div v-else class="app-center-card__icon-bg">
-            <Icon icon="lucide:layout-grid" class="app-center-card__icon-fallback" />
-          </div>
-          <h3 class="app-center-card__name">{{ app.name }}</h3>
-          <span v-if="app.developerOnly" class="app-center-card__badge">
-            {{ t('routes.appCenterDevOnly') }}
-          </span>
-          <span class="app-center-card__badge">{{ versionLabel(app) }}</span>
-        </div>
-
-        <p class="app-center-card__desc">{{ app.description }}</p>
-
-        <div class="app-center-card__foot">
-          <span
-            class="app-center-card__provider"
-            :class="{ 'is-error': app.installStatus === 'error' }"
+  <TooltipProvider :delay-duration="200">
+    <div class="app-center-page">
+      <header class="app-center-page__header">
+        <h1 class="app-center-page__title">
+          {{ t('routes.openPlatformTab_apps')
+          }}<span class="app-center-page__title-desc"
+            >：集团AI应用生态，由各单位开发者提供，为每个贡献者点赞</span
           >
-            {{ providerLabel(app) }}
-          </span>
-          <div class="app-center-card__actions">
-            <Button
-              v-if="app.canUninstall"
-              variant="ghost"
-              size="sm"
-              class="app-center-card__action-btn"
-              :disabled="isBusy"
-              :data-testid="`app-center-uninstall-${app.id}`"
-              @click="uninstall(app)"
-            >
-              {{ t('routes.appCenterUninstall') }}
-            </Button>
-            <Button
-              v-if="app.openable"
-              size="sm"
-              class="app-center-card__action-btn"
-              :disabled="isBusy"
-              :data-testid="`app-center-open-${app.id}`"
-              @click="open(app)"
-            >
-              <Icon
-                v-if="isOpening(app)"
-                icon="lucide:loader-circle"
-                class="app-center-card__action-spin"
-              />
-              {{ t('routes.appCenterOpen') }}
-            </Button>
-            <Button
-              v-if="showPrimaryAction(app)"
-              variant="outline"
-              size="sm"
-              class="app-center-card__action-btn"
-              :disabled="isBusy"
-              :data-testid="`app-center-install-${app.id}`"
-              @click="install(app)"
-            >
-              <Icon
-                v-if="isInstalling(app)"
-                icon="lucide:loader-circle"
-                class="app-center-card__action-spin"
-              />
-              {{ t(primaryActionKey(app)) }}
-            </Button>
-          </div>
+        </h1>
+        <DcButton
+          variant="outline"
+          icon="lucide:refresh-cw"
+          data-testid="app-center-refresh"
+          :loading="isRefreshing"
+          :disabled="isRefreshing || isBusy"
+          @click="refresh"
+        >
+          {{ t('common.browser.reload') }}
+        </DcButton>
+      </header>
+
+      <div class="app-center-page__toolbar">
+        <div class="app-center-page__search">
+          <Icon icon="lucide:search" class="app-center-page__search-icon" aria-hidden="true" />
+          <Input
+            v-model="searchQuery"
+            class="app-center-page__search-input"
+            :placeholder="t('routes.appCenterSearch')"
+          />
         </div>
-      </article>
+        <div class="app-center-page__segments">
+          <button
+            v-for="filter in APP_FILTERS"
+            :key="filter"
+            type="button"
+            class="app-center-page__segment"
+            :class="{ 'is-active': activeFilter === filter }"
+            :data-testid="`app-center-filter-${filter}`"
+            @click="activeFilter = filter"
+          >
+            {{ t(FILTER_LABEL_KEYS[filter]) }}
+          </button>
+        </div>
+      </div>
+
+      <div v-if="filteredApps.length === 0" class="app-center-page__empty">
+        <img :src="skillEmptyArt" alt="" class="app-center-page__empty-image" />
+        <p class="app-center-page__empty-text">
+          {{
+            searchQuery || activeFilter !== 'all'
+              ? t('routes.appCenterNoResult')
+              : t('routes.appCenterEmpty')
+          }}
+        </p>
+      </div>
+
+      <div v-else class="app-center-page__grid">
+        <article
+          v-for="app in filteredApps"
+          :key="app.id"
+          class="app-center-card"
+          @click="detailAppId = app.id"
+        >
+          <div class="app-center-card__head">
+            <img
+              v-if="app.iconSrc && !brokenIconIds.has(app.id)"
+              :src="app.iconSrc"
+              alt=""
+              class="app-center-card__icon"
+              @error="markIconBroken(app.id)"
+            />
+            <div v-else class="app-center-card__icon-bg">
+              <Icon icon="lucide:layout-grid" class="app-center-card__icon-fallback" />
+            </div>
+            <h3 class="app-center-card__name">{{ app.name }}</h3>
+            <span v-if="app.developerOnly" class="app-center-card__badge">
+              {{ t('routes.appCenterDevOnly') }}
+            </span>
+            <span class="app-center-card__badge">{{ versionLabel(app) }}</span>
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <span
+                  class="app-center-card__security"
+                  tabindex="0"
+                  :data-testid="`app-center-security-${app.id}`"
+                  :aria-label="t('routes.appCenterSecurityChecked')"
+                >
+                  <Icon icon="lucide:check" class="app-center-card__security-icon" />
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                {{ t('routes.appCenterSecurityChecked') }}
+              </TooltipContent>
+            </Tooltip>
+          </div>
+
+          <p class="app-center-card__desc">{{ app.description }}</p>
+
+          <div class="app-center-card__foot">
+            <span
+              class="app-center-card__provider"
+              :class="{ 'is-error': app.installStatus === 'error' }"
+            >
+              {{ providerLabel(app) }}
+            </span>
+            <div class="app-center-card__actions" @click.stop>
+              <Button
+                variant="outline"
+                size="sm"
+                class="app-center-card__action-btn"
+                :data-testid="`app-center-detail-${app.id}`"
+                @click="detailAppId = app.id"
+              >
+                {{ t('routes.appCenterDetail') }}
+              </Button>
+              <Button
+                v-if="app.canUninstall"
+                variant="outline"
+                size="sm"
+                class="app-center-card__action-btn"
+                :disabled="isBusy"
+                :data-testid="`app-center-uninstall-${app.id}`"
+                @click="uninstall(app)"
+              >
+                {{ t('routes.appCenterUninstall') }}
+              </Button>
+              <Button
+                v-if="app.openable"
+                size="sm"
+                class="app-center-card__action-btn"
+                :disabled="isBusy"
+                :data-testid="`app-center-open-${app.id}`"
+                @click="open(app)"
+              >
+                <Icon
+                  v-if="isOpening(app)"
+                  icon="lucide:loader-circle"
+                  class="app-center-card__action-spin"
+                />
+                {{ t('routes.appCenterOpen') }}
+              </Button>
+              <Button
+                v-if="showPrimaryAction(app)"
+                variant="outline"
+                size="sm"
+                class="app-center-card__action-btn"
+                :disabled="isBusy"
+                :data-testid="`app-center-install-${app.id}`"
+                @click="install(app)"
+              >
+                <Icon
+                  v-if="isInstalling(app)"
+                  icon="lucide:loader-circle"
+                  class="app-center-card__action-spin"
+                />
+                {{ t(primaryActionKey(app)) }}
+              </Button>
+            </div>
+          </div>
+        </article>
+      </div>
     </div>
-  </div>
+    <AppCenterDetailDrawer
+      :app="detailApp"
+      :version-text="detailApp ? versionLabel(detailApp) : ''"
+      :busy="isBusy"
+      :installing="detailApp ? isInstalling(detailApp) : false"
+      :opening="detailApp ? isOpening(detailApp) : false"
+      :show-install="detailApp ? showPrimaryAction(detailApp) : false"
+      :install-label="detailApp ? t(primaryActionKey(detailApp)) : ''"
+      @close="detailAppId = null"
+      @install="install"
+      @open="open"
+      @uninstall="uninstall"
+    />
+  </TooltipProvider>
 </template>

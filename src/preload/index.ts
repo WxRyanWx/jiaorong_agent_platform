@@ -18,6 +18,8 @@ import {
   JIAORONG_APP_CENTER_INSTALL_STATUSES_CHANNEL,
   JIAORONG_APP_CENTER_LIST_CHANNEL,
   JIAORONG_APP_CENTER_UNINSTALL_CHANNEL,
+  JIAORONG_APP_CENTER_SIZE_CHANNEL,
+  JIAORONG_APP_CENTER_PACKAGE_SIZE_CHANNEL,
   JIAORONG_DEV_APP_OPEN_WINDOW_CHANNEL,
   JIAORONG_DEV_APP_INFO_CHANNEL,
   JIAORONG_DEV_CENTER_CREATE_CHANNEL,
@@ -147,6 +149,12 @@ const jiaorongApps = Object.freeze({
     ipcRenderer.invoke(JIAORONG_APP_CENTER_INSTALL_STATUSES_CHANNEL, { appIds }),
   uninstallAppCenter: (appId: string) =>
     ipcRenderer.invoke(JIAORONG_APP_CENTER_UNINSTALL_CHANNEL, { appId }),
+  getAppCenterInstalledSize: (appId: string) =>
+    ipcRenderer.invoke(JIAORONG_APP_CENTER_SIZE_CHANNEL, { appId }) as Promise<number | null>,
+  getAppCenterPackageSize: (downloadUrl: string) =>
+    ipcRenderer.invoke(JIAORONG_APP_CENTER_PACKAGE_SIZE_CHANNEL, { downloadUrl }) as Promise<
+      number | null
+    >,
   listDevCenter: () => ipcRenderer.invoke(JIAORONG_DEV_CENTER_LIST_CHANNEL),
   createDevApp: () => ipcRenderer.invoke(JIAORONG_DEV_CENTER_CREATE_CHANNEL),
   publishDevApp: (

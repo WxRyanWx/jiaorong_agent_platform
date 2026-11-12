@@ -2,8 +2,10 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   selectAppCenterRuntimes,
   toAppCenterItem,
-  isDevWorkspaceRuntime
+  isDevWorkspaceRuntime,
+  readRemotePackageBytes
 } from '../../../src/jiaorong_src/appHost/appCenter/main/appCenter'
+import { resolveAuthApiOrigin } from '../../../src/jiaorong_src/api/auth/config'
 import {
   applyAppCatalogFromApi,
   loadBuiltinAppCatalog,
@@ -331,5 +333,68 @@ describe('app catalog from the list api', () => {
     } finally {
       vi.unstubAllGlobals()
     }
+  })
+})
+
+describe('remote package size', () => {
+  const deps = {
+    getAuthSession: () => ({ token: 'session-token' })
+  } as unknown as JiaorongAppHostDeps
+
+  function packageUrl(id: string): string {
+    return `${resolveAuthApiOrigin()}/api/deepchat-ext/assets/app/${id}/package`
+  }
+
+  /** 没有 Content-Length 的包体。Response 对已知字节会自动补长度头，流式包体不会。 */
+  function zipStream(bytes: number[]): Response {
+    return new Response(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(new Uint8Array(bytes))
+          controller.close()
+        }
+      }),
+      { status: 200 }
+    )
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('ignores a missing or zero content-length and counts the zip body', async () => {
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+      if (init?.method === 'HEAD') return new Response(null, { status: 200 })
+      const headers = new Headers(init?.headers)
+      if (headers.get('Range'))
+        return new Response(null, { status: 200, headers: { 'content-length': '0' } })
+      return zipStream([1, 2, 3, 4, 5, 6, 7, 8])
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(readRemotePackageBytes(deps, packageUrl('counted'))).resolves.toBe(8)
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+  })
+
+  it('uses a positive content-length from HEAD and does not download the zip', async () => {
+    const fetchMock = vi.fn(
+      async () => new Response(null, { status: 200, headers: { 'content-length': '4096' } })
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(readRemotePackageBytes(deps, packageUrl('headed'))).resolves.toBe(4096)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('reuses the size already read for the same download url', async () => {
+    const fetchMock = vi.fn(
+      async () => new Response(null, { status: 200, headers: { 'content-length': '2048' } })
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    const url = packageUrl('cached')
+
+    await expect(readRemotePackageBytes(deps, url)).resolves.toBe(2048)
+    await expect(readRemotePackageBytes(deps, url)).resolves.toBe(2048)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 })

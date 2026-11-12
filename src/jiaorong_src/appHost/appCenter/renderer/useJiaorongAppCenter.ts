@@ -36,6 +36,8 @@ function mergeRemoteAppCard(
     downloadUrl: remoteApp.downloadUrl ?? localApp.downloadUrl ?? null,
     packageSha256: remoteApp.packageSha256 ?? localApp.packageSha256 ?? null,
     remotePackage: localApp.remotePackage || remoteApp.remotePackage,
+    publishedAt: remoteApp.publishedAt ?? localApp.publishedAt ?? null,
+    updatedAt: remoteApp.updatedAt ?? localApp.updatedAt ?? null,
     installStatus: resolveMarketInstallStatus(
       localApp.installStatus,
       localApp.installedVersion,

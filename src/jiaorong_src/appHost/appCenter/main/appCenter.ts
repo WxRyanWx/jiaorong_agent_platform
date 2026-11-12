@@ -162,6 +162,200 @@ export function toAppCenterItem(
 }
 
 /**
+ * 统计目录里普通文件的字节数，不跟随符号链接。
+ * @param root 已安装应用的解压目录
+ */
+async function directorySizeBytes(root: string): Promise<number> {
+  let total = 0
+  const stack = [root]
+  while (stack.length > 0) {
+    const current = stack.pop()
+    if (!current) continue
+    let entries: fs.Dirent[]
+    try {
+      entries = await fs.promises.readdir(current, { withFileTypes: true })
+    } catch {
+      continue
+    }
+    for (const entry of entries) {
+      const fullPath = path.join(current, entry.name)
+      if (entry.isSymbolicLink()) continue
+      if (entry.isDirectory()) {
+        stack.push(fullPath)
+        continue
+      }
+      if (!entry.isFile()) continue
+      try {
+        total += (await fs.promises.stat(fullPath)).size
+      } catch {
+        // 单个文件读不到就跳过，不影响其余文件
+      }
+    }
+  }
+  return total
+}
+
+/**
+ * 已安装包的解压目录大小。开发者关联的源码目录不算安装包。
+ * 未安装时本机没有这份目录，返回 null。
+ * @param appId 应用 id
+ */
+export async function readInstalledAppDirectoryBytes(appId: string): Promise<number | null> {
+  const id = appId.trim()
+  if (!id) return null
+  const dir = sharedAppsManager().getAppDir(id)
+  if (!dir || !fs.existsSync(dir)) return null
+  const resolved = path.resolve(dir)
+  const isDevSource = getDevApps().some(
+    (record) => record.dir && path.resolve(record.dir) === resolved
+  )
+  if (isDevSource) return null
+  return directorySizeBytes(resolved)
+}
+
+/** 响应头探测超时。问到长度就停，不读包体。 */
+const PACKAGE_SIZE_TIMEOUT_MS = 15_000
+/** 包体计数超时，与安装下载一致。 */
+const PACKAGE_SIZE_COUNT_TIMEOUT_MS = 300_000
+/** 单个安装包体积上限，与开放平台发布侧一致。 */
+const PACKAGE_SIZE_MAX_BYTES = 200 * 1024 * 1024
+
+/** 本次运行里已经问到的 zip 字节数，按下载地址去重。 */
+const packageSizeCache = new Map<string, number>()
+/** 同一个地址正在读包时共用这一次请求。 */
+const packageSizeInflight = new Map<string, Promise<number | null>>()
+
+/** 从响应头取出完整包的字节数。没有头、或长度为 0，都算没问到。206 只认 Content-Range。 */
+function readPackageTotalBytes(response: Response): number | null {
+  const totalMatch = response.headers.get('content-range')?.match(/\/(\d+)\s*$/)
+  if (totalMatch) {
+    const total = Number(totalMatch[1])
+    if (Number.isFinite(total) && total > 0) return total
+  }
+  if (response.status === 206) return null
+  const rawLength = response.headers.get('content-length')
+  if (!rawLength) return null
+  const length = Number(rawLength)
+  if (!Number.isFinite(length) || length <= 0) return null
+  return length
+}
+
+/** 响应头没有长度时，按块把包体加总。不把 zip 写到磁盘。 */
+async function countPackageBody(response: Response): Promise<number | null> {
+  if (!response.body) return null
+  const reader = response.body.getReader()
+  let total = 0
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      total += value.byteLength
+      if (total > PACKAGE_SIZE_MAX_BYTES) return null
+    }
+  } finally {
+    await reader.cancel().catch(() => undefined)
+  }
+  return total > 0 ? total : null
+}
+
+/**
+ * 先认响应头。头里没有长度、且这是完整的 200 时，才把包体按块加总。
+ * 206 只有请求的那一段，不能当成整包大小。
+ */
+async function readResponsePackageBytes(
+  response: Response,
+  countBody: boolean
+): Promise<number | null> {
+  try {
+    if (!response.ok && response.status !== 206) return null
+    const headerSize = readPackageTotalBytes(response)
+    if (headerSize != null && headerSize > 0) return headerSize
+    if (!countBody || response.status !== 200) return null
+    return await countPackageBody(response)
+  } finally {
+    await response.body?.cancel().catch(() => undefined)
+  }
+}
+
+async function requestPackage(
+  url: string,
+  headers: Record<string, string>,
+  method: 'HEAD' | 'GET',
+  timeoutMs: number,
+  extraHeaders?: Record<string, string>
+): Promise<Response> {
+  return fetch(url, {
+    method,
+    cache: 'no-store',
+    headers: { ...headers, ...extraHeaders },
+    signal: AbortSignal.timeout(timeoutMs)
+  })
+}
+
+/**
+ * 下载接口经常不写长度头。HEAD 和 Range 问不到时，把 zip 读一遍只累计字节。
+ */
+async function probeRemotePackageBytes(
+  url: string,
+  headers: Record<string, string>
+): Promise<number | null> {
+  try {
+    const head = await requestPackage(url, headers, 'HEAD', PACKAGE_SIZE_TIMEOUT_MS)
+    const headSize = await readResponsePackageBytes(head, false)
+    if (headSize != null && headSize > 0) return headSize
+  } catch (error) {
+    console.warn('[jiaorong-app-center] HEAD package size failed', error)
+  }
+
+  try {
+    const ranged = await requestPackage(url, headers, 'GET', PACKAGE_SIZE_TIMEOUT_MS, {
+      Range: 'bytes=0-0'
+    })
+    // Range 的 Content-Length 可能只是那 1 个字节，这里只认 Content-Range 里的总长度。
+    const rangedSize = await readResponsePackageBytes(ranged, false)
+    if (rangedSize != null && rangedSize > 0) return rangedSize
+  } catch (error) {
+    console.warn('[jiaorong-app-center] Range package size failed', error)
+  }
+
+  const full = await requestPackage(url, headers, 'GET', PACKAGE_SIZE_COUNT_TIMEOUT_MS)
+  return readResponsePackageBytes(full, true)
+}
+
+/**
+ * 向下载地址询问 zip 大小。地址必须是当前环境的私有 API，避免把登录凭据发到别的站点。
+ * @param deps 超级智能体依赖，用来取登录态
+ * @param downloadUrl 市场卡片上的下载地址
+ */
+export async function readRemotePackageBytes(
+  deps: JiaorongAppHostDeps,
+  downloadUrl: string
+): Promise<number | null> {
+  const url = downloadUrl.trim()
+  if (!isJiaorongPrivateApiUrl(url)) return null
+  const token = readAuthToken(deps.getAuthSession())
+  if (!token) return null
+  const cached = packageSizeCache.get(url)
+  if (cached != null && cached > 0) return cached
+  const inflight = packageSizeInflight.get(url)
+  if (inflight) return inflight
+  const headers = { 'Fusion-Auth': token, 'Product-Id': resolveAuthProductId() }
+  const task = probeRemotePackageBytes(url, headers).then((size) => {
+    if (size != null && size > 0) packageSizeCache.set(url, size)
+    return size
+  })
+  packageSizeInflight.set(url, task)
+  try {
+    return await task
+  } catch (error) {
+    console.warn('[jiaorong-app-center] Failed to read package size', error)
+    return null
+  } finally {
+    packageSizeInflight.delete(url)
+  }
+}
+
+/**
  * 应用中心列表。
  * @param deps 超级智能体依赖（读登录态）
  */

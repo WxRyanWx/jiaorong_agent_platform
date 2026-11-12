@@ -94,7 +94,12 @@ describe('app center remote update', () => {
 
   it('offers an update and carries the remote package info when the market version is newer', async () => {
     localApps.items = [localApp()]
-    marketApps.items = [marketApp()]
+    marketApps.items = [
+      marketApp({
+        publishedAt: '2026-11-01T02:00:00.000Z',
+        updatedAt: '2026-11-02T02:00:00.000Z'
+      })
+    ]
 
     const { wrapper, center } = await mountCenter()
 
@@ -107,7 +112,9 @@ describe('app center remote update', () => {
       provider: '信科集团',
       remotePackage: true,
       downloadUrl: 'https://oss.example.com/demo-app-1.1.0.zip',
-      packageSha256: 'abc123'
+      packageSha256: 'abc123',
+      publishedAt: '2026-11-01T02:00:00.000Z',
+      updatedAt: '2026-11-02T02:00:00.000Z'
     })
     wrapper.unmount()
   })

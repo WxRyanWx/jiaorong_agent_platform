@@ -190,6 +190,10 @@ export type JiaorongAppCenterItem = {
   visibleToCurrentUser: boolean
   /** 提供方；配置未给则为空串。 */
   provider: string
+  /** 最近一次上架时间；市场卡片才有。 */
+  publishedAt?: string | null
+  /** 最近更新时间；市场卡片才有。 */
+  updatedAt?: string | null
 }
 
 /** 开发者本地登记的一个应用（浏览器存储 apps.json 的一条）。 */

@@ -44,6 +44,8 @@ declare global {
       ): Promise<{ ok: boolean; message?: string; item?: JiaorongAppCenterItem }>
       getAppCenterInstallStatuses(appIds: string[]): Promise<JiaorongAppCenterItem[]>
       uninstallAppCenter(appId: string): Promise<{ ok: boolean; message?: string }>
+      getAppCenterInstalledSize(appId: string): Promise<number | null>
+      getAppCenterPackageSize(downloadUrl: string): Promise<number | null>
       listDevCenter(): Promise<JiaorongDevCenterItem[]>
       createDevApp(): Promise<{ ok: boolean; message?: string; record?: JiaorongDevAppRecord }>
       publishDevApp(

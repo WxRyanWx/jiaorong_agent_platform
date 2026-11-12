@@ -7,6 +7,7 @@ import { getOpenPlatformClient } from '@jiaorong/api/openPlatform'
 import { createClientAppCapabilities } from './clientAppCapabilities'
 import AppsPane from './AppsPane.vue'
 import AssetPane from './AssetPane.vue'
+import FeedbackEntry from './FeedbackEntry.vue'
 import HomePane from './HomePane.vue'
 import PendingModulePane from './PendingModulePane.vue'
 import { fetchBuildSignature, resolveKnowledgeCenterUrl } from './knowledgeCenter'
@@ -176,6 +177,7 @@ function handleWindowActivity(): void {
         >
           开发文档
         </a>
+        <FeedbackEntry />
         <!-- <button class="open-platform-page__download-button" type="button">下载客户端</button> -->
       </div>
     </header>

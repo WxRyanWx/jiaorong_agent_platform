@@ -237,7 +237,9 @@ export async function listOpenPlatformMarketApps(): Promise<JiaorongAppCenterIte
       canUninstall: installedItem?.canUninstall ?? false,
       developerOnly: false,
       visibleToCurrentUser: true,
-      provider: item.provider?.trim() || ''
+      provider: item.provider?.trim() || '',
+      publishedAt: item.latestRelease?.publishedAt?.trim() || null,
+      updatedAt: item.updatedAt?.trim() || null
     }
   })
 }

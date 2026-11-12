@@ -90,6 +90,38 @@
     }
   }
 
+  &__feedback {
+    position: relative;
+    padding: 6px 14px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--open-platform-text);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition:
+      background 0.15s ease,
+      color 0.15s ease;
+
+    &:hover {
+      background: rgba(59, 110, 240, 0.06);
+      color: var(--open-platform-primary);
+    }
+  }
+
+  &__feedback-dot {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    display: block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #f53f3f;
+  }
+
   &__download-button {
     padding: 7px 16px;
     border: 0;

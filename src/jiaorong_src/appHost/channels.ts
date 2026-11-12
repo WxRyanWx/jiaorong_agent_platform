@@ -34,6 +34,10 @@ export const JIAORONG_APP_CENTER_INSTALL_REMOTE_PACKAGE_CHANNEL =
 export const JIAORONG_APP_CENTER_INSTALL_STATUSES_CHANNEL = 'jiaorong-app-center:install-statuses'
 /** 应用中心卸载：已装即可卸，内置（系统）应用除外。 */
 export const JIAORONG_APP_CENTER_UNINSTALL_CHANNEL = 'jiaorong-app-center:uninstall'
+/** 已安装应用解压目录的字节数；没有本地安装目录时返回 null。 */
+export const JIAORONG_APP_CENTER_SIZE_CHANNEL = 'jiaorong-app-center:installed-size'
+/** 按下载地址读取 zip 包大小，不把整包下下来。 */
+export const JIAORONG_APP_CENTER_PACKAGE_SIZE_CHANNEL = 'jiaorong-app-center:package-size'
 /** 开发者中心列出本地登记应用。 */
 export const JIAORONG_DEV_CENTER_LIST_CHANNEL = 'jiaorong-dev-center:list'
 /** 开发者中心创建应用：选目录 + 校验 app.json。 */

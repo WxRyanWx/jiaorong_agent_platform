@@ -16,6 +16,8 @@ import {
   JIAORONG_APP_CENTER_INSTALL_REMOTE_PACKAGE_CHANNEL,
   JIAORONG_APP_CENTER_INSTALL_STATUSES_CHANNEL,
   JIAORONG_APP_CENTER_UNINSTALL_CHANNEL,
+  JIAORONG_APP_CENTER_SIZE_CHANNEL,
+  JIAORONG_APP_CENTER_PACKAGE_SIZE_CHANNEL,
   JIAORONG_DEV_APP_OPEN_WINDOW_CHANNEL,
   JIAORONG_DEV_APP_INFO_CHANNEL,
   JIAORONG_DEV_CENTER_CREATE_CHANNEL,
@@ -59,6 +61,8 @@ import {
   isDeveloperIdentity,
   listAppCenterItemsByIds,
   listAppCenterItems,
+  readInstalledAppDirectoryBytes,
+  readRemotePackageBytes,
   uninstallAppCenterApp
 } from '../appCenter/main/appCenter'
 import {
@@ -643,6 +647,25 @@ export function startJiaorongAppHost(deps: JiaorongAppHostDeps): void {
     return listAppCenterItemsByIds(deps, readAppIdsInput(input))
   })
 
+  // 已安装包解压目录的字节数；没有本地安装目录时返回 null
+  ipcMain.handle(JIAORONG_APP_CENTER_SIZE_CHANNEL, async (_event, input: unknown) => {
+    const appId = readAppIdInput(input)
+    if (!appId) return null
+    return readInstalledAppDirectoryBytes(appId)
+  })
+
+  // 按市场卡片上的下载地址问 zip 大小，不把整包下下来
+  ipcMain.handle(JIAORONG_APP_CENTER_PACKAGE_SIZE_CHANNEL, async (_event, input: unknown) => {
+    const downloadUrl =
+      input &&
+      typeof input === 'object' &&
+      typeof (input as { downloadUrl?: unknown }).downloadUrl === 'string'
+        ? (input as { downloadUrl: string }).downloadUrl
+        : ''
+    if (!downloadUrl.trim()) return null
+    return readRemotePackageBytes(deps, downloadUrl)
+  })
+
   // 应用中心卸载：已装即可卸，内置（系统）应用除外
   ipcMain.handle(JIAORONG_APP_CENTER_UNINSTALL_CHANNEL, async (_event, input: unknown) => {
     const appId = readAppIdInput(input)
@@ -884,6 +907,8 @@ export function stopJiaorongAppHost(): void {
   ipcMain.removeHandler(JIAORONG_APP_CENTER_INSTALL_REMOTE_PACKAGE_CHANNEL)
   ipcMain.removeHandler(JIAORONG_APP_CENTER_INSTALL_STATUSES_CHANNEL)
   ipcMain.removeHandler(JIAORONG_APP_CENTER_UNINSTALL_CHANNEL)
+  ipcMain.removeHandler(JIAORONG_APP_CENTER_SIZE_CHANNEL)
+  ipcMain.removeHandler(JIAORONG_APP_CENTER_PACKAGE_SIZE_CHANNEL)
   ipcMain.removeHandler(JIAORONG_DEV_CENTER_LIST_CHANNEL)
   ipcMain.removeHandler(JIAORONG_DEV_CENTER_CREATE_CHANNEL)
   ipcMain.removeHandler(JIAORONG_DEV_CENTER_PUBLISH_CHANNEL)
