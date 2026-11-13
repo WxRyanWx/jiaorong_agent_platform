@@ -1,4 +1,5 @@
 import type { ProviderSettingsPort } from '@/provider/settings'
+import { JIAORONG_DEFAULT_MODEL_ID } from '@jiaorong/brand'
 import { describe, expect, it, vi } from 'vitest'
 import type { LLM_PROVIDER, MODEL_META, ModelConfig } from '@shared/types/provider'
 import { TOOL_EXECUTION, type MCPToolDefinition } from '@shared/types/mcp'
@@ -88,6 +89,10 @@ class TestProvider extends BaseLLMProvider {
 
   protected async fetchProviderModels(): Promise<MODEL_META[]> {
     return this.modelFetcher()
+  }
+
+  public startInit(): Promise<void> {
+    return this.init()
   }
 }
 
@@ -349,5 +354,75 @@ describe('BaseLLMProvider tool XML conversion', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+})
+
+describe('BaseLLMProvider initial model fetch', () => {
+  const createSettings = () => {
+    const events: string[] = []
+    const settings = {
+      events,
+      getProviderModels: vi.fn().mockReturnValue([]),
+      getCustomModels: vi.fn().mockReturnValue([]),
+      getLanguage: vi.fn().mockReturnValue('zh-CN'),
+      getModelStatus: vi.fn().mockReturnValue(false),
+      setProviderModels: vi.fn(() => {
+        events.push('store')
+      }),
+      setModelStatus: vi.fn(() => {
+        events.push('enable')
+      }),
+      notifyModelsChanged: vi.fn(() => {
+        events.push('notify')
+      }),
+      updateCustomModel: vi.fn()
+    }
+    return settings
+  }
+
+  const model = {
+    id: JIAORONG_DEFAULT_MODEL_ID,
+    name: JIAORONG_DEFAULT_MODEL_ID,
+    providerId: 'test-provider',
+    group: 'default'
+  } as MODEL_META
+
+  it('notifies the chat after storing and enabling models from the startup fetch', async () => {
+    const settings = createSettings()
+    const provider = new TestProvider(settings as unknown as ProviderSettingsPort, async () => [
+      model
+    ])
+
+    await provider.startInit()
+
+    expect(settings.events).toEqual(['store', 'enable', 'notify'])
+    expect(settings.notifyModelsChanged).toHaveBeenCalledWith('test-provider')
+    expect(settings.setModelStatus).toHaveBeenCalledWith(
+      'test-provider',
+      JIAORONG_DEFAULT_MODEL_ID,
+      true
+    )
+  })
+
+  it('does not notify when the startup fetch returns no models', async () => {
+    const settings = createSettings()
+    const provider = new TestProvider(settings as unknown as ProviderSettingsPort, async () => [])
+
+    await provider.startInit()
+
+    expect(settings.setProviderModels).toHaveBeenCalledWith('test-provider', [])
+    expect(settings.notifyModelsChanged).not.toHaveBeenCalled()
+  })
+
+  it('does not notify when the startup fetch fails', async () => {
+    const settings = createSettings()
+    const provider = new TestProvider(settings as unknown as ProviderSettingsPort, async () => {
+      throw new Error('missing api key')
+    })
+
+    await provider.startInit()
+
+    expect(settings.setProviderModels).not.toHaveBeenCalled()
+    expect(settings.notifyModelsChanged).not.toHaveBeenCalled()
   })
 })

@@ -204,25 +204,27 @@ export abstract class BaseLLMProvider {
    * Initialize the provider
    * Including fetching model list, configuring proxy, etc.
    */
-  protected async init() {
-    if (this.provider.enable) {
-      try {
-        this.isInitialized = true
-        this.fetchModels()
-          .then(() => {
-            return this.autoEnableModelsIfNeeded()
-          })
-          .then(() => {
-            logger.info('Provider initialized successfully:', this.provider.name)
-          })
-          .catch((error) => {
-            // Handle errors from fetchModels() and autoEnableModelsIfNeeded()
-            logger.warn('Provider initialization failed:', this.provider.name, error)
-          })
-        // Check if we need to automatically enable all models
-      } catch (error) {
-        logger.warn('Provider initialization failed:', this.provider.name, error)
-      }
+  protected init(): Promise<void> {
+    if (!this.provider.enable) return Promise.resolve()
+
+    try {
+      this.isInitialized = true
+      return this.fetchModels()
+        .then(async (models) => {
+          await this.autoEnableModelsIfNeeded()
+          // 对话窗口可能在 key 到位前就用空列表完成初始化。凭证稍后写入会重建实例并再次拉取，
+          // 这里补上和手动刷新相同的通知。空列表不通知，避免失败结果把渲染进程重新拉起来。
+          if (models.length > 0) {
+            this.providerSettings.notifyModelsChanged(this.provider.id)
+          }
+          logger.info('Provider initialized successfully:', this.provider.name)
+        })
+        .catch((error) => {
+          logger.warn('Provider initialization failed:', this.provider.name, error)
+        })
+    } catch (error) {
+      logger.warn('Provider initialization failed:', this.provider.name, error)
+      return Promise.resolve()
     }
   }
 
