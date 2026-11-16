@@ -31,6 +31,7 @@ interface WorkflowJob {
     'fail-fast'?: boolean
     matrix?: {
       arch?: string[]
+      include?: Array<Record<string, string>>
     }
   }
   uses?: string
@@ -214,6 +215,46 @@ describe('Linux ARM64 packaging', () => {
     expect(
       assembleSteps.find((step) => step.name === 'Assemble fail-closed release assets')?.run
     ).toContain('scripts/ci/assemble-release.mjs')
+  })
+})
+
+describe('manual Linux packaging', () => {
+  it('builds x64 and arm64 on native runners without bundling CUA', async () => {
+    for (const name of ['build.yml', 'build-test.yml'] as const) {
+      const workflow = await readWorkflow(name)
+      const job = workflow.jobs?.['build-linux']
+      const buildStep = job?.steps?.find((step) => step.run?.includes('electron-builder --linux'))
+      const verifyStep = job?.steps?.find((step) => step.name === 'Verify bundled plugins')
+      const uploadStep = job?.steps?.find((step) => step.name === 'Upload artifacts')
+      const uploadPaths = String(uploadStep?.with?.path ?? '')
+
+      expect(job?.['runs-on']).toBe('${{ matrix.runner }}')
+      expect(job?.strategy?.['fail-fast']).toBe(false)
+      expect(job?.strategy?.matrix?.include).toEqual([
+        {
+          arch: 'x64',
+          platform: 'linux-x64',
+          runner: 'ubuntu-22.04',
+          unpacked: 'linux-unpacked'
+        },
+        {
+          arch: 'arm64',
+          platform: 'linux-arm64',
+          runner: 'ubuntu-24.04-arm',
+          unpacked: 'linux-arm64-unpacked'
+        }
+      ])
+      expect(buildStep?.run).toContain(
+        'plugin:bundle -- --name feishu --platform linux --arch ${{ matrix.arch }}'
+      )
+      expect(buildStep?.run).toContain('electron-builder --linux --${{ matrix.arch }}')
+      expect(buildStep?.run).not.toContain('--name cua')
+      expect(verifyStep?.run).toContain(
+        'dist/${{ matrix.unpacked }}/resources/app.asar.unpacked/plugins'
+      )
+      expect(uploadPaths).toContain('!dist/linux-unpacked')
+      expect(uploadPaths).toContain('!dist/linux-arm64-unpacked')
+    }
   })
 })
 
