@@ -16,7 +16,8 @@ import {
   loadRuntimeVersions,
   parseRuntimeInstallArgs,
   runtimeVersionsPath,
-  runRuntimeInstallPlan
+  runRuntimeInstallPlan,
+  runtimeProcessEnv
 } from '../../../scripts/install-runtime.mjs'
 
 describe('install-runtime', () => {
@@ -122,6 +123,29 @@ describe('install-runtime', () => {
       /Unsupported runtime type/
     )
     expect(() => parseRuntimeInstallArgs(['--typo', 'linux'])).toThrow(/Unknown/)
+  })
+
+  it('keeps Windows runtime extraction off 8.3 temp paths', () => {
+    expect(runtimeProcessEnv({ platform: 'darwin', env: { TEMP: 'keep' } })).toEqual({
+      TEMP: 'keep'
+    })
+
+    const redirected = runtimeProcessEnv({
+      platform: 'win32',
+      env: { RUNNER_TEMP: 'D:\\a\\_temp', TEMP: 'C:\\Users\\RUNNER~1\\AppData\\Local\\Temp' },
+      rootDir: 'C:\\repo'
+    })
+    expect(redirected.TEMP).toBe('D:\\a\\_temp')
+    expect(redirected.TMP).toBe('D:\\a\\_temp')
+    expect(redirected.TEMP.includes('~')).toBe(false)
+
+    const fallback = runtimeProcessEnv({
+      platform: 'win32',
+      env: { RUNNER_TEMP: 'C:\\Users\\RUNNER~1\\AppData\\Local\\Temp' },
+      rootDir: 'C:\\repo'
+    })
+    expect(fallback.TEMP).toBe(path.join('C:\\repo', 'runtime', '.tmp'))
+    expect(fallback.TMP).toBe(fallback.TEMP)
   })
 
   it('stops at the first failed runtime installation', async () => {

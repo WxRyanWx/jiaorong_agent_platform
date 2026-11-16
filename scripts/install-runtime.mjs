@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { createReadStream, readFileSync } from 'node:fs'
+import { createReadStream, mkdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import crossSpawn from 'cross-spawn'
@@ -211,15 +211,31 @@ export async function verifyInstalledRuntime(step, spawn = crossSpawn.sync) {
   }
 }
 
+export function runtimeProcessEnv({
+  platform = process.platform,
+  env = process.env,
+  rootDir = repositoryRoot
+} = {}) {
+  if (platform !== 'win32') return env
+  // GitHub Windows 临时目录常是 C:\Users\RUNNER~1\...。Expand-Archive 的 -Path
+  // 会把 ~ 当成通配符，命令退出码仍是 0，解压目录却是空的。
+  const runnerTemp = env.RUNNER_TEMP
+  const tempDir =
+    runnerTemp && !runnerTemp.includes('~') ? runnerTemp : path.join(rootDir, 'runtime', '.tmp')
+  return { ...env, TEMP: tempDir, TMP: tempDir }
+}
+
 export async function runRuntimeInstallPlan(
   plan,
   spawn = crossSpawn.sync,
   verify = verifyInstalledRuntime
 ) {
+  const env = runtimeProcessEnv()
+  if (env.TEMP && env.TEMP !== process.env.TEMP) mkdirSync(env.TEMP, { recursive: true })
   for (const step of plan) {
     const result = spawn(step.command, step.args, {
       cwd: repositoryRoot,
-      env: process.env,
+      env,
       stdio: 'inherit'
     })
     if (result.error) {
