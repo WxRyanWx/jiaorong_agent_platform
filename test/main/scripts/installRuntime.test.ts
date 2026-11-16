@@ -1,6 +1,7 @@
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
+import { strToU8, zipSync } from 'fflate'
 import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('node:fs', async () => {
@@ -16,8 +17,9 @@ import {
   loadRuntimeVersions,
   parseRuntimeInstallArgs,
   runtimeVersionsPath,
+  extractWindowsRuntimeZip,
   runRuntimeInstallPlan,
-  runtimeProcessEnv
+  windowsRuntimeArchive
 } from '../../../scripts/install-runtime.mjs'
 
 describe('install-runtime', () => {
@@ -125,27 +127,68 @@ describe('install-runtime', () => {
     expect(() => parseRuntimeInstallArgs(['--typo', 'linux'])).toThrow(/Unknown/)
   })
 
-  it('keeps Windows runtime extraction off 8.3 temp paths', () => {
-    expect(runtimeProcessEnv({ platform: 'darwin', env: { TEMP: 'keep' } })).toEqual({
-      TEMP: 'keep'
+  it('builds Windows runtime zip urls without Expand-Archive', () => {
+    const plan = buildRuntimeInstallPlan({ platform: 'win32', arch: 'arm64' })
+    const uv = plan.find((step) => step.type === 'uv')
+    const node = plan.find((step) => step.type === 'node')
+
+    expect(windowsRuntimeArchive(uv).url).toBe(
+      'https://github.com/astral-sh/uv/releases/download/0.9.18/uv-aarch64-pc-windows-msvc.zip'
+    )
+    expect(windowsRuntimeArchive(node).url).toBe(
+      'https://nodejs.org/dist/v24.18.0/node-v24.18.0-win-arm64.zip'
+    )
+  })
+
+  it('lifts uv and node files out of a Windows zip', async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), 'runtime-zip-'))
+    try {
+      const uvDir = path.join(root, 'uv')
+      await extractWindowsRuntimeZip(
+        zipSync({
+          'nested/uv.exe': strToU8('uv'),
+          'nested/uvx.exe': strToU8('uvx'),
+          'nested/README.md': strToU8('skip')
+        }),
+        uvDir,
+        'uv'
+      )
+      expect(await readFile(path.join(uvDir, 'uv.exe'), 'utf8')).toBe('uv')
+      expect(await readFile(path.join(uvDir, 'uvx.exe'), 'utf8')).toBe('uvx')
+      await expect(readFile(path.join(uvDir, 'README.md'), 'utf8')).rejects.toThrow()
+
+      const nodeDir = path.join(root, 'node')
+      await extractWindowsRuntimeZip(
+        zipSync({
+          'node-v24.18.0-win-arm64/node.exe': strToU8('node'),
+          'node-v24.18.0-win-arm64/node_modules/npm/package.json': strToU8('{}')
+        }),
+        nodeDir,
+        'node'
+      )
+      expect(await readFile(path.join(nodeDir, 'node.exe'), 'utf8')).toBe('node')
+      expect(await readFile(path.join(nodeDir, 'node_modules', 'npm', 'package.json'), 'utf8')).toBe(
+        '{}'
+      )
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it('installs Windows zip runtimes without calling tiny-runtime-injector', async () => {
+    const plan = buildRuntimeInstallPlan({ platform: 'win32', arch: 'arm64' })
+    const spawn = vi.fn()
+    const verify = vi.fn().mockResolvedValue(undefined)
+    const installWindowsZipRuntime = vi.fn().mockResolvedValue(undefined)
+
+    await runRuntimeInstallPlan(plan, spawn, verify, {
+      hostPlatform: 'win32',
+      installWindowsZipRuntime
     })
 
-    const redirected = runtimeProcessEnv({
-      platform: 'win32',
-      env: { RUNNER_TEMP: 'D:\\a\\_temp', TEMP: 'C:\\Users\\RUNNER~1\\AppData\\Local\\Temp' },
-      rootDir: 'C:\\repo'
-    })
-    expect(redirected.TEMP).toBe('D:\\a\\_temp')
-    expect(redirected.TMP).toBe('D:\\a\\_temp')
-    expect(redirected.TEMP.includes('~')).toBe(false)
-
-    const fallback = runtimeProcessEnv({
-      platform: 'win32',
-      env: { RUNNER_TEMP: 'C:\\Users\\RUNNER~1\\AppData\\Local\\Temp' },
-      rootDir: 'C:\\repo'
-    })
-    expect(fallback.TEMP).toBe(path.join('C:\\repo', 'runtime', '.tmp'))
-    expect(fallback.TMP).toBe(fallback.TEMP)
+    expect(spawn).not.toHaveBeenCalled()
+    expect(installWindowsZipRuntime.mock.calls.map(([step]) => step.type)).toEqual(['uv', 'node'])
+    expect(verify).toHaveBeenCalledTimes(2)
   })
 
   it('stops at the first failed runtime installation', async () => {

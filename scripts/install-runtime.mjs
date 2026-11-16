@@ -1,8 +1,10 @@
 import { createHash } from 'node:crypto'
-import { createReadStream, mkdirSync, readFileSync } from 'node:fs'
+import { createReadStream, readFileSync } from 'node:fs'
+import { mkdir, rename, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import crossSpawn from 'cross-spawn'
+import { unzipSync } from 'fflate'
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url))
 export const repositoryRoot = path.resolve(scriptDir, '..')
@@ -211,31 +213,132 @@ export async function verifyInstalledRuntime(step, spawn = crossSpawn.sync) {
   }
 }
 
-export function runtimeProcessEnv({
-  platform = process.platform,
-  env = process.env,
-  rootDir = repositoryRoot
-} = {}) {
-  if (platform !== 'win32') return env
-  // GitHub Windows 临时目录常是 C:\Users\RUNNER~1\...。Expand-Archive 的 -Path
-  // 会把 ~ 当成通配符，命令退出码仍是 0，解压目录却是空的。
-  const runnerTemp = env.RUNNER_TEMP
-  const tempDir =
-    runnerTemp && !runnerTemp.includes('~') ? runnerTemp : path.join(rootDir, 'runtime', '.tmp')
-  return { ...env, TEMP: tempDir, TMP: tempDir }
+const windowsUvFiles = new Set(['uv.exe', 'uvx.exe', 'uvw.exe'])
+
+export function windowsRuntimeArchive(step) {
+  if (step.platform !== 'win32') {
+    throw new Error(`Windows runtime archive is only for win32, received ${step.platform}`)
+  }
+  if (step.type === 'uv') {
+    const triple = step.arch === 'arm64' ? 'aarch64-pc-windows-msvc' : 'x86_64-pc-windows-msvc'
+    return {
+      kind: 'uv',
+      url: `https://github.com/astral-sh/uv/releases/download/${step.version}/uv-${triple}.zip`
+    }
+  }
+  if (step.type === 'node') {
+    const platformId = step.arch === 'arm64' ? 'win-arm64' : 'win-x64'
+    return {
+      kind: 'node',
+      url: `https://nodejs.org/dist/${step.version}/node-${step.version}-${platformId}.zip`
+    }
+  }
+  throw new Error(`Windows zip install does not handle ${step.type}`)
+}
+
+function stepTargetDir(step) {
+  const index = step.args.indexOf('--dir')
+  const targetDir = step.args[index + 1]
+  if (index === -1 || !targetDir) {
+    throw new Error(`Runtime step ${step.type} is missing --dir`)
+  }
+  return targetDir
+}
+
+function isSafeZipPath(name) {
+  if (!name || name.startsWith('/') || name.includes(':')) return false
+  return !name.split('/').includes('..')
+}
+
+export function windowsRuntimeFiles(entries, kind) {
+  const files = Object.entries(entries)
+    .map(([name, data]) => ({ name: name.replaceAll('\\', '/'), data }))
+    .filter((entry) => entry.name && !entry.name.endsWith('/') && isSafeZipPath(entry.name))
+
+  if (kind === 'uv') {
+    const selected = new Map()
+    for (const entry of files) {
+      const base = entry.name.split('/').pop()
+      if (!windowsUvFiles.has(base)) continue
+      const current = selected.get(base)
+      if (!current || entry.name.length < current.name.length) selected.set(base, entry)
+    }
+    return [...selected.values()].map((entry) => ({
+      relative: entry.name.split('/').pop(),
+      data: entry.data
+    }))
+  }
+
+  const nodeExe = files
+    .filter((entry) => entry.name.split('/').pop() === 'node.exe')
+    .sort((left, right) => left.name.split('/').length - right.name.split('/').length)[0]
+  if (!nodeExe) return []
+  const slash = nodeExe.name.lastIndexOf('/')
+  const root = slash === -1 ? '' : nodeExe.name.slice(0, slash + 1)
+  return files
+    .filter((entry) => entry.name.startsWith(root))
+    .map((entry) => ({ relative: entry.name.slice(root.length), data: entry.data }))
+}
+
+export async function extractWindowsRuntimeZip(bytes, targetDir, kind) {
+  const entries = unzipSync(bytes)
+  const files = windowsRuntimeFiles(entries, kind)
+  const required = kind === 'uv' ? ['uv.exe', 'uvx.exe'] : ['node.exe']
+  const present = new Set(files.map((file) => path.posix.basename(file.relative)))
+  const missing = required.filter((name) => !present.has(name))
+  if (missing.length > 0) {
+    const sample = Object.keys(entries).slice(0, 8).join(', ') || '(empty)'
+    throw new Error(
+      `Windows ${kind} archive is missing ${missing.join(', ')}. Archive entries: ${sample}`
+    )
+  }
+
+  const stagingDir = `${targetDir}.extracting`
+  await rm(stagingDir, { recursive: true, force: true })
+  await mkdir(stagingDir, { recursive: true })
+  for (const file of files) {
+    const destination = path.join(stagingDir, file.relative)
+    await mkdir(path.dirname(destination), { recursive: true })
+    await writeFile(destination, file.data)
+  }
+  await rm(targetDir, { recursive: true, force: true })
+  await rename(stagingDir, targetDir)
+}
+
+export async function installWindowsZipRuntime(step, fetchImpl = globalThis.fetch) {
+  const archive = windowsRuntimeArchive(step)
+  const targetDir = stepTargetDir(step)
+  console.log(`Downloading Windows ${step.type} runtime: ${archive.url}`)
+  const response = await fetchImpl(archive.url)
+  if (!response.ok) {
+    throw new Error(`Failed to download ${archive.url}: ${response.status}`)
+  }
+  const bytes = new Uint8Array(await response.arrayBuffer())
+  await extractWindowsRuntimeZip(bytes, targetDir, archive.kind)
+  console.log(`Extracted Windows ${step.type} runtime to ${targetDir}`)
 }
 
 export async function runRuntimeInstallPlan(
   plan,
   spawn = crossSpawn.sync,
-  verify = verifyInstalledRuntime
+  verify = verifyInstalledRuntime,
+  options = {}
 ) {
-  const env = runtimeProcessEnv()
-  if (env.TEMP && env.TEMP !== process.env.TEMP) mkdirSync(env.TEMP, { recursive: true })
+  const hostPlatform = options.hostPlatform ?? process.platform
+  const installZip = options.installWindowsZipRuntime ?? installWindowsZipRuntime
   for (const step of plan) {
+    if (
+      hostPlatform === 'win32' &&
+      step.platform === 'win32' &&
+      (step.type === 'node' || step.type === 'uv')
+    ) {
+      await installZip(step)
+      await verify(step)
+      continue
+    }
     const result = spawn(step.command, step.args, {
       cwd: repositoryRoot,
-      env,
+      env: process.env,
       stdio: 'inherit'
     })
     if (result.error) {
