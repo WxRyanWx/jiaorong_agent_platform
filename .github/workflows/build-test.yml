@@ -1,5 +1,5 @@
 # 测试环境安装包（API → Vite mode=test → jiaorong auth/config.ts 测试服）
-# 覆盖：mac x64、mac arm64、win x64、win arm64、linux x64
+# 覆盖：mac x64、mac arm64、win x64、win arm64、linux x64、linux arm64
 # 测试包版本固定为 99.0.0，高于生产包，避免测试安装被新的生产安装包覆盖
 name: Build Test Application
 
@@ -115,13 +115,19 @@ jobs:
   build-linux:
     name: build-linux-test(${{ matrix.arch }})
     if: github.event.inputs.platform == 'all' || contains(github.event.inputs.platform, 'linux')
-    runs-on: ubuntu-22.04
+    runs-on: ${{ matrix.runner }}
     strategy:
+      fail-fast: false
       matrix:
-        arch: [x64]
         include:
           - arch: x64
             platform: linux-x64
+            runner: ubuntu-22.04
+            unpacked: linux-unpacked
+          - arch: arm64
+            platform: linux-arm64
+            runner: ubuntu-24.04-arm
+            unpacked: linux-arm64-unpacked
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -174,7 +180,7 @@ jobs:
       - name: Verify bundled plugins
         shell: bash
         run: |
-          pnpm run plugin:verify -- --name feishu --platform linux --arch ${{ matrix.arch }} --plugin-root dist/linux-unpacked/resources/app.asar.unpacked/plugins
+          pnpm run plugin:verify -- --name feishu --platform linux --arch ${{ matrix.arch }} --plugin-root dist/${{ matrix.unpacked }}/resources/app.asar.unpacked/plugins
 
       - name: Upload artifacts
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
@@ -183,6 +189,7 @@ jobs:
           path: |
             dist/*
             !dist/linux-unpacked
+            !dist/linux-arm64-unpacked
 
   build-mac:
     name: build-mac-test(${{ matrix.arch }})

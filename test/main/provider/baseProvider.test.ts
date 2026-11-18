@@ -10,7 +10,8 @@ import { BaseLLMProvider } from '../../../src/main/provider/baseProvider'
 class TestProvider extends BaseLLMProvider {
   constructor(
     providerSettings: ProviderSettingsPort,
-    private readonly modelFetcher: () => Promise<MODEL_META[]> = async () => []
+    private readonly modelFetcher: () => Promise<MODEL_META[]> = async () => [],
+    private readonly retryDelays: readonly number[] = [0, 0]
   ) {
     super(
       {
@@ -89,6 +90,10 @@ class TestProvider extends BaseLLMProvider {
 
   protected async fetchProviderModels(): Promise<MODEL_META[]> {
     return this.modelFetcher()
+  }
+
+  protected override getInitialModelFetchRetryDelays(): readonly number[] {
+    return this.retryDelays
   }
 
   public startInit(): Promise<void> {
@@ -358,19 +363,33 @@ describe('BaseLLMProvider tool XML conversion', () => {
 })
 
 describe('BaseLLMProvider initial model fetch', () => {
-  const createSettings = () => {
+  const statusKey = (modelId: string) => `test-provider:${modelId}`
+
+  const createSettings = (initialStatus: Record<string, boolean> = {}) => {
     const events: string[] = []
+    const status = new Map(
+      Object.entries(initialStatus).map(([modelId, enabled]) => [statusKey(modelId), enabled])
+    )
     const settings = {
       events,
+      status,
       getProviderModels: vi.fn().mockReturnValue([]),
       getCustomModels: vi.fn().mockReturnValue([]),
       getLanguage: vi.fn().mockReturnValue('zh-CN'),
-      getModelStatus: vi.fn().mockReturnValue(false),
+      getModelStatus: vi.fn(
+        (_providerId: string, modelId: string) => status.get(statusKey(modelId)) ?? false
+      ),
       setProviderModels: vi.fn(() => {
         events.push('store')
       }),
-      setModelStatus: vi.fn(() => {
+      setModelStatus: vi.fn((_providerId: string, modelId: string, enabled: boolean) => {
+        status.set(statusKey(modelId), enabled)
         events.push('enable')
+      }),
+      ensureModelStatus: vi.fn((_providerId: string, modelId: string, enabled: boolean) => {
+        if (status.has(statusKey(modelId))) return
+        status.set(statusKey(modelId), enabled)
+        events.push('ensure-enable')
       }),
       notifyModelsChanged: vi.fn(() => {
         events.push('notify')
@@ -383,6 +402,13 @@ describe('BaseLLMProvider initial model fetch', () => {
   const model = {
     id: JIAORONG_DEFAULT_MODEL_ID,
     name: JIAORONG_DEFAULT_MODEL_ID,
+    providerId: 'test-provider',
+    group: 'default'
+  } as MODEL_META
+
+  const otherModel = {
+    id: 'server-chat-model',
+    name: 'server-chat-model',
     providerId: 'test-provider',
     group: 'default'
   } as MODEL_META
@@ -404,25 +430,66 @@ describe('BaseLLMProvider initial model fetch', () => {
     )
   })
 
-  it('does not notify when the startup fetch returns no models', async () => {
+  it('notifies even when the fetched catalog is empty', async () => {
     const settings = createSettings()
     const provider = new TestProvider(settings as unknown as ProviderSettingsPort, async () => [])
 
     await provider.startInit()
 
     expect(settings.setProviderModels).toHaveBeenCalledWith('test-provider', [])
+    expect(settings.notifyModelsChanged).toHaveBeenCalledWith('test-provider')
+  })
+
+  it('retries a failed startup fetch and stops without notifying', async () => {
+    const settings = createSettings()
+    const fetcher = vi.fn().mockRejectedValue(new Error('missing api key'))
+    const provider = new TestProvider(settings as unknown as ProviderSettingsPort, fetcher)
+
+    await expect(provider.startInit()).resolves.toBeUndefined()
+
+    expect(fetcher).toHaveBeenCalledTimes(3)
+    expect(settings.setProviderModels).not.toHaveBeenCalled()
     expect(settings.notifyModelsChanged).not.toHaveBeenCalled()
   })
 
-  it('does not notify when the startup fetch fails', async () => {
+  it('notifies once when a retry succeeds after a failed attempt', async () => {
     const settings = createSettings()
-    const provider = new TestProvider(settings as unknown as ProviderSettingsPort, async () => {
-      throw new Error('missing api key')
-    })
+    const fetcher = vi.fn().mockRejectedValueOnce(new Error('502')).mockResolvedValue([model])
+    const provider = new TestProvider(settings as unknown as ProviderSettingsPort, fetcher)
 
     await provider.startInit()
 
-    expect(settings.setProviderModels).not.toHaveBeenCalled()
-    expect(settings.notifyModelsChanged).not.toHaveBeenCalled()
+    expect(fetcher).toHaveBeenCalledTimes(2)
+    expect(settings.events).toEqual(['store', 'enable', 'notify'])
+  })
+
+  it('enables a chat model when the catalog has no default model', async () => {
+    const settings = createSettings()
+    const provider = new TestProvider(settings as unknown as ProviderSettingsPort, async () => [
+      otherModel
+    ])
+
+    await provider.startInit()
+
+    expect(settings.setModelStatus).not.toHaveBeenCalled()
+    expect(settings.ensureModelStatus).toHaveBeenCalledWith(
+      'test-provider',
+      'server-chat-model',
+      true
+    )
+    expect(settings.status.get('test-provider:server-chat-model')).toBe(true)
+    expect(settings.events).toEqual(['store', 'ensure-enable', 'notify'])
+  })
+
+  it('keeps a model disabled when the user already turned it off', async () => {
+    const settings = createSettings({ 'server-chat-model': false })
+    const provider = new TestProvider(settings as unknown as ProviderSettingsPort, async () => [
+      otherModel
+    ])
+
+    await provider.startInit()
+
+    expect(settings.getModelStatus).toHaveBeenCalledWith('test-provider', 'server-chat-model')
+    expect(settings.status.get('test-provider:server-chat-model')).toBe(false)
   })
 })
