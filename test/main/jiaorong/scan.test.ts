@@ -20,8 +20,10 @@ import {
   ensureJiaorongAppInstalled,
   findVisibleOpenableApp,
   isJiaorongSidebarMenuApp,
-  pickRuntimeSlot
+  pickRuntimeSlot,
+  showsJiaorongSidebarApp
 } from '../../../src/jiaorong_src/appHost/main/scan'
+import { syncDevApps } from '../../../src/jiaorong_src/appHost/devCenter/main/devApps'
 import type { JiaorongAppRuntime } from '../../../src/jiaorong_src/appHost/types'
 
 describe('scan compareAppVersion', () => {
@@ -118,6 +120,31 @@ describe('sidebar menu placement', () => {
     expect(
       isJiaorongSidebarMenuApp({ id: 'local-app', source: 'local-debug', slot: 'app-center' })
     ).toBe(false)
+  })
+
+  it('adds a pinned app-center app and ignores developer workspace pins', () => {
+    const pinned = new Set(['demo-app'])
+    expect(
+      showsJiaorongSidebarApp({ id: 'demo-app', source: 'store', slot: 'app-center' }, pinned)
+    ).toBe(true)
+    expect(
+      showsJiaorongSidebarApp({ id: 'other-app', source: 'store', slot: 'app-center' }, pinned)
+    ).toBe(false)
+    expect(
+      showsJiaorongSidebarApp({ id: 'demo-app', source: 'builtin', slot: 'app-center' }, pinned)
+    ).toBe(false)
+
+    syncDevApps([{ id: 'dev-app', dir: '/tmp/dev-app', createdAt: 1 }])
+    try {
+      expect(
+        showsJiaorongSidebarApp(
+          { id: 'dev-app', source: 'local-debug', slot: 'app-center' },
+          new Set(['dev-app'])
+        )
+      ).toBe(false)
+    } finally {
+      syncDevApps([])
+    }
   })
 
   it('does not open zip apps that are missing or still installing', () => {

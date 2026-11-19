@@ -366,7 +366,9 @@ describe('open platform mock api', () => {
           canUninstall: true,
           developerOnly: false,
           visibleToCurrentUser: true,
-          provider: ''
+          provider: '',
+          pinnedToMenu: true,
+          fixedInMenu: false
         }
       ])
     } as unknown as typeof window.jiaorongApps
@@ -378,7 +380,9 @@ describe('open platform mock api', () => {
           installStatus: 'installed',
           installedVersion: '0.0.1',
           openable: true,
-          iconSrc: 'file:///installed-market-app/icon.png'
+          iconSrc: 'file:///installed-market-app/icon.png',
+          pinnedToMenu: true,
+          fixedInMenu: false
         }
       ])
     } finally {

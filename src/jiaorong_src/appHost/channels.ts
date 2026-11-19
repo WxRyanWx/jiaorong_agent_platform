@@ -34,6 +34,8 @@ export const JIAORONG_APP_CENTER_INSTALL_REMOTE_PACKAGE_CHANNEL =
 export const JIAORONG_APP_CENTER_INSTALL_STATUSES_CHANNEL = 'jiaorong-app-center:install-statuses'
 /** 应用中心卸载：已装即可卸，内置（系统）应用除外。 */
 export const JIAORONG_APP_CENTER_UNINSTALL_CHANNEL = 'jiaorong-app-center:uninstall'
+/** 把已安装的交融应用钉到左侧菜单，或取消钉。偏好不写进 app.json。 */
+export const JIAORONG_APP_PIN_MENU_CHANNEL = 'jiaorong-app:pin-menu'
 /** 已安装应用解压目录的字节数；没有本地安装目录时返回 null。 */
 export const JIAORONG_APP_CENTER_SIZE_CHANNEL = 'jiaorong-app-center:installed-size'
 /** 按下载地址读取 zip 包大小，不把整包下下来。 */

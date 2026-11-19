@@ -145,18 +145,17 @@
 
   &__head {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     align-items: center;
-    gap: 8px;
-    min-height: 28px;
+    gap: 10px;
     min-width: 0;
   }
 
   &__icon {
     flex-shrink: 0;
-    width: 20px;
-    height: 20px;
-    border-radius: 6px;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
     object-fit: cover;
   }
 
@@ -176,24 +175,39 @@
     color: #3a6cea;
 
     .app-center-card__icon-fallback {
-      width: 16px;
-      height: 16px;
+      width: 14px;
+      height: 14px;
       color: #3a6cea;
     }
   }
 
   &__icon-fallback {
     flex-shrink: 0;
-    width: 20px;
-    height: 20px;
+    width: 14px;
+    height: 14px;
     color: var(--muted-foreground);
   }
 
-  &__name {
+  &__identity {
+    display: flex;
     flex: 1 1 auto;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  &__title-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  &__name {
+    flex: 0 1 auto;
     min-width: 0;
     margin: 0;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 600;
     line-height: 20px;
     overflow: hidden;
@@ -201,16 +215,75 @@
     white-space: nowrap;
   }
 
-  &__security {
+  &__meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    color: #98a2b3;
+    font-size: 10px;
+    line-height: 14px;
+  }
+
+  &__version {
+    min-width: 0;
+    max-width: 9rem;
+    overflow: hidden;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  &__meta-split {
+    flex: none;
+    width: 1px;
+    height: 10px;
+    background: #d0d5dd;
+  }
+
+  &__pin {
     display: inline-flex;
     flex: none;
     align-items: center;
     justify-content: center;
-    width: 16px;
-    height: 16px;
-    border-radius: 999px;
-    background: #12b76a;
-    color: #fff;
+    width: 24px;
+    height: 24px;
+    margin-left: auto;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: #98a2b3;
+    cursor: pointer;
+
+    &:hover {
+      color: var(--foreground);
+    }
+
+    &.is-active {
+      color: #3a6cea;
+    }
+
+    &:disabled {
+      cursor: default;
+      opacity: 0.4;
+    }
+  }
+
+  &__pin-icon {
+    width: 14px;
+    height: 14px;
+  }
+
+  &__security {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: 2px;
+    color: #12b76a;
+    font-size: 11px;
+    line-height: 14px;
+    white-space: nowrap;
     cursor: default;
   }
 
@@ -228,7 +301,7 @@
     line-height: 16px;
     color: var(--muted-foreground);
     border: 1px solid var(--border);
-    overflow-wrap: anywhere;
+    white-space: nowrap;
   }
 
   &__desc {

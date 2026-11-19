@@ -192,6 +192,32 @@ export function useJiaorongAppCenter() {
   }
 
   /**
+   * 钉到左侧菜单或取消。未安装和发布包自带菜单的应用不写偏好。
+   * @param app 卡片项
+   * @param pinned true 钉上，false 取消
+   */
+  async function pinToMenu(app: JiaorongAppCenterItem, pinned: boolean): Promise<void> {
+    // 安装、卸载、打开进行中不改钉，避免和卸载清偏好抢同一条记录
+    if (isBusy.value || app.fixedInMenu) return
+    const installed = app.installStatus === 'installed' || app.installStatus === 'update_available'
+    if (!installed) return
+    lastError.value = null
+    try {
+      const result = await window.jiaorongApps?.pinAppToMenu(app.id, pinned)
+      if (!result || result.ok === false) {
+        lastError.value = {
+          appId: app.id,
+          message: result?.message || 'app cannot be pinned'
+        }
+      }
+    } catch (error) {
+      console.warn('[jiaorong-app-center] pin failed', app.id, error)
+      lastError.value = { appId: app.id, message: 'app cannot be pinned' }
+    }
+    await refresh()
+  }
+
+  /**
    * 打开应用：先等主进程把 Node 起完，再进应用页。
    * @param app 卡片项
    */
@@ -255,6 +281,7 @@ export function useJiaorongAppCenter() {
     isOpening,
     install,
     uninstall,
+    pinToMenu,
     open
   }
 }

@@ -44,6 +44,10 @@ declare global {
       ): Promise<{ ok: boolean; message?: string; item?: JiaorongAppCenterItem }>
       getAppCenterInstallStatuses(appIds: string[]): Promise<JiaorongAppCenterItem[]>
       uninstallAppCenter(appId: string): Promise<{ ok: boolean; message?: string }>
+      pinAppToMenu(
+        appId: string,
+        pinned: boolean
+      ): Promise<{ ok: boolean; message?: string; pinned?: boolean }>
       getAppCenterInstalledSize(appId: string): Promise<number | null>
       getAppCenterPackageSize(downloadUrl: string): Promise<number | null>
       listDevCenter(): Promise<JiaorongDevCenterItem[]>

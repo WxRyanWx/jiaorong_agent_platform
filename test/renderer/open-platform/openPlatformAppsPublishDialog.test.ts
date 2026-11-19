@@ -17,15 +17,16 @@ vi.mock('@iconify/vue', () => ({
 
 vi.mock('@arco-design/web-vue', () => ({
   Button: {
-    props: ['disabled', 'size', 'type', 'status', 'testId'],
+    props: ['disabled', 'size', 'type', 'status', 'testId', 'loading'],
     emits: ['click'],
     template:
-      '<button type="button" :disabled="disabled" :data-testid="testId" @click="$emit(\'click\', $event)"><slot /></button>'
+      '<button type="button" :disabled="disabled || loading" :data-loading="loading ? \'true\' : \'false\'" :data-testid="testId" @click="$emit(\'click\', $event)"><slot /></button>'
   },
   Popconfirm: {
     props: ['popupVisible'],
     emits: ['ok', 'update:popupVisible'],
-    template: '<span><slot /></span>'
+    template:
+      '<span class="popconfirm"><slot /><button type="button" class="popconfirm-open" @click="$emit(\'update:popupVisible\', true)" /><button type="button" class="popconfirm-ok" @click="$emit(\'ok\')" /></span>'
   }
 }))
 
@@ -189,6 +190,41 @@ describe('open platform app publish dialog', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('zip 包里没有 app.json')
+    wrapper.unmount()
+  })
+
+  it('shows a loading state on the confirm button while publish is in flight', async () => {
+    let finishPublish: (ok: boolean) => void = () => undefined
+    appMocks.publish.mockImplementation(
+      () =>
+        new Promise<boolean>((resolve) => {
+          finishPublish = resolve
+        })
+    )
+    const wrapper = mountAppsPane()
+    await openPublishDialog(wrapper)
+
+    const chooseZip = wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'routes.devCenterPublishZipPick')
+    await chooseZip?.trigger('click')
+    await flushPromises()
+
+    const footer = wrapper.get('.open-platform-pane__dialog-footer')
+    await footer.get('.popconfirm-open').trigger('click')
+    await flushPromises()
+    await footer.get('.popconfirm-ok').trigger('click')
+    await flushPromises()
+
+    const confirm = footer
+      .findAll('button')
+      .find((button) => button.text() === 'routes.devCenterConfirm')
+    expect(confirm?.attributes('data-loading')).toBe('true')
+    expect(confirm?.attributes('disabled')).toBeDefined()
+
+    finishPublish(false)
+    await flushPromises()
+    expect(confirm?.attributes('data-loading')).toBe('false')
     wrapper.unmount()
   })
 })

@@ -235,6 +235,9 @@ export async function listOpenPlatformMarketApps(): Promise<JiaorongAppCenterIte
       packageSha256: item.latestRelease?.sha256.trim() || null,
       openable: installedItem?.openable ?? false,
       canUninstall: installedItem?.canUninstall ?? false,
+      // 钉记在本机，只跟已安装状态走；未安装没有可钉的菜单项
+      pinnedToMenu: installedItem?.pinnedToMenu === true,
+      fixedInMenu: installedItem?.fixedInMenu === true,
       developerOnly: false,
       visibleToCurrentUser: true,
       provider: item.provider?.trim() || '',

@@ -190,6 +190,15 @@ export type JiaorongAppCenterItem = {
   visibleToCurrentUser: boolean
   /** 提供方；配置未给则为空串。 */
   provider: string
+  /**
+   * 用户把该应用钉到左侧菜单。记在本机偏好里，不写进 app.json。
+   * 更新覆盖安装包后仍然保留；卸载后清掉。
+   */
+  pinnedToMenu?: boolean
+  /**
+   * 已安装包的 slot 是 menu。侧栏本来就会出现，不能靠取消钉去掉。
+   */
+  fixedInMenu?: boolean
   /** 最近一次上架时间；市场卡片才有。 */
   publishedAt?: string | null
   /** 最近更新时间；市场卡片才有。 */

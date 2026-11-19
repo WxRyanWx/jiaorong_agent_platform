@@ -560,6 +560,41 @@ export function isJiaorongSidebarMenuApp(item: {
 }
 
 /**
+ * 用户钉到菜单的应用。发布包 slot=menu 不走这里。
+ * 开发者中心工作区包只在开发者中心打开。
+ * @param item 运行时项
+ * @param pinnedIds 本机钉偏好里的应用 id
+ */
+export function isUserPinnedSidebarApp(
+  item: {
+    id: string
+    source: JiaorongAppRuntime['source']
+  },
+  pinnedIds: ReadonlySet<string>
+): boolean {
+  if (!pinnedIds.has(item.id)) return false
+  if (item.source === 'local-debug') return !isDevCenterAppId(item.id)
+  return item.source === 'store'
+}
+
+/**
+ * 侧栏是否展示：发布包声明的菜单，或用户钉上的已安装应用。
+ * 调用方仍要先排除未安装项，卸载后菜单项才会消失。
+ * @param item 运行时项
+ * @param pinnedIds 本机钉偏好里的应用 id
+ */
+export function showsJiaorongSidebarApp(
+  item: {
+    id: string
+    source: JiaorongAppRuntime['source']
+    slot: JiaorongAppRuntime['slot']
+  },
+  pinnedIds: ReadonlySet<string>
+): boolean {
+  return isJiaorongSidebarMenuApp(item) || isUserPinnedSidebarApp(item, pinnedIds)
+}
+
+/**
  * 找当前用户可见且可打开的应用。
  * @param apps 运行时列表
  * @param appId 应用 id

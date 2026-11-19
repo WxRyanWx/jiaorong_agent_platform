@@ -689,6 +689,7 @@ watch(lastError, (error) => {
               :confirm-label="t('routes.devCenterConfirm')"
               variant="default"
               :disabled="isDialogBusy"
+              :loading="isPublishing"
               :popup-visible="isPublishConfirmVisible"
               :popup-container="publishConfirmContainer ?? undefined"
               @update:popup-visible="handlePublishConfirmVisible"

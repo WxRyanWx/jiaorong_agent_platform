@@ -144,6 +144,41 @@ describe('app center remote update', () => {
     wrapper.unmount()
   })
 
+  it('keeps a local pin when the market card is merged', async () => {
+    localApps.items = [localApp({ pinnedToMenu: true, fixedInMenu: false })]
+    marketApps.items = [marketApp()]
+
+    const { wrapper, center } = await mountCenter()
+
+    expect(center.apps.value[0]).toMatchObject({
+      pinnedToMenu: true,
+      fixedInMenu: false,
+      installStatus: 'update_available'
+    })
+    wrapper.unmount()
+  })
+
+  it('asks the host to pin an installed app and skips apps that are not installed', async () => {
+    const pinAppToMenu = vi.fn(async () => ({ ok: true, pinned: true }))
+    window.jiaorongApps = {
+      listAppCenter: vi.fn(async () => localApps.items),
+      onCatalogChanged: vi.fn(() => () => undefined),
+      pinAppToMenu
+    } as unknown as typeof window.jiaorongApps
+    localApps.items = [localApp({ pinnedToMenu: false, fixedInMenu: false })]
+
+    const { wrapper, center } = await mountCenter()
+    await center.pinToMenu(center.apps.value[0], true)
+    expect(pinAppToMenu).toHaveBeenCalledWith('demo-app', true)
+
+    localApps.items = [localApp({ installStatus: 'not_installed', openable: false })]
+    pinAppToMenu.mockClear()
+    await center.refresh()
+    await center.pinToMenu(center.apps.value[0], true)
+    expect(pinAppToMenu).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
   it('keeps the local version when the market asset has no version', async () => {
     localApps.items = [localApp()]
     marketApps.items = [marketApp({ version: '0.0.0', downloadUrl: null, packageSha256: null })]

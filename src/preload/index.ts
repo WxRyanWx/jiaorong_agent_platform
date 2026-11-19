@@ -18,6 +18,7 @@ import {
   JIAORONG_APP_CENTER_INSTALL_STATUSES_CHANNEL,
   JIAORONG_APP_CENTER_LIST_CHANNEL,
   JIAORONG_APP_CENTER_UNINSTALL_CHANNEL,
+  JIAORONG_APP_PIN_MENU_CHANNEL,
   JIAORONG_APP_CENTER_SIZE_CHANNEL,
   JIAORONG_APP_CENTER_PACKAGE_SIZE_CHANNEL,
   JIAORONG_DEV_APP_OPEN_WINDOW_CHANNEL,
@@ -149,6 +150,12 @@ const jiaorongApps = Object.freeze({
     ipcRenderer.invoke(JIAORONG_APP_CENTER_INSTALL_STATUSES_CHANNEL, { appIds }),
   uninstallAppCenter: (appId: string) =>
     ipcRenderer.invoke(JIAORONG_APP_CENTER_UNINSTALL_CHANNEL, { appId }),
+  pinAppToMenu: (appId: string, pinned: boolean) =>
+    ipcRenderer.invoke(JIAORONG_APP_PIN_MENU_CHANNEL, { appId, pinned }) as Promise<{
+      ok: boolean
+      message?: string
+      pinned?: boolean
+    }>,
   getAppCenterInstalledSize: (appId: string) =>
     ipcRenderer.invoke(JIAORONG_APP_CENTER_SIZE_CHANNEL, { appId }) as Promise<number | null>,
   getAppCenterPackageSize: (downloadUrl: string) =>

@@ -103,14 +103,21 @@ describe('app center selection', () => {
       entry: 'index.html'
     })
 
-    expect(toAppCenterItem(installed, { isDeveloper: false })).toMatchObject({
-      id: 'demo-app',
-      remotePackage: true,
-      openable: true,
-      canUninstall: true,
-      developerOnly: false,
-      visibleToCurrentUser: true
-    })
+    expect(toAppCenterItem(installed, { isDeveloper: false }, new Set(['demo-app']))).toMatchObject(
+      {
+        id: 'demo-app',
+        remotePackage: true,
+        openable: true,
+        canUninstall: true,
+        developerOnly: false,
+        visibleToCurrentUser: true,
+        pinnedToMenu: true,
+        fixedInMenu: true
+      }
+    )
+    expect(
+      toAppCenterItem(makeRuntime({ slot: 'app-center' }), { isDeveloper: false }).fixedInMenu
+    ).toBe(false)
     expect(toAppCenterItem(installed, { isDeveloper: true }).canUninstall).toBe(true)
 
     const builtinInstalled = makeRuntime({

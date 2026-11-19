@@ -14,6 +14,7 @@ const props = withDefaults(
     confirmVariant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link'
     position?: 'top' | 'bottom' | 'left' | 'right'
     disabled?: boolean
+    loading?: boolean
     testId?: string
     icon?: string
     popupVisible?: boolean
@@ -25,6 +26,7 @@ const props = withDefaults(
     confirmVariant: 'default',
     position: 'top',
     disabled: false,
+    loading: false,
     testId: undefined,
     icon: undefined,
     popupVisible: undefined,
@@ -76,6 +78,7 @@ const emit = defineEmits<{
         :status="buttonStatus"
         size="small"
         :disabled="props.disabled"
+        :loading="props.loading"
         :data-testid="props.testId"
       >
         <Icon v-if="props.icon" :icon="props.icon" />

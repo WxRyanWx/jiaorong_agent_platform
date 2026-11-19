@@ -2294,6 +2294,39 @@ declare module 'vue-i18n' {
     appCenterNoResult: string
     appCenterInstallError: string
     appCenterDevOnly: string
+    appCenterDetail: string
+    appCenterDetailTitle: string
+    appCenterDetailClose: string
+    appCenterSecurityChecked: string
+    appCenterVerified: string
+    appCenterPinToMenu: string
+    appCenterUnpinFromMenu: string
+    appCenterPinRequiresInstall: string
+    appCenterFixedInMenu: string
+    appCenterPinFailed: string
+    appCenterSecurityDesc: string
+    appCenterIntro: string
+    appCenterNoDescription: string
+    appCenterInfo: string
+    appCenterFieldId: string
+    appCenterFieldVersion: string
+    appCenterFieldInstalledVersion: string
+    appCenterFieldStatus: string
+    appCenterFieldProvider: string
+    appCenterFieldDeveloper: string
+    appCenterProvidedBy: string
+    appCenterFieldPublishedAt: string
+    appCenterFieldUpdatedAt: string
+    appCenterFieldPackage: string
+    appCenterPackageVerified: string
+    appCenterFieldSize: string
+    appCenterSizeLoading: string
+    appCenterSizeMissing: string
+    appCenterSizeUnavailable: string
+    appCenterSizePackage: string
+    appCenterStatusNotInstalled: string
+    appCenterStatusInstalled: string
+    appCenterStatusUpdate: string
     openPlatform: string
     openPlatformSubtitle: string
     openPlatformTab_home: string

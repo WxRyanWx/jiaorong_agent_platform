@@ -253,11 +253,10 @@ onBeforeUnmount(() => {
                 <h3>{{ app.name }}</h3>
                 <div class="app-center-detail__tags">
                   <span class="app-center-detail__version">{{ versionText }}</span>
+                  <span class="app-center-detail__meta-split" aria-hidden="true"></span>
                   <span class="app-center-detail__security">
-                    <span class="app-center-detail__security-mark" aria-hidden="true">
-                      <Icon icon="lucide:shield-check" class="app-center-detail__security-icon" />
-                    </span>
-                    {{ t('routes.appCenterSecurityChecked') }}
+                    <Icon icon="lucide:shield-check" class="app-center-detail__security-icon" />
+                    {{ t('routes.appCenterVerified') }}
                   </span>
                   <span v-if="app.developerOnly" class="app-center-detail__badge">
                     {{ t('routes.appCenterDevOnly') }}

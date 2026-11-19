@@ -16,6 +16,7 @@ import {
   JIAORONG_APP_CENTER_INSTALL_REMOTE_PACKAGE_CHANNEL,
   JIAORONG_APP_CENTER_INSTALL_STATUSES_CHANNEL,
   JIAORONG_APP_CENTER_UNINSTALL_CHANNEL,
+  JIAORONG_APP_PIN_MENU_CHANNEL,
   JIAORONG_APP_CENTER_SIZE_CHANNEL,
   JIAORONG_APP_CENTER_PACKAGE_SIZE_CHANNEL,
   JIAORONG_DEV_APP_OPEN_WINDOW_CHANNEL,
@@ -98,8 +99,11 @@ import {
   ensureJiaorongAppInstalled,
   findVisibleOpenableApp,
   isJiaorongSidebarMenuApp,
-  scanJiaorongApps
+  isUserPinnedSidebarApp,
+  scanJiaorongApps,
+  showsJiaorongSidebarApp
 } from './scan'
+import { listPinnedMenuAppIds, setPinnedMenuApp } from './pinnedMenuApps'
 import {
   isSystemAppUpdating,
   setSystemAppUpdateBroadcaster,
@@ -210,6 +214,19 @@ function readAppIdInput(input: unknown): string {
   /** 入参里的 appId 字段。 */
   const appId = (input as { appId?: unknown }).appId
   return typeof appId === 'string' ? appId.trim() : ''
+}
+
+/**
+ * 读钉到菜单的入参。
+ * @param input IPC 原始值
+ */
+function readPinMenuInput(input: unknown): { appId: string; pinned: boolean } {
+  if (!input || typeof input !== 'object') return { appId: '', pinned: false }
+  const record = input as { appId?: unknown; pinned?: unknown }
+  return {
+    appId: typeof record.appId === 'string' ? record.appId.trim() : '',
+    pinned: record.pinned === true
+  }
 }
 
 /**
@@ -594,8 +611,9 @@ export function startJiaorongAppHost(deps: JiaorongAppHostDeps): void {
   ipcMain.handle(JIAORONG_APP_LIST_CHANNEL, () => {
     // 目录还是空的（首次启动失败过）就顺手补一次，不阻塞本次返回
     if (loadBuiltinAppCatalog().length === 0) syncAppCatalogAndSystemApps(deps)
+    const pinnedIds = new Set(listPinnedMenuAppIds())
     return listVisible(deps)
-      .filter((item) => isJiaorongSidebarMenuApp(item))
+      .filter((item) => showsJiaorongSidebarApp(item, pinnedIds))
       .map((item) => toMenuAppItem(item))
   })
 
@@ -672,6 +690,31 @@ export function startJiaorongAppHost(deps: JiaorongAppHostDeps): void {
     // 卸载生产包前先关闭调试窗口，避免只卸掉临时 link
     if (appId) await closeDevAppWindow(appId)
     return uninstallAppCenterApp(deps, appId)
+  })
+
+  // 钉到左侧菜单：只改本机偏好，不改安装包 app.json，更新覆盖安装后钉还在
+  ipcMain.handle(JIAORONG_APP_PIN_MENU_CHANNEL, (_event, input: unknown) => {
+    const { appId, pinned } = readPinMenuInput(input)
+    if (!appId) return { ok: false, message: 'missing appId' }
+    if (pinned) {
+      const runtime = listVisible(deps).find((item) => item.id === appId)
+      const pinnedIds = new Set(runtime ? [runtime.id] : [])
+      const onDisk =
+        runtime?.installStatus === 'installed' || runtime?.installStatus === 'update_available'
+      // 没装上、发布包已经在菜单里、或开发者工作区包，都不能再钉一次
+      if (
+        !runtime ||
+        !onDisk ||
+        isJiaorongSidebarMenuApp(runtime) ||
+        !isUserPinnedSidebarApp(runtime, pinnedIds)
+      ) {
+        return { ok: false, message: `app cannot be pinned: ${appId}` }
+      }
+    }
+    const result = setPinnedMenuApp(appId, pinned)
+    if (!result.ok) return { ok: false, message: `invalid app id: ${appId}` }
+    broadcastCatalogChanged()
+    return { ok: true, pinned: result.pinned }
   })
 
   // 开发者中心列表：先重拉运行时目录，避免已发布应用被误判为首次发布
@@ -907,6 +950,7 @@ export function stopJiaorongAppHost(): void {
   ipcMain.removeHandler(JIAORONG_APP_CENTER_INSTALL_REMOTE_PACKAGE_CHANNEL)
   ipcMain.removeHandler(JIAORONG_APP_CENTER_INSTALL_STATUSES_CHANNEL)
   ipcMain.removeHandler(JIAORONG_APP_CENTER_UNINSTALL_CHANNEL)
+  ipcMain.removeHandler(JIAORONG_APP_PIN_MENU_CHANNEL)
   ipcMain.removeHandler(JIAORONG_APP_CENTER_SIZE_CHANNEL)
   ipcMain.removeHandler(JIAORONG_APP_CENTER_PACKAGE_SIZE_CHANNEL)
   ipcMain.removeHandler(JIAORONG_DEV_CENTER_LIST_CHANNEL)

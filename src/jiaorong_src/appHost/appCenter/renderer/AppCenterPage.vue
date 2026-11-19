@@ -33,6 +33,7 @@ const {
   isOpening,
   install,
   uninstall,
+  pinToMenu,
   open
 } = useJiaorongAppCenter()
 
@@ -96,6 +97,42 @@ function versionLabel(app: JiaorongAppCenterItem): string {
   return `v${app.version}`
 }
 
+type AppPinState = 'install' | 'fixed' | 'pinned' | 'unpinned'
+
+const PIN_TOOLTIP_KEYS = {
+  install: 'routes.appCenterPinRequiresInstall',
+  fixed: 'routes.appCenterFixedInMenu',
+  pinned: 'routes.appCenterUnpinFromMenu',
+  unpinned: 'routes.appCenterPinToMenu'
+} as const
+
+/** 安装或更新进行中不能钉。更新时状态会暂时变成 installing，不能当成还没安装。 */
+function pinLocked(app: JiaorongAppCenterItem): boolean {
+  return isInstalling(app)
+}
+
+/** 钉按钮的四种状态：未安装、发布包自带菜单、用户已钉、可以钉。 */
+function pinState(app: JiaorongAppCenterItem): AppPinState {
+  const installed =
+    isInstalledApp(app) || (app.installStatus === 'installing' && Boolean(app.installedVersion))
+  if (!installed) return 'install'
+  if (app.fixedInMenu) return 'fixed'
+  if (app.pinnedToMenu) return 'pinned'
+  return 'unpinned'
+}
+
+/** 点击钉：安装更新中不响应，未安装只提示，已在发布菜单里的不改，其余切换本机偏好。 */
+async function onPin(app: JiaorongAppCenterItem): Promise<void> {
+  if (pinLocked(app)) return
+  const state = pinState(app)
+  if (state === 'install') {
+    toast({ title: t(PIN_TOOLTIP_KEYS.install) })
+    return
+  }
+  if (state === 'fixed') return
+  await pinToMenu(app, state === 'unpinned')
+}
+
 /** 是否展示主操作（安装 / 更新）；无安装来源时已装只给打开。 */
 function showPrimaryAction(app: JiaorongAppCenterItem): boolean {
   if (isInstalling(app)) return true
@@ -114,14 +151,20 @@ watch(detailApp, (app) => {
   if (detailAppId.value && !app) detailAppId.value = null
 })
 
+/** 主进程失败文案。钉相关的英文原因换成界面语言，其余沿用原文。 */
+function actionErrorTitle(message?: string): string {
+  if (message === 'MISSING') return t('routes.embeddedAppMissing')
+  if (message?.startsWith('app cannot be pinned') || message?.startsWith('invalid app id')) {
+    return t('routes.appCenterPinFailed')
+  }
+  return message || t('routes.appCenterInstallError')
+}
+
 // 主进程返回的失败信息统一走 toast
 watch(lastError, (error) => {
   if (!error) return
   toast({
-    title:
-      error.message === 'MISSING'
-        ? t('routes.embeddedAppMissing')
-        : error.message || t('routes.appCenterInstallError'),
+    title: actionErrorTitle(error.message),
     variant: 'destructive'
   })
 })
@@ -202,24 +245,53 @@ watch(lastError, (error) => {
             <div v-else class="app-center-card__icon-bg">
               <Icon icon="lucide:layout-grid" class="app-center-card__icon-fallback" />
             </div>
-            <h3 class="app-center-card__name">{{ app.name }}</h3>
-            <span v-if="app.developerOnly" class="app-center-card__badge">
-              {{ t('routes.appCenterDevOnly') }}
-            </span>
-            <span class="app-center-card__badge">{{ versionLabel(app) }}</span>
+            <div class="app-center-card__identity">
+              <div class="app-center-card__title-row">
+                <h3 class="app-center-card__name">{{ app.name }}</h3>
+                <span v-if="app.developerOnly" class="app-center-card__badge">
+                  {{ t('routes.appCenterDevOnly') }}
+                </span>
+              </div>
+              <div class="app-center-card__meta" @click.stop>
+                <span class="app-center-card__version">{{ versionLabel(app) }}</span>
+                <span class="app-center-card__meta-split" aria-hidden="true"></span>
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <span
+                      class="app-center-card__security"
+                      tabindex="0"
+                      :data-testid="`app-center-security-${app.id}`"
+                      :aria-label="t('routes.appCenterSecurityChecked')"
+                    >
+                      <Icon icon="lucide:shield-check" class="app-center-card__security-icon" />
+                      {{ t('routes.appCenterVerified') }}
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">
+                    {{ t('routes.appCenterSecurityChecked') }}
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+            </div>
             <Tooltip>
               <TooltipTrigger as-child>
-                <span
-                  class="app-center-card__security"
-                  tabindex="0"
-                  :data-testid="`app-center-security-${app.id}`"
-                  :aria-label="t('routes.appCenterSecurityChecked')"
+                <button
+                  type="button"
+                  class="app-center-card__pin"
+                  :class="{
+                    'is-active': pinState(app) === 'pinned' || pinState(app) === 'fixed'
+                  }"
+                  :disabled="pinLocked(app)"
+                  :aria-pressed="pinState(app) === 'pinned' || pinState(app) === 'fixed'"
+                  :aria-label="t(PIN_TOOLTIP_KEYS[pinState(app)])"
+                  :data-testid="`app-center-pin-${app.id}`"
+                  @click.stop="onPin(app)"
                 >
-                  <Icon icon="lucide:check" class="app-center-card__security-icon" />
-                </span>
+                  <Icon icon="lucide:pin" class="app-center-card__pin-icon" />
+                </button>
               </TooltipTrigger>
               <TooltipContent side="top">
-                {{ t('routes.appCenterSecurityChecked') }}
+                {{ t(PIN_TOOLTIP_KEYS[pinState(app)]) }}
               </TooltipContent>
             </Tooltip>
           </div>
