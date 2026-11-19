@@ -69,6 +69,7 @@
     "error502": "Lỗi cổng, dịch vụ có thể không ổn định, vui lòng thử lại sau",
     "error503": "Dịch vụ không khả dụng, dịch vụ có thể không ổn định, vui lòng thử lại sau",
     "error504": "Hết thời gian yêu cầu, dịch vụ có thể không ổn định hoặc có thể có sự cố mạng, vui lòng kiểm tra cài đặt proxy và thử lại",
+    "quotaExhausted": "Hạn mức hôm nay đã hết. Xin cảm ơn sự thông cảm của bạn.",
     "operationFailed": "Thao tác không thành công",
     "invalidQuestionRequest": "Yêu cầu câu hỏi không hợp lệ"
   },

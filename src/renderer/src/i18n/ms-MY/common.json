@@ -83,6 +83,7 @@
     "error502": "Ralat pintu masuk. Perkhidmatan yang diminta mungkin tidak stabil pada masa ini. Anda boleh cuba lagi nanti.",
     "error503": "Perkhidmatan tidak tersedia. Perkhidmatan yang diminta mungkin tidak stabil pada masa ini. Anda boleh cuba lagi nanti.",
     "error504": "Permintaan itu tamat masa. Perkhidmatan yang diminta mungkin tidak stabil atau pautan rangkaian rosak. Sila semak proksi dan konfigurasi rangkaian lain dan cuba lagi.",
+    "quotaExhausted": "Kuota hari ini telah habis. Terima kasih atas kefahaman anda.",
     "operationFailed": "Operasi gagal",
     "invalidQuestionRequest": "Permintaan soalan tidak sah"
   },

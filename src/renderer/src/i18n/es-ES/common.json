@@ -83,6 +83,7 @@
     "error502": "Error de gateway; el servicio puede estar inestable, inténtalo de nuevo más tarde",
     "error503": "Servicio no disponible; el servicio puede estar inestable, inténtalo de nuevo más tarde",
     "error504": "Tiempo de espera agotado en la solicitud; el servicio puede estar inestable o puede haber problemas de red. Comprueba la configuración del proxy e inténtalo de nuevo",
+    "quotaExhausted": "La cuota de hoy se ha agotado. Gracias por tu comprensión.",
     "operationFailed": "Operación fallida",
     "invalidQuestionRequest": "Solicitud de pregunta no válida"
   },

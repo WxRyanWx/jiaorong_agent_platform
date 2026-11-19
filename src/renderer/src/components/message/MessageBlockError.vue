@@ -6,6 +6,13 @@
     <Icon icon="lucide:refresh-cw-off"></Icon>
     <span>{{ t(block.content || '') }}</span>
   </div>
+  <div
+    v-else-if="isQuotaExhausted"
+    class="text-muted-foreground text-sm flex flex-row gap-2 items-center py-2"
+  >
+    <Icon icon="lucide:info"></Icon>
+    <span>{{ t('common.error.quotaExhausted') }}</span>
+  </div>
   <div v-else class="cursor-default select-none">
     <button
       type="button"
@@ -53,6 +60,14 @@ const { t } = useI18n()
 const props = defineProps<{
   block: DisplayAssistantMessageBlock
 }>()
+
+// 平台网关额度耗尽时返回的 message 为 "The balance of account is insufficient"，命中后
+// 不再展示原始报文，直接换成一句面向用户的中文提示。
+const QUOTA_EXHAUSTED_MESSAGE_PATTERN = /balance of account is insufficient/i
+
+const isQuotaExhausted = computed(() =>
+  QUOTA_EXHAUSTED_MESSAGE_PATTERN.test(props.block.content || '')
+)
 
 const isExpanded = ref(false)
 const detailsId = `message-error-details-${useId()}`

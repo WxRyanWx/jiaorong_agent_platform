@@ -69,6 +69,7 @@
     "error502": "Gateway error, the service might be unstable, please try again later",
     "error503": "Service unavailable, the service might be unstable, please try again later",
     "error504": "Request timeout, the service might be unstable or there might be network issues, please check proxy settings and try again",
+    "quotaExhausted": "Today's quota has been used up. Thank you for your understanding.",
     "operationFailed": "Operation failed",
     "invalidQuestionRequest": "Invalid question request"
   },

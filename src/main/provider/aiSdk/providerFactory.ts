@@ -9,6 +9,7 @@ import { createVertex } from '@ai-sdk/google-vertex'
 import { createOpenAI } from '@ai-sdk/openai'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { fromNodeProviderChain } from '@aws-sdk/credential-providers'
+import { isStreamingJsonRequest, normalizeGatewayJsonErrorResponse } from './gatewayErrorEnvelope'
 import { createReasoningMiddleware } from './middlewares/reasoningMiddleware'
 import {
   buildOpenAICodexResponsesEndpoint,
@@ -408,7 +409,8 @@ function createFetchMiddleware(
     }
 
     nextInit.body = normalizeRequestBody(provider, requestUrl, nextInit.body)
-    return fetch(url, nextInit)
+    const response = await fetch(url, nextInit)
+    return normalizeGatewayJsonErrorResponse(response, isStreamingJsonRequest(nextInit.body))
   }
 }
 

@@ -62,6 +62,7 @@
     "error502": "Gateway-fejl, den anmodede tjeneste er muligvis ustabil i øjeblikket, prøv venligst igen senere.",
     "error503": "Tjenesten er utilgængelig, den anmodede tjeneste kan være ustabil i øjeblikket, prøv venligst igen senere.",
     "error504": "Anmodningen er udløbet, den anmodede tjeneste kan være ustabil i øjeblikket, eller der kan være fejl i netværksforbindelsen. Kontroller venligst proxy og andre netværksindstillinger, og prøv igen.",
+    "quotaExhausted": "Dagens kvote er brugt op. Tak for din forståelse.",
     "invalidJson": "Ugyldig JSON-format",
     "maximumToolCallsReached": "Opnået maksimal antal værktøjsopkald",
     "noModelResponse": "Modellen returnerede ikke noget indhold, det kan være på grund af timeout.",

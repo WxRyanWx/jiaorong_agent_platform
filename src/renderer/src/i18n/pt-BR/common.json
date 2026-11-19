@@ -69,6 +69,7 @@
     "error502": "Erro de gateway, o serviço pode estar instável, tente novamente mais tarde",
     "error503": "Serviço indisponível, o serviço pode estar instável, tente novamente mais tarde",
     "error504": "Tempo limite da requisição, o serviço pode estar instável ou pode haver problemas de rede, verifique as configurações de proxy e tente novamente",
+    "quotaExhausted": "A cota de hoje foi esgotada. Agradecemos a compreensão.",
     "operationFailed": "Operação falhou",
     "invalidQuestionRequest": "Solicitação de pergunta inválida"
   },

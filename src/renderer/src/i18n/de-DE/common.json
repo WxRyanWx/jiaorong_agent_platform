@@ -83,6 +83,7 @@
     "error502": "Gateway-Fehler, der Dienst ist möglicherweise instabil. Bitte später erneut versuchen",
     "error503": "Dienst nicht verfügbar, der Dienst ist möglicherweise instabil. Bitte später erneut versuchen",
     "error504": "Anfragezeit überschritten, der Dienst ist möglicherweise instabil oder es gibt Netzwerkprobleme. Bitte Proxy- und Netzwerkeinstellungen prüfen und erneut versuchen",
+    "quotaExhausted": "Das heutige Kontingent ist aufgebraucht. Vielen Dank für Ihr Verständnis.",
     "operationFailed": "Vorgang fehlgeschlagen",
     "invalidQuestionRequest": "Ungültige Fragenanfrage"
   },

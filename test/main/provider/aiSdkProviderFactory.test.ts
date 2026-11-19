@@ -659,4 +659,52 @@ describe('AI SDK provider factory', () => {
     const init = fetchMock.mock.calls[0]?.[1] as (RequestInit & { dispatcher?: object }) | undefined
     expect(init?.dispatcher).toBeUndefined()
   })
+
+  it('keeps the gateway error message when a streamed request answers with a JSON envelope', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          code: 400,
+          message: 'The balance of account is insufficient',
+          data: null,
+          success: false
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } }
+      )
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const context = createAiSdkProviderContext({
+      providerKind: 'openai-compatible',
+      provider: {
+        id: 'jiaorong',
+        name: 'Jiaorong',
+        apiType: 'openai-completions',
+        apiKey: 'test-key',
+        baseUrl: 'https://gateway.example.com/v1',
+        enable: true
+      } as any,
+      providerSettings: {} as any,
+      defaultHeaders: {},
+      modelId: 'deepseek-chat',
+      wrapThinkReasoning: false
+    })
+
+    const result = streamText({
+      model: context.model,
+      messages: [{ role: 'user', content: '你好' }],
+      maxRetries: 0,
+      onError: () => {}
+    })
+
+    const errors: string[] = []
+    for await (const part of result.stream) {
+      if (part.type === 'error') {
+        const error = part.error as { message?: unknown } | undefined
+        errors.push(String(error?.message ?? error))
+      }
+    }
+
+    expect(errors.join('\n')).toContain('The balance of account is insufficient')
+  })
 })

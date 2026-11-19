@@ -83,6 +83,7 @@
     "error502": "Ağ geçidi hatası, hizmet kararsız olabilir, lütfen daha sonra tekrar deneyin",
     "error503": "Hizmet kullanılamıyor, hizmet kararsız olabilir, lütfen daha sonra tekrar deneyin",
     "error504": "İstek zaman aşımı, hizmet kararsız olabilir veya ağ sorunları olabilir, lütfen proxy ayarlarını kontrol edip tekrar deneyin",
+    "quotaExhausted": "Bugünkü kota doldu. Anlayışınız için teşekkürler.",
     "operationFailed": "İşlem başarısız oldu",
     "invalidQuestionRequest": "Geçersiz soru isteği"
   },

@@ -302,4 +302,21 @@ describe('MessageBlock basics', () => {
     expect(wrapper.text()).toContain('common.error.causeOfError')
     expect(wrapper.text()).toContain('common.error.error429')
   })
+
+  it('replaces the exhausted quota provider error with a friendly notice', () => {
+    const wrapper = mount(MessageBlockError, {
+      props: {
+        block: createBlock({
+          type: 'error',
+          content:
+            '{\n    "code": 400,\n    "message": "The balance of account is insufficient",\n    "data": null,\n    "success": false\n}'
+        })
+      }
+    })
+
+    expect(wrapper.text()).toContain('common.error.quotaExhausted')
+    expect(wrapper.text()).not.toContain('balance of account')
+    expect(wrapper.text()).not.toContain('common.error.requestFailed')
+    expect(wrapper.find('button').exists()).toBe(false)
+  })
 })

@@ -69,6 +69,7 @@
     "error502": "Błąd bramy. Usługa może być niestabilna. Spróbuj ponownie później",
     "error503": "Usługa niedostępna. Usługa może być niestabilna. Spróbuj ponownie później",
     "error504": "Poproś o przekroczenie limitu czasu. Usługa może być niestabilna lub mogą wystąpić problemy z siecią. Sprawdź ustawienia serwera proxy i spróbuj ponownie",
+    "quotaExhausted": "Dzisiejszy limit został wykorzystany. Dziękujemy za zrozumienie.",
     "operationFailed": "Operacja nie powiodła się",
     "invalidQuestionRequest": "Nieprawidłowe żądanie pytania"
   },

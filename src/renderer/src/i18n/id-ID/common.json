@@ -83,6 +83,7 @@
     "error502": "Kesalahan gerbang. Layanan yang diminta mungkin tidak stabil saat ini. Anda dapat mencoba lagi nanti.",
     "error503": "Layanan ini tidak tersedia. Layanan yang diminta mungkin tidak stabil saat ini. Anda dapat mencoba lagi nanti.",
     "error504": "Waktu permintaan telah habis. Layanan yang diminta mungkin tidak stabil atau tautan jaringan rusak. Silakan periksa proxy dan konfigurasi jaringan lainnya dan coba lagi.",
+    "quotaExhausted": "Kuota hari ini sudah habis. Terima kasih atas pengertiannya.",
     "operationFailed": "Operasi gagal",
     "invalidQuestionRequest": "Permintaan pertanyaan tidak valid"
   },

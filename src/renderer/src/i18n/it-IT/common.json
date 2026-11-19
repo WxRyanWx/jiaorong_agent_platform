@@ -83,6 +83,7 @@
     "error502": "Errore gateway, il servizio potrebbe essere instabile. Riprova più tardi",
     "error503": "Servizio non disponibile, il servizio potrebbe essere instabile. Riprova più tardi",
     "error504": "Timeout della richiesta, il servizio potrebbe essere instabile o la rete avere problemi. Controlla proxy e rete, poi riprova",
+    "quotaExhausted": "La quota di oggi è esaurita. Grazie per la comprensione.",
     "operationFailed": "Operazione non riuscita",
     "invalidQuestionRequest": "Richiesta domanda non valida"
   },
