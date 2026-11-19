@@ -9,6 +9,7 @@ async function loadRefreshModule(): Promise<RefreshModule> {
 }
 
 afterEach(() => {
+  vi.useRealTimers()
   vi.restoreAllMocks()
 })
 
@@ -108,6 +109,67 @@ describe('refreshJiaorongProviderApiKey', () => {
     await expect(stale).resolves.toBeNull()
     expect(writeApiKey).toHaveBeenCalledTimes(1)
     expect(writeApiKey).toHaveBeenCalledWith('glsk-second-account')
+  })
+
+  it('refreshes the model list once after a key is written', async () => {
+    vi.useFakeTimers()
+    const { MODEL_REFRESH_DELAY_MS, refreshJiaorongProviderApiKey } = await loadRefreshModule()
+    const requestApiKey = vi.fn().mockResolvedValue('glsk-new-key')
+    const writeApiKey = vi.fn().mockResolvedValue(undefined)
+    const refreshModels = vi.fn().mockResolvedValue(undefined)
+
+    await refreshJiaorongProviderApiKey({ requestApiKey, writeApiKey, refreshModels }, 'token-1')
+
+    expect(refreshModels).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(MODEL_REFRESH_DELAY_MS)
+    expect(refreshModels).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not refresh models when the key request fails', async () => {
+    vi.useFakeTimers()
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const { MODEL_REFRESH_DELAY_MS, refreshJiaorongProviderApiKey } = await loadRefreshModule()
+    const requestApiKey = vi.fn().mockRejectedValue(new Error('network down'))
+    const writeApiKey = vi.fn().mockResolvedValue(undefined)
+    const refreshModels = vi.fn().mockResolvedValue(undefined)
+
+    await refreshJiaorongProviderApiKey({ requestApiKey, writeApiKey, refreshModels }, 'token-1')
+    await vi.advanceTimersByTimeAsync(MODEL_REFRESH_DELAY_MS)
+
+    expect(refreshModels).not.toHaveBeenCalled()
+    expect(warn).toHaveBeenCalled()
+  })
+
+  it('keeps running when the scheduled model refresh fails', async () => {
+    vi.useFakeTimers()
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const { MODEL_REFRESH_DELAY_MS, refreshJiaorongProviderApiKey } = await loadRefreshModule()
+    const requestApiKey = vi.fn().mockResolvedValue('glsk-new-key')
+    const writeApiKey = vi.fn().mockResolvedValue(undefined)
+    const refreshModels = vi.fn().mockRejectedValue(new Error('unauthorized'))
+
+    await refreshJiaorongProviderApiKey({ requestApiKey, writeApiKey, refreshModels }, 'token-1')
+    await vi.advanceTimersByTimeAsync(MODEL_REFRESH_DELAY_MS)
+
+    expect(refreshModels).toHaveBeenCalledTimes(1)
+    expect(warn).toHaveBeenCalled()
+  })
+
+  it('re-checks the model list for a repeated token without requesting a new key', async () => {
+    vi.useFakeTimers()
+    const { MODEL_REFRESH_DELAY_MS, refreshJiaorongProviderApiKey } = await loadRefreshModule()
+    const requestApiKey = vi.fn().mockResolvedValue('glsk-first')
+    const writeApiKey = vi.fn().mockResolvedValue(undefined)
+    const refreshModels = vi.fn().mockResolvedValue(undefined)
+    const deps = { requestApiKey, writeApiKey, refreshModels }
+
+    await refreshJiaorongProviderApiKey(deps, 'token-1')
+    await vi.advanceTimersByTimeAsync(MODEL_REFRESH_DELAY_MS)
+    await refreshJiaorongProviderApiKey(deps, 'token-1')
+    await vi.advanceTimersByTimeAsync(MODEL_REFRESH_DELAY_MS)
+
+    expect(requestApiKey).toHaveBeenCalledTimes(1)
+    expect(refreshModels).toHaveBeenCalledTimes(2)
   })
 
   it('skips a queued write after the account changes', async () => {

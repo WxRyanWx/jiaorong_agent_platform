@@ -13,7 +13,12 @@ type JiaorongApiKeyRefreshDeps = {
   requestApiKey: () => Promise<string>
   /** 写入 Jiaorong 服务商 key，空串表示清除；同时校准当前环境 baseUrl。 */
   writeApiKey: (apiKey: string) => Promise<void>
+  /** 补拉模型；缺省时不补拉（仅测试或特殊调用方会省略）。 */
+  refreshModels?: () => Promise<void>
 }
+
+/** key 写入后补拉模型的延时：给网关生效留时间，避免刚下发的 key 立刻 401。 */
+export const MODEL_REFRESH_DELAY_MS = 1500
 
 /** 同一 token 的并发刷新只保留一条请求。 */
 let inflight: { token: string; promise: Promise<string | null> } | null = null
@@ -30,6 +35,27 @@ let writeQueue: Promise<unknown> = Promise.resolve()
 let generation = 0
 /** 同一启动只由一个窗口发起换 key，避免新开窗口重复建 key。 */
 const REFRESH_RUN_STORAGE_KEY = 'jiaorongApiKeyRefreshRunId'
+/** 待执行的模型补拉定时器，多次事件合并成一次。 */
+let modelRefreshTimer: ReturnType<typeof setTimeout> | null = null
+
+/**
+ * 安排一次模型补拉（去抖）。
+ * 首次拉取可能因 key 尚未在网关生效而失败，这里补一次；同 token 重复事件也只补一次。
+ * @param deps 请求 / 写入 / 补拉实现
+ */
+function scheduleModelRefresh(deps: JiaorongApiKeyRefreshDeps): void {
+  const refreshModels = deps.refreshModels
+  if (!refreshModels || modelRefreshTimer !== null) return
+  modelRefreshTimer = setTimeout(() => {
+    modelRefreshTimer = null
+    void refreshModels().catch((error: unknown) => {
+      console.warn(
+        '[jiaorong/provider] Failed to refresh models after key update:',
+        describeError(error)
+      )
+    })
+  }, MODEL_REFRESH_DELAY_MS)
+}
 
 /** 默认实现：私有 API + 现有 provider 写接口。 */
 function createDefaultDeps(): JiaorongApiKeyRefreshDeps {
@@ -40,6 +66,9 @@ function createDefaultDeps(): JiaorongApiKeyRefreshDeps {
         apiKey,
         baseUrl: resolveJiaorongCompatibleBaseUrl()
       })
+    },
+    refreshModels: async () => {
+      await createProviderClient().refreshModels(JIAORONG_DEFAULT_PROVIDER_ID)
     }
   }
 }
@@ -94,6 +123,8 @@ async function runRefresh(
     appliedToken = token
     lastAppliedKey = apiKey
     clearedWithoutToken = false
+    // 实例重建时会立刻拉一次模型，网关未必已生效；这里补一次，失败也不影响对话页后续手动刷新
+    scheduleModelRefresh(deps)
     return apiKey
   } catch (error) {
     console.warn('[jiaorong/provider] Failed to refresh Jiaorong API key:', describeError(error))
@@ -126,8 +157,11 @@ export function refreshJiaorongProviderApiKey(
     )
   }
   if (inflight?.token === token) return inflight.promise
-  // 同一次启动里会话被重复回写时不再建第二把 key
-  if (appliedToken === token) return Promise.resolve(lastAppliedKey || null)
+  // 同一次启动里会话被重复回写时不再建第二把 key，但仍补一次模型拉取（上次可能失败过）
+  if (appliedToken === token) {
+    scheduleModelRefresh(deps)
+    return Promise.resolve(lastAppliedKey || null)
+  }
   /** 本次刷新。 */
   generation += 1
   const promise = runRefresh(token, deps, generation)

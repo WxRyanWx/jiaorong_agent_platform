@@ -14,6 +14,7 @@ import { HTTP_X_TITLE, JIAORONG_DEFAULT_MODEL_ID } from '@jiaorong/brand'
 import { DeviceService } from '../device'
 import { jsonrepair } from 'jsonrepair'
 import logger from '@shared/logger'
+import { ModelType } from '@shared/model'
 import { resolveRequestTraceContext, type ProviderRequestTracePayload } from './requestTrace'
 import { normalizeToolInputSchema } from './aiSdk/toolMapper'
 import type { ProviderLocalePort } from './ports'
@@ -21,6 +22,9 @@ import type { ProviderLocalePort } from './ports'
 export const AUDIO_TRANSCRIPTION_NOT_SUPPORTED_ERROR = 'audio-transcription-not-supported'
 
 const defaultEnabledModels = [JIAORONG_DEFAULT_MODEL_ID]
+
+/** 启动拉取模型失败后的重试间隔：key 刚写入时网关可能还没生效。 */
+const INITIAL_MODEL_FETCH_RETRY_DELAYS_MS = [2_000, 5_000] as const
 
 export function isAudioTranscriptionNotSupportedError(error: unknown): boolean {
   return error instanceof Error && error.message === AUDIO_TRANSCRIPTION_NOT_SUPPORTED_ERROR
@@ -207,24 +211,47 @@ export abstract class BaseLLMProvider {
   protected init(): Promise<void> {
     if (!this.provider.enable) return Promise.resolve()
 
-    try {
-      this.isInitialized = true
-      return this.fetchModels()
-        .then(async (models) => {
-          await this.autoEnableModelsIfNeeded()
-          // 对话窗口可能在 key 到位前就用空列表完成初始化。凭证稍后写入会重建实例并再次拉取，
-          // 这里补上和手动刷新相同的通知。空列表不通知，避免失败结果把渲染进程重新拉起来。
-          if (models.length > 0) {
-            this.providerSettings.notifyModelsChanged(this.provider.id)
-          }
-          logger.info('Provider initialized successfully:', this.provider.name)
-        })
-        .catch((error) => {
-          logger.warn('Provider initialization failed:', this.provider.name, error)
-        })
-    } catch (error) {
+    this.isInitialized = true
+    // init() 是后台调用：无论成败都不能把异常抛给调用方
+    return this.fetchModelsOnInit().catch((error) => {
       logger.warn('Provider initialization failed:', this.provider.name, error)
-      return Promise.resolve()
+    })
+  }
+
+  /** 启动拉取模型的重试间隔；子类可覆盖以调整重试策略。 */
+  protected getInitialModelFetchRetryDelays(): readonly number[] {
+    return INITIAL_MODEL_FETCH_RETRY_DELAYS_MS
+  }
+
+  /**
+   * 启动 / 实例重建时拉取模型。
+   * suppressErrors: false 让失败走 catch 分支，与"成功但清单为空"区分开；
+   * 失败按间隔重试（key 刚写入时网关可能还没生效），成功（含空清单）都通知渲染层，
+   * 否则对话页会停留在 key 到位前的空列表上。
+   */
+  private async fetchModelsOnInit(): Promise<void> {
+    const retryDelays = this.getInitialModelFetchRetryDelays()
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        await this.fetchModels({ suppressErrors: false })
+        await this.autoEnableModelsIfNeeded()
+        this.providerSettings.notifyModelsChanged(this.provider.id)
+        logger.info('Provider initialized successfully:', this.provider.name)
+        return
+      } catch (error) {
+        // init() 是后台调用，异常不能抛给调用方
+        if (attempt >= retryDelays.length || !this.provider.enable) {
+          logger.warn('Provider initialization failed:', this.provider.name, error)
+          return
+        }
+        const retryDelay = retryDelays[attempt]
+        logger.warn(
+          `Provider model fetch failed, retrying in ${retryDelay}ms:`,
+          this.provider.name,
+          error
+        )
+        await new Promise<void>((resolve) => setTimeout(resolve, retryDelay))
+      }
     }
   }
 
@@ -256,6 +283,21 @@ export abstract class BaseLLMProvider {
           this.providerSettings.setModelStatus(providerId, model.id, true)
         }
       })
+
+      // 服务端清单里没有默认模型时，至少启用一个可对话模型，
+      // 避免"有模型但一个都没启用"导致对话页选不到模型。
+      const hasEnabledModelAfterDefaults = this.models.some((model) =>
+        this.providerSettings.getModelStatus(providerId, model.id)
+      )
+      if (!hasEnabledModelAfterDefaults) {
+        const fallbackModel = this.models.find(
+          (model) => (model.type ?? ModelType.Chat) === ModelType.Chat
+        )
+        if (fallbackModel) {
+          // ensureModelStatus 只在该模型从未记录过状态时写入：用户显式关闭过就保持关闭
+          this.providerSettings.ensureModelStatus(providerId, fallbackModel.id, true)
+        }
+      }
     }
   }
 
