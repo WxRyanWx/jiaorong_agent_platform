@@ -8,7 +8,7 @@ import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import { randomBytes } from 'node:crypto'
-import { spawn, execFile, execSync, ChildProcess } from 'node:child_process'
+import { spawn, execFile, execFileSync, execSync, ChildProcess } from 'node:child_process'
 import { promisify } from 'node:util'
 import { isSystemBundledApp } from '../systemApps'
 import { APP_MANIFEST_ID_RE } from '../manifestRules'
@@ -153,6 +153,163 @@ export async function removeDirectoryWithLockRetry(
   }
   if (options.bestEffort) return
   throw lastError
+}
+
+/** Windows 进程镜像。ExecutablePath 是 exe 的绝对路径。 */
+export type WindowsProcessImage = {
+  pid: number
+  executablePath: string
+}
+
+/**
+ * exe 是否就在这个安装目录里面。只认目录前缀，避免命中名字更长的相邻目录。
+ * @param appDir 安装目录
+ * @param executablePath 进程的 exe 路径
+ */
+export function isWindowsExecutableInsideDir(appDir: string, executablePath: string): boolean {
+  const root = path.win32
+    .resolve(appDir)
+    .replace(/[\\/]+$/, '')
+    .toLowerCase()
+  const exe = path.win32.resolve(executablePath.trim()).toLowerCase()
+  // 盘符根（C:）不能当安装目录，否则会命中这张盘上的全部进程
+  if (!root.includes('\\') || !exe) return false
+  return exe.startsWith(`${root}\\`)
+}
+
+/**
+ * 挑出要结束的进程。客户端自己、目录外的 exe、非法 pid 都留下。
+ * @param appDir 安装目录
+ * @param processes 当前进程镜像
+ * @param selfPid 客户端自己的 pid
+ */
+export function selectWindowsProcessIdsInDir(
+  appDir: string,
+  processes: readonly WindowsProcessImage[],
+  selfPid = process.pid
+): number[] {
+  const ids: number[] = []
+  const seen = new Set<number>()
+  for (const item of processes) {
+    if (
+      !Number.isInteger(item.pid) ||
+      item.pid <= 0 ||
+      item.pid === selfPid ||
+      seen.has(item.pid)
+    ) {
+      continue
+    }
+    if (!item.executablePath || !isWindowsExecutableInsideDir(appDir, item.executablePath)) continue
+    seen.add(item.pid)
+    ids.push(item.pid)
+  }
+  return ids
+}
+
+/**
+ * PowerShell 5.1 往管道里写 UTF-16。按 UTF-8 解会把 JSON 解坏，然后一个进程都匹配不到。
+ * @param stdout 原始输出
+ */
+export function decodeWindowsProcessList(stdout: Buffer | string): string {
+  const buf = Buffer.isBuffer(stdout) ? stdout : Buffer.from(stdout)
+  if (buf.length >= 2 && buf[0] === 0xff && buf[1] === 0xfe) {
+    return buf.subarray(2).toString('utf16le')
+  }
+  if (buf.length >= 4 && buf[1] === 0 && buf[3] === 0) return buf.toString('utf16le')
+  return buf.toString('utf8')
+}
+
+/**
+ * 把 PowerShell 打出来的进程表收成镜像。空输出或坏 JSON 当成没有进程。
+ * @param stdout ConvertTo-Json 的输出
+ */
+export function readWindowsProcessImages(stdout: string): WindowsProcessImage[] {
+  const text = stdout.replace(/^\uFEFF/, '').trim()
+  if (!text) return []
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(text)
+  } catch {
+    return []
+  }
+  const rows = Array.isArray(parsed) ? parsed : [parsed]
+  const images: WindowsProcessImage[] = []
+  for (const row of rows) {
+    if (!row || typeof row !== 'object') continue
+    const record = row as { ProcessId?: unknown; ExecutablePath?: unknown }
+    const pid = typeof record.ProcessId === 'number' ? record.ProcessId : Number(record.ProcessId)
+    const executablePath = typeof record.ExecutablePath === 'string' ? record.ExecutablePath : ''
+    if (!Number.isInteger(pid) || !executablePath.trim()) continue
+    images.push({ pid, executablePath })
+  }
+  return images
+}
+
+/**
+ * 结束安装目录里的 exe。查询失败不抛给卸载，删除重试仍会再试一次。
+ * @param appDir 安装目录
+ * @param ops 测试注入的列举和结束
+ */
+export async function stopWindowsProcessesInDir(
+  appDir: string,
+  ops: {
+    list: () => Promise<readonly WindowsProcessImage[]>
+    killTree: (pid: number) => void
+  }
+): Promise<void> {
+  let images: readonly WindowsProcessImage[] = []
+  try {
+    images = await ops.list()
+  } catch (error) {
+    console.warn('[jiaorong-app] list windows processes failed', appDir, error)
+    return
+  }
+  for (const pid of selectWindowsProcessIdsInDir(appDir, images)) {
+    try {
+      ops.killTree(pid)
+    } catch (error) {
+      console.warn('[jiaorong-app] stop windows process failed', pid, error)
+    }
+  }
+}
+
+/** 列出带 exe 路径的 Windows 进程。stdout 按原始字节读，避免 UTF-16 被当成 UTF-8。 */
+function listWindowsProcessImages(): Promise<WindowsProcessImage[]> {
+  return new Promise((resolve, reject) => {
+    execFile(
+      'powershell.exe',
+      [
+        '-NoProfile',
+        '-NonInteractive',
+        '-Command',
+        'Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath } | Select-Object ProcessId, ExecutablePath | ConvertTo-Json -Compress'
+      ],
+      { windowsHide: true, timeout: 20_000, maxBuffer: 16 * 1024 * 1024, encoding: 'buffer' },
+      (error, stdout) => {
+        if (error) {
+          reject(error)
+          return
+        }
+        resolve(readWindowsProcessImages(decodeWindowsProcessList(stdout)))
+      }
+    )
+  })
+}
+
+/**
+ * 结束这个进程和它拉起来的子进程。pid 只接受正整数。
+ * @param pid 进程 id
+ */
+function killWindowsProcessTree(pid: number): void {
+  if (!Number.isInteger(pid) || pid <= 0 || pid === process.pid) return
+  try {
+    execFileSync('taskkill', ['/PID', String(pid), '/T', '/F'], {
+      stdio: 'pipe',
+      windowsHide: true
+    })
+  } catch {
+    // 进程已经退出
+  }
 }
 
 /** 这个目录里有没有指定可执行文件。 */
@@ -659,6 +816,18 @@ class appsManages {
         fs.promises.cp(src, dest, { recursive: true, force: true, verbatimSymlinks: true }),
       remove: (target) => this.removeTree(target, { bestEffort: true })
     }
+  }
+
+  /**
+   * 删除安装目录前，结束还占着里面 exe 的进程。只在 Windows 上查。
+   * @param appDir 即将删除的安装目录
+   */
+  private releaseWindowsAppDir(appDir: string): Promise<void> {
+    if (process.platform !== 'win32' || !appDir) return Promise.resolve()
+    return stopWindowsProcessesInDir(appDir, {
+      list: listWindowsProcessImages,
+      killTree: killWindowsProcessTree
+    })
   }
 
   /**
@@ -1439,7 +1608,10 @@ class appsManages {
       // 覆盖：按 app.json.id 卸掉旧份（文件夹名可以不同），再装到目标目录
       if (overwrite) {
         if (alreadyInstalled) await this.uninstallApp(manifest.id)
-        if (fs.existsSync(targetDir)) await this.removeTree(targetDir)
+        if (fs.existsSync(targetDir)) {
+          await this.releaseWindowsAppDir(targetDir)
+          await this.removeTree(targetDir)
+        }
       } else if (alreadyInstalled || fs.existsSync(targetDir)) {
         await this.removeTree(tempDir, { bestEffort: true })
         return {
@@ -1537,6 +1709,7 @@ class appsManages {
       /** 目标目录。 */
       const targetDir = getSystemAppDir(manifest.id)
       await this.killLeftoverInDir(targetDir)
+      await this.releaseWindowsAppDir(targetDir)
       /** 覆盖失败时用来还原的备份。 */
       const backupDir = `${targetDir}.bak`
       if (fs.existsSync(backupDir)) await this.removeTree(backupDir, { bestEffort: true })
@@ -1634,6 +1807,8 @@ class appsManages {
           /** 应用目录绝对路径。 */
           const appDir = path.join(this.appsRootPath, folderName)
           if (fs.existsSync(appDir)) {
+            // 客户端重启后记不住 pid，但 payload 里的 exe 仍可能占着 app.asar
+            await this.releaseWindowsAppDir(appDir)
             await this.removeTree(appDir)
           }
         }

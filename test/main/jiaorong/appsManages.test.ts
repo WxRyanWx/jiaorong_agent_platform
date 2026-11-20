@@ -10,7 +10,12 @@ vi.unmock('node:fs')
 import appsManages, {
   buildSpawnPath,
   moveExtractedDirectory,
+  decodeWindowsProcessList,
+  isWindowsExecutableInsideDir,
+  readWindowsProcessImages,
   removeDirectoryWithLockRetry,
+  selectWindowsProcessIdsInDir,
+  stopWindowsProcessesInDir,
   resolveBundledNodeBin,
   resolveBundledUvBin
 } from '../../../src/jiaorong_src/appHost/main/appsManages'
@@ -569,5 +574,74 @@ describe('windows app directory lock', () => {
       )
     ).rejects.toMatchObject({ code: 'EPERM' })
     expect(calls).toBe(1)
+  })
+})
+
+describe('windows processes inside an app directory', () => {
+  const appDir = 'C:\\Users\\HOPERUN\\.jiaorongchat\\apps\\cccc-roadbed-ai'
+
+  it('matches only executables inside the install directory', () => {
+    expect(isWindowsExecutableInsideDir(appDir, `${appDir}\\payload\\roadbed-ai.exe`)).toBe(true)
+    expect(
+      isWindowsExecutableInsideDir(
+        appDir,
+        'C:\\Users\\HOPERUN\\.jiaorongchat\\apps\\cccc-roadbed-ai-extra\\app.exe'
+      )
+    ).toBe(false)
+    expect(isWindowsExecutableInsideDir(appDir, 'C:\\Windows\\System32\\cmd.exe')).toBe(false)
+    expect(isWindowsExecutableInsideDir('C:\\', 'C:\\Windows\\System32\\cmd.exe')).toBe(false)
+  })
+
+  it('keeps the client and processes outside the directory', () => {
+    expect(
+      selectWindowsProcessIdsInDir(
+        appDir,
+        [
+          { pid: 10, executablePath: `${appDir}\\payload\\roadbed-ai.exe` },
+          { pid: 11, executablePath: `${appDir}\\payload\\ROADBED-AI.EXE` },
+          { pid: 12, executablePath: 'C:\\Windows\\System32\\cmd.exe' },
+          { pid: 99, executablePath: `${appDir}\\payload\\roadbed-ai.exe` }
+        ],
+        99
+      )
+    ).toEqual([10, 11])
+  })
+
+  it('reads one process object or a list', () => {
+    expect(
+      readWindowsProcessImages('{"ProcessId":10,"ExecutablePath":"C:\\\\payload\\\\app.exe"}')
+    ).toEqual([{ pid: 10, executablePath: 'C:\\payload\\app.exe' }])
+    expect(readWindowsProcessImages('')).toEqual([])
+    expect(readWindowsProcessImages('not-json')).toEqual([])
+    const payload = '{"ProcessId":10,"ExecutablePath":"C:\\\\payload\\\\app.exe"}'
+    const utf16 = Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(payload, 'utf16le')])
+    expect(readWindowsProcessImages(decodeWindowsProcessList(utf16))).toEqual([
+      { pid: 10, executablePath: 'C:\\payload\\app.exe' }
+    ])
+  })
+
+  it('kills matched processes and ignores a failed listing', async () => {
+    const killed: number[] = []
+    await stopWindowsProcessesInDir(appDir, {
+      list: async () => [
+        { pid: 10, executablePath: `${appDir}\\payload\\roadbed-ai.exe` },
+        { pid: 12, executablePath: 'C:\\Windows\\System32\\cmd.exe' }
+      ],
+      killTree: (pid) => {
+        killed.push(pid)
+      }
+    })
+    expect(killed).toEqual([10])
+
+    await expect(
+      stopWindowsProcessesInDir(appDir, {
+        list: async () => {
+          throw new Error('powershell failed')
+        },
+        killTree: () => {
+          throw new Error('should not kill')
+        }
+      })
+    ).resolves.toBeUndefined()
   })
 })
