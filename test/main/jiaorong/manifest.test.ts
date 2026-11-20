@@ -19,4 +19,21 @@ describe('parseAppManifest', () => {
     expect(parseAppManifest(base)?.slot).toBeUndefined()
     expect(parseAppManifest({ ...base, slot: 'standalone' })?.slot).toBeUndefined()
   })
+
+  it('keeps openInWindow only when it is true', () => {
+    expect(parseAppManifest({ ...base, openInWindow: true })?.openInWindow).toBe(true)
+    expect(parseAppManifest(base)?.openInWindow).toBeUndefined()
+    expect(parseAppManifest({ ...base, openInWindow: false })?.openInWindow).toBeUndefined()
+    expect(parseAppManifest({ ...base, openInWindow: 'true' })?.openInWindow).toBeUndefined()
+  })
+
+  it('keeps platforms only when the field is present', () => {
+    expect(parseAppManifest(base)?.platforms).toBeUndefined()
+    expect(
+      parseAppManifest({ ...base, platforms: ['Windows x64', 'windows-x64', 'mac-arm64'] })
+        ?.platforms
+    ).toEqual(['windows-x64', 'mac-arm64'])
+    expect(parseAppManifest({ ...base, platforms: [] })?.platforms).toEqual([])
+    expect(parseAppManifest({ ...base, platforms: 'windows-x64' })?.platforms).toEqual([])
+  })
 })

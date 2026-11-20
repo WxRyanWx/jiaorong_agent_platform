@@ -10,6 +10,7 @@ import { useI18n } from 'vue-i18n'
 import { Icon } from '@iconify/vue'
 import { JIAORONG_AUTH_SESSION_CHANGED_EVENT } from '@jiaorong/auth/host'
 import { isEmbeddedAppRouteLocation } from '../../router/apps.meta'
+import { resolveAppCenterBackRouteName } from '../appCenter/renderer/navigation'
 import { clearOpenInfoHandoff, takeOpenInfo } from './openAppHandoff'
 import type { JiaorongAppOpenInfo, JiaorongAppSpawnWarning } from '../types'
 
@@ -129,6 +130,25 @@ async function ensureFrame(appId: string) {
     if (!info?.src) {
       if (existed) return
       await leaveUnavailableApp(appId)
+      return
+    }
+    // 声明了独立窗口的包不挂 webview。开发者调试窗口仍内嵌，方便看页面。
+    if (!existed && info.openInWindow && !isStandalone.value) {
+      const opened = await window.jiaorongApps?.openAppInWindow(appId)
+      if (consumeDiscardedOpenResult(appId)) return
+      if (!opened?.ok) {
+        errorText.value = opened?.message || t('routes.embeddedAppUnavailable')
+        return
+      }
+      if (activeAppId.value !== appId) return
+      const from = typeof route.query.from === 'string' ? route.query.from : ''
+      if (from === 'app-center') {
+        await router.replace({
+          name: resolveAppCenterBackRouteName(route.query.appCenterRoute)
+        })
+        return
+      }
+      await router.replace({ name: 'chat' })
       return
     }
     if (existed) {

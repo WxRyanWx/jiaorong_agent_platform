@@ -7,6 +7,7 @@ import {
 } from '../config/remoteRuntimeConfig'
 import { normalizeAppAuth } from './auth'
 import { APP_MANIFEST_SLOTS } from './manifestRules'
+import { parsePlatformField } from './platforms'
 import { setSystemBundledAppIds } from './systemApps'
 import type {
   JiaorongAppCatalogRecord,
@@ -126,6 +127,10 @@ export function parseAppAssetCatalogRecord(raw: unknown): JiaorongAppCatalogReco
   if (!parsedPackage) return null
   const description = readText(record.description)
   const provider = readText(record.provider)
+  /** 接口带回的系统声明。没这个字段就不能在安装前判断。 */
+  const platforms = Object.prototype.hasOwnProperty.call(record, 'platforms')
+    ? parsePlatformField(record.platforms)
+    : undefined
   /** 来源：接口只有 builtin / store。 */
   const source: JiaorongAppSource = record.source === 'builtin' ? 'builtin' : 'store'
   return {
@@ -134,6 +139,7 @@ export function parseAppAssetCatalogRecord(raw: unknown): JiaorongAppCatalogReco
     version,
     ...(description ? { description } : {}),
     ...(provider ? { provider } : {}),
+    ...(platforms !== undefined ? { platforms } : {}),
     slot: parseAppSlot(record.slot, source),
     source,
     auth: normalizeAppAuth(record.auth),

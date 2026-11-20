@@ -69,6 +69,8 @@ export type OpenPlatformAppAssetSummary = OpenPlatformAssetSummary & {
   source: 'builtin' | 'store'
   slot: 'menu' | 'app-center'
   auth: OpenPlatformAppAuth | null
+  /** 列表若带回 app.json 的 platforms，未安装也能判断系统。缺省表示接口没给。 */
+  platforms?: string[]
 }
 
 export type OpenPlatformSkillPackageMetadata = {

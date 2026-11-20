@@ -19,8 +19,10 @@ import {
   JIAORONG_APP_CENTER_LIST_CHANNEL,
   JIAORONG_APP_CENTER_UNINSTALL_CHANNEL,
   JIAORONG_APP_PIN_MENU_CHANNEL,
+  JIAORONG_APP_OPEN_WINDOW_PREF_CHANNEL,
   JIAORONG_APP_CENTER_SIZE_CHANNEL,
   JIAORONG_APP_CENTER_PACKAGE_SIZE_CHANNEL,
+  JIAORONG_APP_CENTER_PLATFORM_SUPPORT_CHANNEL,
   JIAORONG_DEV_APP_OPEN_WINDOW_CHANNEL,
   JIAORONG_DEV_APP_INFO_CHANNEL,
   JIAORONG_DEV_CENTER_CREATE_CHANNEL,
@@ -34,7 +36,8 @@ import {
   JIAORONG_APP_OPEN_PREPARE_CHANNEL,
   JIAORONG_APP_OPEN_REQUEST_CHANNEL,
   JIAORONG_APP_CLOSE_REQUEST_CHANNEL,
-  JIAORONG_APP_OPEN_CHANNEL
+  JIAORONG_APP_OPEN_CHANNEL,
+  JIAORONG_APP_OPEN_IN_WINDOW_CHANNEL
 } from '@jiaorong/appHost/channels'
 
 const isDevHiddenApiEnabled =
@@ -156,11 +159,21 @@ const jiaorongApps = Object.freeze({
       message?: string
       pinned?: boolean
     }>,
+  setAppOpenInWindow: (appId: string, openInWindow: boolean) =>
+    ipcRenderer.invoke(JIAORONG_APP_OPEN_WINDOW_PREF_CHANNEL, { appId, openInWindow }) as Promise<{
+      ok: boolean
+      message?: string
+      openInWindow?: boolean
+    }>,
   getAppCenterInstalledSize: (appId: string) =>
     ipcRenderer.invoke(JIAORONG_APP_CENTER_SIZE_CHANNEL, { appId }) as Promise<number | null>,
   getAppCenterPackageSize: (downloadUrl: string) =>
     ipcRenderer.invoke(JIAORONG_APP_CENTER_PACKAGE_SIZE_CHANNEL, { downloadUrl }) as Promise<
       number | null
+    >,
+  peekAppPlatforms: (items: { id: string; downloadUrl: string; sha256?: string | null }[]) =>
+    ipcRenderer.invoke(JIAORONG_APP_CENTER_PLATFORM_SUPPORT_CHANNEL, { items }) as Promise<
+      { id: string; supported: boolean }[]
     >,
   listDevCenter: () => ipcRenderer.invoke(JIAORONG_DEV_CENTER_LIST_CHANNEL),
   createDevApp: () => ipcRenderer.invoke(JIAORONG_DEV_CENTER_CREATE_CHANNEL),
@@ -186,6 +199,8 @@ const jiaorongApps = Object.freeze({
   prepareOpenApp: (appId: string) =>
     ipcRenderer.invoke(JIAORONG_APP_OPEN_PREPARE_CHANNEL, { appId }),
   getOpenInfo: (appId: string) => ipcRenderer.invoke(JIAORONG_APP_OPEN_CHANNEL, { appId }),
+  openAppInWindow: (appId: string) =>
+    ipcRenderer.invoke(JIAORONG_APP_OPEN_IN_WINDOW_CHANNEL, { appId }),
   leave: (appId: string) => ipcRenderer.invoke(JIAORONG_APP_LEAVE_CHANNEL, { appId }),
   onOpenApp: (handler: (request: { appId: string }) => void) => {
     const listener = (_event: unknown, request: unknown) => {

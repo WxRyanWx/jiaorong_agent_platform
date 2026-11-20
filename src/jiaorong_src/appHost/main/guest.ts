@@ -233,6 +233,20 @@ export function getBoundGuestAppId(webContentsId: number): string | null {
   return guestAppByContents.get(webContentsId) ?? null
 }
 
+/**
+ * 是否还有别的页面绑在这个应用上。
+ * 应用内 webview 还在时，关掉一个额外窗口不能把 Node 停掉。
+ * @param appId 应用 id
+ */
+export function appHasBoundGuest(appId: string): boolean {
+  const id = appId.trim()
+  if (!id) return false
+  for (const bound of guestAppByContents.values()) {
+    if (bound === id) return true
+  }
+  return false
+}
+
 /** 读 BrowserWindow.id；Electron 类型声明里不一定带 getOwnerBrowserWindow。 */
 type WindowOwnerContents = {
   getOwnerBrowserWindow?: () => { id: number; isDestroyed: () => boolean } | null

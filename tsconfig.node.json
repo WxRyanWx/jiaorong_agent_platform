@@ -22,6 +22,8 @@
     "src/jiaorong_src/appHost/bridgeErrors.ts",
     "src/jiaorong_src/appHost/types.ts",
     "src/jiaorong_src/appHost/manifestRules.ts",
+    "src/jiaorong_src/appHost/platforms.ts",
+    "src/jiaorong_src/appHost/zipPlatforms.ts",
     "src/jiaorong_src/appHost/preload.ts",
     "src/jiaorong_src/appHost/main/**/*.ts",
     "src/jiaorong_src/appHost/appCenter/main/**/*.ts",

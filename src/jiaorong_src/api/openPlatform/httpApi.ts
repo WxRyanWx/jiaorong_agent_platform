@@ -3,6 +3,7 @@
  * 复用 `api/auth` 的 axios 实例，鉴权头与 401 静默续期由拦截器统一处理。
  */
 
+import { parsePlatformField } from '../../appHost/platforms'
 import request, { isAuthApiSuccessCode } from '../auth/interceptors'
 import { parseSkillCategories } from '../../skills/lib/skillCategories'
 import type {
@@ -198,7 +199,11 @@ function parseAppSummary(raw: unknown): OpenPlatformAppAssetSummary | null {
     // 后端列表返回 store、发布响应返回 open-platform；认不出的值一律按 store
     source: readString(item.source) === 'builtin' ? 'builtin' : 'store',
     slot: readString(item.slot) === 'menu' ? 'menu' : 'app-center',
-    auth: readAppAuth(item.auth)
+    auth: readAppAuth(item.auth),
+    // 没带回 platforms 就不能在下载前判断，空数组表示没有任何客户端可用
+    ...(Object.prototype.hasOwnProperty.call(item, 'platforms')
+      ? { platforms: parsePlatformField(item.platforms) }
+      : {})
   }
 }
 

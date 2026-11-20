@@ -3,7 +3,8 @@
 import { onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { JIAORONG_AUTH_SESSION_CHANGED_EVENT } from '@jiaorong/auth/host'
-import type { JiaorongMenuAppItem } from '../types'
+import { stashOpenInfo } from './openAppHandoff'
+import type { JiaorongAppOpenInfo, JiaorongMenuAppItem } from '../types'
 
 /** 侧栏应用列表：刷新、打开、高亮。 */
 export function useJiaorongMenuApps() {
@@ -54,6 +55,27 @@ export function useJiaorongMenuApps() {
     /** 打开前运行来源检查；桥不存在时沿用旧路由行为。 */
     const result = await window.jiaorongApps?.prepareOpenApp(app.id)
     if (result && !result.ok) return
+    // 侧栏项可能还是旧的。以这次打开信息为准，用户刚改成应用内打开时仍进页面。
+    let info: JiaorongAppOpenInfo | null | undefined
+    if (app.openInWindow) {
+      try {
+        info = await window.jiaorongApps?.getOpenInfo(app.id)
+      } catch (error) {
+        console.warn('[jiaorong-app] open failed', app.id, error)
+      }
+      if (info?.openInWindow && info.src) {
+        try {
+          const opened = await window.jiaorongApps?.openAppInWindow(app.id)
+          if (opened && opened.ok === false) {
+            console.warn('[jiaorong-app] open window failed', app.id, opened.message)
+          }
+        } catch (error) {
+          console.warn('[jiaorong-app] open window failed', app.id, error)
+        }
+        return
+      }
+    }
+    if (info?.src) stashOpenInfo(info)
     await router.push({ name: 'jiaorong-app', params: { appId: app.id }, query: {} })
   }
 

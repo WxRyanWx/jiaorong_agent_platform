@@ -42,7 +42,8 @@ function mergeRemoteAppCard(
       localApp.installStatus,
       localApp.installedVersion,
       marketVersion
-    )
+    ),
+    supportedOnClient: localApp.supportedOnClient !== false && remoteApp.supportedOnClient !== false
   }
 }
 
@@ -77,6 +78,42 @@ export function useJiaorongAppCenter() {
       apps.value.some((app) => app.installStatus === 'installing')
   )
 
+  /**
+   * 未安装或有更新时，主进程只读远程包里的 app.json。不支持就藏掉操作按钮。
+   * @param seq 这次刷新的序号，过期结果不再改列表
+   * @param listed 刚拉到的卡片
+   */
+  async function probePlatformSupport(seq: number, listed: JiaorongAppCenterItem[]): Promise<void> {
+    const pending = listed.filter(
+      (app) =>
+        app.supportedOnClient !== false &&
+        Boolean(app.downloadUrl) &&
+        (app.installStatus === 'not_installed' ||
+          app.installStatus === 'update_available' ||
+          app.installStatus === 'error')
+    )
+    if (pending.length === 0 || !window.jiaorongApps?.peekAppPlatforms) return
+    try {
+      const result = await window.jiaorongApps.peekAppPlatforms(
+        pending.map((app) => ({
+          id: app.id,
+          downloadUrl: app.downloadUrl || '',
+          sha256: app.packageSha256
+        }))
+      )
+      if (seq !== refreshSeq) return
+      const unsupported = new Set(
+        result.filter((item) => item.supported === false).map((item) => item.id)
+      )
+      if (unsupported.size === 0) return
+      apps.value = apps.value.map((app) =>
+        unsupported.has(app.id) ? { ...app, supportedOnClient: false } : app
+      )
+    } catch (error) {
+      console.warn('[jiaorong-app-center] platform support check failed', error)
+    }
+  }
+
   /** 重新拉应用中心列表。 */
   async function refresh(): Promise<void> {
     /** 本次刷新序号。 */
@@ -103,6 +140,7 @@ export function useJiaorongAppCenter() {
         }),
         ...remoteApps.filter((app) => !localIds.has(app.id))
       ]
+      void probePlatformSupport(seq, apps.value)
     } catch (error) {
       if (seq !== refreshSeq) return
       // 瞬时 IPC / 网络异常时保留上一次成功列表，避免整页被清空
@@ -135,8 +173,8 @@ export function useJiaorongAppCenter() {
    * @param app 卡片项
    */
   async function install(app: JiaorongAppCenterItem): Promise<void> {
-    // 已有打开 / 安装在飞，不接新操作
-    if (isBusy.value) return
+    // 已有打开 / 安装在飞，不接新操作。当前系统不支持时没有安装按钮。
+    if (isBusy.value || app.supportedOnClient === false) return
     lastError.value = null
     installingIds.value = [...installingIds.value, app.id]
     try {
@@ -154,7 +192,7 @@ export function useJiaorongAppCenter() {
       } else {
         result = await window.jiaorongApps?.installAppCenter(app.id)
       }
-      // 主进程明确失败：透出消息供 toast
+      // 主进程明确失败：透出消息供 toast。读不到声明时按钮保持不动。
       if (result && result.ok === false) {
         lastError.value = { appId: app.id, message: result.message }
       }
@@ -172,8 +210,8 @@ export function useJiaorongAppCenter() {
    * @param app 卡片项
    */
   async function uninstall(app: JiaorongAppCenterItem): Promise<void> {
-    // 打开 / 安装未完成时禁止卸载，避免删掉正在启动的目录
-    if (isBusy.value) return
+    // 打开 / 安装未完成时禁止卸载，避免删掉正在启动的目录。不支持的系统不提供卸载。
+    if (isBusy.value || app.supportedOnClient === false) return
     lastError.value = null
     uninstallingIds.value = [...uninstallingIds.value, app.id]
     try {
@@ -198,7 +236,7 @@ export function useJiaorongAppCenter() {
    */
   async function pinToMenu(app: JiaorongAppCenterItem, pinned: boolean): Promise<void> {
     // 安装、卸载、打开进行中不改钉，避免和卸载清偏好抢同一条记录
-    if (isBusy.value || app.fixedInMenu) return
+    if (isBusy.value || app.fixedInMenu || app.supportedOnClient === false) return
     const installed = app.installStatus === 'installed' || app.installStatus === 'update_available'
     if (!installed) return
     lastError.value = null
@@ -218,12 +256,37 @@ export function useJiaorongAppCenter() {
   }
 
   /**
+   * 记下这个应用是新开窗口还是在应用内打开。未安装不写偏好。
+   * @param app 卡片项
+   * @param openInWindow true 新开窗口，false 在应用内打开
+   */
+  async function setOpenInWindow(app: JiaorongAppCenterItem, openInWindow: boolean): Promise<void> {
+    if (isBusy.value || app.supportedOnClient === false) return
+    const installed = app.installStatus === 'installed' || app.installStatus === 'update_available'
+    if (!installed) return
+    lastError.value = null
+    try {
+      const result = await window.jiaorongApps?.setAppOpenInWindow(app.id, openInWindow)
+      if (!result || result.ok === false) {
+        lastError.value = {
+          appId: app.id,
+          message: result?.message || 'app cannot set open mode'
+        }
+      }
+    } catch (error) {
+      console.warn('[jiaorong-app-center] open mode failed', app.id, error)
+      lastError.value = { appId: app.id, message: 'app cannot set open mode' }
+    }
+    await refresh()
+  }
+
+  /**
    * 打开应用：先等主进程把 Node 起完，再进应用页。
    * @param app 卡片项
    */
   async function open(app: JiaorongAppCenterItem): Promise<void> {
-    // 已有打开 / 安装在飞，忽略重复点击
-    if (isBusy.value) return
+    // 已有打开 / 安装在飞，忽略重复点击。当前系统不支持时没有打开按钮。
+    if (isBusy.value || app.supportedOnClient === false) return
     lastError.value = null
     openingId.value = app.id
     try {
@@ -231,6 +294,27 @@ export function useJiaorongAppCenter() {
       const info = await window.jiaorongApps?.getOpenInfo(app.id)
       if (!info?.src) {
         lastError.value = { appId: app.id, message: 'MISSING' }
+        return
+      }
+      // app.json 声明了独立窗口：不起应用内页，也就没有返回按钮
+      if (info.openInWindow) {
+        const opened = await window.jiaorongApps?.openAppInWindow(app.id)
+        if (!opened?.ok) {
+          lastError.value = { appId: app.id, message: opened?.message || 'MISSING' }
+          return
+        }
+        if (info.spawnWarning) {
+          const name = info.spawnWarning.occupiers?.filter(Boolean).join('、') || ''
+          lastError.value = {
+            appId: app.id,
+            message:
+              info.spawnWarning.kind === 'port_busy'
+                ? name
+                  ? `SPAWN_PORT_BUSY:${name}`
+                  : 'SPAWN_PORT_BUSY'
+                : 'SPAWN_EXITED'
+          }
+        }
         return
       }
       // 交给常驻宿主复用，省掉第二次打开 IPC
@@ -282,6 +366,7 @@ export function useJiaorongAppCenter() {
     install,
     uninstall,
     pinToMenu,
+    setOpenInWindow,
     open
   }
 }

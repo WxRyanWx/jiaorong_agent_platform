@@ -112,7 +112,8 @@ describe('app center selection', () => {
         developerOnly: false,
         visibleToCurrentUser: true,
         pinnedToMenu: true,
-        fixedInMenu: true
+        fixedInMenu: true,
+        supportedOnClient: true
       }
     )
     expect(
@@ -159,6 +160,11 @@ describe('app center selection', () => {
       toAppCenterItem(makeRuntime({ provider: '交融科技' }), { isDeveloper: false }).provider
     ).toBe('交融科技')
     expect(toAppCenterItem(makeRuntime(), { isDeveloper: false }).provider).toBe('')
+    expect(toAppCenterItem(makeRuntime(), { isDeveloper: false }).supportedOnClient).toBe(true)
+    expect(
+      toAppCenterItem(makeRuntime({ platforms: ['nope'] }), { isDeveloper: false })
+        .supportedOnClient
+    ).toBe(false)
   })
 })
 
@@ -228,6 +234,10 @@ describe('catalog provider parsing', () => {
     )
     expect(parseAppAssetCatalogRecord(baseRecord)?.provider).toBeUndefined()
     expect(parseAppAssetCatalogRecord({ ...baseRecord, provider: 42 })?.provider).toBeUndefined()
+    expect(parseAppAssetCatalogRecord(baseRecord)?.platforms).toBeUndefined()
+    expect(
+      parseAppAssetCatalogRecord({ ...baseRecord, platforms: ['linux x64'] })?.platforms
+    ).toEqual(['linux-x64'])
   })
 
   it('reads menu / app-center slot and defaults store records to app-center', () => {

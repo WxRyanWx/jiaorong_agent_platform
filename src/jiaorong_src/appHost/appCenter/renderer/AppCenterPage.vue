@@ -16,6 +16,7 @@ import {
 import { DcButton } from '@dc-ui/components/button'
 import { useToast } from '@/components/use-toast'
 import type { JiaorongAppCenterItem } from '@jiaorong/appHost/types'
+import { APP_UNSUPPORTED_PLATFORM_MESSAGE } from '@jiaorong/appHost/platforms'
 import skillEmptyArt from '@jiaorong/assets/skill-empty.png'
 import { useJiaorongAppCenter } from './useJiaorongAppCenter'
 import AppCenterDetailDrawer from './AppCenterDetailDrawer.vue'
@@ -34,6 +35,7 @@ const {
   install,
   uninstall,
   pinToMenu,
+  setOpenInWindow,
   open
 } = useJiaorongAppCenter()
 
@@ -106,6 +108,14 @@ const PIN_TOOLTIP_KEYS = {
   unpinned: 'routes.appCenterPinToMenu'
 } as const
 
+type AppOpenModeState = 'install' | 'window' | 'inside'
+
+const OPEN_MODE_TOOLTIP_KEYS = {
+  install: 'routes.appCenterOpenModeRequiresInstall',
+  window: 'routes.appCenterOpenInWindow',
+  inside: 'routes.appCenterOpenInside'
+} as const
+
 /** 安装或更新进行中不能钉。更新时状态会暂时变成 installing，不能当成还没安装。 */
 function pinLocked(app: JiaorongAppCenterItem): boolean {
   return isInstalling(app)
@@ -133,8 +143,28 @@ async function onPin(app: JiaorongAppCenterItem): Promise<void> {
   await pinToMenu(app, state === 'unpinned')
 }
 
+/** 打开方式：未安装只提示，已安装在「新开窗口 / 应用内」之间切换。 */
+function openModeState(app: JiaorongAppCenterItem): AppOpenModeState {
+  const installed =
+    isInstalledApp(app) || (app.installStatus === 'installing' && Boolean(app.installedVersion))
+  if (!installed) return 'install'
+  return app.openInWindow ? 'window' : 'inside'
+}
+
+/** 点击打开方式。安装更新中不响应。 */
+async function onOpenMode(app: JiaorongAppCenterItem): Promise<void> {
+  if (pinLocked(app)) return
+  const state = openModeState(app)
+  if (state === 'install') {
+    toast({ title: t(OPEN_MODE_TOOLTIP_KEYS.install) })
+    return
+  }
+  await setOpenInWindow(app, state === 'inside')
+}
+
 /** 是否展示主操作（安装 / 更新）；无安装来源时已装只给打开。 */
 function showPrimaryAction(app: JiaorongAppCenterItem): boolean {
+  if (app.supportedOnClient === false) return false
   if (isInstalling(app)) return true
   if (!app.remotePackage && !app.localPackagePath) return false
   return app.installStatus !== 'installed'
@@ -154,6 +184,18 @@ watch(detailApp, (app) => {
 /** 主进程失败文案。钉相关的英文原因换成界面语言，其余沿用原文。 */
 function actionErrorTitle(message?: string): string {
   if (message === 'MISSING') return t('routes.embeddedAppMissing')
+  if (message === APP_UNSUPPORTED_PLATFORM_MESSAGE) return t('routes.appCenterUnsupportedPlatform')
+  if (message === 'SPAWN_PORT_BUSY') return t('routes.appNodePortBusy')
+  if (message?.startsWith('SPAWN_PORT_BUSY:')) {
+    return t('routes.appNodePortBusyNamed', { name: message.slice('SPAWN_PORT_BUSY:'.length) })
+  }
+  if (message === 'SPAWN_EXITED') return t('routes.appNodeExited')
+  if (
+    message?.startsWith('app cannot set open mode') ||
+    message?.startsWith('invalid open-window app id')
+  ) {
+    return t('routes.appCenterOpenModeFailed')
+  }
   if (message?.startsWith('app cannot be pinned') || message?.startsWith('invalid app id')) {
     return t('routes.appCenterPinFailed')
   }
@@ -273,27 +315,61 @@ watch(lastError, (error) => {
                 </Tooltip>
               </div>
             </div>
-            <Tooltip>
-              <TooltipTrigger as-child>
-                <button
-                  type="button"
-                  class="app-center-card__pin"
-                  :class="{
-                    'is-active': pinState(app) === 'pinned' || pinState(app) === 'fixed'
-                  }"
-                  :disabled="pinLocked(app)"
-                  :aria-pressed="pinState(app) === 'pinned' || pinState(app) === 'fixed'"
-                  :aria-label="t(PIN_TOOLTIP_KEYS[pinState(app)])"
-                  :data-testid="`app-center-pin-${app.id}`"
-                  @click.stop="onPin(app)"
-                >
-                  <Icon icon="lucide:pin" class="app-center-card__pin-icon" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="top">
-                {{ t(PIN_TOOLTIP_KEYS[pinState(app)]) }}
-              </TooltipContent>
-            </Tooltip>
+            <div v-if="app.supportedOnClient !== false" class="app-center-card__tools">
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <button
+                    type="button"
+                    class="app-center-card__pin"
+                    :class="{ 'is-active': openModeState(app) === 'window' }"
+                    :disabled="pinLocked(app)"
+                    :aria-pressed="openModeState(app) === 'window'"
+                    :aria-label="t(OPEN_MODE_TOOLTIP_KEYS[openModeState(app)])"
+                    :data-testid="`app-center-open-mode-${app.id}`"
+                    @click.stop="onOpenMode(app)"
+                  >
+                    <svg
+                      class="app-center-card__pin-icon"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6" />
+                      <path d="m21 3-9 9" />
+                      <path d="M15 3h6v6" />
+                    </svg>
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  {{ t(OPEN_MODE_TOOLTIP_KEYS[openModeState(app)]) }}
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <button
+                    type="button"
+                    class="app-center-card__pin"
+                    :class="{
+                      'is-active': pinState(app) === 'pinned' || pinState(app) === 'fixed'
+                    }"
+                    :disabled="pinLocked(app)"
+                    :aria-pressed="pinState(app) === 'pinned' || pinState(app) === 'fixed'"
+                    :aria-label="t(PIN_TOOLTIP_KEYS[pinState(app)])"
+                    :data-testid="`app-center-pin-${app.id}`"
+                    @click.stop="onPin(app)"
+                  >
+                    <Icon icon="lucide:pin" class="app-center-card__pin-icon" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  {{ t(PIN_TOOLTIP_KEYS[pinState(app)]) }}
+                </TooltipContent>
+              </Tooltip>
+            </div>
           </div>
 
           <p class="app-center-card__desc">{{ app.description }}</p>
@@ -315,48 +391,57 @@ watch(lastError, (error) => {
               >
                 {{ t('routes.appCenterDetail') }}
               </Button>
-              <Button
-                v-if="app.canUninstall"
-                variant="outline"
-                size="sm"
-                class="app-center-card__action-btn"
-                :disabled="isBusy"
-                :data-testid="`app-center-uninstall-${app.id}`"
-                @click="uninstall(app)"
+              <span
+                v-if="app.supportedOnClient === false"
+                class="app-center-card__unsupported"
+                :data-testid="`app-center-unsupported-${app.id}`"
               >
-                {{ t('routes.appCenterUninstall') }}
-              </Button>
-              <Button
-                v-if="app.openable"
-                size="sm"
-                class="app-center-card__action-btn"
-                :disabled="isBusy"
-                :data-testid="`app-center-open-${app.id}`"
-                @click="open(app)"
-              >
-                <Icon
-                  v-if="isOpening(app)"
-                  icon="lucide:loader-circle"
-                  class="app-center-card__action-spin"
-                />
-                {{ t('routes.appCenterOpen') }}
-              </Button>
-              <Button
-                v-if="showPrimaryAction(app)"
-                variant="outline"
-                size="sm"
-                class="app-center-card__action-btn"
-                :disabled="isBusy"
-                :data-testid="`app-center-install-${app.id}`"
-                @click="install(app)"
-              >
-                <Icon
-                  v-if="isInstalling(app)"
-                  icon="lucide:loader-circle"
-                  class="app-center-card__action-spin"
-                />
-                {{ t(primaryActionKey(app)) }}
-              </Button>
+                {{ t('routes.appCenterUnsupportedPlatform') }}
+              </span>
+              <template v-else>
+                <Button
+                  v-if="app.canUninstall"
+                  variant="outline"
+                  size="sm"
+                  class="app-center-card__action-btn"
+                  :disabled="isBusy"
+                  :data-testid="`app-center-uninstall-${app.id}`"
+                  @click="uninstall(app)"
+                >
+                  {{ t('routes.appCenterUninstall') }}
+                </Button>
+                <Button
+                  v-if="app.openable"
+                  size="sm"
+                  class="app-center-card__action-btn"
+                  :disabled="isBusy"
+                  :data-testid="`app-center-open-${app.id}`"
+                  @click="open(app)"
+                >
+                  <Icon
+                    v-if="isOpening(app)"
+                    icon="lucide:loader-circle"
+                    class="app-center-card__action-spin"
+                  />
+                  {{ t('routes.appCenterOpen') }}
+                </Button>
+                <Button
+                  v-if="showPrimaryAction(app)"
+                  variant="outline"
+                  size="sm"
+                  class="app-center-card__action-btn"
+                  :disabled="isBusy"
+                  :data-testid="`app-center-install-${app.id}`"
+                  @click="install(app)"
+                >
+                  <Icon
+                    v-if="isInstalling(app)"
+                    icon="lucide:loader-circle"
+                    class="app-center-card__action-spin"
+                  />
+                  {{ t(primaryActionKey(app)) }}
+                </Button>
+              </template>
             </div>
           </div>
         </article>

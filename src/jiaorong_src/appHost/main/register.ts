@@ -6,6 +6,7 @@ import {
   JIAORONG_APP_LEAVE_CHANNEL,
   JIAORONG_APP_LIST_CHANNEL,
   JIAORONG_APP_OPEN_CHANNEL,
+  JIAORONG_APP_OPEN_IN_WINDOW_CHANNEL,
   JIAORONG_APP_OPEN_PREPARE_CHANNEL,
   JIAORONG_APP_OPEN_REQUEST_CHANNEL,
   JIAORONG_APP_INTENT_READY_CHANNEL,
@@ -17,8 +18,10 @@ import {
   JIAORONG_APP_CENTER_INSTALL_STATUSES_CHANNEL,
   JIAORONG_APP_CENTER_UNINSTALL_CHANNEL,
   JIAORONG_APP_PIN_MENU_CHANNEL,
+  JIAORONG_APP_OPEN_WINDOW_PREF_CHANNEL,
   JIAORONG_APP_CENTER_SIZE_CHANNEL,
   JIAORONG_APP_CENTER_PACKAGE_SIZE_CHANNEL,
+  JIAORONG_APP_CENTER_PLATFORM_SUPPORT_CHANNEL,
   JIAORONG_DEV_APP_OPEN_WINDOW_CHANNEL,
   JIAORONG_DEV_APP_INFO_CHANNEL,
   JIAORONG_DEV_CENTER_CREATE_CHANNEL,
@@ -31,6 +34,7 @@ import {
 import type { JiaorongAppRuntime } from '../types'
 import { bridgeError, type JiaorongBridgeError } from '../bridgeErrors'
 import { clearAppIntents, createAppIntentOpener, setAppIntentListenerReady } from './appIntent'
+import { openInstalledAppWindow, setAppWindowsEmptyListener } from './appWindow'
 import { handleAppBridgeInvoke, toMenuAppItem, toOpenInfo } from './bridge'
 import { buildHostContext } from './context'
 import type { JiaorongAppHostDeps } from './deps'
@@ -95,6 +99,8 @@ import { syncAppCatalogFromApi } from './appCatalogApi'
 import { refreshJiaorongRemoteRuntimeConfig } from '../../config/remoteRuntimeConfig'
 import { resolveAuthEnv } from '../../api/auth/config'
 import { readAppManifest } from './manifest'
+import { APP_UNSUPPORTED_PLATFORM_MESSAGE, clientSupportsPlatformList } from '../platforms'
+import { peekAppPlatformSupport } from './remotePackagePlatforms'
 import {
   ensureJiaorongAppInstalled,
   findVisibleOpenableApp,
@@ -104,6 +110,11 @@ import {
   showsJiaorongSidebarApp
 } from './scan'
 import { listPinnedMenuAppIds, setPinnedMenuApp } from './pinnedMenuApps'
+import {
+  readOpenWindowPreferences,
+  resolveOpensInWindow,
+  setOpenWindowPreference
+} from './openWindowPreference'
 import {
   isSystemAppUpdating,
   setSystemAppUpdateBroadcaster,
@@ -229,6 +240,15 @@ function readPinMenuInput(input: unknown): { appId: string; pinned: boolean } {
   }
 }
 
+function readOpenWindowPrefInput(input: unknown): { appId: string; openInWindow: boolean | null } {
+  if (!input || typeof input !== 'object') return { appId: '', openInWindow: null }
+  const record = input as { appId?: unknown; openInWindow?: unknown }
+  return {
+    appId: typeof record.appId === 'string' ? record.appId.trim() : '',
+    openInWindow: typeof record.openInWindow === 'boolean' ? record.openInWindow : null
+  }
+}
+
 /**
  * 读应用中心本地包安装入参。
  * @param input IPC 原始值
@@ -299,6 +319,17 @@ function resolveSpawnAppId(appId: string, appDir?: string | null): string {
  */
 function senderBrowserWindowId(event: IpcMainInvokeEvent): number | null {
   return readOwnerBrowserWindowId(event.sender)
+}
+
+/**
+ * 已装包的 app.json 是否允许当前客户端打开。读不到清单时不在这里拦截。
+ * @param appDir 安装目录
+ */
+function installedAppSupportsClient(appDir: string | null | undefined): boolean {
+  if (!appDir) return true
+  const manifest = readAppManifest(appDir)
+  if (!manifest) return true
+  return clientSupportsPlatformList(manifest.platforms)
 }
 
 /**
@@ -578,6 +609,17 @@ export function startJiaorongAppHost(deps: JiaorongAppHostDeps): void {
   registerJiaorongAppProtocolHandler(deps)
   installJiaorongAppGuestIsolation()
   installJiaorongDevToolsShortcut()
+  // 独立窗口全部关掉、应用内页也不在了，才停这个应用的 Node
+  setAppWindowsEmptyListener((appId) => {
+    const manager = sharedAppsManager()
+    const spawnId = resolveSpawnAppId(appId, manager.getAppDir(appId))
+    if (manager.isExternalAppLink(spawnId)) return
+    manager.stopApp(spawnId)
+    void hostDeps.mcp?.stopAppOwnedMcpServers?.(appId).catch((error) => {
+      console.warn('[jiaorong-app] stop app MCP failed', appId, error)
+    })
+    void abortAppGenerations(deps, spawnId)
+  })
   // IPC 只注册一次
   if (started) return
   started = true
@@ -612,9 +654,13 @@ export function startJiaorongAppHost(deps: JiaorongAppHostDeps): void {
     // 目录还是空的（首次启动失败过）就顺手补一次，不阻塞本次返回
     if (loadBuiltinAppCatalog().length === 0) syncAppCatalogAndSystemApps(deps)
     const pinnedIds = new Set(listPinnedMenuAppIds())
+    const openWindowPrefs = readOpenWindowPreferences()
     return listVisible(deps)
-      .filter((item) => showsJiaorongSidebarApp(item, pinnedIds))
-      .map((item) => toMenuAppItem(item))
+      .filter(
+        (item) =>
+          showsJiaorongSidebarApp(item, pinnedIds) && installedAppSupportsClient(item.appDir)
+      )
+      .map((item) => toMenuAppItem(item, openWindowPrefs))
   })
 
   // 侧栏打开应用前检查调试窗口；需要切换时由主进程弹窗确认
@@ -684,6 +730,11 @@ export function startJiaorongAppHost(deps: JiaorongAppHostDeps): void {
     return readRemotePackageBytes(deps, downloadUrl)
   })
 
+  // 未安装或有更新时，只读远程包里的 app.json，判断当前系统能不能装
+  ipcMain.handle(JIAORONG_APP_CENTER_PLATFORM_SUPPORT_CHANNEL, (_event, input: unknown) => {
+    return peekAppPlatformSupport(deps, input)
+  })
+
   // 应用中心卸载：已装即可卸，内置（系统）应用除外
   ipcMain.handle(JIAORONG_APP_CENTER_UNINSTALL_CHANNEL, async (_event, input: unknown) => {
     const appId = readAppIdInput(input)
@@ -715,6 +766,20 @@ export function startJiaorongAppHost(deps: JiaorongAppHostDeps): void {
     if (!result.ok) return { ok: false, message: `invalid app id: ${appId}` }
     broadcastCatalogChanged()
     return { ok: true, pinned: result.pinned }
+  })
+
+  // 打开方式：只改本机偏好。没写过偏好时才用 app.json 的 openInWindow。
+  ipcMain.handle(JIAORONG_APP_OPEN_WINDOW_PREF_CHANNEL, (_event, input: unknown) => {
+    const { appId, openInWindow } = readOpenWindowPrefInput(input)
+    if (!appId || openInWindow === null) return { ok: false, message: 'app cannot set open mode' }
+    const runtime = listVisible(deps).find((item) => item.id === appId)
+    const onDisk =
+      runtime?.installStatus === 'installed' || runtime?.installStatus === 'update_available'
+    if (!runtime || !onDisk) return { ok: false, message: `app cannot set open mode: ${appId}` }
+    const result = setOpenWindowPreference(appId, openInWindow)
+    if (!result.ok) return { ok: false, message: `invalid open-window app id: ${appId}` }
+    broadcastCatalogChanged()
+    return { ok: true, openInWindow: result.openInWindow }
   })
 
   // 开发者中心列表：先重拉运行时目录，避免已发布应用被误判为首次发布
@@ -810,10 +875,16 @@ export function startJiaorongAppHost(deps: JiaorongAppHostDeps): void {
     if (!runtime) return null
     /** 是否已安装守卫或协议。 */
     const installed = ensureJiaorongAppInstalled(runtime)
+    const manifest = installed.appDir ? readAppManifest(installed.appDir) : null
     // 调试窗口打开期间本地 app.json.id 被改掉时，不再接管另一个应用 id
-    if (isDevAppOpenInfoRequest(event) && installed.appDir) {
-      const currentManifestId = readAppManifest(installed.appDir)?.id
-      if (currentManifestId !== appId) return null
+    if (isDevAppOpenInfoRequest(event) && installed.appDir && manifest?.id !== appId) return null
+    // 生产入口：当前系统不在 app.json.platforms 里时不拉起 Node
+    if (
+      !isDevAppOpenInfoRequest(event) &&
+      manifest &&
+      !clientSupportsPlatformList(manifest.platforms)
+    ) {
+      return null
     }
     /** 应用管理器。 */
     const manager = sharedAppsManager()
@@ -858,7 +929,45 @@ export function startJiaorongAppHost(deps: JiaorongAppHostDeps): void {
     }
     // 打开后立刻下发一次 context
     void broadcastContext(deps)
+    // 用户选过打开方式就以用户为准，否则看包内 openInWindow
+    info.openInWindow = resolveOpensInWindow(
+      installed.id,
+      Boolean(manifest?.openInWindow),
+      readOpenWindowPreferences()
+    )
     return info
+  })
+
+  // 交融应用点「打开」：用户选择或 app.json 决定新开窗口时，把入口开出去
+  ipcMain.handle(JIAORONG_APP_OPEN_IN_WINDOW_CHANNEL, async (_event, input: unknown) => {
+    const appId = readAppIdInput(input)
+    if (!appId) return { ok: false, message: '缺少应用 id' }
+    const runtime = findVisibleOpenableApp(listVisible(deps), appId)
+    if (!runtime) return { ok: false, message: '应用不可用' }
+    const installed = ensureJiaorongAppInstalled(runtime)
+    const manifest = installed.appDir ? readAppManifest(installed.appDir) : null
+    if (manifest && !clientSupportsPlatformList(manifest.platforms)) {
+      return { ok: false, message: APP_UNSUPPORTED_PLATFORM_MESSAGE }
+    }
+    const opensInWindow = resolveOpensInWindow(
+      installed.id,
+      Boolean(manifest?.openInWindow),
+      readOpenWindowPreferences()
+    )
+    if (!opensInWindow) return { ok: false, message: '应用当前在应用内打开' }
+    const info = toOpenInfo(installed)
+    if (!info) return { ok: false, message: '应用没有入口' }
+    const opened = await openInstalledAppWindow({
+      appId: installed.id,
+      appName: installed.name,
+      rawUrl: info.src,
+      callerUrl: '',
+      width: undefined,
+      height: undefined,
+      title: undefined
+    })
+    if ('code' in opened) return { ok: false, message: opened.message }
+    return { ok: true, id: opened.id, url: opened.url }
   })
 
   // 离开应用：停子进程并停掉正在生成的会话
@@ -940,6 +1049,7 @@ export function stopJiaorongAppHost(): void {
   // 摘掉全部 IPC handler
   ipcMain.removeHandler(JIAORONG_APP_LIST_CHANNEL)
   ipcMain.removeHandler(JIAORONG_APP_OPEN_CHANNEL)
+  ipcMain.removeHandler(JIAORONG_APP_OPEN_IN_WINDOW_CHANNEL)
   ipcMain.removeHandler(JIAORONG_APP_OPEN_PREPARE_CHANNEL)
   ipcMain.removeHandler(JIAORONG_APP_LEAVE_CHANNEL)
   ipcMain.removeHandler(JIAORONG_APP_BRIDGE_INVOKE_CHANNEL)
@@ -951,8 +1061,10 @@ export function stopJiaorongAppHost(): void {
   ipcMain.removeHandler(JIAORONG_APP_CENTER_INSTALL_STATUSES_CHANNEL)
   ipcMain.removeHandler(JIAORONG_APP_CENTER_UNINSTALL_CHANNEL)
   ipcMain.removeHandler(JIAORONG_APP_PIN_MENU_CHANNEL)
+  ipcMain.removeHandler(JIAORONG_APP_OPEN_WINDOW_PREF_CHANNEL)
   ipcMain.removeHandler(JIAORONG_APP_CENTER_SIZE_CHANNEL)
   ipcMain.removeHandler(JIAORONG_APP_CENTER_PACKAGE_SIZE_CHANNEL)
+  ipcMain.removeHandler(JIAORONG_APP_CENTER_PLATFORM_SUPPORT_CHANNEL)
   ipcMain.removeHandler(JIAORONG_DEV_CENTER_LIST_CHANNEL)
   ipcMain.removeHandler(JIAORONG_DEV_CENTER_CREATE_CHANNEL)
   ipcMain.removeHandler(JIAORONG_DEV_CENTER_PUBLISH_CHANNEL)
@@ -966,6 +1078,7 @@ export function stopJiaorongAppHost(): void {
   setSystemAppUpdateBroadcaster(null)
   setJiaorongAppContextBroadcaster(null)
   setJiaorongAppSessionResolver(null)
+  setAppWindowsEmptyListener(null)
   // 停掉所有子进程，避免退出后留孤儿
   sharedAppsManager().stopAllRunningApps()
   clearWindowSpawns()

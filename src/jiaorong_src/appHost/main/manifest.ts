@@ -2,6 +2,7 @@
 
 import fs from 'node:fs'
 import { APP_MANIFEST_SLOTS } from '../manifestRules'
+import { parsePlatformField } from '../platforms'
 import type { JiaorongAppManifest, JiaorongAppSlot } from '../types'
 
 /**
@@ -44,6 +45,10 @@ export function parseAppManifest(raw: unknown): JiaorongAppManifest | null {
   const parsedSlot = (APP_MANIFEST_SLOTS as readonly string[]).includes(slot)
     ? (slot as JiaorongAppSlot)
     : undefined
+  /** 只有字段真的写了才限制系统；空数组表示没有任何客户端可用。 */
+  const platforms = Object.prototype.hasOwnProperty.call(record, 'platforms')
+    ? parsePlatformField(record.platforms)
+    : undefined
   return {
     id,
     name,
@@ -52,7 +57,10 @@ export function parseAppManifest(raw: unknown): JiaorongAppManifest | null {
     ...(parsedSlot ? { slot: parsedSlot } : {}),
     ...(icon ? { icon } : {}),
     ...(description ? { description } : {}),
-    ...(spawn ? { spawn } : {})
+    ...(spawn ? { spawn } : {}),
+    // 只有明确的 true 才独立开窗，缺省和其他值都保持应用内打开
+    ...(record.openInWindow === true ? { openInWindow: true } : {}),
+    ...(platforms !== undefined ? { platforms } : {})
   }
 }
 

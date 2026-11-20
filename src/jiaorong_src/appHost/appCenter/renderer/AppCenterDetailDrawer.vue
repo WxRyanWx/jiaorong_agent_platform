@@ -289,37 +289,46 @@ onBeforeUnmount(() => {
             {{ t('routes.appCenterProvidedBy', { provider: providerText }) }}
           </span>
           <div class="app-center-detail__actions">
-            <Button
-              v-if="app.canUninstall"
-              variant="outline"
-              size="sm"
-              class="app-center-detail__action"
-              :disabled="busy"
-              @click="emit('uninstall', app)"
-            >
-              {{ t('routes.appCenterUninstall') }}
-            </Button>
-            <Button
-              v-if="app.openable"
-              size="sm"
-              class="app-center-detail__action"
-              :disabled="busy"
-              @click="emit('open', app)"
-            >
-              <Icon v-if="opening" icon="lucide:loader-circle" class="app-center-detail__spin" />
-              {{ t('routes.appCenterOpen') }}
-            </Button>
-            <Button
-              v-if="showInstall"
-              :variant="app.openable ? 'outline' : 'default'"
-              size="sm"
-              class="app-center-detail__action"
-              :disabled="busy"
-              @click="emit('install', app)"
-            >
-              <Icon v-if="installing" icon="lucide:loader-circle" class="app-center-detail__spin" />
-              {{ installLabel }}
-            </Button>
+            <p v-if="app.supportedOnClient === false" class="app-center-detail__unsupported">
+              {{ t('routes.appCenterUnsupportedPlatform') }}
+            </p>
+            <template v-else>
+              <Button
+                v-if="app.canUninstall"
+                variant="outline"
+                size="sm"
+                class="app-center-detail__action"
+                :disabled="busy"
+                @click="emit('uninstall', app)"
+              >
+                {{ t('routes.appCenterUninstall') }}
+              </Button>
+              <Button
+                v-if="app.openable"
+                size="sm"
+                class="app-center-detail__action"
+                :disabled="busy"
+                @click="emit('open', app)"
+              >
+                <Icon v-if="opening" icon="lucide:loader-circle" class="app-center-detail__spin" />
+                {{ t('routes.appCenterOpen') }}
+              </Button>
+              <Button
+                v-if="showInstall"
+                :variant="app.openable ? 'outline' : 'default'"
+                size="sm"
+                class="app-center-detail__action"
+                :disabled="busy"
+                @click="emit('install', app)"
+              >
+                <Icon
+                  v-if="installing"
+                  icon="lucide:loader-circle"
+                  class="app-center-detail__spin"
+                />
+                {{ installLabel }}
+              </Button>
+            </template>
           </div>
         </footer>
       </aside>

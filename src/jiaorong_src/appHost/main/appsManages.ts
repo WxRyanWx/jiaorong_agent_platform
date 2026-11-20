@@ -12,6 +12,11 @@ import { spawn, execFile, execSync, ChildProcess } from 'node:child_process'
 import { promisify } from 'node:util'
 import { isSystemBundledApp } from '../systemApps'
 import { APP_MANIFEST_ID_RE } from '../manifestRules'
+import {
+  APP_UNSUPPORTED_PLATFORM_MESSAGE,
+  clientSupportsPlatformList,
+  parsePlatformField
+} from '../platforms'
 import { getSystemAppDir, getSystemAppsRoot, isHiddenAppDirName, isPathInsideRoot } from './paths'
 
 /** 安装目录名规则与应用 id 一致，防止安装路径或 link 文件逃逸。 */
@@ -24,6 +29,131 @@ const UV_BIN_NAME = process.platform === 'win32' ? 'uv.exe' : 'uv'
 const execFileAsync = promisify(execFile)
 /** lsof 单次开销不小，分批并发探测，既提速又不一次拉满 CPU。 */
 const LEFTOVER_PROBE_CONCURRENCY = 6
+/**
+ * Windows 安全中心扫描刚落地的 exe/dll 时，移动或删除父目录会返回这些错误。
+ * 扫描进程不出现在应用列表里，锁会在几秒到十几秒内放开。
+ */
+const WINDOWS_DIR_LOCK_CODES = new Set(['EPERM', 'EBUSY', 'EACCES', 'ENOTEMPTY'])
+/** 改名重试约 18 秒。扫描通常会在这段时间内放开句柄，用不到复制。 */
+const RENAME_LOCK_DELAYS_MS = [0, 300, 700, 1200, 2000, 3000, 4500, 6000]
+/** 删除要等扫描放开后再把上次没删掉的文件继续删完。 */
+const REMOVE_LOCK_DELAYS_MS = [0, 400, 800, 1200, 1800, 2500, 3500, 5000]
+
+function waitMs(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+/**
+ * 包里写了 platforms 且当前客户端不在其中时拒绝安装。没写则不限制。
+ * 会把字段收成标准 id，避免之后回写 app.json 时丢声明。
+ * @param manifest 包内清单
+ */
+function unsupportedPlatformResult(manifest: AppManifest): AppManageResult | null {
+  if (!Object.prototype.hasOwnProperty.call(manifest, 'platforms')) return null
+  const platforms = parsePlatformField(manifest.platforms)
+  manifest.platforms = platforms
+  if (clientSupportsPlatformList(platforms)) return null
+  return { success: false, message: APP_UNSUPPORTED_PLATFORM_MESSAGE }
+}
+
+/**
+ * 是不是 Windows 上「文件正被扫描或占用」这类短暂错误。
+ * 其他系统的 EPERM 是真的没有权限，不能重试。
+ */
+export function isWindowsDirLockError(error: unknown, platform: NodeJS.Platform): boolean {
+  if (platform !== 'win32') return false
+  const code = (error as NodeJS.ErrnoException | undefined)?.code
+  return typeof code === 'string' && WINDOWS_DIR_LOCK_CODES.has(code)
+}
+
+/** 把解压目录落到安装目录时用的文件操作。测试注入假实现。 */
+export type MoveExtractedDirectoryOps = {
+  rename: (from: string, to: string) => void
+  exists: (target: string) => boolean
+  copy: (from: string, to: string) => void | Promise<void>
+  remove: (target: string) => Promise<void>
+  sleep?: (ms: number) => Promise<void>
+  platform?: NodeJS.Platform
+  /**
+   * 为 false 时只重试改名。失败不复制，也不删除源目录。
+   * 挪走已经装好的目录必须用这个，避免复制到一半把原目录删掉。
+   */
+  copyFallback?: boolean
+}
+
+/**
+ * 同盘优先改名。Windows 上改名被扫描锁挡住时会等扫描结束；
+ * 仍失败，或跨盘（EXDEV）时，改为复制再删源目录。
+ * 目标已经存在则立即失败，避免把覆盖冲突当成扫描锁。
+ */
+export async function moveExtractedDirectory(
+  from: string,
+  to: string,
+  ops: MoveExtractedDirectoryOps
+): Promise<void> {
+  const platform = ops.platform ?? process.platform
+  const sleep = ops.sleep ?? waitMs
+  const copyFallback = ops.copyFallback !== false
+  let moveByCopy = false
+  let lastLock: unknown
+  for (let attempt = 0; attempt < RENAME_LOCK_DELAYS_MS.length; attempt++) {
+    const pause = RENAME_LOCK_DELAYS_MS[attempt]
+    if (pause > 0) await sleep(pause)
+    try {
+      if (ops.exists(to)) {
+        const error = new Error(`目标目录已存在: ${to}`) as NodeJS.ErrnoException
+        error.code = 'EEXIST'
+        throw error
+      }
+      ops.rename(from, to)
+      return
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code
+      if (code === 'EXDEV') {
+        if (!copyFallback) throw error
+        moveByCopy = true
+        break
+      }
+      if (!isWindowsDirLockError(error, platform)) throw error
+      lastLock = error
+      if (copyFallback) moveByCopy = true
+    }
+  }
+  if (!moveByCopy) throw lastLock ?? new Error(`无法移动目录: ${from}`)
+  await ops.copy(from, to)
+  await ops.remove(from)
+}
+
+/**
+ * 删除应用目录。Windows 上某次删到被锁文件就停，等扫描放开后继续删剩下的。
+ * bestEffort 用于临时目录：清不掉也不把已经完成的安装打成失败。
+ */
+export async function removeDirectoryWithLockRetry(
+  removeOnce: () => Promise<void>,
+  options: {
+    platform?: NodeJS.Platform
+    sleep?: (ms: number) => Promise<void>
+    bestEffort?: boolean
+  } = {}
+): Promise<void> {
+  const platform = options.platform ?? process.platform
+  const sleep = options.sleep ?? waitMs
+  const attempts = platform === 'win32' ? REMOVE_LOCK_DELAYS_MS : [0]
+  let lastError: unknown
+  for (let attempt = 0; attempt < attempts.length; attempt++) {
+    const pause = attempts[attempt]
+    if (pause > 0) await sleep(pause)
+    try {
+      await removeOnce()
+      return
+    } catch (error) {
+      lastError = error
+      if (!isWindowsDirLockError(error, platform)) break
+    }
+  }
+  if (options.bestEffort) return
+  throw lastError
+}
 
 /** 这个目录里有没有指定可执行文件。 */
 function directoryHasBin(dir: string, name: string): boolean {
@@ -151,6 +281,13 @@ interface AppManifest {
    * 管理类不注入超级智能体通信。
    */
   spawn?: string
+  /** 为 true 时点「打开」新开独立窗口，缺省仍在应用内打开 */
+  openInWindow?: boolean
+  /**
+   * 能安装和打开的客户端。缺省表示全部客户端。
+   * 空数组表示写了字段，但没有可用系统。
+   */
+  platforms?: string[]
   /** 权限配置（可选） */
   permissions?: AppPermissions
   /** 依赖的其他应用 ID（可选） */
@@ -513,19 +650,43 @@ class appsManages {
     return fs.mkdtempSync(path.join(os.tmpdir(), 'jiaorong-extract-'))
   }
 
+  /** 安装落盘用的真实文件操作。 */
+  private directoryMoveOps(): MoveExtractedDirectoryOps {
+    return {
+      rename: (src, dest) => fs.renameSync(src, dest),
+      exists: (target) => fs.existsSync(target),
+      copy: (src, dest) =>
+        fs.promises.cp(src, dest, { recursive: true, force: true, verbatimSymlinks: true }),
+      remove: (target) => this.removeTree(target, { bestEffort: true })
+    }
+  }
+
   /**
-   * 同盘 rename，跨盘退回复制。
+   * 删掉应用目录或解压临时目录。Windows 上被安全中心锁住时会等锁放开再继续。
+   * @param dir 要删除的目录
+   * @param options.bestEffort 为 true 时，锁到超时也不抛错
+   */
+  private removeTree(dir: string, options?: { bestEffort?: boolean }): Promise<void> {
+    return removeDirectoryWithLockRetry(
+      () =>
+        fs.promises.rm(dir, {
+          recursive: true,
+          force: true,
+          // 句柄刚关闭时 Windows 会先报目录非空，短重试消化掉
+          maxRetries: process.platform === 'win32' ? 2 : 0,
+          retryDelay: 100
+        }),
+      options
+    )
+  }
+
+  /**
+   * 同盘改名。跨盘或 Windows 扫描锁住 exe 时改为复制。
    * @param from 源目录
    * @param to 目标目录
    */
-  private renameOrCopy(from: string, to: string): void {
-    try {
-      fs.renameSync(from, to)
-    } catch (err) {
-      if ((err as NodeJS.ErrnoException).code !== 'EXDEV') throw err
-      this.copyDirectory(from, to)
-      fs.rmSync(from, { recursive: true, force: true })
-    }
+  private renameOrCopy(from: string, to: string): Promise<void> {
+    return moveExtractedDirectory(from, to, this.directoryMoveOps())
   }
 
   /**
@@ -534,13 +695,17 @@ class appsManages {
    * @param tempDir 临时解压根
    * @param targetDir 最终安装目录
    */
-  private placeExtractedApp(extractRoot: string, tempDir: string, targetDir: string): void {
+  private async placeExtractedApp(
+    extractRoot: string,
+    tempDir: string,
+    targetDir: string
+  ): Promise<void> {
     if (extractRoot === tempDir) {
-      this.renameOrCopy(tempDir, targetDir)
+      await this.renameOrCopy(tempDir, targetDir)
       return
     }
     this.copyDirectory(extractRoot, targetDir)
-    fs.rmSync(tempDir, { recursive: true, force: true })
+    await this.removeTree(tempDir, { bestEffort: true })
   }
 
   /**
@@ -1217,7 +1382,7 @@ class appsManages {
       const manifestPath = this.findManifestInDir(tempDir)
       // 包里根本没有 app.json
       if (!manifestPath) {
-        fs.rmSync(tempDir, { recursive: true, force: true })
+        await this.removeTree(tempDir, { bestEffort: true })
         return { success: false, message: `安装包中未找到 ${this.configFileName}` }
       }
 
@@ -1225,7 +1390,7 @@ class appsManages {
       const manifest = this.readJSON<AppManifest>(manifestPath)
       // JSON 损坏
       if (!manifest) {
-        fs.rmSync(tempDir, { recursive: true, force: true })
+        await this.removeTree(tempDir, { bestEffort: true })
         return { success: false, message: `${this.configFileName} 格式无效` }
       }
 
@@ -1233,19 +1398,25 @@ class appsManages {
       const validation = this.validateManifest(manifest)
       // 必填字段或版本号不合规
       if (!validation.success) {
-        fs.rmSync(tempDir, { recursive: true, force: true })
+        await this.removeTree(tempDir, { bestEffort: true })
         return validation as AppManageResult<AppConfig>
       }
 
+      const unsupported = unsupportedPlatformResult(manifest)
+      if (unsupported) {
+        await this.removeTree(tempDir, { bestEffort: true })
+        return unsupported as AppManageResult<AppConfig>
+      }
+
       if (options.expectedId && manifest.id !== options.expectedId) {
-        fs.rmSync(tempDir, { recursive: true, force: true })
+        await this.removeTree(tempDir, { bestEffort: true })
         return {
           success: false,
           message: `安装包 id "${manifest.id}" 与目录 id "${options.expectedId}" 不一致`
         }
       }
       if (!APP_FOLDER_ID_RE.test(manifest.id)) {
-        fs.rmSync(tempDir, { recursive: true, force: true })
+        await this.removeTree(tempDir, { bestEffort: true })
         return { success: false, message: `应用 id 不合法: ${manifest.id}` }
       }
 
@@ -1253,13 +1424,13 @@ class appsManages {
       /** 目标文件夹名、是否覆盖、是否立即启用。 */
       const { folderName = manifest.id, overwrite = false, enable = true } = options
       if (!APP_FOLDER_ID_RE.test(folderName) || path.basename(folderName) !== folderName) {
-        fs.rmSync(tempDir, { recursive: true, force: true })
+        await this.removeTree(tempDir, { bestEffort: true })
         return { success: false, message: `安装目录名不合法: ${folderName}` }
       }
       /** 目标目录。 */
       const targetDir = path.join(this.appsRootPath, folderName)
       if (!isPathInsideRoot(this.appsRootPath, targetDir)) {
-        fs.rmSync(tempDir, { recursive: true, force: true })
+        await this.removeTree(tempDir, { bestEffort: true })
         return { success: false, message: `安装路径越界: ${folderName}` }
       }
       /** 缓存里已有同 id 的安装。 */
@@ -1267,20 +1438,27 @@ class appsManages {
 
       // 覆盖：按 app.json.id 卸掉旧份（文件夹名可以不同），再装到目标目录
       if (overwrite) {
-        if (alreadyInstalled) this.uninstallApp(manifest.id)
-        if (fs.existsSync(targetDir)) fs.rmSync(targetDir, { recursive: true, force: true })
+        if (alreadyInstalled) await this.uninstallApp(manifest.id)
+        if (fs.existsSync(targetDir)) await this.removeTree(targetDir)
       } else if (alreadyInstalled || fs.existsSync(targetDir)) {
-        fs.rmSync(tempDir, { recursive: true, force: true })
+        await this.removeTree(tempDir, { bestEffort: true })
         return {
           success: false,
           message: `应用 "${manifest.id}" 已存在，如需覆盖请设置 overwrite: true`
         }
       }
 
+      // 旧目录已经不在时，落盘失败要清掉复制到一半的新目录，不能留下坏包
+      let failedNewTree = fs.existsSync(targetDir) ? '' : targetDir
       // 移动解压内容到目标目录
       /** 清单所在目录，即真正的包根。 */
       const extractRoot = path.dirname(manifestPath)
-      this.placeExtractedApp(extractRoot, tempDir, targetDir)
+      try {
+        await this.placeExtractedApp(extractRoot, tempDir, targetDir)
+      } catch (error) {
+        if (failedNewTree) await this.removeTree(failedNewTree, { bestEffort: true })
+        throw error
+      }
 
       /** 统一的本次时间戳。 */
       const now = new Date().toISOString()
@@ -1305,7 +1483,7 @@ class appsManages {
 
       return { success: true, message: `从包安装 "${config.id}" 成功`, data: config }
     } catch (err) {
-      fs.rmSync(tempDir, { recursive: true, force: true })
+      await this.removeTree(tempDir, { bestEffort: true })
       return { success: false, message: `从安装包安装失败: ${(err as Error).message}` }
     }
   }
@@ -1331,24 +1509,29 @@ class appsManages {
       /** 解压出来的清单路径。 */
       const manifestPath = this.findManifestInDir(tempDir)
       if (!manifestPath) {
-        fs.rmSync(tempDir, { recursive: true, force: true })
+        await this.removeTree(tempDir, { bestEffort: true })
         return { success: false, message: `安装包中未找到 ${this.configFileName}` }
       }
       /** 清单。 */
       const manifest = this.readJSON<AppManifest>(manifestPath)
       if (!manifest) {
-        fs.rmSync(tempDir, { recursive: true, force: true })
+        await this.removeTree(tempDir, { bestEffort: true })
         return { success: false, message: `${this.configFileName} 格式无效` }
       }
       if (!isSystemBundledApp(manifest.id)) {
-        fs.rmSync(tempDir, { recursive: true, force: true })
+        await this.removeTree(tempDir, { bestEffort: true })
         return { success: false, message: `不是系统应用: ${manifest.id}` }
       }
       /** 清单校验。 */
       const validation = this.validateManifest(manifest)
       if (!validation.success) {
-        fs.rmSync(tempDir, { recursive: true, force: true })
+        await this.removeTree(tempDir, { bestEffort: true })
         return validation as AppManageResult<AppConfig>
+      }
+      const unsupported = unsupportedPlatformResult(manifest)
+      if (unsupported) {
+        await this.removeTree(tempDir, { bestEffort: true })
+        return unsupported as AppManageResult<AppConfig>
       }
       if (this.isRunning(manifest.id)) this.stopApp(manifest.id)
       /** 目标目录。 */
@@ -1356,16 +1539,31 @@ class appsManages {
       await this.killLeftoverInDir(targetDir)
       /** 覆盖失败时用来还原的备份。 */
       const backupDir = `${targetDir}.bak`
-      if (fs.existsSync(backupDir)) fs.rmSync(backupDir, { recursive: true, force: true })
-      if (fs.existsSync(targetDir)) fs.renameSync(targetDir, backupDir)
+      if (fs.existsSync(backupDir)) await this.removeTree(backupDir, { bestEffort: true })
+      if (fs.existsSync(targetDir)) {
+        // 只重试改名。改名失败就停，不能复制后删除正在使用的系统应用目录
+        await moveExtractedDirectory(targetDir, backupDir, {
+          ...this.directoryMoveOps(),
+          copyFallback: false
+        })
+      }
       try {
         /** 清单所在目录。 */
         const extractRoot = path.dirname(manifestPath)
-        this.placeExtractedApp(extractRoot, tempDir, targetDir)
-        if (fs.existsSync(backupDir)) fs.rmSync(backupDir, { recursive: true, force: true })
+        await this.placeExtractedApp(extractRoot, tempDir, targetDir)
+        if (fs.existsSync(backupDir)) await this.removeTree(backupDir, { bestEffort: true })
       } catch (error) {
-        if (fs.existsSync(targetDir)) fs.rmSync(targetDir, { recursive: true, force: true })
-        if (fs.existsSync(backupDir)) fs.renameSync(backupDir, targetDir)
+        try {
+          if (fs.existsSync(targetDir)) await this.removeTree(targetDir)
+          if (fs.existsSync(backupDir) && !fs.existsSync(targetDir)) {
+            await moveExtractedDirectory(backupDir, targetDir, {
+              ...this.directoryMoveOps(),
+              copyFallback: false
+            })
+          }
+        } catch {
+          // 还原失败时仍把最初的安装错误返回给界面
+        }
         throw error
       }
       /** 完整配置。 */
@@ -1386,7 +1584,7 @@ class appsManages {
       this.emit('installed', config)
       return { success: true, message: `系统应用 "${config.id}" 已安装`, data: config }
     } catch (err) {
-      fs.rmSync(tempDir, { recursive: true, force: true })
+      await this.removeTree(tempDir, { bestEffort: true })
       return { success: false, message: `系统应用安装失败: ${(err as Error).message}` }
     }
   }
@@ -1402,7 +1600,7 @@ class appsManages {
    * @param appId - app.json.id
    * @param keepSource - 是否保留源文件（默认 false，全部删除）
    */
-  uninstallApp(appId: string, keepSource: boolean = false): AppManageResult {
+  async uninstallApp(appId: string, keepSource: boolean = false): Promise<AppManageResult> {
     /** 待卸载的应用配置。 */
     const app = this.appCache.get(appId)
     // 只认 app.json.id，不按文件夹名查找
@@ -1436,7 +1634,7 @@ class appsManages {
           /** 应用目录绝对路径。 */
           const appDir = path.join(this.appsRootPath, folderName)
           if (fs.existsSync(appDir)) {
-            fs.rmSync(appDir, { recursive: true, force: true })
+            await this.removeTree(appDir)
           }
         }
       }
@@ -1461,7 +1659,7 @@ class appsManages {
    * @param appId 应用 ID
    * @param deleteFolder 是否连文件夹一起删；语义与 keepSource 相反
    */
-  deleteApp(appId: string, deleteFolder: boolean = false): AppManageResult {
+  deleteApp(appId: string, deleteFolder: boolean = false): Promise<AppManageResult> {
     // deleteFolder=true 等价于 keepSource=false
     return this.uninstallApp(appId, !deleteFolder)
   }
@@ -2553,6 +2751,8 @@ class appsManages {
       ...(config.icon ? { icon: config.icon } : {}),
       ...(config.description ? { description: config.description } : {}),
       ...(config.spawn ? { spawn: config.spawn } : {}),
+      ...(config.openInWindow ? { openInWindow: true } : {}),
+      ...(Array.isArray(config.platforms) ? { platforms: config.platforms } : {}),
       ...(config.permissions ? { permissions: config.permissions } : {}),
       ...(config.dependencies ? { dependencies: config.dependencies } : {})
     }

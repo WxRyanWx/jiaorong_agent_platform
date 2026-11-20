@@ -6,6 +6,7 @@ import type {
   JiaorongDevCenterItem,
   JiaorongDevAppOpenResult,
   JiaorongAppOpenInfo,
+  JiaorongAppInWindowResult,
   JiaorongMenuAppItem
 } from '@jiaorong/appHost/types'
 
@@ -48,8 +49,15 @@ declare global {
         appId: string,
         pinned: boolean
       ): Promise<{ ok: boolean; message?: string; pinned?: boolean }>
+      setAppOpenInWindow(
+        appId: string,
+        openInWindow: boolean
+      ): Promise<{ ok: boolean; message?: string; openInWindow?: boolean }>
       getAppCenterInstalledSize(appId: string): Promise<number | null>
       getAppCenterPackageSize(downloadUrl: string): Promise<number | null>
+      peekAppPlatforms(
+        items: { id: string; downloadUrl: string; sha256?: string | null }[]
+      ): Promise<{ id: string; supported: boolean }[]>
       listDevCenter(): Promise<JiaorongDevCenterItem[]>
       createDevApp(): Promise<{ ok: boolean; message?: string; record?: JiaorongDevAppRecord }>
       publishDevApp(
@@ -79,6 +87,7 @@ declare global {
       openDevAppWindow(appId: string): Promise<JiaorongDevAppOpenResult>
       prepareOpenApp(appId: string): Promise<JiaorongAppOpenPrepareResult>
       getOpenInfo(appId: string): Promise<JiaorongAppOpenInfo | null>
+      openAppInWindow(appId: string): Promise<JiaorongAppInWindowResult>
       leave(appId: string): Promise<{ ok: boolean }>
       onOpenApp(handler: (request: { appId: string }) => void): () => void
       onCloseApp(handler: (request: { appId: string }) => void): () => void

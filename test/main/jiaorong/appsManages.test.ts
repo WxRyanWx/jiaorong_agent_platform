@@ -9,6 +9,8 @@ vi.unmock('node:fs')
 
 import appsManages, {
   buildSpawnPath,
+  moveExtractedDirectory,
+  removeDirectoryWithLockRetry,
   resolveBundledNodeBin,
   resolveBundledUvBin
 } from '../../../src/jiaorong_src/appHost/main/appsManages'
@@ -217,7 +219,7 @@ describe('appsManages', () => {
     manager.stopApp('app-scaffold123')
     expect(manager.isRunning('app-scaffold123')).toBe(false)
 
-    const uninstalled = manager.uninstallApp('app-scaffold123')
+    const uninstalled = await manager.uninstallApp('app-scaffold123')
     expect(uninstalled.success, uninstalled.message).toBe(true)
     expect(existsSync(appDir)).toBe(false)
     expect(manager.getApp('app-scaffold123')).toBeNull()
@@ -291,7 +293,7 @@ describe('appsManages', () => {
     const manager = new appsManages(path.join(appsRoot, 'apps'))
     expect(manager.installAppFromPath(source, { mode: 'copy' }).success).toBe(true)
     const installedDir = manager.getAppDir('kept-app')
-    expect(manager.uninstallApp('kept-app', true).success).toBe(true)
+    expect((await manager.uninstallApp('kept-app', true)).success).toBe(true)
     expect(installedDir && existsSync(installedDir)).toBe(true)
 
     const rescanned = new appsManages(path.join(appsRoot, 'apps'))
@@ -401,5 +403,171 @@ describe('appsManages', () => {
     expect(started.success).toBe(true)
     expect(started.data?.pid).toBe(0)
     expect(manager.isRunning('plain-app')).toBe(false)
+  })
+})
+
+function lockError(code = 'EPERM'): NodeJS.ErrnoException {
+  return Object.assign(new Error(`${code}: locked`), { code })
+}
+
+describe('windows app directory lock', () => {
+  const sleep = async () => {}
+
+  it('renames again after a short Windows lock', async () => {
+    let renames = 0
+    const sleeps: number[] = []
+    await moveExtractedDirectory('from', 'to', {
+      platform: 'win32',
+      sleep: async (ms) => {
+        sleeps.push(ms)
+      },
+      exists: () => false,
+      rename: () => {
+        renames += 1
+        if (renames === 1) throw lockError()
+      },
+      copy: () => {
+        throw new Error('should rename')
+      },
+      remove: async () => {
+        throw new Error('should rename')
+      }
+    })
+    expect(renames).toBe(2)
+    expect(sleeps).toEqual([300])
+  })
+
+  it('copies when Windows keeps the directory locked', async () => {
+    const removed: string[] = []
+    let copied = 0
+    await moveExtractedDirectory('from', 'to', {
+      platform: 'win32',
+      sleep,
+      exists: () => false,
+      rename: () => {
+        throw lockError('EBUSY')
+      },
+      copy: () => {
+        copied += 1
+      },
+      remove: async (target) => {
+        removed.push(target)
+      }
+    })
+    expect(copied).toBe(1)
+    expect(removed).toEqual(['from'])
+  })
+
+  it('does not treat an existing target as a scan lock', async () => {
+    await expect(
+      moveExtractedDirectory('from', 'to', {
+        platform: 'win32',
+        sleep,
+        exists: () => true,
+        rename: () => {
+          throw new Error('should not rename')
+        },
+        copy: () => {
+          throw new Error('should not copy')
+        },
+        remove: async () => {
+          throw new Error('should not remove')
+        }
+      })
+    ).rejects.toMatchObject({ code: 'EEXIST' })
+  })
+
+  it('does not retry a real permission error outside Windows', async () => {
+    let renames = 0
+    await expect(
+      moveExtractedDirectory('from', 'to', {
+        platform: 'darwin',
+        sleep,
+        exists: () => false,
+        rename: () => {
+          renames += 1
+          throw lockError()
+        },
+        copy: () => {
+          throw new Error('should not copy')
+        },
+        remove: async () => {
+          throw new Error('should not remove')
+        }
+      })
+    ).rejects.toMatchObject({ code: 'EPERM' })
+    expect(renames).toBe(1)
+  })
+
+  it('copies immediately when the rename crosses devices', async () => {
+    const removed: string[] = []
+    await moveExtractedDirectory('from', 'to', {
+      platform: 'darwin',
+      sleep,
+      exists: () => false,
+      rename: () => {
+        throw Object.assign(new Error('cross device'), { code: 'EXDEV' })
+      },
+      copy: () => {},
+      remove: async (target) => {
+        removed.push(target)
+      }
+    })
+    expect(removed).toEqual(['from'])
+  })
+
+  it('does not copy or delete the source when fallback is disabled', async () => {
+    let copied = 0
+    await expect(
+      moveExtractedDirectory('from', 'to', {
+        platform: 'win32',
+        sleep,
+        copyFallback: false,
+        exists: () => false,
+        rename: () => {
+          throw lockError()
+        },
+        copy: () => {
+          copied += 1
+        },
+        remove: async () => {
+          throw new Error('should not remove')
+        }
+      })
+    ).rejects.toMatchObject({ code: 'EPERM' })
+    expect(copied).toBe(0)
+  })
+
+  it('keeps deleting after Windows releases the lock', async () => {
+    let calls = 0
+    const sleeps: number[] = []
+    await removeDirectoryWithLockRetry(
+      async () => {
+        calls += 1
+        if (calls < 3) throw lockError()
+      },
+      {
+        platform: 'win32',
+        sleep: async (ms) => {
+          sleeps.push(ms)
+        }
+      }
+    )
+    expect(calls).toBe(3)
+    expect(sleeps).toEqual([400, 800])
+  })
+
+  it('gives up on a non-Windows delete error immediately', async () => {
+    let calls = 0
+    await expect(
+      removeDirectoryWithLockRetry(
+        async () => {
+          calls += 1
+          throw lockError()
+        },
+        { platform: 'linux', sleep }
+      )
+    ).rejects.toMatchObject({ code: 'EPERM' })
+    expect(calls).toBe(1)
   })
 })

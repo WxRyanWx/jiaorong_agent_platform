@@ -166,6 +166,9 @@ const jiaorong = {
   notification: {
     show: call('notification.show') // 在主窗口右上角弹提示
   },
+  window: {
+    open: call('window.open') // 新开一个窗口，可打开本应用页面或 http(s)
+  },
   agent: {
     create: call('agent.create'), // 按 agentKey 创建或覆盖，兼容 key
     get: call('agent.get'), // 按 key/id 取一条

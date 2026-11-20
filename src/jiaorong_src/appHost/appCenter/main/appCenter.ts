@@ -29,6 +29,17 @@ import {
 import { readAuthToken, readUserIdentityFromAuthSession } from '../../main/userIdentity'
 import { isAppInstallInFlight, runExclusiveAppInstall } from './appInstallLock'
 import { forgetPinnedMenuApp, listPinnedMenuAppIds } from '../../main/pinnedMenuApps'
+import {
+  forgetOpenWindowPreference,
+  readOpenWindowPreferences,
+  resolveOpensInWindow
+} from '../../main/openWindowPreference'
+import { readAppManifest } from '../../main/manifest'
+import {
+  readPlatformSupportCache,
+  type PlatformSupportRecord
+} from '../../main/platformSupportCache'
+import { resolveSupportedOnClient } from '../../platforms'
 
 /** 安装前等目录同步的上限：网络慢时不能把「点安装」卡成无响应。 */
 const CATALOG_SYNC_WAIT_MS = 3_000
@@ -134,7 +145,9 @@ function resolveRemoteDownloadUrl(runtime: JiaorongAppRuntime): string {
 export function toAppCenterItem(
   runtime: JiaorongAppRuntime,
   options: { isDeveloper: boolean },
-  pinnedIds: ReadonlySet<string> = new Set()
+  pinnedIds: ReadonlySet<string> = new Set(),
+  openWindowPrefs: ReadonlyMap<string, boolean> = new Map(),
+  platformCache: ReadonlyMap<string, PlatformSupportRecord> = new Map()
 ): JiaorongAppCenterItem {
   /** 展示用生产安装状态：调试 link 生效期间不能把调试目录当成已装生产包。 */
   const { installedVersion, installStatus } = resolveProductionInstallState(runtime)
@@ -144,6 +157,11 @@ export function toAppCenterItem(
   const downloadUrl = resolveRemoteDownloadUrl(runtime)
   /** 内置应用（source=builtin）不允许卸载。 */
   const isBuiltinApp = runtime.source === 'builtin' || isSystemBundledApp(runtime.id)
+  /** 已装包的清单。没装到磁盘时不拿它判断。 */
+  const manifest = onDisk && runtime.appDir ? readAppManifest(runtime.appDir) : null
+  /** 曾经看过的安装包声明。sha 对不上就当还没看过。 */
+  const sha = runtime.package.sha256?.trim().toLowerCase() ?? ''
+  const cached = sha ? platformCache.get(sha) : undefined
   return {
     id: runtime.id,
     name: runtime.name,
@@ -161,7 +179,20 @@ export function toAppCenterItem(
     visibleToCurrentUser: runtime.visible || options.isDeveloper,
     provider: runtime.provider ?? '',
     pinnedToMenu: pinnedIds.has(runtime.id),
-    fixedInMenu: runtime.slot === 'menu'
+    fixedInMenu: runtime.slot === 'menu',
+    openInWindow: resolveOpensInWindow(
+      runtime.id,
+      Boolean(manifest?.openInWindow),
+      openWindowPrefs
+    ),
+    supportedOnClient: resolveSupportedOnClient({
+      manifestKnown: Boolean(manifest),
+      manifestPlatforms: manifest?.platforms,
+      catalogKnown: runtime.platforms !== undefined,
+      catalogPlatforms: runtime.platforms,
+      cachedKnown: cached !== undefined,
+      cachedPlatforms: cached?.platforms
+    })
   }
 }
 
@@ -370,8 +401,10 @@ export function listAppCenterItems(deps: JiaorongAppHostDeps): JiaorongAppCenter
   /** 是否开发者。 */
   const isDeveloper = isDeveloperIdentity(user)
   const pinnedIds = new Set(listPinnedMenuAppIds())
+  const openWindowPrefs = readOpenWindowPreferences()
+  const platformCache = readPlatformSupportCache()
   return selectAppCenterRuntimes(scanJiaorongApps(user), { isDeveloper }).map((runtime) =>
-    toAppCenterItem(runtime, { isDeveloper }, pinnedIds)
+    toAppCenterItem(runtime, { isDeveloper }, pinnedIds, openWindowPrefs, platformCache)
   )
 }
 
@@ -405,13 +438,15 @@ export function listAppCenterItemsByIds(
   if (requestedIds.length === 0) return []
   const isDeveloper = isDeveloperIdentity(user)
   const pinnedIds = new Set(listPinnedMenuAppIds())
+  const openWindowPrefs = readOpenWindowPreferences()
+  const platformCache = readPlatformSupportCache()
   const runtimesById = new Map(scanJiaorongApps(user).map((runtime) => [runtime.id, runtime]))
   return requestedIds.flatMap((appId) => {
     const runtime = runtimesById.get(appId)
     if (!runtime || isDevWorkspaceRuntime(runtime)) return []
     // auth 未通过的条目也要回给市场卡，由 `visibleToCurrentUser` 决定是否展示；
     // 直接丢掉会让渲染侧分不清「没装」和「无权看见」。
-    return [toAppCenterItem(runtime, { isDeveloper }, pinnedIds)]
+    return [toAppCenterItem(runtime, { isDeveloper }, pinnedIds, openWindowPrefs, platformCache)]
   })
 }
 
@@ -633,10 +668,10 @@ async function runInstallAppCenterAppFromRemotePackage(
  * @param deps 超级智能体依赖
  * @param appId 目标应用 id
  */
-export function uninstallAppCenterApp(
+export async function uninstallAppCenterApp(
   deps: JiaorongAppHostDeps,
   appId: string
-): AppCenterMutationResult {
+): Promise<AppCenterMutationResult> {
   // 入参缺 appId
   if (!appId) return { ok: false, message: 'missing appId' }
   /** 当前登录身份。 */
@@ -660,7 +695,7 @@ export function uninstallAppCenterApp(
   // 内置应用兜底：目录 source 标记比全局 id 缓存更可靠
   if (runtime.source === 'builtin') return { ok: false, message: `system app: ${appId}` }
   /** 卸载结果。 */
-  const result = sharedAppsManager().uninstallApp(appId, false)
+  const result = await sharedAppsManager().uninstallApp(appId, false)
   if (result.success) {
     // 安装包目录已经没了；钉偏好也要一起删，避免下次装回来又自动出现在菜单里。
     // 清偏好失败不能挡住卸载结果，否则目录已经删掉，界面仍会当成卸载失败。
@@ -668,6 +703,11 @@ export function uninstallAppCenterApp(
       forgetPinnedMenuApp(appId)
     } catch (error) {
       console.error('[jiaorong-app-center] failed to clear menu pin', appId, error)
+    }
+    try {
+      forgetOpenWindowPreference(appId)
+    } catch (error) {
+      console.error('[jiaorong-app-center] failed to clear open window preference', appId, error)
     }
     notifyRemoteAppCatalogChanged()
   }

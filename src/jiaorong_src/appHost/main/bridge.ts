@@ -21,7 +21,10 @@ import {
 import { appAgentIds } from './agentMap'
 import { handleJiaorongMcpCreate } from './mcpCreate'
 import { queryJiaorongKnowledgeBaseDirectory, queryJiaorongKnowledgeBases } from './knowledgeBase'
+import { readAppManifest } from './manifest'
+import { resolveOpensInWindow } from './openWindowPreference'
 import { getAppPreloadFileUrl, isPathInsideRoot } from './paths'
+import { openAppWindow, readCallerWindowUrl } from './appWindow'
 import { ensureJiaorongAppProtocolSession } from './protocol'
 import { buildJiaorongSlashCatalog } from './slashCatalog'
 import { buildUserInfoPayload, readAuthToken } from './userIdentity'
@@ -74,10 +77,6 @@ function findGuestPageWebContents(appId: string, preferredWebContentsId: number)
 }
 
 /**
- * 运行时转成侧栏菜单项；图标必须落在应用目录内才给 file:// URL。
- * @param runtime 应用运行时项
- */
-/**
  * 解析应用图标为 file:// URL；越界或文件缺失返回 null。
  * @param runtime 运行时项
  */
@@ -95,14 +94,27 @@ export function resolveAppIconSrc(runtime: JiaorongAppRuntime): string | null {
     : null
 }
 
-export function toMenuAppItem(runtime: JiaorongAppRuntime): JiaorongMenuAppItem {
-  // 只透出侧栏需要的字段
+/**
+ * 运行时转成侧栏菜单项；图标必须落在应用目录内才给 file:// URL。
+ * @param runtime 应用运行时项
+ */
+export function toMenuAppItem(
+  runtime: JiaorongAppRuntime,
+  openWindowPrefs: ReadonlyMap<string, boolean> = new Map()
+): JiaorongMenuAppItem {
+  // 用户选过打开方式就用本机记录，否则看包内 app.json。
+  const openInWindow = resolveOpensInWindow(
+    runtime.id,
+    Boolean(runtime.appDir && readAppManifest(runtime.appDir)?.openInWindow),
+    openWindowPrefs
+  )
   return {
     id: runtime.id,
     name: runtime.name,
     version: runtime.version,
     installStatus: runtime.installStatus,
-    iconSrc: resolveAppIconSrc(runtime)
+    iconSrc: resolveAppIconSrc(runtime),
+    ...(openInWindow ? { openInWindow: true } : {})
   }
 }
 
@@ -218,6 +230,17 @@ export async function handleAppBridgeInvoke(
         contents.openDevTools({ mode: 'detach' })
         return { ok: true }
       }
+      // 子应用新开独立窗口，页面只传地址和尺寸
+      case 'window.open':
+        return openAppWindow({
+          appId: runtime.id,
+          appName: runtime.name,
+          rawUrl: record.url,
+          callerUrl: readCallerWindowUrl(webContentsId),
+          width: record.width,
+          height: record.height,
+          title: record.title
+        })
       // 选目录，并把选中目录记进授权表
       case 'dialog.selectDirectory': {
         /** 对话框选中结果。 */

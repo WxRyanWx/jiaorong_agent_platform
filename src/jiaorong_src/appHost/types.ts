@@ -89,6 +89,11 @@ export type JiaorongAppCatalogRecord = {
   auth?: JiaorongAppAuth | null
   /** 提供方；应用中心卡片展示，配置未给则为空。 */
   provider?: string
+  /**
+   * 接口带回的 app.json.platforms。没有这个字段表示接口没给，安装前还不能判断。
+   * 空数组表示声明了但没有任何客户端可用。
+   */
+  platforms?: string[]
   /** 包。 */
   package: JiaorongAppPackage
 }
@@ -111,6 +116,16 @@ export type JiaorongAppManifest = {
   slot?: JiaorongAppSlot
   /** 点开时管理类 spawn 一次的脚本，可用 && 拼接。 */
   spawn?: string
+  /**
+   * 为 true 时，交融应用里点「打开」新开独立窗口。
+   * 缺省或 false 仍在应用内打开，并显示返回。
+   */
+  openInWindow?: boolean
+  /**
+   * 能安装和打开的客户端。缺省表示没写这个字段，6 个客户端都可以。
+   * 空数组表示写了字段，但没有一个可用系统。
+   */
+  platforms?: string[]
 }
 
 /** 扫盘后的运行时项。 */
@@ -151,6 +166,8 @@ export type JiaorongMenuAppItem = {
   version: string
   /** 安装状态。 */
   installStatus: JiaorongAppInstallStatus
+  /** 为 true 时点侧栏也新开窗口，不进应用内页。 */
+  openInWindow?: boolean
 }
 
 /** 应用中心一条应用。 */
@@ -199,6 +216,15 @@ export type JiaorongAppCenterItem = {
    * 已安装包的 slot 是 menu。侧栏本来就会出现，不能靠取消钉去掉。
    */
   fixedInMenu?: boolean
+  /**
+   * 点「打开」是否新开窗口。用户本机选择优先，没选过才用 app.json 的 openInWindow。
+   */
+  openInWindow?: boolean
+  /**
+   * 当前客户端是否能安装、打开、更新、卸载。false 时这些按钮换成不支持文案。
+   * 缺省按支持处理：还没读到 app.json 时先不藏按钮，安装时再拦。
+   */
+  supportedOnClient?: boolean
   /** 最近一次上架时间；市场卡片才有。 */
   publishedAt?: string | null
   /** 最近更新时间；市场卡片才有。 */
@@ -273,4 +299,18 @@ export type JiaorongAppOpenInfo = {
   partition: string
   /** Node 没起来时的原因，供宿主 toast。 */
   spawnWarning?: JiaorongAppSpawnWarning
+  /** 为 true 时点「打开」进独立窗口，不进应用内页。 */
+  openInWindow?: boolean
+}
+
+/** 按 app.json 把应用打开到独立窗口的结果。 */
+export type JiaorongAppInWindowResult = {
+  /** 是否已打开或聚焦。 */
+  ok: boolean
+  /** 失败原因。 */
+  message?: string
+  /** BrowserWindow id。 */
+  id?: number
+  /** 实际加载的地址。 */
+  url?: string
 }

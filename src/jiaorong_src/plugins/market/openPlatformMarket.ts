@@ -10,6 +10,7 @@ import type {
   JiaorongAppUserIdentity
 } from '../../appHost/types'
 import { isAppAuthOpen, isAppVisibleToUser, readUserIdentityFromUserInfo } from '../../appHost/auth'
+import { clientSupportsPlatformList, currentClientPlatform } from '../../appHost/platforms'
 import type {
   OpenPlatformAssetSummary,
   OpenPlatformConnectorListItem
@@ -215,6 +216,10 @@ export async function listOpenPlatformMarketApps(): Promise<JiaorongAppCenterIte
     const downloadUrl = resolveAssetDownloadUrl(item)
     const marketVersion = resolveAssetVersion(item)
     const installedVersion = installedItem?.installedVersion ?? null
+    const client = currentClientPlatform(
+      window.api?.getPlatform?.() ?? '',
+      window.api?.getArch?.() ?? ''
+    )
     return {
       id: item.id,
       name: item.name,
@@ -242,7 +247,10 @@ export async function listOpenPlatformMarketApps(): Promise<JiaorongAppCenterIte
       visibleToCurrentUser: true,
       provider: item.provider?.trim() || '',
       publishedAt: item.latestRelease?.publishedAt?.trim() || null,
-      updatedAt: item.updatedAt?.trim() || null
+      updatedAt: item.updatedAt?.trim() || null,
+      ...(item.platforms
+        ? { supportedOnClient: clientSupportsPlatformList(item.platforms, client) }
+        : {})
     }
   })
 }

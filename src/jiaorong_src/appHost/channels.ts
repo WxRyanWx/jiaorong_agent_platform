@@ -7,6 +7,8 @@ export const JIAORONG_APP_PROTOCOL = 'jiaorong-app'
 export const JIAORONG_APP_LIST_CHANNEL = 'jiaorong-app:list-visible'
 /** 取打开 webview 所需 src / partition / preload。 */
 export const JIAORONG_APP_OPEN_CHANNEL = 'jiaorong-app:get-open-info'
+/** app.json 声明 openInWindow 时，把入口开到独立窗口。 */
+export const JIAORONG_APP_OPEN_IN_WINDOW_CHANNEL = 'jiaorong-app:open-in-window'
 /** 打开应用前的运行来源检查；需要切换时由主进程弹窗确认。 */
 export const JIAORONG_APP_OPEN_PREPARE_CHANNEL = 'jiaorong-app:open-prepare'
 /** 子应用请求主窗口打开另一个应用。 */
@@ -36,10 +38,14 @@ export const JIAORONG_APP_CENTER_INSTALL_STATUSES_CHANNEL = 'jiaorong-app-center
 export const JIAORONG_APP_CENTER_UNINSTALL_CHANNEL = 'jiaorong-app-center:uninstall'
 /** 把已安装的交融应用钉到左侧菜单，或取消钉。偏好不写进 app.json。 */
 export const JIAORONG_APP_PIN_MENU_CHANNEL = 'jiaorong-app:pin-menu'
+/** 用户设置这个应用点「打开」时是否新开窗口。没设置过才看 app.json。 */
+export const JIAORONG_APP_OPEN_WINDOW_PREF_CHANNEL = 'jiaorong-app:open-window-preference'
 /** 已安装应用解压目录的字节数；没有本地安装目录时返回 null。 */
 export const JIAORONG_APP_CENTER_SIZE_CHANNEL = 'jiaorong-app-center:installed-size'
 /** 按下载地址读取 zip 包大小，不把整包下下来。 */
 export const JIAORONG_APP_CENTER_PACKAGE_SIZE_CHANNEL = 'jiaorong-app-center:package-size'
+/** 看远程包 app.json 的 platforms，判断当前客户端能不能装。 */
+export const JIAORONG_APP_CENTER_PLATFORM_SUPPORT_CHANNEL = 'jiaorong-app-center:platform-support'
 /** 开发者中心列出本地登记应用。 */
 export const JIAORONG_DEV_CENTER_LIST_CHANNEL = 'jiaorong-dev-center:list'
 /** 开发者中心创建应用：选目录 + 校验 app.json。 */
