@@ -98,12 +98,37 @@
       </div>
 
       <div
-        v-if="upgrade.showManualDownloadOptions"
-        class="mt-2 flex w-full max-w-xl flex-col items-center gap-1"
+        v-if="showDownloadFallback && downloadArtifact"
+        class="mt-2 flex w-full max-w-xl flex-col items-center gap-2 rounded-xl border border-border/80 bg-card/70 p-4 shadow-sm"
+        data-testid="manual-download"
       >
         <p class="text-center text-xs text-muted-foreground">
-          {{ t('update.autoUpdateFailed') }}
+          {{
+            upgrade.showManualDownloadOptions
+              ? '自动更新失败，请使用下面的手动下载链接。'
+              : '检查更新失败，请稍后重试。'
+          }}
         </p>
+        <DcButton
+          variant="outline"
+          size="sm"
+          class="text-xs"
+          data-testid="manual-download-button"
+          @click="openManualDownload"
+        >
+          <Icon icon="lucide:download" class="mr-1 size-3" data-icon="inline-start" />
+          {{ downloadArtifact.fileName }}
+        </DcButton>
+        <a
+          :href="downloadArtifact.url"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="break-all text-center text-[11px] text-muted-foreground underline decoration-dotted hover:text-primary"
+          data-testid="manual-download-url"
+          @click.prevent="openManualDownload"
+        >
+          {{ downloadArtifact.url }}
+        </a>
       </div>
 
       <div class="mt-2 flex flex-wrap justify-center gap-2">
@@ -130,27 +155,18 @@
         </DcButton>
 
         <DcButton
-          v-if="false"
+          v-if="downloadArtifact && !showDownloadFallback"
           variant="outline"
           size="sm"
           class="mb-2 text-xs"
-          @click="handleManualDownload('github')"
+          data-testid="manual-download-entry"
+          @click="openManualDownload"
         >
-          {{ t('update.githubDownload') }}
+          <Icon icon="lucide:download" class="mr-1 size-3" data-icon="inline-start" />
+          手动下载安装包
         </DcButton>
 
         <DcButton
-          v-if="false"
-          variant="outline"
-          size="sm"
-          class="mb-2 text-xs"
-          @click="handleManualDownload('official')"
-        >
-          {{ t('update.officialDownload') }}
-        </DcButton>
-
-        <DcButton
-          v-if="!upgrade.showManualDownloadOptions"
           variant="outline"
           size="sm"
           class="mb-2 text-xs"
@@ -247,6 +263,7 @@ import {
 import { Spinner } from '@shadcn/components/ui/spinner'
 import NodeRenderer from 'markstream-vue'
 import { useUpgradeStore } from '@/stores/upgrade'
+import { resolveAppDownloadArtifact } from '@shared/upgrade/downloadLinks'
 import { useLanguageStore } from '@/stores/language'
 import type { AcceptableValue } from 'reka-ui'
 import { useThemeStore } from '@/stores/theme'
@@ -264,6 +281,8 @@ const configClient = createConfigClient()
 const deviceClient = createDeviceClient()
 const windowClient = createWindowClient()
 const appVersion = ref('')
+const devicePlatform = ref('')
+const deviceArch = ref('')
 const upgrade = useUpgradeStore()
 const updateChannel = ref('stable')
 const updateChannelReady = ref(false)
@@ -271,6 +290,16 @@ const isDisclaimerOpen = ref(false)
 let cleanupCheckForUpdates: (() => void) | null = null
 const updateChannelSaving = ref(false)
 const updateCheckPending = ref(false)
+
+/** 手动下载始终按当前安装包的平台与架构给链接，不依赖更新接口返回值。 */
+const downloadArtifact = computed(() =>
+  resolveAppDownloadArtifact({ platform: devicePlatform.value, arch: deviceArch.value })
+)
+
+/** 自动更新失败、或下载/安装报错时都给出直链，避免用户只剩重装一条路。 */
+const showDownloadFallback = computed(
+  () => upgrade.showManualDownloadOptions || Boolean(upgrade.updateError)
+)
 
 const formattedUpdateVersion = computed(() => {
   const version = upgrade.updateInfo?.version ?? ''
@@ -377,10 +406,6 @@ const handlePrimaryAction = async () => {
   }
 }
 
-const handleManualDownload = async (type: 'github' | 'official') => {
-  await upgrade.handleUpdate(type)
-}
-
 const handleExternalCheckUpdate = async () => {
   if (upgrade.isChecking || upgrade.isDownloading || upgrade.isRestarting) {
     return
@@ -407,6 +432,12 @@ const openExternalLink = (url: string) => {
   })
 }
 
+const openManualDownload = () => {
+  const url = downloadArtifact.value?.url
+  if (!url) return
+  openExternalLink(url)
+}
+
 const loadAppVersion = async () => {
   try {
     appVersion.value = await deviceClient.getAppVersion()
@@ -415,11 +446,22 @@ const loadAppVersion = async () => {
   }
 }
 
+const loadDeviceTarget = async () => {
+  try {
+    const info = await deviceClient.getDeviceInfo()
+    devicePlatform.value = info?.platform ?? ''
+    deviceArch.value = info?.arch ?? ''
+  } catch (error) {
+    console.error('[AboutUsSettings] Failed to load device info', error)
+  }
+}
+
 onMounted(() => {
   cleanupCheckForUpdates = windowClient.onSettingsCheckForUpdates(() => {
     void handleExternalCheckUpdate()
   })
   void loadAppVersion()
+  void loadDeviceTarget()
   void loadUpdateChannel()
   void syncUpdateStatus()
 })

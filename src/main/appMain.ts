@@ -12,6 +12,7 @@ import {
 import { isInsecureTlsAllowed } from './lib/insecureTls'
 import { ensureRegularAppOnMac } from './lib/activateApp'
 import { startMainProcess, type MainProcessControl } from './app/mainProcess'
+import { tryInstallDownloadedUpdateOnStartup } from './upgrade/startupInstall'
 import type { MainShutdownActionClaim } from './app/mainShutdownCoordinator'
 import logger from '@shared/logger'
 import {
@@ -179,6 +180,15 @@ export function startApp(): void {
   app.whenReady().then(async () => {
     reportStartupStage('electron_ready', startupStartedAt)
     ensureRegularAppOnMac()
+    // Windows 上更新改为「启动时安装」：在创建任何窗口之前判断，命中就直接安装并退出。
+    // 这里做兜底：启动安装自身出问题也不能影响客户端正常启动。
+    try {
+      if ((await tryInstallDownloadedUpdateOnStartup()) !== 'none') {
+        return
+      }
+    } catch (error) {
+      reportNativeMainError('main: Startup update install failed:', error)
+    }
     try {
       mainProcess = await startMainProcess(
         startupWorkloadCoordinator,

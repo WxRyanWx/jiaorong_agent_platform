@@ -39,7 +39,8 @@ const configClientMock = vi.hoisted(() => ({
   setUpdateChannel: vi.fn()
 }))
 const deviceClientMock = vi.hoisted(() => ({
-  getAppVersion: vi.fn()
+  getAppVersion: vi.fn(),
+  getDeviceInfo: vi.fn()
 }))
 const browserClientMock = vi.hoisted(() => ({
   openExternal: vi.fn()
@@ -143,6 +144,8 @@ describe('AboutUsSettings', () => {
     configClientMock.getUpdateChannel.mockReset()
     configClientMock.setUpdateChannel.mockReset()
     deviceClientMock.getAppVersion.mockReset()
+    deviceClientMock.getDeviceInfo.mockReset()
+    deviceClientMock.getDeviceInfo.mockResolvedValue({ platform: 'win32', arch: 'x64' })
     browserClientMock.openExternal.mockReset()
     upgradeStoreMock.refreshStatus.mockReset()
     upgradeStoreMock.checkUpdate.mockReset()
@@ -183,7 +186,7 @@ describe('AboutUsSettings', () => {
     })
   })
 
-  it('hides GitHub and official fallback downloads when auto-update fails', async () => {
+  it('shows the platform download link when auto-update fails', async () => {
     const { default: AboutUsSettings } =
       await import('../../../src/renderer/settings/components/AboutUsSettings.vue')
 
@@ -210,13 +213,59 @@ describe('AboutUsSettings', () => {
 
     await flushPromises()
 
-    const buttons = wrapper.findAll('button').map((button) => button.text())
-    expect(buttons).toEqual(['关闭'])
-    expect(wrapper.text()).not.toContain('检查更新')
-    expect(wrapper.text()).not.toContain('GitHub 下载')
-    expect(wrapper.text()).not.toContain('官网下载')
+    expect(wrapper.text()).toContain('自动更新失败，请使用下面的手动下载链接。')
+
+    const downloadButton = wrapper.get('[data-testid="manual-download-button"]')
+    expect(downloadButton.text()).toContain('JiaorongAI-windows-x64.exe')
+    expect(wrapper.get('[data-testid="manual-download-url"]').text()).toBe(
+      'https://c4ai.ccccltd.cn/xkprosdk/JiaorongAI-windows-x64.exe'
+    )
+
+    await downloadButton.trigger('click')
+    await flushPromises()
+    expect(browserClientMock.openExternal).toHaveBeenCalledWith(
+      'https://c4ai.ccccltd.cn/xkprosdk/JiaorongAI-windows-x64.exe'
+    )
+
+    // 失败态仍然可以主动重试
+    expect(wrapper.findAll('button').map((button) => button.text())).toContain('检查更新')
     expect(wrapper.text()).not.toContain('意见反馈')
-    expect(wrapper.text()).toContain('自动更新可能不稳定，请手动下载更新')
+  })
+
+  it('picks the macOS arm64 artifact on Apple Silicon', async () => {
+    deviceClientMock.getDeviceInfo.mockResolvedValue({ platform: 'darwin', arch: 'arm64' })
+
+    const { default: AboutUsSettings } =
+      await import('../../../src/renderer/settings/components/AboutUsSettings.vue')
+
+    const wrapper = mount(AboutUsSettings, {
+      global: {
+        stubs: {
+          DcButton: buttonStub,
+          Icon: true,
+          Dialog: passthroughStub('Dialog'),
+          DialogContent: passthroughStub('DialogContent'),
+          DialogDescription: passthroughStub('DialogDescription'),
+          DialogFooter: passthroughStub('DialogFooter'),
+          DialogHeader: passthroughStub('DialogHeader'),
+          DialogTitle: passthroughStub('DialogTitle'),
+          Select: selectStub,
+          SelectContent: passthroughStub('SelectContent'),
+          SelectItem: passthroughStub('SelectItem'),
+          SelectTrigger: passthroughStub('SelectTrigger'),
+          SelectValue: passthroughStub('SelectValue'),
+          NodeRenderer: passthroughStub('NodeRenderer')
+        }
+      }
+    })
+
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="manual-download-button"]').text()).toContain(
+      'JiaorongAI-mac-arm64.dmg'
+    )
+
+    wrapper.unmount()
   })
 
   it('subscribes to tray update checks before initial presenter calls resolve', async () => {
@@ -391,6 +440,118 @@ describe('AboutUsSettings', () => {
     expect(wrapper.text()).not.toContain('更新渠道')
     expect(configClientMock.setUpdateChannel).not.toHaveBeenCalled()
     expect(wrapper.text()).not.toContain('disk unavailable')
+
+    wrapper.unmount()
+  })
+
+  it('hides the download link until the device platform is known', async () => {
+    deviceClientMock.getDeviceInfo.mockRejectedValueOnce(new Error('device info unavailable'))
+
+    const { default: AboutUsSettings } =
+      await import('../../../src/renderer/settings/components/AboutUsSettings.vue')
+
+    const wrapper = mount(AboutUsSettings, {
+      global: {
+        stubs: {
+          DcButton: buttonStub,
+          Icon: true,
+          Dialog: passthroughStub('Dialog'),
+          DialogContent: passthroughStub('DialogContent'),
+          DialogDescription: passthroughStub('DialogDescription'),
+          DialogFooter: passthroughStub('DialogFooter'),
+          DialogHeader: passthroughStub('DialogHeader'),
+          DialogTitle: passthroughStub('DialogTitle'),
+          Select: selectStub,
+          SelectContent: passthroughStub('SelectContent'),
+          SelectItem: passthroughStub('SelectItem'),
+          SelectTrigger: passthroughStub('SelectTrigger'),
+          SelectValue: passthroughStub('SelectValue'),
+          NodeRenderer: passthroughStub('NodeRenderer')
+        }
+      }
+    })
+
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="manual-download"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="manual-download-entry"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('shows a retry hint instead of the install-failed copy when the check fails', async () => {
+    upgradeStoreMock.showManualDownloadOptions = false
+    upgradeStoreMock.updateState = 'idle'
+
+    const { default: AboutUsSettings } =
+      await import('../../../src/renderer/settings/components/AboutUsSettings.vue')
+
+    const wrapper = mount(AboutUsSettings, {
+      global: {
+        stubs: {
+          DcButton: buttonStub,
+          Icon: true,
+          Dialog: passthroughStub('Dialog'),
+          DialogContent: passthroughStub('DialogContent'),
+          DialogDescription: passthroughStub('DialogDescription'),
+          DialogFooter: passthroughStub('DialogFooter'),
+          DialogHeader: passthroughStub('DialogHeader'),
+          DialogTitle: passthroughStub('DialogTitle'),
+          Select: selectStub,
+          SelectContent: passthroughStub('SelectContent'),
+          SelectItem: passthroughStub('SelectItem'),
+          SelectTrigger: passthroughStub('SelectTrigger'),
+          SelectValue: passthroughStub('SelectValue'),
+          NodeRenderer: passthroughStub('NodeRenderer')
+        }
+      }
+    })
+
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('检查更新失败，请稍后重试。')
+    expect(wrapper.text()).not.toContain('自动更新失败')
+    wrapper.unmount()
+  })
+
+  it('keeps a manual download entry available when nothing is wrong', async () => {
+    upgradeStoreMock.showManualDownloadOptions = false
+    upgradeStoreMock.updateError = null
+    upgradeStoreMock.updateState = 'idle'
+
+    const { default: AboutUsSettings } =
+      await import('../../../src/renderer/settings/components/AboutUsSettings.vue')
+
+    const wrapper = mount(AboutUsSettings, {
+      global: {
+        stubs: {
+          DcButton: buttonStub,
+          Icon: true,
+          Dialog: passthroughStub('Dialog'),
+          DialogContent: passthroughStub('DialogContent'),
+          DialogDescription: passthroughStub('DialogDescription'),
+          DialogFooter: passthroughStub('DialogFooter'),
+          DialogHeader: passthroughStub('DialogHeader'),
+          DialogTitle: passthroughStub('DialogTitle'),
+          Select: selectStub,
+          SelectContent: passthroughStub('SelectContent'),
+          SelectItem: passthroughStub('SelectItem'),
+          SelectTrigger: passthroughStub('SelectTrigger'),
+          SelectValue: passthroughStub('SelectValue'),
+          NodeRenderer: passthroughStub('NodeRenderer')
+        }
+      }
+    })
+
+    await flushPromises()
+
+    const entry = wrapper.get('[data-testid="manual-download-entry"]')
+    expect(entry.text()).toContain('手动下载安装包')
+
+    await entry.trigger('click')
+    await flushPromises()
+    expect(browserClientMock.openExternal).toHaveBeenCalledWith(
+      'https://c4ai.ccccltd.cn/xkprosdk/JiaorongAI-windows-x64.exe'
+    )
 
     wrapper.unmount()
   })

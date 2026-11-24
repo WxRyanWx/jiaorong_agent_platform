@@ -46,6 +46,7 @@
 | [architecture/memory-vector-store-v2/](./architecture/memory-vector-store-v2/) | v2 已落地，保留 migration window 后的 VSS removal follow-up |
 | [architecture/main-process-structured-logging/](./architecture/main-process-structured-logging/) | Main JSONL、持久日志隐私边界与 Agent 并发诊断已落地；本地 SQLite ABI 不匹配导致部分 native tests 跳过，详见任务清单 |
 | [issues/chat-history-search-scroll-coordinates/](./issues/chat-history-search-scroll-coordinates/) | 等待 Electron/macOS 物理滚动验证 |
+| [issues/updater-startup-install/](./issues/updater-startup-install/) | Windows 更新改为启动时安装、失败可重试；等待 Windows 真机验证 |
 
 ## 保留的产品合同
 

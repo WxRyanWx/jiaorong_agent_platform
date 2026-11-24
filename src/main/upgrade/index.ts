@@ -2,24 +2,37 @@ import logger from '@shared/logger'
 import { app, shell } from 'electron'
 import type { DeepchatEventPublisher } from '@shared/contracts/events'
 import electronUpdater from 'electron-updater'
-import type { UpdateInfo } from 'electron-updater'
+import type { UpdateDownloadedEvent, UpdateInfo } from 'electron-updater'
 import { compare } from 'compare-versions'
 import fs from 'fs'
 import path from 'path'
+import { resolveAppDownloadArtifact } from '@shared/upgrade/downloadLinks'
+import {
+  getUpdateCacheRoot,
+  isMarkerVersionReached,
+  isPrereleaseVersion,
+  isTrustedInstallerPath,
+  MAX_UPDATE_INSTALL_ATTEMPTS,
+  parseUpdateMarker,
+  serializeUpdateMarker,
+  UPDATE_MARKER_FILE_NAME,
+  UPDATE_MARKER_PHASE_DOWNLOADED,
+  UPDATE_MARKER_PHASE_INSTALLING,
+  type UpdateMarker
+} from './updateMarker'
 import type { UpdateSettings } from './settings'
 
 const { autoUpdater } = electronUpdater
 
 const GITHUB_OWNER = 'ThinkInAIXYZ'
 const GITHUB_REPO = 'deepchat'
-const OFFICIAL_DOWNLOAD_URL = 'https://deepchatai.cn/#/download'
+
+/** 当前安装包对应的直链；不读上次写进标记里的旧地址。 */
+const resolveCurrentDownloadUrl = (): string =>
+  resolveAppDownloadArtifact({ platform: process.platform, arch: process.arch })?.url ?? ''
+
 const UPDATE_CHANNEL_STABLE = 'stable'
 const UPDATE_CHANNEL_BETA = 'beta'
-const PRERELEASE_VERSION_REGEX = /-(?:alpha|beta|rc|canary)(?:[.-]\d+)?$/i
-
-const isPrereleaseVersion = (version: string): boolean => {
-  return PRERELEASE_VERSION_REGEX.test(version)
-}
 
 type ReleaseNoteItem = {
   version?: string | null
@@ -90,10 +103,8 @@ const formatReleaseNotes = (notes?: string | ReleaseNoteItem[] | null): string =
 }
 
 const toVersionInfo = (info: UpdateInfo): VersionInfo => {
-  // electron-updater parses latest*.yml via js-yaml, which may turn an unquoted
-  // ISO releaseDate into a Date object. The publish pipeline now force-quotes
-  // releaseDate, but normalize defensively so any legacy yml artifact cannot
-  // leak a Date into the typed-IPC payload.
+  // electron-updater 用 js-yaml 解析 latest*.yml，未加引号的 ISO releaseDate 会被转成 Date。
+  // 发布流水线已经强制加引号，这里再做一次防御性归一化，避免历史产物把 Date 带进 IPC 契约。
   const rawReleaseDate = info.releaseDate as unknown
   const releaseDate =
     rawReleaseDate instanceof Date
@@ -107,13 +118,30 @@ const toVersionInfo = (info: UpdateInfo): VersionInfo => {
     releaseDate,
     releaseNotes: formatReleaseNotes(info.releaseNotes),
     githubUrl: releaseUrl,
-    downloadUrl: OFFICIAL_DOWNLOAD_URL
+    downloadUrl: resolveCurrentDownloadUrl()
   }
+}
+
+/**
+ * update-downloaded 的顶层 sha512 只对应主文件；多架构 yml 下要按下载文件名从 files 里找。
+ * 否则 arm64 会把别的架构的哈希写进标记，启动校验必然失败、删包重下。
+ */
+const resolveDownloadedSha512 = (event: UpdateDownloadedEvent): string => {
+  const downloadedName = event.downloadedFile ? path.basename(event.downloadedFile) : ''
+  if (downloadedName) {
+    const matched = (event.files ?? []).find(
+      (file) => file?.url && path.basename(String(file.url)) === downloadedName
+    )
+    if (matched?.sha512) {
+      return matched.sha512
+    }
+  }
+  return event.sha512 || ''
 }
 
 // 获取自动更新状态文件路径
 const getUpdateMarkerFilePath = () => {
-  return path.join(app.getPath('userData'), 'auto_update_marker.json')
+  return path.join(app.getPath('userData'), UPDATE_MARKER_FILE_NAME)
 }
 
 export class UpgradeService {
@@ -134,6 +162,12 @@ export class UpgradeService {
   private _checkFailureObserved: boolean = false
   private _downloadFailureObserved: boolean = false
   private _installFailureObserved: boolean = false
+  private _installAttempts: number = 0
+  private _installerPath: string = ''
+  private _downloadedAt: number = 0
+  private _sha512: string = ''
+  /** 本次进程是否真的完成过下载：非 Windows 退出安装只看这个标记 */
+  private _downloadedInCurrentSession: boolean = false
   private readonly requestUpdateInstall: (installAction: () => void) => Promise<void>
 
   private emitStatusChanged(payload: {
@@ -182,11 +216,12 @@ export class UpgradeService {
     // 配置自动更新
     autoUpdater.autoDownload = false // 默认不自动下载，由我们手动控制
     autoUpdater.allowDowngrade = false
-    autoUpdater.autoInstallOnAppQuit = true
-    // electron-updater skips checks when unpackaged unless forced; enable for local status checks
+    // Windows 改成「启动时安装」：退出时不再拉起安装器，竞态窗口消失
+    autoUpdater.autoInstallOnAppQuit = process.platform !== 'win32'
+    // 未打包时 electron-updater 默认跳检查，本地要看状态得强制启用
     if (!app.isPackaged) {
       autoUpdater.forceDevUpdateConfig = true
-      // out/main → project root (electron-vite); app.getAppPath() alone can miss the yml
+      // out/main → 项目根目录（electron-vite）；只用 app.getAppPath() 可能找不到 yml
       autoUpdater.updateConfigPath = path.join(__dirname, '../../dev-app-update.yml')
     }
 
@@ -214,8 +249,9 @@ export class UpgradeService {
     })
 
     // 无可用更新
-    autoUpdater.on('update-not-available', () => {
+    autoUpdater.on('update-not-available', (info) => {
       logger.info('无可用更新')
+      this.reconcileMarkerWithRemoteVersion(info?.version)
       this._lock = false
       this._status = 'not-available'
       this._error = null
@@ -266,9 +302,26 @@ export class UpgradeService {
         return
       }
 
-      this._versionInfo = toVersionInfo(info)
+      const nextInfo = toVersionInfo(info)
+      // _versionInfo 可能被 update-not-available 清空，回退到标记里的目标版本
+      const previousTarget = this._versionInfo?.version ?? this.readUpdateMarker()?.version ?? ''
+      this._versionInfo = nextInfo
       this._error = null
       this._progress = null
+
+      // 目标版本变了：重置次数与「上次失败」状态，新版本应重新获得自动更新机会
+      if (previousTarget && previousTarget !== nextInfo.version) {
+        logger.info('更新目标版本变化，重置重试次数', {
+          from: previousTarget,
+          to: nextInfo.version
+        })
+        this._installAttempts = 0
+        this._previousUpdateFailed = false
+        // 目标版本变了：旧安装包路径/哈希不能带进新版本的标记（fallback 路径会用到）
+        this._installerPath = ''
+        this._sha512 = ''
+        this._downloadedAt = 0
+      }
 
       if (this._previousUpdateFailed) {
         logger.info('上次更新失败，本次不进行自动更新，改为手动更新')
@@ -310,104 +363,195 @@ export class UpgradeService {
       this.emitProgress(this._progress)
     })
 
-    // 下载完成
+    // 下载完成：把安装包路径一起记下来，下次启动可以直接运行它
     autoUpdater.on('update-downloaded', (info) => {
       logger.info('更新下载完成', info)
+      this._installerPath = info.downloadedFile || ''
+      this._sha512 = resolveDownloadedSha512(info)
+      this._downloadedAt = Date.now()
+      this._downloadedInCurrentSession = true
       this.markUpdateDownloaded(info)
     })
+
+    // macOS/Linux 仍由 electron-updater 在退出时安装；只有本次进程真的下载过、且正常退出才补记
+    if (process.platform !== 'win32') {
+      app.on('quit', (_event, exitCode) => {
+        if (typeof exitCode === 'number' && exitCode !== 0) {
+          return
+        }
+        if (!this._downloadedInCurrentSession) {
+          return
+        }
+        this.recordQuitInstallAttempt()
+      })
+    }
 
     // 应用启动时检查是否有未完成的更新
     this.checkPendingUpdate()
   }
 
-  // 检查是否有未完成的自动更新
+  // 启动时读标记做一次最小状态判定：Windows 的启动安装已在创建窗口前处理，这里负责清理与手动下载态
   private checkPendingUpdate(): void {
-    try {
-      if (fs.existsSync(this._updateMarkerPath)) {
-        const content = fs.readFileSync(this._updateMarkerPath, 'utf8')
-        const updateInfo = JSON.parse(content)
-        const currentVersion = app.getVersion()
-        logger.info('检查未完成的更新', updateInfo, currentVersion)
+    const marker = this.readUpdateMarker()
+    if (!marker) {
+      return
+    }
 
-        // 如果当前版本与目标版本相同，说明更新已完成
-        if (updateInfo.version === currentVersion) {
-          // 删除标记文件
-          fs.unlinkSync(this._updateMarkerPath)
-          return
-        }
+    const currentVersion = app.getVersion()
+    logger.info('检查未完成的更新', marker, currentVersion)
 
-        // 渠道一致性校验：marker 中的目标版本若与当前安装包不属于同一渠道（beta vs stable），
-        // 说明上次的"待完成更新"来自渠道错配，应直接丢弃而不是钉死为 previousUpdateFailed
-        const markerVersion = typeof updateInfo.version === 'string' ? updateInfo.version : ''
-        if (markerVersion) {
-          const markerIsPre = isPrereleaseVersion(markerVersion)
-          const currentIsPre = isPrereleaseVersion(currentVersion)
-          if (markerIsPre !== currentIsPre) {
-            logger.info('忽略跨渠道的旧 update marker', { marker: markerVersion, currentVersion })
-            fs.unlinkSync(this._updateMarkerPath)
-            return
-          }
-        }
+    // 版本已经追上（含用户手动装了更高版本）：标记作废，顺手清掉缓存里的安装包
+    if (isMarkerVersionReached(marker.version, currentVersion)) {
+      this.removeCachedInstaller(marker.installerPath)
+      this.clearUpdateMarker()
+      return
+    }
 
-        // 否则说明上次更新失败，标记为错误状态
-        logger.info('检测到未完成的更新', updateInfo.version)
-        this._status = 'error'
-        this._error = '上次自动更新未完成'
-        this._versionInfo = updateInfo
-        this._previousUpdateFailed = true // 标记上次更新失败
-        this.notifyFailure('install_verification', 'unknown')
+    // 渠道不一致：上次的标记来自渠道错配，直接丢弃
+    const markerIsPre = isPrereleaseVersion(marker.version)
+    const currentIsPre = isPrereleaseVersion(currentVersion)
+    if (markerIsPre !== currentIsPre) {
+      logger.info('忽略跨渠道的旧 update marker', { marker: marker.version, currentVersion })
+      this.removeCachedInstaller(marker.installerPath)
+      this.clearUpdateMarker()
+      return
+    }
 
-        // 删除标记文件
-        fs.unlinkSync(this._updateMarkerPath)
+    this._versionInfo = {
+      version: marker.version,
+      releaseDate: marker.releaseDate,
+      releaseNotes: marker.releaseNotes,
+      githubUrl: marker.githubUrl,
+      downloadUrl: resolveCurrentDownloadUrl()
+    }
+    this._installAttempts = marker.attempts
+    this._installerPath = marker.installerPath
+    this._downloadedAt = marker.downloadedAt
+    this._sha512 = marker.sha512
 
-        // 通知渲染进程
-        this.emitStatusChanged({
-          status: this._status,
-          error: this._error,
-          info: {
-            version: updateInfo.version,
-            releaseDate: updateInfo.releaseDate,
-            releaseNotes: updateInfo.releaseNotes,
-            githubUrl: updateInfo.githubUrl,
-            downloadUrl: updateInfo.downloadUrl
-          }
-        })
-      }
-    } catch (error) {
-      this.notifyFailure('marker_reconcile', 'unknown')
-      console.error('检查未完成更新失败', error)
-      // 出错时尝试删除标记文件
-      try {
-        if (fs.existsSync(this._updateMarkerPath)) {
-          fs.unlinkSync(this._updateMarkerPath)
-        }
-      } catch (e) {
-        console.error('删除更新标记文件失败', e)
-      }
+    if (this._installAttempts >= MAX_UPDATE_INSTALL_ATTEMPTS) {
+      logger.info('上次自动更新反复未完成，改为手动下载', {
+        version: marker.version,
+        attempts: this._installAttempts
+      })
+      this.enterManualDownloadState()
+      return
+    }
+
+    // 上次交给安装器但没装成：改回 downloaded，本次启动再试一次
+    if (marker.phase === UPDATE_MARKER_PHASE_INSTALLING) {
+      logger.info('上次安装未完成，本次启动重试', { version: marker.version })
+      this.writeUpdateMarker(marker.version, UPDATE_MARKER_PHASE_DOWNLOADED)
     }
   }
 
-  // 写入更新标记文件
-  private writeUpdateMarker(version: string): void {
+  /**
+   * 线上已经不再提供标记里的版本（回滚/下架）时，丢弃缓存包，
+   * 避免下次启动把已经撤回的版本装回去。
+   */
+  private reconcileMarkerWithRemoteVersion(remoteVersion?: string): void {
+    const remote = typeof remoteVersion === 'string' ? remoteVersion.trim() : ''
+    if (!remote) return
+
+    const marker = this.readUpdateMarker()
+    if (!marker) return
+
     try {
-      const updateInfo = {
+      if (compare(marker.version, remote, '>')) {
+        logger.info('线上已不再提供该版本，丢弃缓存包', {
+          marker: marker.version,
+          remote
+        })
+        this.removeCachedInstaller(marker.installerPath)
+        this.clearUpdateMarker()
+      }
+    } catch {
+      // 版本号非法时交给 checkPendingUpdate 的容错逻辑处理
+    }
+  }
+
+  /** 版本追平后清掉缓存里的安装包，避免每次更新在磁盘上留一份旧包。 */
+  private removeCachedInstaller(installerPath?: string): void {
+    if (!installerPath) {
+      return
+    }
+    // 标记可能被改写：只允许删 updater 缓存目录里的安装包
+    if (!isTrustedInstallerPath(installerPath, getUpdateCacheRoot())) {
+      return
+    }
+    try {
+      fs.rmSync(installerPath, { force: true })
+    } catch (error) {
+      console.warn('清理已安装的更新包失败', error)
+    }
+  }
+
+  private enterManualDownloadState(): void {
+    this._status = 'error'
+    this._error = '自动更新失败，请手动下载安装包'
+    this._previousUpdateFailed = true
+    this.notifyFailure('install_verification', 'unknown')
+    this.emitStatusChanged({
+      status: this._status,
+      error: this._error,
+      info: this._versionInfo
+    })
+  }
+
+  private readUpdateMarker(): UpdateMarker | null {
+    if (!fs.existsSync(this._updateMarkerPath)) {
+      return null
+    }
+
+    try {
+      return parseUpdateMarker(JSON.parse(fs.readFileSync(this._updateMarkerPath, 'utf8')))
+    } catch (error) {
+      this.notifyFailure('marker_reconcile', 'unknown')
+      console.error('检查未完成更新失败', error)
+      this.clearUpdateMarker()
+      return null
+    }
+  }
+
+  private clearUpdateMarker(): void {
+    try {
+      if (fs.existsSync(this._updateMarkerPath)) {
+        fs.unlinkSync(this._updateMarkerPath)
+      }
+    } catch (error) {
+      console.error('删除更新标记文件失败', error)
+    }
+  }
+
+  // 写入更新标记文件；phase 区分「下载完」与「已交给安装器」，attempts 累计安装尝试。
+  // 返回是否写成功：调用方需要据此回退次数，避免把没落盘的尝试算进去。
+  private writeUpdateMarker(version: string, phase: string): boolean {
+    try {
+      const marker: UpdateMarker = {
         version,
         releaseDate: this._versionInfo?.releaseDate || '',
         releaseNotes: this._versionInfo?.releaseNotes || '',
         githubUrl: this._versionInfo?.githubUrl || '',
         downloadUrl: this._versionInfo?.downloadUrl || '',
-        timestamp: Date.now()
+        phase,
+        attempts: this._installAttempts,
+        installerPath: this._installerPath,
+        downloadedAt: this._downloadedAt,
+        updatedAt: Date.now(),
+        sha512: this._sha512
       }
 
-      fs.writeFileSync(this._updateMarkerPath, JSON.stringify(updateInfo, null, 2), 'utf8')
+      fs.writeFileSync(this._updateMarkerPath, serializeUpdateMarker(marker), 'utf8')
       logger.info('写入更新标记文件成功', this._updateMarkerPath)
+      return true
     } catch (error) {
       this.notifyFailure('marker_write', 'persistence')
       console.error('写入更新标记文件失败', error)
+      return false
     }
   }
 
-  private markUpdateDownloaded(info?: UpdateInfo): void {
+  private markUpdateDownloaded(info?: UpdateDownloadedEvent): void {
     this._isMockUpdate = false
     this._lock = false
     this._status = 'downloaded'
@@ -424,7 +568,7 @@ export class UpgradeService {
       return
     }
 
-    this.writeUpdateMarker(this._versionInfo.version)
+    this.writeUpdateMarker(this._versionInfo.version, UPDATE_MARKER_PHASE_DOWNLOADED)
     this.emitStatusChanged({
       status: this._status,
       info: this._versionInfo
@@ -457,6 +601,11 @@ export class UpgradeService {
     }
 
     const checkType = type ?? 'manualCheck'
+    if (checkType !== 'autoCheck') {
+      // 用户主动检查：重置重试预算，但保留已下载的标记（装它就行，不用重新下）
+      this._previousUpdateFailed = false
+      this.resetMarkerAttempts()
+    }
     this._activeCheckOperations += 1
     try {
       this._status = 'checking'
@@ -470,7 +619,6 @@ export class UpgradeService {
 
       const updateChannel = normalizeUpdateChannel(this.settings.getChannel())
       autoUpdater.allowPrerelease = updateChannel === UPDATE_CHANNEL_BETA
-      // autoUpdater.channel = updateChannel === UPDATE_CHANNEL_BETA ? UPDATE_CHANNEL_BETA : 'latest'
       autoUpdater.channel = 'jrsi'
 
       await autoUpdater.checkForUpdates()
@@ -500,7 +648,8 @@ export class UpgradeService {
             releaseDate: this._versionInfo.releaseDate,
             releaseNotes: this._versionInfo.releaseNotes,
             githubUrl: this._versionInfo.githubUrl,
-            downloadUrl: this._versionInfo.downloadUrl
+            // 始终给当前安装包对应的直链，旧标记里的地址不再透出
+            downloadUrl: resolveCurrentDownloadUrl()
           }
         : null
     }
@@ -514,9 +663,9 @@ export class UpgradeService {
         shell.openExternal(url)
       }
     } else if (type === 'official') {
-      const url = this._versionInfo?.downloadUrl || OFFICIAL_DOWNLOAD_URL
+      const url = resolveCurrentDownloadUrl()
       if (url) {
-        shell.openExternal(url)
+        await shell.openExternal(url)
       }
     }
   }
@@ -572,7 +721,7 @@ export class UpgradeService {
     }
   }
 
-  // Execute quit and install update for all platforms
+  // 触发退出并安装（各平台通用）
   private _doQuitAndInstall(): void {
     logger.info('Preparing to quit and install update')
     this.beginInstallFlow(() => {
@@ -598,14 +747,81 @@ export class UpgradeService {
 
   private beginInstallFlow(installAction: () => void): void {
     this._installFailureObserved = false
+    const attemptRecorded = this.recordInstallAttempt()
     this.emitWillRestart()
     this.setUpdatingFlag(true)
     void this.requestUpdateInstall(installAction).catch((error) => {
       this.notifyUpdaterFailure('install', 'unknown')
       console.error('Failed to start update installation flow', error)
       this.setUpdatingFlag(false)
+      // 交接失败：回退这次尝试，下次启动还要能重试
+      if (attemptRecorded) {
+        this._installAttempts = Math.max(0, this._installAttempts - 1)
+        const version = this._versionInfo?.version ?? ''
+        if (version) {
+          this.writeUpdateMarker(version, UPDATE_MARKER_PHASE_DOWNLOADED)
+        }
+      }
       this.emitError(error instanceof Error ? error.message : String(error))
     })
+  }
+
+  /** 交给安装器之前把「已开始安装」和尝试次数落盘；写失败要回退次数。 */
+  private recordInstallAttempt(): boolean {
+    if (this._isMockUpdate) return false
+    const version = this._versionInfo?.version ?? ''
+    if (!version) return false
+    this._installAttempts += 1
+    if (!this.writeUpdateMarker(version, UPDATE_MARKER_PHASE_INSTALLING)) {
+      this._installAttempts = Math.max(0, this._installAttempts - 1)
+      return false
+    }
+    return true
+  }
+
+  /**
+   * 非 Windows：退出时 electron-updater 会直接拉起安装，不经过 beginInstallFlow。
+   * 这里补记一次尝试，下次启动才能判断上次是否装成。
+   */
+  private recordQuitInstallAttempt(): void {
+    if (this._isMockUpdate) return
+    const marker = this.readUpdateMarker()
+    if (!marker) return
+    if (marker.phase !== UPDATE_MARKER_PHASE_DOWNLOADED) return
+    if (isMarkerVersionReached(marker.version, app.getVersion())) return
+    if (!marker.installerPath || !fs.existsSync(marker.installerPath)) {
+      // 缓存包已经不在：这次退出不会真正安装，别把"没装成"算成一次失败
+      this.clearUpdateMarker()
+      return
+    }
+
+    this._versionInfo = this._versionInfo ?? {
+      version: marker.version,
+      releaseDate: marker.releaseDate,
+      releaseNotes: marker.releaseNotes,
+      githubUrl: marker.githubUrl,
+      downloadUrl: resolveCurrentDownloadUrl()
+    }
+    this._installAttempts = marker.attempts + 1
+    this._installerPath = marker.installerPath
+    this._downloadedAt = marker.downloadedAt
+    this._sha512 = marker.sha512
+    this.writeUpdateMarker(marker.version, UPDATE_MARKER_PHASE_INSTALLING)
+  }
+
+  /** 用户主动检查时把次数清零，但保留已下载的包和阶段。 */
+  private resetMarkerAttempts(): void {
+    const marker = this.readUpdateMarker()
+    if (!marker) {
+      this._installAttempts = 0
+      return
+    }
+    this._installAttempts = 0
+    this._installerPath = marker.installerPath
+    this._downloadedAt = marker.downloadedAt
+    this._sha512 = marker.sha512
+    // 手动重试属于「已下载、待安装」，不能把 installing 阶段带进去
+    this.writeUpdateMarker(marker.version, UPDATE_MARKER_PHASE_DOWNLOADED)
   }
 
   mockDownloadedUpdate(): boolean {
@@ -691,12 +907,12 @@ export class UpgradeService {
     }
   }
 
-  // Set update flag
+  // 设置「正在更新」标记
   private setUpdatingFlag(updating: boolean): void {
     this._isUpdating = updating
   }
 
-  // Get update flag
+  // 读取「正在更新」标记
   isUpdatingInProgress(): boolean {
     return this._isUpdating
   }
@@ -714,7 +930,7 @@ export class UpgradeService {
     try {
       this.observeFailure({ operation, errorCategory })
     } catch {
-      // Diagnostics must not change updater state or user-facing recovery behavior.
+      // 诊断上报不能改变更新状态，也不能影响用户侧恢复行为。
     }
   }
 
