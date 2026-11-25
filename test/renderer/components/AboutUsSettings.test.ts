@@ -513,7 +513,7 @@ describe('AboutUsSettings', () => {
     wrapper.unmount()
   })
 
-  it('keeps a manual download entry available when nothing is wrong', async () => {
+  it('hides the manual download until an update check or install fails', async () => {
     upgradeStoreMock.showManualDownloadOptions = false
     upgradeStoreMock.updateError = null
     upgradeStoreMock.updateState = 'idle'
@@ -544,14 +544,9 @@ describe('AboutUsSettings', () => {
 
     await flushPromises()
 
-    const entry = wrapper.get('[data-testid="manual-download-entry"]')
-    expect(entry.text()).toContain('手动下载安装包')
-
-    await entry.trigger('click')
-    await flushPromises()
-    expect(browserClientMock.openExternal).toHaveBeenCalledWith(
-      'https://c4ai.ccccltd.cn/xkprosdk/JiaorongAI-windows-x64.exe'
-    )
+    expect(wrapper.find('[data-testid="manual-download"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="manual-download-entry"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('手动下载安装包')
 
     wrapper.unmount()
   })

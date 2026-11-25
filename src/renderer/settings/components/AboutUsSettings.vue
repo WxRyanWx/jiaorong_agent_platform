@@ -155,18 +155,6 @@
         </DcButton>
 
         <DcButton
-          v-if="downloadArtifact && !showDownloadFallback"
-          variant="outline"
-          size="sm"
-          class="mb-2 text-xs"
-          data-testid="manual-download-entry"
-          @click="openManualDownload"
-        >
-          <Icon icon="lucide:download" class="mr-1 size-3" data-icon="inline-start" />
-          手动下载安装包
-        </DcButton>
-
-        <DcButton
           variant="outline"
           size="sm"
           class="mb-2 text-xs"
@@ -296,7 +284,7 @@ const downloadArtifact = computed(() =>
   resolveAppDownloadArtifact({ platform: devicePlatform.value, arch: deviceArch.value })
 )
 
-/** 自动更新失败、或下载/安装报错时都给出直链，避免用户只剩重装一条路。 */
+/** 只有自动安装失败或检查失败时才给出手动下载。 */
 const showDownloadFallback = computed(
   () => upgrade.showManualDownloadOptions || Boolean(upgrade.updateError)
 )
