@@ -175,7 +175,7 @@ export class ProjectService {
     }
 
     this.sqlitePresenter.newEnvironmentPreferencesTable.markArchived(normalizedPath)
-    if (this.getDefaultProjectPath() === normalizedPath) {
+    if (this.isSameEnvironmentPath(this.getStoredDefaultProjectPath(), normalizedPath)) {
       return this.setDefaultProjectPath(null)
     }
     return this.bumpSnapshotVersion()
@@ -205,7 +205,7 @@ export class ProjectService {
       return sessionIds
     })()
 
-    if (this.getDefaultProjectPath() === normalizedPath) {
+    if (this.isSameEnvironmentPath(this.getStoredDefaultProjectPath(), normalizedPath)) {
       this.setDefaultProjectPath(null)
       return { clearedSessionIds }
     }
@@ -267,7 +267,16 @@ export class ProjectService {
 
   async ensureDefaultWorkspace(): Promise<string | null> {
     const candidates = this.getDefaultWorkspaceCandidates()
-    const currentDefault = this.getDefaultProjectPath()
+    const storedDefault = this.getStoredDefaultProjectPath()
+    const storedDefaultIsBuiltin = Boolean(
+      storedDefault && this.isDefaultWorkspaceCandidate(storedDefault, candidates)
+    )
+    // 用户自己设的默认目录删了就保持不选。内置 JiaorongAI 目录丢失后仍按原逻辑重建。
+    if (storedDefault && !storedDefaultIsBuiltin && !fs.existsSync(storedDefault)) {
+      return null
+    }
+
+    const currentDefault = storedDefaultIsBuiltin ? storedDefault : this.getDefaultProjectPath()
     const currentDefaultIsBuiltin = Boolean(
       currentDefault && this.isDefaultWorkspaceCandidate(currentDefault, candidates)
     )
@@ -290,7 +299,7 @@ export class ProjectService {
     this.sqlitePresenter.newProjectsTable.upsert(defaultPath, 'JiaorongAI')
     this.sqlitePresenter.newEnvironmentPreferencesTable.markActive(defaultPath)
 
-    if (currentDefault !== defaultPath) {
+    if (storedDefault !== defaultPath) {
       this.setDefaultProjectPath(defaultPath)
     } else {
       this.bumpSnapshotVersion()
@@ -300,8 +309,35 @@ export class ProjectService {
   }
 
   getDefaultProjectPath(): string | null {
+    const projectPath = this.getStoredDefaultProjectPath()
+    if (!projectPath || !fs.existsSync(projectPath)) {
+      return null
+    }
+
+    return projectPath
+  }
+
+  private getStoredDefaultProjectPath(): string | null {
     const projectPath = this.settings.get<string | null>('defaultProjectPath')
     return projectPath?.trim() || null
+  }
+
+  private isSameEnvironmentPath(
+    leftPath: string | null | undefined,
+    rightPath: string | null | undefined
+  ): boolean {
+    const left = this.normalizeEnvironmentPath(leftPath)
+    const right = this.normalizeEnvironmentPath(rightPath)
+    if (!left || !right) {
+      return false
+    }
+
+    const pathApi = process.platform === 'win32' ? path.win32 : path.posix
+    const canonicalize = (value: string) => {
+      const resolved = pathApi.resolve(value).normalize('NFC')
+      return process.platform === 'win32' ? resolved.toLowerCase() : resolved
+    }
+    return canonicalize(left) === canonicalize(right)
   }
 
   getDefaultChatWorkspacePath(): string | null {

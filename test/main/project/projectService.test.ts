@@ -369,6 +369,82 @@ describe('ProjectService', () => {
         warnSpy.mockRestore()
       }
     })
+
+    it('leaves the new chat without a workspace when a custom default directory is gone', async () => {
+      const settingsStore = createMockSettingsStore('/work/deleted')
+      existsSyncMock.mockReturnValue(false)
+      presenter = new ProjectService(
+        sqlitePresenter,
+        sqlitePresenter,
+        deviceService,
+        settingsStore,
+        vi.fn()
+      )
+
+      await expect(presenter.ensureDefaultWorkspace()).resolves.toBeNull()
+      expect(presenter.getDefaultProjectPath()).toBeNull()
+      expect(mkdirSyncMock).not.toHaveBeenCalled()
+      expect(settingsStore.set).not.toHaveBeenCalledWith('defaultProjectPath', expect.anything())
+    })
+
+    it('recreates a missing built-in default workspace', async () => {
+      const settingsStore = createMockSettingsStore('/mock/documents/JiaorongAI')
+      existsSyncMock.mockImplementation(
+        (targetPath: string) => targetPath !== '/mock/documents/JiaorongAI'
+      )
+      presenter = new ProjectService(
+        sqlitePresenter,
+        sqlitePresenter,
+        deviceService,
+        settingsStore,
+        vi.fn()
+      )
+
+      await expect(presenter.ensureDefaultWorkspace()).resolves.toBe('/mock/documents/JiaorongAI')
+      expect(mkdirSyncMock).toHaveBeenCalledWith('/mock/documents/JiaorongAI', { recursive: true })
+      expect(settingsStore.set).not.toHaveBeenCalledWith(
+        'defaultProjectPath',
+        '/mock/documents/JiaorongAI'
+      )
+    })
+  })
+
+  describe('removeEnvironment default path', () => {
+    const createPresenter = (defaultProjectPath: string) => {
+      const settingsStore = createMockSettingsStore(defaultProjectPath)
+      presenter = new ProjectService(
+        sqlitePresenter,
+        sqlitePresenter,
+        deviceService,
+        settingsStore,
+        vi.fn()
+      )
+      return settingsStore
+    }
+
+    it('clears the default when the removed path only differs by a trailing separator', async () => {
+      const settingsStore = createPresenter('/work/app/')
+
+      await presenter.removeEnvironment('/work/app')
+
+      expect(settingsStore.set).toHaveBeenCalledWith('defaultProjectPath', null)
+    })
+
+    it('clears a Windows default that differs by case and slash', async () => {
+      const platformDescriptor = Object.getOwnPropertyDescriptor(process, 'platform')
+      Object.defineProperty(process, 'platform', { value: 'win32', configurable: true })
+      try {
+        const settingsStore = createPresenter('C:/Work/App')
+
+        await presenter.removeEnvironment('c:\\Work\\App\\')
+
+        expect(settingsStore.set).toHaveBeenCalledWith('defaultProjectPath', null)
+      } finally {
+        if (platformDescriptor) {
+          Object.defineProperty(process, 'platform', platformDescriptor)
+        }
+      }
+    })
   })
 
   describe('getProjects', () => {

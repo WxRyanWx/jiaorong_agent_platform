@@ -44,13 +44,13 @@
       />
       <LoggingSettingsSection />
       <section class="flex h-10 items-center gap-3">
-        <div class="flex items-center gap-2 text-sm font-medium shrink-0 min-w-[220px]">
+        <div class="flex min-w-0 flex-1 items-center gap-2 text-sm font-medium">
           <Icon icon="lucide:log-out" class="w-4 h-4 text-muted-foreground" />
           <span class="truncate">{{ t('settings.common.signOut') }}</span>
         </div>
         <DcButton
           variant="outline"
-          class="ml-auto"
+          class="shrink-0 ml-auto"
           :disabled="isSigningOut"
           :loading="isSigningOut"
           data-testid="settings-sign-out-button"

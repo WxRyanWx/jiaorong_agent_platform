@@ -1,10 +1,7 @@
 <template>
   <section class="flex flex-col gap-3">
     <div class="flex items-center gap-3 h-10">
-      <div
-        class="flex items-center gap-2 text-sm font-medium shrink-0 min-w-[220px]"
-        :dir="langStore.dir"
-      >
+      <div class="flex min-w-0 flex-1 items-center gap-2 text-sm font-medium" :dir="langStore.dir">
         <Icon icon="lucide:file-text" class="w-4 h-4 text-muted-foreground" />
         <span class="truncate">{{ t('settings.common.loggingEnabled') }}</span>
         <DcButton
@@ -20,7 +17,7 @@
       </div>
       <Switch
         id="logging-switch"
-        class="ml-auto"
+        class="shrink-0 ml-auto"
         :model-value="loggingEnabled"
         @update:model-value="handleLoggingChange"
       />
