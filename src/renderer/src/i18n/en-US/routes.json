@@ -167,6 +167,14 @@
   "openPlatformSelectPackage": "Select a zip package",
   "openPlatformCreate": "Create",
   "openPlatformPackageInvalid": "Failed to parse the package. Check its structure.",
+  "openPlatformZipUnreadable": "Failed to parse the package. Check that the file is a valid zip.",
+  "openPlatformZipBackslashPath": "Package paths must not contain backslashes ({name}). Repackage with a standard zip tool.",
+  "openPlatformZipUnsafePath": "Package path is unsafe ({name}). Repackage the file.",
+  "openPlatformZipMarkerMissing": "{marker} must be at the zip root",
+  "openPlatformZipMarkerNotAtRoot": "{marker} must be at the zip root; it is currently at {foundAt}",
+  "openPlatformSkillNameInvalid": "Skill name is invalid ({name}). Only lowercase letters, digits, dots, underscores and hyphens are allowed.",
+  "openPlatformSkillFrontmatterMissing": "SKILL.md is missing {field}",
+  "openPlatformConnectorJsonInvalid": "mcp.json {reason}",
   "openPlatformConfirmPublish": "Confirm publish",
   "openPlatformPublishOrganization": "Publishing organization",
   "openPlatformPublishOrganizationPlaceholder": "Enter the publishing organization",
@@ -217,5 +225,7 @@
   "devCenterPublishHintDescription": "Short intro shown on the App Center card.",
   "devCenterPublishHintSpawn": "Optional. Command to start a background Node process, for example node node/server.js.",
   "devCenterPublishSlotMenu": "Sidebar menu",
-  "devCenterPublishSlotAppCenter": "App Center"
+  "devCenterPublishSlotAppCenter": "App Center",
+  "openPlatformZipMarkerIsDirectory": "{marker} is a directory in the zip, not a file",
+  "openPlatformZipMarkerEmpty": "{marker} is empty"
 }

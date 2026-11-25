@@ -11,7 +11,8 @@ import {
 } from '@jiaorong/plugins/market/openPlatformMarket'
 import {
   parseConnectorPackage,
-  parseSkillPackage
+  parseSkillPackage,
+  type PackageMessages
 } from '@jiaorong/open-platform/packages/parseOpenPlatformPackage'
 import type { AppManifestFormFields } from '@jiaorong/appHost/manifestRules'
 import {
@@ -684,6 +685,23 @@ describe('open platform mock api', () => {
   })
 })
 
+/** 测试用文案依赖：直接回显关键信息，断言时只看语义不看本地化措辞。 */
+const messages: PackageMessages = {
+  unreadable: 'unreadable',
+  backslashPath: (name) => `backslash:${name}`,
+  unsafePath: (name) => `unsafe:${name}`,
+  markerMissing: (marker) => `missing:${marker}`,
+  markerNotAtRoot: (marker, foundAt) => `not-at-root:${marker}@${foundAt}`,
+  markerIsDirectory: (marker) => `is-directory:${marker}`,
+  markerEmpty: (marker) => `empty:${marker}`,
+  skillNameInvalid: (name) => `name-invalid:${name}`,
+  skillFrontmatterMissing: (field) => `field-missing:${field}`,
+  connectorJsonInvalid: (reason) => `json:${reason}`
+}
+
+const SKILL_MD = (name = 'my-skill') =>
+  `---\nname: ${name}\ndescription: 技能描述\nmetadata:\n  displayName: 我的技能\n---\n\n正文\n`
+
 describe('open platform package parser', () => {
   it('parses root SKILL.md frontmatter', async () => {
     const file = createZipFile(
@@ -694,11 +712,123 @@ describe('open platform package parser', () => {
       },
       'skill.zip'
     )
-    await expect(parseSkillPackage(file)).resolves.toEqual({
+    await expect(parseSkillPackage(file, messages)).resolves.toEqual({
       name: 'my-skill',
       displayName: '我的技能',
       description: '技能描述'
     })
+  })
+
+  it('reports backslash paths instead of a misleading missing SKILL.md', async () => {
+    const file = createZipFile(
+      { 'my-skill\\SKILL.md': strToU8(SKILL_MD()), 'my-skill\\references\\a.md': strToU8('x') },
+      'skill.zip'
+    )
+    // 关键回归：旧实现这里报的是"根目录必须包含 SKILL.md"，与真实原因不符
+    await expect(parseSkillPackage(file, messages)).rejects.toThrow('backslash:')
+  })
+
+  it('rejects path traversal and absolute entries', async () => {
+    await expect(
+      parseSkillPackage(
+        createZipFile(
+          { 'SKILL.md': strToU8(SKILL_MD()), '../escape.md': strToU8('x') },
+          'skill.zip'
+        ),
+        messages
+      )
+    ).rejects.toThrow('unsafe:../escape.md')
+    await expect(
+      parseSkillPackage(
+        createZipFile(
+          { 'SKILL.md': strToU8(SKILL_MD()), '/etc/evil.md': strToU8('x') },
+          'skill.zip'
+        ),
+        messages
+      )
+    ).rejects.toThrow('unsafe:/etc/evil.md')
+  })
+
+  it('rejects skill names that break the naming rule', async () => {
+    await expect(
+      parseSkillPackage(
+        createZipFile({ 'SKILL.md': strToU8(SKILL_MD('Test_Skill')) }, 'skill.zip'),
+        messages
+      )
+    ).rejects.toThrow('name-invalid:Test_Skill')
+    await expect(
+      parseSkillPackage(
+        createZipFile({ 'SKILL.md': strToU8(SKILL_MD('中文技能')) }, 'skill.zip'),
+        messages
+      )
+    ).rejects.toThrow('name-invalid:中文技能')
+  })
+
+  it('reports unreadable bytes without leaking the fflate message', async () => {
+    const file = {
+      name: 'broken.zip',
+      arrayBuffer: async () => new TextEncoder().encode('not a zip').buffer
+    } as File
+    await expect(parseSkillPackage(file, messages)).rejects.toThrow('unreadable')
+  })
+
+  it('accepts lowercase skill.md and reports nested SKILL.md precisely', async () => {
+    await expect(
+      parseSkillPackage(createZipFile({ 'skill.md': strToU8(SKILL_MD()) }, 'skill.zip'), messages)
+    ).resolves.toMatchObject({ name: 'my-skill' })
+    await expect(
+      parseSkillPackage(
+        createZipFile({ 'sub/SKILL.md': strToU8(SKILL_MD()) }, 'skill.zip'),
+        messages
+      )
+    ).rejects.toThrow('not-at-root:SKILL.md@sub/SKILL.md')
+  })
+
+  it('distinguishes empty and directory SKILL.md from a missing one', async () => {
+    // 0 字节的 SKILL.md 存在但没内容，不能报成"根目录没有 SKILL.md"
+    await expect(
+      parseSkillPackage(createZipFile({ 'SKILL.md': strToU8('') }, 'skill.zip'), messages)
+    ).rejects.toThrow('empty:SKILL.md')
+    // 同名目录项也不是"文件不存在"
+    await expect(
+      parseSkillPackage(createZipFile({ 'SKILL.md/': strToU8('') }, 'skill.zip'), messages)
+    ).rejects.toThrow('is-directory:SKILL.md')
+    // 真正缺失时仍是 missing
+    await expect(
+      parseSkillPackage(createZipFile({ 'other.md': strToU8('x') }, 'skill.zip'), messages)
+    ).rejects.toThrow('missing:SKILL.md')
+  })
+
+  it('accepts names up to the client skill-name limit and rejects longer ones', async () => {
+    const maxName = 'a'.repeat(255)
+    await expect(
+      parseSkillPackage(
+        createZipFile({ 'SKILL.md': strToU8(SKILL_MD(maxName)) }, 'skill.zip'),
+        messages
+      )
+    ).resolves.toMatchObject({ name: maxName })
+    // 超长 name 只回显前 64 字符，避免 255+ 的整串塞进 toast
+    const tooLong = 'a'.repeat(256)
+    await expect(
+      parseSkillPackage(
+        createZipFile({ 'SKILL.md': strToU8(SKILL_MD(tooLong)) }, 'skill.zip'),
+        messages
+      )
+    ).rejects.toThrow(`name-invalid:${'a'.repeat(64)}…`)
+  })
+
+  it('treats a leading ./ as the zip root', async () => {
+    // `zip -r pkg.zip .` 会把条目存成 ./SKILL.md，语义上就是根目录
+    await expect(
+      parseSkillPackage(createZipFile({ './SKILL.md': strToU8(SKILL_MD()) }, 'skill.zip'), messages)
+    ).resolves.toMatchObject({ name: 'my-skill' })
+  })
+
+  it('still rejects traversal that hides behind a leading ./', async () => {
+    // 剥前导 "./" 不能变成穿越的挡箭牌
+    await expect(
+      parseSkillPackage(createZipFile({ './../escape.md': strToU8('x') }, 'skill.zip'), messages)
+    ).rejects.toThrow('unsafe:')
   })
 
   it('parses one root MCP service and infers http from url', async () => {
@@ -717,11 +847,37 @@ describe('open platform package parser', () => {
       },
       'connector.zip'
     )
-    await expect(parseConnectorPackage(file)).resolves.toMatchObject({
+    await expect(parseConnectorPackage(file, messages)).resolves.toMatchObject({
       id: '我的连接器',
       type: 'http',
       description: '示例连接器'
     })
+  })
+
+  it('keeps Chinese connector service names usable as ids', async () => {
+    // 契约：服务名同时作为技术 ID 和展示名，允许中文，不能套用技能的命名规则
+    const file = createZipFile(
+      {
+        'mcp.json': strToU8(
+          JSON.stringify({ mcpServers: { 我的连接器: { url: 'https://example.com/mcp' } } })
+        )
+      },
+      'connector.zip'
+    )
+    await expect(parseConnectorPackage(file, messages)).resolves.toMatchObject({
+      id: '我的连接器',
+      name: '我的连接器'
+    })
+  })
+
+  it('rejects an empty connector service name', async () => {
+    const file = createZipFile(
+      {
+        'mcp.json': strToU8(JSON.stringify({ mcpServers: { '': { url: 'https://x/mcp' } } }))
+      },
+      'connector.zip'
+    )
+    await expect(parseConnectorPackage(file, messages)).rejects.toThrow('json:')
   })
 
   it('rejects multiple MCP services', async () => {
@@ -738,8 +894,6 @@ describe('open platform package parser', () => {
       },
       'connector.zip'
     )
-    await expect(parseConnectorPackage(file)).rejects.toThrow(
-      '一个连接器 zip 只能包含一个 MCP 服务'
-    )
+    await expect(parseConnectorPackage(file, messages)).rejects.toThrow('json:')
   })
 })

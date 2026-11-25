@@ -27,7 +27,11 @@ import {
   isNewerOpenPlatformVersion,
   normalizeOpenPlatformPublishVersionInput
 } from '@jiaorong/api/openPlatform/version'
-import { parseConnectorPackage, parseSkillPackage } from '../packages/parseOpenPlatformPackage'
+import {
+  parseConnectorPackage,
+  parseSkillPackage,
+  type PackageMessages
+} from '../packages/parseOpenPlatformPackage'
 import {
   forgetOpenPlatformPackage,
   readOpenPlatformPackage,
@@ -312,9 +316,27 @@ async function choosePackage(event: Event): Promise<void> {
   }
 }
 
+/** 解析器需要的文案依赖：统一在此把 i18n 键转成最终字符串，解析器本身不碰 i18n。 */
+function createPackageMessages(): PackageMessages {
+  return {
+    unreadable: t('routes.openPlatformZipUnreadable'),
+    backslashPath: (name) => t('routes.openPlatformZipBackslashPath', { name }),
+    unsafePath: (name) => t('routes.openPlatformZipUnsafePath', { name }),
+    markerMissing: (marker) => t('routes.openPlatformZipMarkerMissing', { marker }),
+    markerNotAtRoot: (marker, foundAt) =>
+      t('routes.openPlatformZipMarkerNotAtRoot', { marker, foundAt }),
+    markerIsDirectory: (marker) => t('routes.openPlatformZipMarkerIsDirectory', { marker }),
+    markerEmpty: (marker) => t('routes.openPlatformZipMarkerEmpty', { marker }),
+    skillNameInvalid: (name) => t('routes.openPlatformSkillNameInvalid', { name }),
+    skillFrontmatterMissing: (field) => t('routes.openPlatformSkillFrontmatterMissing', { field }),
+    connectorJsonInvalid: (reason) => t('routes.openPlatformConnectorJsonInvalid', { reason })
+  }
+}
+
 async function parsePackage(file: File): Promise<ParsedPackage> {
-  if (props.assetType === 'skill') return parseSkillPackage(file)
-  const metadata = await parseConnectorPackage(file)
+  const messages = createPackageMessages()
+  if (props.assetType === 'skill') return parseSkillPackage(file, messages)
+  const metadata = await parseConnectorPackage(file, messages)
   return {
     name: metadata.id,
     displayName: metadata.id,

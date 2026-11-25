@@ -2304,6 +2304,11 @@ declare module 'vue-i18n' {
     appCenterPinRequiresInstall: string
     appCenterFixedInMenu: string
     appCenterPinFailed: string
+    appCenterOpenInside: string
+    appCenterOpenInWindow: string
+    appCenterOpenModeRequiresInstall: string
+    appCenterOpenModeFailed: string
+    appCenterUnsupportedPlatform: string
     appCenterSecurityDesc: string
     appCenterIntro: string
     appCenterNoDescription: string
@@ -2353,6 +2358,14 @@ declare module 'vue-i18n' {
     openPlatformSelectPackage: string
     openPlatformCreate: string
     openPlatformPackageInvalid: string
+    openPlatformZipUnreadable: string
+    openPlatformZipBackslashPath: string
+    openPlatformZipUnsafePath: string
+    openPlatformZipMarkerMissing: string
+    openPlatformZipMarkerNotAtRoot: string
+    openPlatformSkillNameInvalid: string
+    openPlatformSkillFrontmatterMissing: string
+    openPlatformConnectorJsonInvalid: string
     openPlatformConfirmPublish: string
     openPlatformPublishOrganization: string
     openPlatformPublishOrganizationPlaceholder: string
@@ -2404,6 +2417,8 @@ declare module 'vue-i18n' {
     devCenterPublishHintSpawn: string
     devCenterPublishSlotMenu: string
     devCenterPublishSlotAppCenter: string
+    openPlatformZipMarkerIsDirectory: string
+    openPlatformZipMarkerEmpty: string
     common: {
       commandShell: {
         title: string

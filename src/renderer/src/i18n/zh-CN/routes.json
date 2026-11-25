@@ -167,6 +167,14 @@
   "openPlatformSelectPackage": "选择 zip 包",
   "openPlatformCreate": "创建",
   "openPlatformPackageInvalid": "包解析失败，请检查包结构",
+  "openPlatformZipUnreadable": "包解析失败，请检查文件是否为有效 zip",
+  "openPlatformZipBackslashPath": "包内路径不允许包含反斜杠（{name}），请用标准压缩工具重新打包",
+  "openPlatformZipUnsafePath": "包内路径不安全（{name}），请重新打包",
+  "openPlatformZipMarkerMissing": "{marker} 必须位于 zip 根目录",
+  "openPlatformZipMarkerNotAtRoot": "{marker} 必须位于 zip 根目录，当前在 {foundAt}",
+  "openPlatformSkillNameInvalid": "技能 name 不符合命名规则（{name}），仅允许小写字母、数字、点、下划线和连字符",
+  "openPlatformSkillFrontmatterMissing": "SKILL.md 缺少 {field}",
+  "openPlatformConnectorJsonInvalid": "mcp.json {reason}",
   "openPlatformConfirmPublish": "确认发布",
   "openPlatformPublishOrganization": "发布组织",
   "openPlatformPublishOrganizationPlaceholder": "请输入发布组织名称",
@@ -217,5 +225,7 @@
   "devCenterPublishHintDescription": "应用市场卡片上展示的简介。",
   "devCenterPublishHintSpawn": "可选。需要后台 Node 服务时填写启动命令，例如 node node/server.js。",
   "devCenterPublishSlotMenu": "侧栏菜单",
-  "devCenterPublishSlotAppCenter": "应用中心"
+  "devCenterPublishSlotAppCenter": "应用中心",
+  "openPlatformZipMarkerIsDirectory": "{marker} 在 zip 中是目录而不是文件",
+  "openPlatformZipMarkerEmpty": "{marker} 内容为空"
 }

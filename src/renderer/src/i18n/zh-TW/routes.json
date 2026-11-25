@@ -217,5 +217,15 @@
   "devCenterPublishHintDescription": "应用市场卡片上展示的简介。",
   "devCenterPublishHintSpawn": "可选。需要后台 Node 服务时填写启动命令，例如 node node/server.js。",
   "devCenterPublishSlotMenu": "侧栏菜单",
-  "devCenterPublishSlotAppCenter": "应用中心"
+  "devCenterPublishSlotAppCenter": "应用中心",
+  "openPlatformZipUnreadable": "剖析失敗，請確認檔案是否為有效 zip",
+  "openPlatformZipBackslashPath": "封裝內路徑不允許包含反斜線（{name}），請用標準壓縮工具重新封裝",
+  "openPlatformZipUnsafePath": "封裝內路徑不安全（{name}），請重新封裝",
+  "openPlatformZipMarkerMissing": "{marker} 必須位於 zip 根目錄",
+  "openPlatformZipMarkerNotAtRoot": "{marker} 必須位於 zip 根目錄，目前位於 {foundAt}",
+  "openPlatformSkillNameInvalid": "技能 name 不符合命名規則（{name}），僅允許小寫字母、數字、點、底線與連字號",
+  "openPlatformSkillFrontmatterMissing": "SKILL.md 缺少 {field}",
+  "openPlatformConnectorJsonInvalid": "mcp.json {reason}",
+  "openPlatformZipMarkerIsDirectory": "{marker} 在 zip 中是目录而不是文件",
+  "openPlatformZipMarkerEmpty": "{marker} 内容为空"
 }

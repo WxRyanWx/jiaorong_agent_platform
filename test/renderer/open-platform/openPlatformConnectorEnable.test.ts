@@ -15,7 +15,10 @@ import {
   toInstallableConnectorConfig,
   toUpdatableConnectorConfig
 } from '@jiaorong/plugins/market/openPlatformConnectorInstall'
-import { parseConnectorPackage } from '@jiaorong/open-platform/packages/parseOpenPlatformPackage'
+import {
+  parseConnectorPackage,
+  type PackageMessages
+} from '@jiaorong/open-platform/packages/parseOpenPlatformPackage'
 import type {
   OpenPlatformConnectorConfig,
   OpenPlatformConnectorListItem
@@ -31,6 +34,20 @@ function createConnectorZip(config: Record<string, unknown>, name = 'connector.z
     'mcp.json': strToU8(JSON.stringify({ mcpServers: { 'jina-public-mcp': config } }))
   })
   return { name, arrayBuffer: async () => bytes.slice().buffer } as File
+}
+
+/** 解析器文案依赖：回显关键信息，断言只看语义不看本地化措辞。 */
+const packageMessages: PackageMessages = {
+  unreadable: 'unreadable',
+  backslashPath: (value) => `backslash:${value}`,
+  unsafePath: (value) => `unsafe:${value}`,
+  markerMissing: (marker) => `missing:${marker}`,
+  markerNotAtRoot: (marker, foundAt) => `not-at-root:${marker}@${foundAt}`,
+  markerIsDirectory: (marker) => `is-directory:${marker}`,
+  markerEmpty: (marker) => `empty:${marker}`,
+  skillNameInvalid: (value) => `name-invalid:${value}`,
+  skillFrontmatterMissing: (field) => `field-missing:${field}`,
+  connectorJsonInvalid: (reason) => `json:${reason}`
 }
 
 function createListItem(
@@ -88,7 +105,8 @@ describe('connector package config parsing', () => {
         url: 'https://mcp.jina.ai/mcp',
         descriptions: 'Jina 公共连接器',
         customHeaders: { Authorization: 'Bearer jina_token' }
-      })
+      }),
+      packageMessages
     )
 
     expect(parsed.config).toMatchObject({
@@ -106,7 +124,8 @@ describe('connector package config parsing', () => {
         command: 'npx',
         args: ['-y', 'jina-mcp'],
         env: { JINA_API_KEY: 'key-value' }
-      })
+      }),
+      packageMessages
     )
 
     expect(parsed.config).toMatchObject({
@@ -119,12 +138,12 @@ describe('connector package config parsing', () => {
   })
 
   it('rejects remote and stdio packages missing their endpoint', async () => {
-    await expect(parseConnectorPackage(createConnectorZip({ type: 'http' }))).rejects.toThrow(
-      'http、sse 连接器必须提供 url 或 baseUrl'
-    )
-    await expect(parseConnectorPackage(createConnectorZip({ type: 'stdio' }))).rejects.toThrow(
-      'stdio 连接器必须提供 command'
-    )
+    await expect(
+      parseConnectorPackage(createConnectorZip({ type: 'http' }), packageMessages)
+    ).rejects.toThrow('http、sse 连接器必须提供 url 或 baseUrl')
+    await expect(
+      parseConnectorPackage(createConnectorZip({ type: 'stdio' }), packageMessages)
+    ).rejects.toThrow('stdio 连接器必须提供 command')
   })
 
   it('prefers url over baseUrl to match the manual json import path', async () => {
@@ -133,7 +152,8 @@ describe('connector package config parsing', () => {
         type: 'http',
         url: 'https://from-url/mcp',
         baseUrl: 'https://from-base-url/mcp'
-      })
+      }),
+      packageMessages
     )
 
     expect(parsed.config.baseUrl).toBe('https://from-url/mcp')
@@ -147,7 +167,8 @@ describe('connector package config parsing', () => {
         args: ['-p', 3000, '--verbose', true],
         env: { PORT: 3000, DEBUG: true, JINA_API_KEY: 'key-value' },
         customHeaders: { 'X-Retry': 3 }
-      })
+      }),
+      packageMessages
     )
 
     expect(parsed.config.args).toEqual(['-p', '3000', '--verbose', 'true'])
@@ -162,7 +183,8 @@ describe('connector package config parsing', () => {
         command: 'npx',
         args: ['-y', { nested: 'value' }, 'jina-mcp'],
         env: { BROKEN: { nested: 'value' }, KEEP: 'value' }
-      })
+      }),
+      packageMessages
     )
 
     expect(parsed.config.args).toEqual(['-y', 'jina-mcp'])
