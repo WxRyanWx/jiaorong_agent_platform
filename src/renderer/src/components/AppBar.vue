@@ -11,9 +11,12 @@
       <DcButton
         v-if="showUpdateButton"
         variant="default"
-        size="sm"
-        class="window-no-drag-region shrink-0 h-5 rounded-full px-2 text-[10px] font-medium shadow-none"
+        size="xs"
+        icon="lucide:package-check"
+        icon-size="3"
+        class="window-no-drag-region"
         :class="isMacOS ? 'ml-2' : 'ml-3'"
+        :loading="upgrade.isRestarting"
         :disabled="upgrade.isRestarting"
         @click="handleInstallUpdate"
       >

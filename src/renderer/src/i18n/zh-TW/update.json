@@ -13,7 +13,7 @@
   "installUpdate": "安裝更新",
   "versionAvailable": "{version} 可用",
   "autoUpdateFailed": "自動更新失敗，請使用下方手動下載連結。",
-  "topbarButton": "更新",
+  "topbarButton": "点击更新版本",
   "restarting": "正在重啟",
   "alreadyUpToDate": "已經是最新版本了",
   "alreadyUpToDateDesc": "您的 JiaorongAI 目前已經是最新版本，無需更新。",
