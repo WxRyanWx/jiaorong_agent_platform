@@ -214,6 +214,7 @@ export async function verifyInstalledRuntime(step, spawn = crossSpawn.sync) {
 }
 
 const windowsUvFiles = new Set(['uv.exe', 'uvx.exe', 'uvw.exe'])
+const windowsZipRuntimeTypes = new Set(['node', 'uv', 'rtk'])
 
 export function windowsRuntimeArchive(step) {
   if (step.platform !== 'win32') {
@@ -231,6 +232,15 @@ export function windowsRuntimeArchive(step) {
     return {
       kind: 'node',
       url: `https://nodejs.org/dist/${step.version}/node-${step.version}-${platformId}.zip`
+    }
+  }
+  if (step.type === 'rtk') {
+    if (step.arch !== 'x64') {
+      throw new Error(`rtk runtime is only published for win32-x64, received win32-${step.arch}`)
+    }
+    return {
+      kind: 'rtk',
+      url: `https://github.com/rtk-ai/rtk/releases/download/${step.version}/rtk-x86_64-pc-windows-msvc.zip`
     }
   }
   throw new Error(`Windows zip install does not handle ${step.type}`)
@@ -269,6 +279,14 @@ export function windowsRuntimeFiles(entries, kind) {
     }))
   }
 
+  if (kind === 'rtk') {
+    const rtkExe = files
+      .filter((entry) => entry.name.split('/').pop() === 'rtk.exe')
+      .sort((left, right) => left.name.split('/').length - right.name.split('/').length)[0]
+    if (!rtkExe) return []
+    return [{ relative: 'rtk.exe', data: rtkExe.data }]
+  }
+
   const nodeExe = files
     .filter((entry) => entry.name.split('/').pop() === 'node.exe')
     .sort((left, right) => left.name.split('/').length - right.name.split('/').length)[0]
@@ -283,7 +301,13 @@ export function windowsRuntimeFiles(entries, kind) {
 export async function extractWindowsRuntimeZip(bytes, targetDir, kind) {
   const entries = unzipSync(bytes)
   const files = windowsRuntimeFiles(entries, kind)
-  const required = kind === 'uv' ? ['uv.exe', 'uvx.exe'] : ['node.exe']
+  const requiredByKind = {
+    node: ['node.exe'],
+    rtk: ['rtk.exe'],
+    uv: ['uv.exe', 'uvx.exe']
+  }
+  const required = requiredByKind[kind]
+  if (!required) throw new Error(`Windows zip install does not handle ${kind}`)
   const present = new Set(files.map((file) => path.posix.basename(file.relative)))
   const missing = required.filter((name) => !present.has(name))
   if (missing.length > 0) {
@@ -330,7 +354,7 @@ export async function runRuntimeInstallPlan(
     if (
       hostPlatform === 'win32' &&
       step.platform === 'win32' &&
-      (step.type === 'node' || step.type === 'uv')
+      windowsZipRuntimeTypes.has(step.type)
     ) {
       await installZip(step)
       await verify(step)

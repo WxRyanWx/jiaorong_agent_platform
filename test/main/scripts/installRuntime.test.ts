@@ -140,6 +140,16 @@ describe('install-runtime', () => {
     )
   })
 
+  it('builds the Windows x64 rtk zip url without Expand-Archive', () => {
+    const plan = buildRuntimeInstallPlan({ platform: 'win32', arch: 'x64' })
+    const rtk = plan.find((step) => step.type === 'rtk')
+
+    expect(windowsRuntimeArchive(rtk).url).toBe(
+      'https://github.com/rtk-ai/rtk/releases/download/v0.43.0/rtk-x86_64-pc-windows-msvc.zip'
+    )
+    expect(() => windowsRuntimeArchive({ ...rtk, arch: 'arm64' })).toThrow(/only published/)
+  })
+
   it('lifts uv and node files out of a Windows zip', async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), 'runtime-zip-'))
     try {
@@ -175,6 +185,33 @@ describe('install-runtime', () => {
     }
   })
 
+  it('lifts rtk.exe out of a Windows zip', async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), 'runtime-zip-'))
+    try {
+      const rtkDir = path.join(root, 'rtk')
+      await extractWindowsRuntimeZip(
+        zipSync({
+          'rtk.exe': strToU8('rtk'),
+          'README.md': strToU8('skip')
+        }),
+        rtkDir,
+        'rtk'
+      )
+      expect(await readFile(path.join(rtkDir, 'rtk.exe'), 'utf8')).toBe('rtk')
+      await expect(readFile(path.join(rtkDir, 'README.md'), 'utf8')).rejects.toThrow()
+
+      const nestedDir = path.join(root, 'rtk-nested')
+      await extractWindowsRuntimeZip(
+        zipSync({ 'rtk-v0.43.0/rtk.exe': strToU8('nested') }),
+        nestedDir,
+        'rtk'
+      )
+      expect(await readFile(path.join(nestedDir, 'rtk.exe'), 'utf8')).toBe('nested')
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
   it('installs Windows zip runtimes without calling tiny-runtime-injector', async () => {
     const plan = buildRuntimeInstallPlan({ platform: 'win32', arch: 'arm64' })
     const spawn = vi.fn()
@@ -189,6 +226,26 @@ describe('install-runtime', () => {
     expect(spawn).not.toHaveBeenCalled()
     expect(installWindowsZipRuntime.mock.calls.map(([step]) => step.type)).toEqual(['uv', 'node'])
     expect(verify).toHaveBeenCalledTimes(2)
+  })
+
+  it('installs rtk through the Windows zip path on x64', async () => {
+    const plan = buildRuntimeInstallPlan({ platform: 'win32', arch: 'x64' })
+    const spawn = vi.fn()
+    const verify = vi.fn().mockResolvedValue(undefined)
+    const installWindowsZipRuntime = vi.fn().mockResolvedValue(undefined)
+
+    await runRuntimeInstallPlan(plan, spawn, verify, {
+      hostPlatform: 'win32',
+      installWindowsZipRuntime
+    })
+
+    expect(spawn).not.toHaveBeenCalled()
+    expect(installWindowsZipRuntime.mock.calls.map(([step]) => step.type)).toEqual([
+      'uv',
+      'node',
+      'rtk'
+    ])
+    expect(verify).toHaveBeenCalledTimes(3)
   })
 
   it('stops at the first failed runtime installation', async () => {
