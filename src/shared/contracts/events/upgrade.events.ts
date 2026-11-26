@@ -19,6 +19,7 @@ export const upgradeStatusChangedEvent = defineEventContract({
       .enum(['checking', 'available', 'not-available', 'downloading', 'downloaded', 'error'])
       .nullable(),
     error: z.string().optional().nullable(),
+    errorPhase: z.enum(['check', 'download', 'install']).optional().nullable(),
     info: UpgradeInfoSchema.optional(),
     type: z.string().optional(),
     version: z.number().int()

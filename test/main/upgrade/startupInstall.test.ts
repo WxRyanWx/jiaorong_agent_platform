@@ -24,7 +24,6 @@ describe('tryInstallDownloadedUpdateOnStartup', () => {
   let hashFile: ReturnType<typeof vi.fn>
   let notify: ReturnType<typeof vi.fn>
   let exitApp: ReturnType<typeof vi.fn>
-  let delay: ReturnType<typeof vi.fn>
 
   beforeEach(async () => {
     directory = await mkdtemp(path.join(os.tmpdir(), 'deepchat-startup-install-'))
@@ -40,7 +39,6 @@ describe('tryInstallDownloadedUpdateOnStartup', () => {
     hashFile = vi.fn(async () => 'sha512-ok')
     notify = vi.fn()
     exitApp = vi.fn()
-    delay = vi.fn(async () => {})
   })
 
   afterEach(async () => {
@@ -63,7 +61,6 @@ describe('tryInstallDownloadedUpdateOnStartup', () => {
         phase: input.phase ?? 'downloaded',
         attempts: input.attempts ?? 0,
         installerPath: target,
-        installerFile: path.basename(target),
         downloadedAt: input.downloadedAt ?? Date.now(),
         sha512: input.sha512 ?? ''
       })
@@ -83,7 +80,6 @@ describe('tryInstallDownloadedUpdateOnStartup', () => {
       hashFile,
       notify,
       exitApp,
-      delay,
       ...overrides
     })
 
@@ -118,7 +114,6 @@ describe('tryInstallDownloadedUpdateOnStartup', () => {
     await expect(run()).resolves.toBe('installed')
     expect(launchInstaller).toHaveBeenCalledWith(installerPath, directory)
     expect(notify).toHaveBeenCalledWith('1.1.0')
-    expect(delay).toHaveBeenCalledWith(500)
     expect(exitApp).toHaveBeenCalled()
 
     expect(await readMarker()).toEqual(
@@ -265,6 +260,36 @@ describe('tryInstallDownloadedUpdateOnStartup', () => {
     await expect(run()).resolves.toBe('none')
     expect(launchInstaller).not.toHaveBeenCalled()
     expect(existsSync(markerPath)).toBe(true)
+  })
+
+  it('still cleans up an expired cache even after three failed attempts', async () => {
+    await writeFile(installerPath, 'stub')
+    await writeMarker({
+      attempts: 3,
+      downloadedAt: Date.now() - 8 * 24 * 60 * 60 * 1000
+    })
+
+    await expect(run()).resolves.toBe('none')
+    expect(launchInstaller).not.toHaveBeenCalled()
+    expect(existsSync(markerPath)).toBe(false)
+    expect(existsSync(installerPath)).toBe(false)
+  })
+
+  it('refuses a pending path outside an *-updater directory', async () => {
+    const otherAppPending = path.join(
+      directory,
+      'OtherApp',
+      'pending',
+      'JiaorongAI-windows-x64.exe'
+    )
+    await mkdir(path.dirname(otherAppPending), { recursive: true })
+    await writeFile(otherAppPending, 'stub')
+    await writeMarker({ installerPath: otherAppPending })
+
+    await expect(run()).resolves.toBe('none')
+    expect(launchInstaller).not.toHaveBeenCalled()
+    expect(existsSync(markerPath)).toBe(false)
+    expect(existsSync(otherAppPending)).toBe(true)
   })
 
   it('exits quietly while the installer is still running', async () => {

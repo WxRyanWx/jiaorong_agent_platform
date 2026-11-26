@@ -1194,4 +1194,225 @@ describe('UpgradeService', () => {
     await service.goDownloadUpgrade('official')
     expect(shell.openExternal).toHaveBeenCalledWith(expected)
   })
+
+  it('keeps exhausted attempts when a manual check fails offline', async () => {
+    const markerPath = path.join(userDataDirectory, 'auto_update_marker.json')
+    await writeFile(
+      markerPath,
+      JSON.stringify({
+        version: '1.1.0',
+        phase: 'installing',
+        attempts: 3,
+        timestamp: Date.now()
+      })
+    )
+
+    const service = createService()
+    vi.mocked(electronUpdater.autoUpdater.checkForUpdates).mockRejectedValueOnce(
+      new Error('net::ERR_INTERNET_DISCONNECTED')
+    )
+
+    await service.checkUpdate('manualCheck')
+
+    const marker = JSON.parse(await readFile(markerPath, 'utf8'))
+    expect(marker.attempts).toBe(3)
+    expect(marker.phase).toBe('installing')
+    expect((service as any)._previousUpdateFailed).toBe(true)
+  })
+
+  it('resets _previousUpdateFailed after update-not-available so future versions are not blocked', async () => {
+    const markerPath = path.join(userDataDirectory, 'auto_update_marker.json')
+    await writeFile(
+      markerPath,
+      JSON.stringify({
+        version: '1.1.0',
+        phase: 'installing',
+        attempts: 3,
+        timestamp: Date.now()
+      })
+    )
+
+    const service = createService()
+    expect(service.getUpdateStatus().status).toBe('error')
+
+    autoUpdaterState.listeners.get('update-not-available')!({ version: '1.0.0' })
+    autoUpdaterState.listeners.get('update-available')!({
+      version: '1.1.0',
+      releaseDate: '2026-09-01',
+      releaseNotes: ''
+    })
+
+    expect(service.getUpdateStatus().status).toBe('available')
+  })
+
+  it('does not expose stale updateInfo or fake downloaded status on startup before current-session download', async () => {
+    const installerPath = path.join(
+      userDataDirectory,
+      'JiaorongAI-updater',
+      'pending',
+      'JiaorongAI-windows-x64.exe'
+    )
+    await mkdir(path.dirname(installerPath), { recursive: true })
+    await writeFile(installerPath, 'stub')
+    const markerPath = path.join(userDataDirectory, 'auto_update_marker.json')
+    await writeFile(
+      markerPath,
+      JSON.stringify({
+        version: '1.1.0',
+        phase: 'installing',
+        attempts: 1,
+        installerPath,
+        downloadedAt: Date.now()
+      })
+    )
+
+    const service = createService()
+
+    expect(service.getUpdateStatus().status).toBe('not-available')
+    expect(service.getUpdateStatus().updateInfo).toBeNull()
+    const marker = JSON.parse(await readFile(markerPath, 'utf8'))
+    expect(marker.phase).toBe('downloaded')
+    expect(marker.attempts).toBe(1)
+  })
+
+  it('does not overwrite new version fields with stale marker data after a manual check finds a newer version', async () => {
+    const oldInstallerPath = path.join(
+      userDataDirectory,
+      'JiaorongAI-updater',
+      'pending',
+      'JiaorongAI-windows-x64.exe'
+    )
+    const markerPath = path.join(userDataDirectory, 'auto_update_marker.json')
+    await writeFile(
+      markerPath,
+      JSON.stringify({
+        version: '1.1.0',
+        releaseNotes: 'old notes',
+        phase: 'installing',
+        attempts: 3,
+        installerPath: oldInstallerPath,
+        sha512: 'old-hash',
+        downloadedAt: Date.now()
+      })
+    )
+
+    const service = createService()
+    vi.mocked(electronUpdater.autoUpdater.checkForUpdates).mockImplementationOnce(async () => {
+      autoUpdaterState.listeners.get('update-available')!({
+        version: '1.2.0',
+        releaseDate: '2026-10-01',
+        releaseNotes: 'new notes'
+      })
+      return undefined as never
+    })
+
+    await service.checkUpdate('manualCheck')
+
+    expect(service.getUpdateStatus().status).toBe('available')
+    expect(service.getUpdateStatus().updateInfo?.version).toBe('1.2.0')
+    expect((service as any)._installerPath).toBe('')
+    expect((service as any)._sha512).toBe('')
+    const marker = JSON.parse(await readFile(markerPath, 'utf8'))
+    expect(marker.version).toBe('1.1.0')
+    expect(marker.releaseNotes).toBe('old notes')
+  })
+
+  it('cleans up an expired marker and cached installer even after three failed attempts', async () => {
+    const installerPath = path.join(
+      userDataDirectory,
+      'JiaorongAI-updater',
+      'pending',
+      'JiaorongAI-windows-x64.exe'
+    )
+    await mkdir(path.dirname(installerPath), { recursive: true })
+    await writeFile(installerPath, 'stub')
+    const markerPath = path.join(userDataDirectory, 'auto_update_marker.json')
+    await writeFile(
+      markerPath,
+      JSON.stringify({
+        version: '1.1.0',
+        phase: 'installing',
+        attempts: 3,
+        installerPath,
+        downloadedAt: Date.now() - 8 * 24 * 60 * 60 * 1000
+      })
+    )
+
+    const service = createService()
+
+    expect(existsSync(markerPath)).toBe(false)
+    expect(existsSync(installerPath)).toBe(false)
+    expect(service.getUpdateStatus().status).toBe('not-available')
+  })
+
+  it('runs silent quitAndInstall with forceRunAfter on Windows when restarting to update', async () => {
+    vi.spyOn(process, 'platform', 'get').mockReturnValue('win32')
+    const service = createService()
+    ;(service as any)._status = 'downloaded'
+
+    expect(service.restartToUpdate()).toBe(true)
+    await Promise.resolve()
+
+    expect(electronUpdater.autoUpdater.quitAndInstall).toHaveBeenCalledWith(true, true)
+  })
+
+  it('keeps install errorPhase and records check timestamp when autoCheck hits exhausted attempts', async () => {
+    const markerPath = path.join(userDataDirectory, 'auto_update_marker.json')
+    await writeFile(
+      markerPath,
+      JSON.stringify({
+        version: '1.1.0',
+        phase: 'installing',
+        attempts: 3,
+        downloadedAt: Date.now()
+      })
+    )
+
+    const service = createService()
+    vi.mocked(electronUpdater.autoUpdater.checkForUpdates).mockImplementationOnce(async () => {
+      autoUpdaterState.listeners.get('update-available')!({
+        version: '1.1.0',
+        releaseDate: '2026-09-01',
+        releaseNotes: ''
+      })
+      return undefined as never
+    })
+
+    await service.checkUpdate('autoCheck')
+
+    expect(service.getUpdateStatus()).toMatchObject({
+      status: 'error',
+      errorPhase: 'install'
+    })
+    expect((service as any)._lastCheckTime).toBeGreaterThan(0)
+    expect((service as any)._previousUpdateFailed).toBe(true)
+  })
+
+  it('clears cached installer metadata on update-not-available', async () => {
+    const installerPath = path.join(
+      userDataDirectory,
+      'JiaorongAI-updater',
+      'pending',
+      'JiaorongAI-windows-x64.exe'
+    )
+    const markerPath = path.join(userDataDirectory, 'auto_update_marker.json')
+    await writeFile(
+      markerPath,
+      JSON.stringify({
+        version: '1.1.0',
+        phase: 'downloaded',
+        attempts: 1,
+        installerPath,
+        sha512: 'old-hash',
+        downloadedAt: Date.now()
+      })
+    )
+
+    const service = createService()
+    autoUpdaterState.listeners.get('update-not-available')!({ version: '1.0.0' })
+
+    expect((service as any)._installerPath).toBe('')
+    expect((service as any)._sha512).toBe('')
+    expect((service as any)._downloadedAt).toBe(0)
+  })
 })

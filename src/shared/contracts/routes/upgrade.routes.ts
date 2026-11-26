@@ -31,6 +31,7 @@ export const upgradeGetStatusRoute = defineRouteContract({
         .nullable(),
       progress: UpdateProgressSchema,
       error: z.string().nullable(),
+      errorPhase: z.enum(['check', 'download', 'install']).optional().nullable(),
       updateInfo: UpdateInfoSchema
     })
   })

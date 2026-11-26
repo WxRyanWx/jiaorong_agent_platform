@@ -32,10 +32,13 @@ type ProgressInfo = {
   total: number
 }
 
+type UpdateErrorPhase = 'check' | 'download' | 'install'
+
 type PresenterStatusSnapshot = {
   status: PresenterUpdateStatus
   progress: ProgressInfo | null
   error: string | null
+  errorPhase?: UpdateErrorPhase | null
   updateInfo: UpdateInfo | null
 }
 
@@ -78,6 +81,8 @@ export const useUpgradeStore = defineStore('upgrade', () => {
   const isSilent = ref(true)
   const platform = ref<string | null>(null)
   const listenersReady = ref(false)
+  const lastFailureWasCheck = ref(false)
+  const lastErrorPhase = ref<UpdateErrorPhase | null>(null)
   let externalMutationToken = 0
   let latestSyncRequestId = 0
 
@@ -109,7 +114,7 @@ export const useUpgradeStore = defineStore('upgrade', () => {
   const shouldShowUpdateNotes = computed(() => hasUpdate.value)
   const shouldShowTopbarInstallButton = computed(() => isReadyToInstall.value)
   const showManualDownloadOptions = computed(
-    () => rawStatus.value === 'error' && Boolean(updateInfo.value)
+    () => rawStatus.value === 'error' && Boolean(updateInfo.value) && !lastFailureWasCheck.value
   )
 
   const applyProgress = (
@@ -143,7 +148,7 @@ export const useUpgradeStore = defineStore('upgrade', () => {
         return rawStatus.value
       }
 
-      applyStatus(snapshot.status, snapshot.updateInfo, snapshot.error, 'sync')
+      applyStatus(snapshot.status, snapshot.updateInfo, snapshot.error, 'sync', snapshot.errorPhase)
       applyProgress(snapshot.progress, 'sync', mutationTokenBeforeRequest)
       return snapshot.status
     } catch (error) {
@@ -156,8 +161,10 @@ export const useUpgradeStore = defineStore('upgrade', () => {
     status: PresenterUpdateStatus,
     info?: UpdateInfo | null,
     error?: string | null,
-    source: 'external' | 'sync' = 'external'
+    source: 'external' | 'sync' = 'external',
+    errorPhase?: UpdateErrorPhase | null
   ) => {
+    const wasChecking = isChecking.value
     if (source === 'external') {
       externalMutationToken += 1
     }
@@ -169,6 +176,7 @@ export const useUpgradeStore = defineStore('upgrade', () => {
     }
 
     if (status === 'checking') {
+      lastErrorPhase.value = null
       updateError.value = null
       updateProgress.value = null
       isRestarting.value = false
@@ -176,6 +184,8 @@ export const useUpgradeStore = defineStore('upgrade', () => {
     }
 
     if (status === 'not-available') {
+      lastFailureWasCheck.value = false
+      lastErrorPhase.value = null
       updateInfo.value = null
       updateError.value = null
       updateProgress.value = null
@@ -184,6 +194,8 @@ export const useUpgradeStore = defineStore('upgrade', () => {
     }
 
     if (status === 'available') {
+      lastFailureWasCheck.value = false
+      lastErrorPhase.value = null
       updateError.value = null
       updateProgress.value = null
       isRestarting.value = false
@@ -191,18 +203,28 @@ export const useUpgradeStore = defineStore('upgrade', () => {
     }
 
     if (status === 'downloading') {
+      lastFailureWasCheck.value = false
+      lastErrorPhase.value = null
       updateError.value = null
       isRestarting.value = false
       return
     }
 
     if (status === 'downloaded') {
+      lastFailureWasCheck.value = false
+      lastErrorPhase.value = null
       updateError.value = null
       isRestarting.value = false
       return
     }
 
     if (status === 'error') {
+      lastErrorPhase.value = errorPhase ?? null
+      if (errorPhase !== undefined) {
+        lastFailureWasCheck.value = errorPhase === 'check'
+      } else if (source === 'external') {
+        lastFailureWasCheck.value = wasChecking
+      }
       updateError.value = error || DEFAULT_UPDATE_ERROR
       isRestarting.value = false
       return
@@ -225,12 +247,27 @@ export const useUpgradeStore = defineStore('upgrade', () => {
     if (isChecking.value) return rawStatus.value
 
     try {
+      lastFailureWasCheck.value = false
       applyStatus('checking', updateInfo.value, null)
       await upgradeClient.checkUpdate()
-      return await syncFromPresenterStatus()
+      const synced = await syncFromPresenterStatus()
+      if (
+        synced === 'error' &&
+        lastErrorPhase.value !== 'install' &&
+        lastErrorPhase.value !== 'download'
+      ) {
+        lastFailureWasCheck.value = true
+      }
+      return synced
     } catch (error) {
       console.error('Failed to check update:', error)
-      applyStatus('error', updateInfo.value, error instanceof Error ? error.message : String(error))
+      applyStatus(
+        'error',
+        updateInfo.value,
+        error instanceof Error ? error.message : String(error),
+        'external',
+        'check'
+      )
       return 'error'
     }
   }
@@ -289,7 +326,7 @@ export const useUpgradeStore = defineStore('upgrade', () => {
       if (type === 'auto') {
         const success = await upgradeClient.startDownloadUpdate()
         if (!success) {
-          applyStatus('error', updateInfo.value, updateError.value)
+          applyStatus('error', updateInfo.value, updateError.value, 'external', 'download')
         }
         return
       }
@@ -297,15 +334,27 @@ export const useUpgradeStore = defineStore('upgrade', () => {
       await startUpdate(type)
     } catch (error) {
       console.error('Update failed:', error)
-      applyStatus('error', updateInfo.value, error instanceof Error ? error.message : String(error))
+      applyStatus(
+        'error',
+        updateInfo.value,
+        error instanceof Error ? error.message : String(error),
+        'external',
+        isReadyToInstall.value ? 'install' : type === 'auto' ? 'download' : null
+      )
     } finally {
       isUpdating.value = false
     }
   }
 
   const handleStatusChanged = (_: unknown, event: Record<string, any>) => {
-    const { status, info, error } = event
-    applyStatus(status as PresenterUpdateStatus, info, error)
+    const { status, info, error, errorPhase } = event
+    applyStatus(
+      status as PresenterUpdateStatus,
+      info,
+      error,
+      'external',
+      errorPhase as UpdateErrorPhase | null | undefined
+    )
   }
 
   const handleProgress = (_: unknown, progressData: Record<string, any>) => {
@@ -329,7 +378,9 @@ export const useUpgradeStore = defineStore('upgrade', () => {
     applyStatus(
       updateInfo.value ? 'error' : null,
       updateInfo.value,
-      errorData?.error || DEFAULT_UPDATE_ERROR
+      errorData?.error || DEFAULT_UPDATE_ERROR,
+      'external',
+      'install'
     )
   }
 

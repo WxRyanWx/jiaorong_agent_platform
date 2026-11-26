@@ -9,6 +9,7 @@ import path from 'path'
 import { resolveAppDownloadArtifact } from '@shared/upgrade/downloadLinks'
 import {
   getUpdateCacheRoot,
+  isMarkerCacheExpired,
   isMarkerVersionReached,
   isPrereleaseVersion,
   isTrustedInstallerPath,
@@ -56,6 +57,8 @@ type UpdateStatus =
   | 'downloading'
   | 'downloaded'
   | 'error'
+
+type UpdateErrorPhase = 'check' | 'download' | 'install'
 
 export type UpgradeFailureObservation = {
   operation:
@@ -149,6 +152,7 @@ export class UpgradeService {
   private _status: UpdateStatus = 'not-available'
   private _progress: UpdateProgress | null = null
   private _error: string | null = null
+  private _errorPhase: UpdateErrorPhase | null = null
   private _versionInfo: VersionInfo | null = null
   private _lastCheckTime: number = 0 // 上次检查更新的时间戳
   private _lastCheckType?: string
@@ -158,6 +162,7 @@ export class UpgradeService {
   private _isMockUpdate: boolean = false
   private _automaticCheckFailureActive: boolean = false
   private _activeCheckOperations: number = 0
+  private _manualCheckOperations: number = 0
   private _downloadOperationActive: boolean = false
   private _checkFailureObserved: boolean = false
   private _downloadFailureObserved: boolean = false
@@ -173,6 +178,7 @@ export class UpgradeService {
   private emitStatusChanged(payload: {
     status: UpdateStatus | null
     error?: string | null
+    errorPhase?: UpdateErrorPhase | null
     info?: VersionInfo | null
     type?: string
   }): void {
@@ -236,9 +242,11 @@ export class UpgradeService {
       this._lock = false
       this._status = 'error'
       this._error = e.message
+      this._errorPhase = this.toErrorPhase(operation)
       this.emitStatusChanged({
         status: this._status,
         error: this._error,
+        errorPhase: this._errorPhase,
         info: this._versionInfo
       })
     })
@@ -255,8 +263,12 @@ export class UpgradeService {
       this._lock = false
       this._status = 'not-available'
       this._error = null
+      this._errorPhase = null
       this._progress = null
       this._versionInfo = null
+      this._previousUpdateFailed = false
+      this._installAttempts = 0
+      this.clearCachedInstallerMetadata()
       this.emitStatusChanged({
         status: this._status,
         type: this._lastCheckType
@@ -291,10 +303,15 @@ export class UpgradeService {
           current: currentVersion,
           remote: remoteVersion
         })
+        this.reconcileMarkerWithRemoteVersion(remoteVersion)
         this._status = 'not-available'
         this._error = null
+        this._errorPhase = null
         this._progress = null
         this._versionInfo = null
+        this._previousUpdateFailed = false
+        this._installAttempts = 0
+        this.clearCachedInstallerMetadata()
         this.emitStatusChanged({
           status: this._status,
           type: this._lastCheckType
@@ -307,6 +324,7 @@ export class UpgradeService {
       const previousTarget = this._versionInfo?.version ?? this.readUpdateMarker()?.version ?? ''
       this._versionInfo = nextInfo
       this._error = null
+      this._errorPhase = null
       this._progress = null
 
       // 目标版本变了：重置次数与「上次失败」状态，新版本应重新获得自动更新机会
@@ -318,18 +336,18 @@ export class UpgradeService {
         this._installAttempts = 0
         this._previousUpdateFailed = false
         // 目标版本变了：旧安装包路径/哈希不能带进新版本的标记（fallback 路径会用到）
-        this._installerPath = ''
-        this._sha512 = ''
-        this._downloadedAt = 0
+        this.clearCachedInstallerMetadata()
       }
 
-      if (this._previousUpdateFailed) {
+      if (this._previousUpdateFailed && this._manualCheckOperations === 0) {
         logger.info('上次更新失败，本次不进行自动更新，改为手动更新')
         this._status = 'error'
         this._error = '自动更新可能不稳定，请手动下载更新'
+        this._errorPhase = 'install'
         this.emitStatusChanged({
           status: this._status,
           error: this._error,
+          errorPhase: this._errorPhase,
           info: this._versionInfo
         })
         return
@@ -350,6 +368,7 @@ export class UpgradeService {
     autoUpdater.on('download-progress', (progressObj) => {
       this._lock = true
       this._status = 'downloading'
+      this._errorPhase = null
       this._progress = {
         bytesPerSecond: progressObj.bytesPerSecond,
         percent: progressObj.percent,
@@ -417,19 +436,19 @@ export class UpgradeService {
       return
     }
 
-    this._versionInfo = {
-      version: marker.version,
-      releaseDate: marker.releaseDate,
-      releaseNotes: marker.releaseNotes,
-      githubUrl: marker.githubUrl,
-      downloadUrl: resolveCurrentDownloadUrl()
+    // 缓存超过 7 天：即使已达尝试上限，也要清理旧包和标记，避免长期占用磁盘
+    if (isMarkerCacheExpired(marker.downloadedAt)) {
+      logger.info('缓存的安装包已过期，清理旧标记与安装包', { version: marker.version })
+      this.removeCachedInstaller(marker.installerPath)
+      this.clearUpdateMarker()
+      return
     }
+
+    const versionInfo = this.applyMarkerCacheMetadata(marker)
     this._installAttempts = marker.attempts
-    this._installerPath = marker.installerPath
-    this._downloadedAt = marker.downloadedAt
-    this._sha512 = marker.sha512
 
     if (this._installAttempts >= MAX_UPDATE_INSTALL_ATTEMPTS) {
+      this._versionInfo = versionInfo
       logger.info('上次自动更新反复未完成，改为手动下载', {
         version: marker.version,
         attempts: this._installAttempts
@@ -438,10 +457,12 @@ export class UpgradeService {
       return
     }
 
-    // 上次交给安装器但没装成：改回 downloaded，本次启动再试一次
+    // 不在未下载的当前进程里把 _status 伪装成 downloaded（electron-updater 内存里尚无安装包，
+    // 否则点击「立即安装」会走 quitAndInstall 空转），也不单独挂出 _versionInfo 造成按钮与文案分裂。
+    // 上次交给安装器但没装成：改回 downloaded，本次启动再试一次。
     if (marker.phase === UPDATE_MARKER_PHASE_INSTALLING) {
       logger.info('上次安装未完成，本次启动重试', { version: marker.version })
-      this.writeUpdateMarker(marker.version, UPDATE_MARKER_PHASE_DOWNLOADED)
+      this.writeUpdateMarker(marker.version, UPDATE_MARKER_PHASE_DOWNLOADED, versionInfo)
     }
   }
 
@@ -489,11 +510,13 @@ export class UpgradeService {
   private enterManualDownloadState(): void {
     this._status = 'error'
     this._error = '自动更新失败，请手动下载安装包'
+    this._errorPhase = 'install'
     this._previousUpdateFailed = true
     this.notifyFailure('install_verification', 'unknown')
     this.emitStatusChanged({
       status: this._status,
       error: this._error,
+      errorPhase: this._errorPhase,
       info: this._versionInfo
     })
   }
@@ -525,14 +548,19 @@ export class UpgradeService {
 
   // 写入更新标记文件；phase 区分「下载完」与「已交给安装器」，attempts 累计安装尝试。
   // 返回是否写成功：调用方需要据此回退次数，避免把没落盘的尝试算进去。
-  private writeUpdateMarker(version: string, phase: string): boolean {
+  private writeUpdateMarker(
+    version: string,
+    phase: string,
+    versionInfoOverride?: VersionInfo
+  ): boolean {
+    const info = versionInfoOverride ?? this._versionInfo
     try {
       const marker: UpdateMarker = {
         version,
-        releaseDate: this._versionInfo?.releaseDate || '',
-        releaseNotes: this._versionInfo?.releaseNotes || '',
-        githubUrl: this._versionInfo?.githubUrl || '',
-        downloadUrl: this._versionInfo?.downloadUrl || '',
+        releaseDate: info?.releaseDate || '',
+        releaseNotes: info?.releaseNotes || '',
+        githubUrl: info?.githubUrl || '',
+        downloadUrl: info?.downloadUrl || '',
         phase,
         attempts: this._installAttempts,
         installerPath: this._installerPath,
@@ -556,6 +584,7 @@ export class UpgradeService {
     this._lock = false
     this._status = 'downloaded'
     this._error = null
+    this._errorPhase = null
     this._progress = null
 
     if (!this._versionInfo && info) {
@@ -601,15 +630,15 @@ export class UpgradeService {
     }
 
     const checkType = type ?? 'manualCheck'
-    if (checkType !== 'autoCheck') {
-      // 用户主动检查：重置重试预算，但保留已下载的标记（装它就行，不用重新下）
-      this._previousUpdateFailed = false
-      this.resetMarkerAttempts()
+    const isManualCheck = checkType !== 'autoCheck'
+    if (isManualCheck) {
+      this._manualCheckOperations += 1
     }
     this._activeCheckOperations += 1
     try {
       this._status = 'checking'
       this._error = null
+      this._errorPhase = null
       this._progress = null
       this._lastCheckType = checkType
       this._checkFailureObserved = false
@@ -622,17 +651,31 @@ export class UpgradeService {
       autoUpdater.channel = 'jrsi'
 
       await autoUpdater.checkForUpdates()
+      if (this.hasCheckOrDownloadError()) {
+        return
+      }
       this._lastCheckTime = Date.now()
       this._automaticCheckFailureActive = false
+      if (this.hasInstallBlockedError()) {
+        return
+      }
+      if (isManualCheck) {
+        // 仅在检查成功后再重置重试预算，避免离线检查时复活已熔断的坏包
+        this._previousUpdateFailed = false
+        this.resetMarkerAttempts()
+      }
     } catch (error: unknown) {
       this.notifyUpdaterFailure('check', 'unknown')
       this._status = 'error'
       this._error = error instanceof Error ? error.message : String(error)
+      this._errorPhase = 'check'
       this.emitStatusChanged({
         status: this._status,
-        error: this._error
+        error: this._error,
+        errorPhase: this._errorPhase
       })
     } finally {
+      if (isManualCheck && this._manualCheckOperations > 0) this._manualCheckOperations -= 1
       if (this._activeCheckOperations > 0) this._activeCheckOperations -= 1
     }
   }
@@ -642,6 +685,7 @@ export class UpgradeService {
       status: this._status,
       progress: this._progress,
       error: this._error,
+      errorPhase: this._errorPhase,
       updateInfo: this._versionInfo
         ? {
             version: this._versionInfo.version,
@@ -678,6 +722,8 @@ export class UpgradeService {
     this._downloadFailureObserved = false
     try {
       this._status = 'downloading'
+      this._error = null
+      this._errorPhase = null
       this._downloadOperationActive = true
       this.emitStatusChanged({
         status: this._status,
@@ -698,9 +744,11 @@ export class UpgradeService {
           this._lock = false
           this._status = 'error'
           this._error = error instanceof Error ? error.message : String(error)
+          this._errorPhase = 'download'
           this.emitStatusChanged({
             status: this._status,
             error: this._error,
+            errorPhase: this._errorPhase,
             info: this._versionInfo
           })
         })
@@ -713,9 +761,11 @@ export class UpgradeService {
       this.notifyUpdaterFailure('download', 'unknown')
       this._status = 'error'
       this._error = error instanceof Error ? error.message : String(error)
+      this._errorPhase = 'download'
       this.emitStatusChanged({
         status: this._status,
-        error: this._error
+        error: this._error,
+        errorPhase: this._errorPhase
       })
       return false
     }
@@ -728,6 +778,11 @@ export class UpgradeService {
       if (process.platform === 'darwin') {
         logger.info('macOS update: calling quitAndInstall with forceRunAfter=true')
         autoUpdater.quitAndInstall(false, true) // silent=false, forceRunAfter=true
+        return
+      }
+      if (process.platform === 'win32') {
+        logger.info('Windows update: calling silent quitAndInstall with forceRunAfter=true')
+        autoUpdater.quitAndInstall(true, true) // silent=true, forceRunAfter=true
         return
       }
 
@@ -795,17 +850,9 @@ export class UpgradeService {
       return
     }
 
-    this._versionInfo = this._versionInfo ?? {
-      version: marker.version,
-      releaseDate: marker.releaseDate,
-      releaseNotes: marker.releaseNotes,
-      githubUrl: marker.githubUrl,
-      downloadUrl: resolveCurrentDownloadUrl()
-    }
+    const markerVersionInfo = this.applyMarkerCacheMetadata(marker)
+    this._versionInfo = this._versionInfo ?? markerVersionInfo
     this._installAttempts = marker.attempts + 1
-    this._installerPath = marker.installerPath
-    this._downloadedAt = marker.downloadedAt
-    this._sha512 = marker.sha512
     this.writeUpdateMarker(marker.version, UPDATE_MARKER_PHASE_INSTALLING)
   }
 
@@ -816,12 +863,31 @@ export class UpgradeService {
       this._installAttempts = 0
       return
     }
+    // 如果本次检查已经发现了新的目标版本，不要拿旧标记的 installerPath/sha512 覆盖新版本状态
+    if (this._versionInfo && this._versionInfo.version !== marker.version) {
+      return
+    }
     this._installAttempts = 0
+    const markerVersionInfo = this.applyMarkerCacheMetadata(marker)
+    // 手动重试属于「已下载、待安装」，不能把 installing 阶段带进去
+    this.writeUpdateMarker(
+      marker.version,
+      UPDATE_MARKER_PHASE_DOWNLOADED,
+      this._versionInfo ?? markerVersionInfo
+    )
+  }
+
+  private applyMarkerCacheMetadata(marker: UpdateMarker): VersionInfo {
     this._installerPath = marker.installerPath
     this._downloadedAt = marker.downloadedAt
     this._sha512 = marker.sha512
-    // 手动重试属于「已下载、待安装」，不能把 installing 阶段带进去
-    this.writeUpdateMarker(marker.version, UPDATE_MARKER_PHASE_DOWNLOADED)
+    return {
+      version: marker.version,
+      releaseDate: marker.releaseDate,
+      releaseNotes: marker.releaseNotes,
+      githubUrl: marker.githubUrl,
+      downloadUrl: resolveCurrentDownloadUrl()
+    }
   }
 
   mockDownloadedUpdate(): boolean {
@@ -829,6 +895,7 @@ export class UpgradeService {
     this._lock = false
     this._status = 'downloaded'
     this._error = null
+    this._errorPhase = null
     this._progress = null
     this._versionInfo = {
       version: '9.9.9-mock',
@@ -856,6 +923,7 @@ export class UpgradeService {
     this._lock = false
     this._status = 'not-available'
     this._error = null
+    this._errorPhase = null
     this._progress = null
     this._versionInfo = null
 
@@ -932,6 +1000,29 @@ export class UpgradeService {
     } catch {
       // 诊断上报不能改变更新状态，也不能影响用户侧恢复行为。
     }
+  }
+
+  private clearCachedInstallerMetadata(): void {
+    this._installerPath = ''
+    this._downloadedAt = 0
+    this._sha512 = ''
+  }
+
+  private toErrorPhase(
+    operation: 'check' | 'download' | 'install' | 'runtime'
+  ): UpdateErrorPhase | null {
+    if (operation === 'check' || operation === 'download' || operation === 'install') {
+      return operation
+    }
+    return null
+  }
+
+  private hasCheckOrDownloadError(): boolean {
+    return this._status === 'error' && this._errorPhase !== 'install'
+  }
+
+  private hasInstallBlockedError(): boolean {
+    return this._status === 'error' && this._errorPhase === 'install'
   }
 
   private currentUpdaterOperation(): 'check' | 'download' | 'install' | 'runtime' {

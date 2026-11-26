@@ -40,7 +40,6 @@ export type StartupInstallDeps = {
   hashFile: (filePath: string) => Promise<string>
   notify: (version: string) => void
   exitApp: () => void
-  delay: (ms: number) => Promise<void>
 }
 
 const INSTALL_ARGUMENTS = ['/S', '--updated', '--force-run']
@@ -54,18 +53,21 @@ export const isInstallerListed = (output: string, installerFile: string): boolea
   return output.toLowerCase().includes(needle)
 }
 
-const defaultIsInstallerRunning = (installerFile: string): boolean => {
+const isProcessListed = (imageName: string): boolean => {
   try {
     const output = execFileSync(
       'tasklist',
-      ['/FI', `IMAGENAME eq ${installerFile}`, '/FO', 'CSV', '/NH'],
+      ['/FI', `IMAGENAME eq ${imageName}`, '/FO', 'CSV', '/NH'],
       { encoding: 'utf8', timeout: 3000 }
     )
-    return isInstallerListed(output, installerFile)
+    return isInstallerListed(output, imageName)
   } catch {
     return false
   }
 }
+
+export const defaultIsInstallerRunning = (installerFile: string): boolean =>
+  isProcessListed(installerFile) || isProcessListed('elevate.exe')
 
 const spawnDetached = (command: string, args: string[]): Promise<boolean> =>
   new Promise((resolve) => {
@@ -189,8 +191,10 @@ export async function tryInstallDownloadedUpdateOnStartup(
     launchInstaller: defaultLaunchInstaller,
     hashFile: computeFileSha512,
     notify: defaultNotify,
-    exitApp: () => app.exit(0),
-    delay: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+    exitApp: () => {
+      app.releaseSingleInstanceLock?.()
+      app.exit(0)
+    },
     ...overrides
   }
 
@@ -239,14 +243,14 @@ export async function tryInstallDownloadedUpdateOnStartup(
     return 'none'
   }
 
-  if (marker.attempts >= MAX_UPDATE_INSTALL_ATTEMPTS) {
-    return 'none'
-  }
-
   if (isMarkerCacheExpired(marker.downloadedAt, deps.now)) {
     logger.info('缓存的安装包已过期，丢弃后重新下载', { version: marker.version })
     removeInstaller(marker.installerPath, deps.cacheRoot)
     clearMarker(deps.markerPath)
+    return 'none'
+  }
+
+  if (marker.attempts >= MAX_UPDATE_INSTALL_ATTEMPTS) {
     return 'none'
   }
 
@@ -324,8 +328,7 @@ export async function tryInstallDownloadedUpdateOnStartup(
   }
 
   deps.notify(marker.version)
-  // 给系统通知一点投递时间，再退出进程
-  await deps.delay(500)
+  // 安装器已拉起，立即释放单实例锁并退出，避免与 NSIS 静默安装器产生进程/文件占用竞态
   deps.exitApp()
   return 'installed'
 }

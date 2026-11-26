@@ -61,6 +61,7 @@ export function createUpgradeClient(bridge: DeepchatBridge = getDeepchatBridge()
         | 'error'
         | null
       error?: string | null
+      errorPhase?: 'check' | 'download' | 'install' | null
       info?: {
         version: string
         releaseDate: string

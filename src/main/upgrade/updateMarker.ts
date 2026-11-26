@@ -4,6 +4,7 @@
  * 启动早期（还没创建窗口）和 UpgradeService 都要用它，所以从服务里抽出来，
  * 保证阶段、次数、版本比较只有一套实现。
  */
+import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { compare } from 'compare-versions'
@@ -118,6 +119,25 @@ const TRUSTED_EXTENSIONS = ['.exe', '.zip', '.dmg', '.appimage'] as const
  * 所有删除/执行安装包的地方都要先过这一层，防止标记被改写后操作任意文件。
  * 执行安装时必须传入 ['.exe']，清理缓存时用默认集合。
  */
+const resolveCanonicalPath = (targetPath: string): string => {
+  const realpath = fs.realpathSync.native ?? fs.realpathSync
+  let current = path.resolve(targetPath)
+  const trailing: string[] = []
+  while (true) {
+    try {
+      const realBase = realpath(current)
+      return trailing.length > 0 ? path.join(realBase, ...trailing.reverse()) : realBase
+    } catch {
+      const parent = path.dirname(current)
+      if (!parent || parent === current) {
+        return path.resolve(targetPath)
+      }
+      trailing.push(path.basename(current))
+      current = parent
+    }
+  }
+}
+
 export function isTrustedInstallerPath(
   installerPath: string,
   cacheRoot: string = getUpdateCacheRoot(),
@@ -126,22 +146,23 @@ export function isTrustedInstallerPath(
   if (!installerPath || !cacheRoot) {
     return false
   }
-  if (!allowedExtensions.includes(path.extname(installerPath).toLowerCase())) {
+
+  const root = resolveCanonicalPath(cacheRoot)
+  const resolved = resolveCanonicalPath(installerPath)
+  if (!allowedExtensions.includes(path.extname(resolved).toLowerCase())) {
+    return false
+  }
+  const relativeDir = path.relative(root.toLowerCase(), path.dirname(resolved).toLowerCase())
+  if (!relativeDir || relativeDir.startsWith('..') || path.isAbsolute(relativeDir)) {
     return false
   }
 
-  const root = path.resolve(cacheRoot)
-  const prefix = root.endsWith(path.sep) ? root : root + path.sep
-  const resolved = path.resolve(installerPath).toLowerCase()
-  if (!resolved.startsWith(prefix.toLowerCase())) {
+  // electron-updater 的下载缓存固定为 <cache>/<app>-updater/pending/<file>
+  const segments = relativeDir.split(path.sep).filter(Boolean)
+  if (segments.length !== 2 || !segments[0].endsWith('-updater') || segments[1] !== 'pending') {
     return false
   }
 
-  // electron-updater 的下载缓存固定为 <cache>/<updaterCacheDirName>/pending/<file>
-  if (!resolved.includes(`${path.sep}pending${path.sep}`)) {
-    return false
-  }
-
-  // artifactName 固定是 JiaorongAI-<platform>-<arch>.exe
-  return path.basename(resolved).startsWith('jiaorongai-')
+  // artifactName 固定是 JiaorongAI-<platform>-<arch>.<ext>
+  return path.basename(resolved).toLowerCase().startsWith('jiaorongai-')
 }

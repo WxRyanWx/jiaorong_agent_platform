@@ -405,4 +405,59 @@ describe('useUpgradeStore', () => {
     expect(store.showManualDownloadOptions).toBe(true)
     expect(store.updateError).toBe('network failed')
   })
+
+  it('does not treat a checkUpdate failure as an auto-install failure even with prior updateInfo', async () => {
+    const store = useUpgradeStore()
+    const handler = upgradeEventHandlers.statusChanged
+
+    handler?.({
+      status: 'available',
+      info: createUpdateInfo(),
+      version: Date.now()
+    })
+
+    upgradePresenterMock.checkUpdate.mockRejectedValueOnce(new Error('offline'))
+    const result = await store.checkUpdate(false)
+
+    expect(result).toBe('error')
+    expect(store.updateError).toBe('offline')
+    expect(store.showManualDownloadOptions).toBe(false)
+  })
+
+  it('keeps manual download options visible when background autoCheck hits prior install failure', () => {
+    const store = useUpgradeStore()
+    const handler = upgradeEventHandlers.statusChanged
+
+    handler?.({
+      status: 'checking',
+      version: Date.now()
+    })
+    handler?.({
+      status: 'error',
+      info: createUpdateInfo(),
+      error: '自动更新可能不稳定，请手动下载更新',
+      errorPhase: 'install',
+      version: Date.now()
+    })
+
+    expect(store.updateState).toBe('error')
+    expect(store.showManualDownloadOptions).toBe(true)
+  })
+
+  it('recognizes check errorPhase from synced presenter snapshot', async () => {
+    upgradePresenterMock.getUpdateStatus.mockResolvedValue({
+      status: 'error',
+      progress: null,
+      error: 'network timeout',
+      errorPhase: 'check',
+      updateInfo: createUpdateInfo()
+    })
+
+    const store = useUpgradeStore()
+    await store.refreshStatus()
+
+    expect(store.updateState).toBe('error')
+    expect(store.updateError).toBe('network timeout')
+    expect(store.showManualDownloadOptions).toBe(false)
+  })
 })
